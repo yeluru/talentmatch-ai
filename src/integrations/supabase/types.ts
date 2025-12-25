@@ -1,0 +1,750 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      ai_resume_analyses: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          full_analysis: Json | null
+          id: string
+          job_description_text: string | null
+          job_id: string | null
+          match_score: number | null
+          matched_skills: string[] | null
+          missing_skills: string[] | null
+          recommendations: string[] | null
+          resume_id: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          full_analysis?: Json | null
+          id?: string
+          job_description_text?: string | null
+          job_id?: string | null
+          match_score?: number | null
+          matched_skills?: string[] | null
+          missing_skills?: string[] | null
+          recommendations?: string[] | null
+          resume_id?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          full_analysis?: Json | null
+          id?: string
+          job_description_text?: string | null
+          job_id?: string | null
+          match_score?: number | null
+          matched_skills?: string[] | null
+          missing_skills?: string[] | null
+          recommendations?: string[] | null
+          resume_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_resume_analyses_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_resume_analyses_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_resume_analyses_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      applications: {
+        Row: {
+          ai_match_details: Json | null
+          ai_match_score: number | null
+          applied_at: string
+          candidate_id: string
+          cover_letter: string | null
+          id: string
+          job_id: string
+          recruiter_notes: string | null
+          recruiter_rating: number | null
+          resume_id: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_match_details?: Json | null
+          ai_match_score?: number | null
+          applied_at?: string
+          candidate_id: string
+          cover_letter?: string | null
+          id?: string
+          job_id: string
+          recruiter_notes?: string | null
+          recruiter_rating?: number | null
+          resume_id?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_match_details?: Json | null
+          ai_match_score?: number | null
+          applied_at?: string
+          candidate_id?: string
+          cover_letter?: string | null
+          id?: string
+          job_id?: string
+          recruiter_notes?: string | null
+          recruiter_rating?: number | null
+          resume_id?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_education: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          degree: string
+          end_date: string | null
+          field_of_study: string | null
+          gpa: number | null
+          id: string
+          institution: string
+          start_date: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          degree: string
+          end_date?: string | null
+          field_of_study?: string | null
+          gpa?: number | null
+          id?: string
+          institution: string
+          start_date?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          degree?: string
+          end_date?: string | null
+          field_of_study?: string | null
+          gpa?: number | null
+          id?: string
+          institution?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_education_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_experience: {
+        Row: {
+          candidate_id: string
+          company_name: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_current: boolean | null
+          job_title: string
+          location: string | null
+          start_date: string
+        }
+        Insert: {
+          candidate_id: string
+          company_name: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          job_title: string
+          location?: string | null
+          start_date: string
+        }
+        Update: {
+          candidate_id?: string
+          company_name?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          job_title?: string
+          location?: string | null
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_experience_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_profiles: {
+        Row: {
+          created_at: string
+          current_company: string | null
+          current_title: string | null
+          desired_job_types: string[] | null
+          desired_locations: string[] | null
+          desired_salary_max: number | null
+          desired_salary_min: number | null
+          headline: string | null
+          id: string
+          is_actively_looking: boolean | null
+          is_open_to_remote: boolean | null
+          profile_completeness: number | null
+          summary: string | null
+          updated_at: string
+          user_id: string
+          years_of_experience: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_company?: string | null
+          current_title?: string | null
+          desired_job_types?: string[] | null
+          desired_locations?: string[] | null
+          desired_salary_max?: number | null
+          desired_salary_min?: number | null
+          headline?: string | null
+          id?: string
+          is_actively_looking?: boolean | null
+          is_open_to_remote?: boolean | null
+          profile_completeness?: number | null
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+          years_of_experience?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_company?: string | null
+          current_title?: string | null
+          desired_job_types?: string[] | null
+          desired_locations?: string[] | null
+          desired_salary_max?: number | null
+          desired_salary_min?: number | null
+          headline?: string | null
+          id?: string
+          is_actively_looking?: boolean | null
+          is_open_to_remote?: boolean | null
+          profile_completeness?: number | null
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+          years_of_experience?: number | null
+        }
+        Relationships: []
+      }
+      candidate_skills: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          proficiency_level: string | null
+          skill_name: string
+          years_of_experience: number | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          proficiency_level?: string | null
+          skill_name: string
+          years_of_experience?: number | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          proficiency_level?: string | null
+          skill_name?: string
+          years_of_experience?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          applications_count: number | null
+          closes_at: string | null
+          created_at: string
+          description: string
+          experience_level: string | null
+          id: string
+          is_remote: boolean | null
+          job_type: string | null
+          location: string | null
+          nice_to_have_skills: string[] | null
+          organization_id: string
+          posted_at: string | null
+          recruiter_id: string
+          required_skills: string[] | null
+          requirements: string | null
+          responsibilities: string | null
+          salary_max: number | null
+          salary_min: number | null
+          status: string | null
+          title: string
+          updated_at: string
+          views_count: number | null
+        }
+        Insert: {
+          applications_count?: number | null
+          closes_at?: string | null
+          created_at?: string
+          description: string
+          experience_level?: string | null
+          id?: string
+          is_remote?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          nice_to_have_skills?: string[] | null
+          organization_id: string
+          posted_at?: string | null
+          recruiter_id: string
+          required_skills?: string[] | null
+          requirements?: string | null
+          responsibilities?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          views_count?: number | null
+        }
+        Update: {
+          applications_count?: number | null
+          closes_at?: string | null
+          created_at?: string
+          description?: string
+          experience_level?: string | null
+          id?: string
+          is_remote?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          nice_to_have_skills?: string[] | null
+          organization_id?: string
+          posted_at?: string | null
+          recruiter_id?: string
+          required_skills?: string[] | null
+          requirements?: string | null
+          responsibilities?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          views_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          link: string | null
+          message: string
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message: string
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          name: string
+          size: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name: string
+          size?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name?: string
+          size?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          linkedin_url: string | null
+          location: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      resumes: {
+        Row: {
+          ats_score: number | null
+          candidate_id: string
+          created_at: string
+          file_name: string
+          file_type: string
+          file_url: string
+          id: string
+          is_primary: boolean | null
+          parsed_content: Json | null
+          updated_at: string
+        }
+        Insert: {
+          ats_score?: number | null
+          candidate_id: string
+          created_at?: string
+          file_name: string
+          file_type: string
+          file_url: string
+          id?: string
+          is_primary?: boolean | null
+          parsed_content?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          ats_score?: number | null
+          candidate_id?: string
+          created_at?: string
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          is_primary?: boolean | null
+          parsed_content?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resumes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_user_roles_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_user_organization: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      app_role: "candidate" | "recruiter" | "account_manager"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["candidate", "recruiter", "account_manager"],
+    },
+  },
+} as const
