@@ -7,16 +7,26 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle, XCircle, AlertTriangle, Lightbulb, FileText } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle, XCircle, AlertTriangle, Lightbulb, FileText, Search, Briefcase } from 'lucide-react';
 
 interface Resume {
   id: string;
   file_name: string;
   file_url: string;
   is_primary: boolean | null;
+}
+
+interface Job {
+  id: string;
+  title: string;
+  description: string;
+  organization_name: string;
+  location: string | null;
 }
 
 interface AnalysisResult {
@@ -32,18 +42,27 @@ interface AnalysisResult {
 export default function AIAnalysis() {
   const { user } = useAuth();
   const [resumes, setResumes] = useState<Resume[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [jobDescription, setJobDescription] = useState('');
+  const [jobInputMode, setJobInputMode] = useState<'existing' | 'custom'>('existing');
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
   useEffect(() => {
     if (user) {
-      fetchResumes();
+      fetchData();
     }
   }, [user]);
+
+  const fetchData = async () => {
+    await Promise.all([fetchResumes(), fetchJobs()]);
+    setIsLoading(false);
+  };
 
   const fetchResumes = async () => {
     try {
@@ -69,14 +88,71 @@ export default function AIAnalysis() {
       }
     } catch (error) {
       console.error('Error fetching resumes:', error);
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  const fetchJobs = async () => {
+    try {
+      const { data: jobsData } = await supabase
+        .from('jobs')
+        .select('id, title, description, location, organization_id')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (jobsData) {
+        // Fetch organization names
+        const orgIds = [...new Set(jobsData.map(j => j.organization_id))];
+        const { data: orgsData } = await supabase
+          .from('organizations')
+          .select('id, name')
+          .in('id', orgIds);
+
+        const orgMap = new Map(orgsData?.map(o => [o.id, o.name]) || []);
+
+        setJobs(jobsData.map(j => ({
+          id: j.id,
+          title: j.title,
+          description: j.description,
+          location: j.location,
+          organization_name: orgMap.get(j.organization_id) || 'Unknown Company',
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+  };
+
+  const filteredJobs = jobs.filter(job => 
+    job.title.toLowerCase().includes(jobSearchQuery.toLowerCase()) ||
+    job.organization_name.toLowerCase().includes(jobSearchQuery.toLowerCase())
+  );
+
+  const handleJobSelect = (jobId: string) => {
+    setSelectedJobId(jobId);
+    const job = jobs.find(j => j.id === jobId);
+    if (job) {
+      setJobDescription(job.description);
+    }
+  };
+
+  const getEffectiveJobDescription = () => {
+    if (jobInputMode === 'existing') {
+      const job = jobs.find(j => j.id === selectedJobId);
+      return job?.description || '';
+    }
+    return jobDescription;
   };
 
   const handleAnalyze = async () => {
     if (!selectedResumeId) {
       toast.error('Please select a resume');
+      return;
+    }
+
+    const effectiveJD = getEffectiveJobDescription();
+    if (!effectiveJD.trim()) {
+      toast.error('Please provide a job description');
       return;
     }
 
@@ -103,7 +179,7 @@ For demonstration purposes, please imagine this contains the candidate's:
       const { data, error } = await supabase.functions.invoke('analyze-resume', {
         body: {
           resumeText,
-          jobDescription: jobDescription || undefined,
+          jobDescription: effectiveJD,
         },
       });
 
@@ -118,7 +194,8 @@ For demonstration purposes, please imagine this contains the candidate's:
         await supabase.from('ai_resume_analyses').insert({
           candidate_id: candidateId,
           resume_id: selectedResumeId,
-          job_description_text: jobDescription || null,
+          job_id: jobInputMode === 'existing' ? selectedJobId : null,
+          job_description_text: effectiveJD,
           match_score: data.analysis.match_score,
           matched_skills: data.analysis.matched_skills,
           missing_skills: data.analysis.missing_skills,
@@ -244,24 +321,77 @@ For demonstration purposes, please imagine this contains the candidate's:
 
             <Card>
               <CardHeader>
-                <CardTitle>Job Description (Optional)</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5" />
+                  Job Description
+                </CardTitle>
                 <CardDescription>
-                  Paste a job description to see how well you match
+                  Select an existing job or paste a custom description
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Textarea
-                  placeholder="Paste the job description here..."
-                  rows={8}
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                />
+                <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="existing">Select Job</TabsTrigger>
+                    <TabsTrigger value="custom">Paste JD</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="existing" className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search jobs by title or company..."
+                        value={jobSearchQuery}
+                        onChange={(e) => setJobSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-md p-2">
+                      {filteredJobs.length === 0 ? (
+                        <p className="text-muted-foreground text-sm text-center py-4">
+                          {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
+                        </p>
+                      ) : (
+                        filteredJobs.slice(0, 20).map((job) => (
+                          <div
+                            key={job.id}
+                            className={`p-3 rounded-md cursor-pointer transition-colors ${
+                              selectedJobId === job.id 
+                                ? 'bg-primary/10 border border-primary' 
+                                : 'bg-muted/50 hover:bg-muted'
+                            }`}
+                            onClick={() => handleJobSelect(job.id)}
+                          >
+                            <p className="font-medium text-sm">{job.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {job.organization_name} {job.location && `• ${job.location}`}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                      {filteredJobs.length > 20 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">
+                          Showing 20 of {filteredJobs.length} jobs. Refine your search.
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="custom">
+                    <Textarea
+                      placeholder="Paste the job description here..."
+                      rows={8}
+                      value={jobDescription}
+                      onChange={(e) => setJobDescription(e.target.value)}
+                    />
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
 
             <Button 
               onClick={handleAnalyze} 
-              disabled={isAnalyzing || !selectedResumeId}
+              disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
               className="w-full"
               size="lg"
             >
