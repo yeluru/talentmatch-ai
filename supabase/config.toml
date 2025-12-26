@@ -27,3 +27,6 @@ verify_jwt = true
 
 [functions.recommend-jobs]
 verify_jwt = true
+
+[functions.parse-resume]
+verify_jwt = false

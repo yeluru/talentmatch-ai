@@ -29,11 +29,14 @@ import {
   Users, 
   Eye,
   Loader2,
-  Briefcase
+  Briefcase,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
+import { generateOrgSlug } from '@/lib/orgSlug';
 
 export default function RecruiterJobs() {
   const { roles } = useAuth();
@@ -49,7 +52,10 @@ export default function RecruiterJobs() {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('jobs')
-        .select('*')
+        .select(`
+          *,
+          organization:organizations(name)
+        `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -57,6 +63,17 @@ export default function RecruiterJobs() {
     },
     enabled: !!organizationId,
   });
+
+  const getPublicJobUrl = (job: { id: string; organization?: { name: string } | null }) => {
+    const orgSlug = job.organization?.name ? generateOrgSlug(job.organization.name) : 'org';
+    return `${window.location.origin}/jobs/${orgSlug}/${job.id}`;
+  };
+
+  const copyJobUrl = (job: { id: string; organization?: { name: string } | null }) => {
+    const url = getPublicJobUrl(job);
+    navigator.clipboard.writeText(url);
+    toast.success('Job URL copied to clipboard');
+  };
 
   const updateJobStatus = useMutation({
     mutationFn: async ({ jobId, status }: { jobId: string; status: string }) => {
@@ -203,6 +220,20 @@ export default function RecruiterJobs() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {job.status === 'published' && (
+                            <>
+                              <DropdownMenuItem onClick={() => copyJobUrl(job)}>
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy Public URL
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <a href={getPublicJobUrl(job)} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                  Open Public Page
+                                </a>
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           {job.status === 'draft' && (
                             <DropdownMenuItem
                               onClick={() => updateJobStatus.mutate({ jobId: job.id, status: 'published' })}
