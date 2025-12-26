@@ -20,13 +20,13 @@ double_confirm_changes = false
 enable_confirmations = false
 
 [functions.analyze-resume]
-verify_jwt = true
+verify_jwt = false
 
 [functions.match-candidates]
-verify_jwt = true
+verify_jwt = false
 
 [functions.recommend-jobs]
-verify_jwt = true
+verify_jwt = false
 
 [functions.parse-resume]
 verify_jwt = false
