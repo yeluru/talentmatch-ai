@@ -28,6 +28,10 @@ import AIMatching from "./pages/recruiter/AIMatching";
 
 // Manager Pages
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
+import ManagerTeam from "./pages/manager/ManagerTeam";
+import ManagerJobs from "./pages/manager/ManagerJobs";
+import ManagerOrganization from "./pages/manager/ManagerOrganization";
+import ManagerAnalytics from "./pages/manager/ManagerAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +114,26 @@ const App = () => (
             <Route path="/manager" element={
               <ProtectedRoute allowedRoles={['account_manager']}>
                 <ManagerDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/manager/analytics" element={
+              <ProtectedRoute allowedRoles={['account_manager']}>
+                <ManagerAnalytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/manager/team" element={
+              <ProtectedRoute allowedRoles={['account_manager']}>
+                <ManagerTeam />
+              </ProtectedRoute>
+            } />
+            <Route path="/manager/jobs" element={
+              <ProtectedRoute allowedRoles={['account_manager']}>
+                <ManagerJobs />
+              </ProtectedRoute>
+            } />
+            <Route path="/manager/organization" element={
+              <ProtectedRoute allowedRoles={['account_manager']}>
+                <ManagerOrganization />
               </ProtectedRoute>
             } />
             

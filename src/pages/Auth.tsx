@@ -16,6 +16,7 @@ const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   organizationName: z.string().optional(),
+  inviteCode: z.string().optional(),
 });
 
 export default function AuthPage() {
@@ -29,20 +30,27 @@ export default function AuthPage() {
     email: '', 
     password: '', 
     fullName: '', 
-    organizationName: '' 
+    organizationName: '',
+    inviteCode: ''
   });
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    const { error } = await signIn(signInData.email, signInData.password);
+    const { error, role } = await signIn(signInData.email, signInData.password);
     
     if (error) {
       toast.error(error.message || 'Failed to sign in');
     } else {
       toast.success('Welcome back!');
-      navigate('/candidate');
+      // Redirect based on actual role from DB
+      const redirectPath = role === 'candidate' 
+        ? '/candidate' 
+        : role === 'recruiter' 
+        ? '/recruiter' 
+        : '/manager';
+      navigate(redirectPath);
     }
     setIsLoading(false);
   };
@@ -59,7 +67,8 @@ export default function AuthPage() {
         signUpData.password,
         signUpData.fullName,
         selectedRole,
-        selectedRole !== 'candidate' ? signUpData.organizationName : undefined
+        selectedRole !== 'candidate' ? signUpData.organizationName : undefined,
+        selectedRole === 'candidate' ? signUpData.inviteCode : undefined
       );
       
       if (error) {
@@ -200,6 +209,21 @@ export default function AuthPage() {
                       required
                     />
                   </div>
+                  
+                  {selectedRole === 'candidate' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-invite">Invite Code (optional)</Label>
+                      <Input
+                        id="signup-invite"
+                        placeholder="Enter invite code to join an organization"
+                        value={signUpData.inviteCode}
+                        onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value.toUpperCase() })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Get this code from a recruiter to see their organization's jobs
+                      </p>
+                    </div>
+                  )}
                   
                   {selectedRole !== 'candidate' && (
                     <div className="space-y-2">

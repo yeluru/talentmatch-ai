@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 
 type AppRole = 'candidate' | 'recruiter' | 'account_manager';
 
@@ -29,9 +27,10 @@ interface AuthContextType {
   profile: UserProfile | null;
   roles: UserRoleData[];
   currentRole: AppRole | null;
+  organizationId: string | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: AppRole, organizationName?: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, role: AppRole, organizationName?: string, inviteCode?: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; role?: AppRole }>;
   signOut: () => Promise<void>;
   switchRole: (role: AppRole) => void;
 }
@@ -44,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [roles, setRoles] = useState<UserRoleData[]>([]);
   const [currentRole, setCurrentRole] = useState<AppRole | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setRoles([]);
           setCurrentRole(null);
+          setOrganizationId(null);
           setIsLoading(false);
         }
       }
@@ -96,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }));
         setRoles(userRoles);
         
+        // Set organization ID from role data
+        const orgId = userRoles.find(r => r.organization_id)?.organization_id || null;
+        setOrganizationId(orgId);
+        
         const savedRole = localStorage.getItem('currentRole') as AppRole;
         if (savedRole && userRoles.find(r => r.role === savedRole)) {
           setCurrentRole(savedRole);
@@ -110,9 +115,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: AppRole, organizationName?: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role: AppRole, organizationName?: string, inviteCode?: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
+      
+      // If candidate with invite code, validate it first
+      let candidateOrgId: string | null = null;
+      if (role === 'candidate' && inviteCode) {
+        const { data: orgId, error: codeError } = await supabase.rpc('use_invite_code', { 
+          invite_code: inviteCode 
+        });
+        
+        if (codeError || !orgId) {
+          throw new Error('Invalid or expired invite code');
+        }
+        candidateOrgId = orgId;
+      }
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -130,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let organizationId: string | null = null;
 
+      // For recruiters/managers, create new org
       if (role !== 'candidate' && organizationName) {
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
@@ -155,7 +174,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error: candidateError } = await supabase
           .from('candidate_profiles')
           .insert({
-            user_id: authData.user.id
+            user_id: authData.user.id,
+            organization_id: candidateOrgId
           });
 
         if (candidateError) throw candidateError;
@@ -170,12 +190,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) throw error;
+      
+      // Fetch user role to determine redirect
+      if (data.user) {
+        const { data: rolesData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id);
+        
+        if (rolesData && rolesData.length > 0) {
+          return { error: null, role: rolesData[0].role as AppRole };
+        }
+      }
+      
       return { error: null };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -188,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setRoles([]);
     setCurrentRole(null);
+    setOrganizationId(null);
     localStorage.removeItem('currentRole');
   };
 
@@ -205,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       roles,
       currentRole,
+      organizationId,
       isLoading,
       signUp,
       signIn,
