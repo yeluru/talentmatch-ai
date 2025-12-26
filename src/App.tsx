@@ -9,8 +9,24 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+
+// Candidate Pages
 import CandidateDashboard from "./pages/candidate/CandidateDashboard";
+import CandidateProfile from "./pages/candidate/CandidateProfile";
+import CandidateResumes from "./pages/candidate/CandidateResumes";
+import JobSearch from "./pages/candidate/JobSearch";
+import JobDetails from "./pages/candidate/JobDetails";
+import MyApplications from "./pages/candidate/MyApplications";
+import AIAnalysis from "./pages/candidate/AIAnalysis";
+
+// Recruiter Pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
+import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
+import CreateJob from "./pages/recruiter/CreateJob";
+import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
+import AIMatching from "./pages/recruiter/AIMatching";
+
+// Manager Pages
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 
 const queryClient = new QueryClient();
@@ -32,11 +48,61 @@ const App = () => (
                 <CandidateDashboard />
               </ProtectedRoute>
             } />
+            <Route path="/candidate/profile" element={
+              <ProtectedRoute allowedRoles={['candidate']}>
+                <CandidateProfile />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidate/resumes" element={
+              <ProtectedRoute allowedRoles={['candidate']}>
+                <CandidateResumes />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidate/jobs" element={
+              <ProtectedRoute allowedRoles={['candidate']}>
+                <JobSearch />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidate/jobs/:id" element={
+              <ProtectedRoute allowedRoles={['candidate']}>
+                <JobDetails />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidate/applications" element={
+              <ProtectedRoute allowedRoles={['candidate']}>
+                <MyApplications />
+              </ProtectedRoute>
+            } />
+            <Route path="/candidate/ai-analysis" element={
+              <ProtectedRoute allowedRoles={['candidate']}>
+                <AIAnalysis />
+              </ProtectedRoute>
+            } />
             
             {/* Recruiter Routes */}
             <Route path="/recruiter" element={
               <ProtectedRoute allowedRoles={['recruiter']}>
                 <RecruiterDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/jobs" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <RecruiterJobs />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/jobs/new" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <CreateJob />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/candidates" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <RecruiterCandidates />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/ai-matching" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <AIMatching />
               </ProtectedRoute>
             } />
             
