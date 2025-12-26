@@ -33,6 +33,15 @@ interface MatchResult {
   recommendation: string;
 }
 
+interface ApplicantWithProfile {
+  id: string;
+  candidate_id: string;
+  ai_match_score: number | null;
+  candidate_profiles: { id: string; current_title: string | null; years_of_experience: number | null; user_id: string } | null;
+  profile?: { user_id: string; full_name: string };
+  skills?: string[];
+}
+
 export default function AIMatching() {
   const { roles } = useAuth();
   const queryClient = useQueryClient();
@@ -58,9 +67,9 @@ export default function AIMatching() {
   });
 
   // Fetch candidates who applied for selected job
-  const { data: applicants, isLoading: applicantsLoading } = useQuery({
+  const { data: applicants, isLoading: applicantsLoading } = useQuery<ApplicantWithProfile[]>({
     queryKey: ['job-applicants', selectedJob],
-    queryFn: async () => {
+    queryFn: async (): Promise<ApplicantWithProfile[]> => {
       if (!selectedJob) return [];
       
       const { data, error } = await supabase

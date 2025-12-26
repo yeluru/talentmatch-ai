@@ -39,9 +39,24 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
-import { StatusBadge } from '@/components/ui/status-badge';
+import { StatusBadge, ApplicationStatus } from '@/components/ui/status-badge';
 
-type AppStatus = 'applied' | 'reviewing' | 'shortlisted' | 'interviewing' | 'offered' | 'rejected' | 'hired';
+interface ApplicationWithProfile {
+  id: string;
+  candidate_id: string;
+  job_id: string;
+  status: string | null;
+  applied_at: string;
+  cover_letter: string | null;
+  recruiter_notes: string | null;
+  recruiter_rating: number | null;
+  ai_match_score: number | null;
+  ai_match_details: any;
+  jobs: { id: string; title: string; organization_id: string } | null;
+  candidate_profiles: { id: string; current_title: string | null; years_of_experience: number | null; user_id: string } | null;
+  resumes: { id: string; file_name: string; file_url: string } | { id: string; file_name: string; file_url: string }[] | null;
+  profile?: { user_id: string; full_name: string; email: string };
+}
 
 export default function RecruiterCandidates() {
   const { roles } = useAuth();
@@ -72,9 +87,9 @@ export default function RecruiterCandidates() {
   });
 
   // Fetch applications with candidate info
-  const { data: applications, isLoading } = useQuery({
+  const { data: applications, isLoading } = useQuery<ApplicationWithProfile[]>({
     queryKey: ['recruiter-applications', organizationId, selectedJobFilter],
-    queryFn: async () => {
+    queryFn: async (): Promise<ApplicationWithProfile[]> => {
       if (!organizationId) return [];
       
       let query = supabase
@@ -103,13 +118,13 @@ export default function RecruiterCandidates() {
           .select('user_id, full_name, email')
           .in('user_id', userIds);
         
-        return data?.map(app => ({
+        return (data?.map(app => ({
           ...app,
           profile: profiles?.find(p => p.user_id === app.candidate_profiles?.user_id)
-        }));
+        })) || []) as unknown as ApplicationWithProfile[];
       }
       
-      return data;
+      return (data || []) as unknown as ApplicationWithProfile[];
     },
     enabled: !!organizationId,
   });
@@ -240,7 +255,7 @@ export default function RecruiterCandidates() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold">{app.profile?.full_name || 'Unknown'}</h3>
-                          <StatusBadge status={(app.status || 'applied') as AppStatus} />
+                          <StatusBadge status={(app.status || 'applied') as ApplicationStatus} />
                           {app.ai_match_score && (
                             <ScoreBadge score={app.ai_match_score} size="sm" />
                           )}
@@ -343,12 +358,12 @@ export default function RecruiterCandidates() {
             )}
 
             {/* Resume */}
-            {selectedApplication?.resumes?.length > 0 && (
+            {selectedApplication?.resumes && (Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes.length > 0 : true) && (
               <div className="space-y-2">
                 <Label>Resume</Label>
                 <Button variant="outline" asChild>
                   <a 
-                    href={selectedApplication.resumes[0].file_url} 
+                    href={Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes[0]?.file_url : selectedApplication.resumes?.file_url} 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
