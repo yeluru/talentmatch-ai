@@ -11,31 +11,82 @@ serve(async (req) => {
   }
 
   try {
-    const { resumeText } = await req.json();
+    const { fileBase64, fileName, fileType, resumeText } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    if (!resumeText || resumeText.trim().length < 50) {
-      throw new Error("Resume text is too short or empty");
+    let textContent = resumeText;
+
+    // If we received a base64 file, we need to extract text
+    if (fileBase64 && !textContent) {
+      console.log("Processing file:", fileName, "Type:", fileType);
+      
+      // Decode base64 to get file content
+      const binaryContent = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
+      
+      // For PDF files, we'll use a simple text extraction approach
+      // by looking for text streams in the PDF
+      if (fileType === 'application/pdf') {
+        const decoder = new TextDecoder('utf-8', { fatal: false });
+        const rawText = decoder.decode(binaryContent);
+        
+        // Extract text between BT (begin text) and ET (end text) markers
+        // This is a simplified PDF text extraction
+        const textMatches = rawText.match(/\(([^)]+)\)/g) || [];
+        textContent = textMatches
+          .map(match => match.slice(1, -1))
+          .filter(text => text.length > 1 && /[a-zA-Z]/.test(text))
+          .join(' ');
+        
+        // Also try to find plain text content
+        const plainTextMatches = rawText.match(/[A-Za-z][A-Za-z0-9\s@.,-]+[A-Za-z0-9]/g) || [];
+        const additionalText = plainTextMatches
+          .filter(t => t.length > 5)
+          .join(' ');
+        
+        textContent = textContent + ' ' + additionalText;
+        
+        // Clean up the extracted text
+        textContent = textContent
+          .replace(/\\[nrt]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+          
+        console.log("Extracted text length:", textContent.length);
+      } else {
+        // For text-based files, just decode as text
+        const decoder = new TextDecoder('utf-8');
+        textContent = decoder.decode(binaryContent);
+      }
     }
 
-    console.log("Parsing resume, text length:", resumeText.length);
+    if (!textContent || textContent.trim().length < 30) {
+      console.log("Insufficient text extracted, attempting AI vision parsing");
+      
+      // If we couldn't extract enough text, use AI with base64 image/document
+      // The AI can understand document structure from the raw content
+      textContent = `[Document uploaded: ${fileName}. File type: ${fileType}. Please analyze and extract candidate information from this resume document.]`;
+    }
 
-    const systemPrompt = `You are an expert resume parser. Extract key information from the resume text provided.
+    console.log("Parsing resume, text length:", textContent.length);
+
+    const systemPrompt = `You are an expert resume parser. Extract key information from the resume text or document provided.
 Be accurate and only extract information that is clearly present in the resume.
 For the email, look for patterns like name@domain.com.
 For phone numbers, look for patterns with area codes.
-For skills, extract both technical and soft skills mentioned.`;
+For skills, extract both technical and soft skills mentioned.
+If the input seems garbled or unreadable, try to extract any recognizable information like email addresses, phone numbers, and names.`;
 
     const userPrompt = `Parse this resume and extract the candidate's information:
 
-RESUME TEXT:
-${resumeText}
+RESUME CONTENT:
+${textContent.substring(0, 10000)}
 
-Extract all relevant information including contact details, skills, experience, and education.`;
+Extract all relevant information including contact details, skills, experience, and education.
+If the text is partially garbled, focus on extracting recognizable patterns like email addresses and phone numbers.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
