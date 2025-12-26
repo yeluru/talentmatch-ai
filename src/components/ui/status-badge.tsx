@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type ApplicationStatus = 'applied' | 'reviewed' | 'shortlisted' | 'interviewing' | 'offered' | 'hired' | 'rejected' | 'withdrawn';
+export type ApplicationStatus = 'applied' | 'reviewing' | 'reviewed' | 'shortlisted' | 'interviewing' | 'offered' | 'hired' | 'rejected' | 'withdrawn';
 
 interface StatusBadgeProps {
   status: ApplicationStatus;
@@ -9,6 +9,7 @@ interface StatusBadgeProps {
 
 const statusConfig: Record<ApplicationStatus, { label: string; className: string }> = {
   applied: { label: 'Applied', className: 'stage-applied' },
+  reviewing: { label: 'Reviewing', className: 'stage-reviewed' },
   reviewed: { label: 'Reviewed', className: 'stage-reviewed' },
   shortlisted: { label: 'Shortlisted', className: 'stage-shortlisted' },
   interviewing: { label: 'Interviewing', className: 'stage-interviewing' },
@@ -19,7 +20,7 @@ const statusConfig: Record<ApplicationStatus, { label: string; className: string
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.applied;
   
   return (
     <span className={cn(
