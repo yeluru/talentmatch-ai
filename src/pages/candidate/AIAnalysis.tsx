@@ -100,20 +100,18 @@ For demonstration purposes, please imagine this contains the candidate's:
 - Projects
 - Certifications`;
 
-      const response = await supabase.functions.invoke('analyze-resume', {
+      const { data, error } = await supabase.functions.invoke('analyze-resume', {
         body: {
           resumeText,
           jobDescription: jobDescription || undefined,
         },
       });
 
-      if (response.error) throw response.error;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.analysis) throw new Error('No analysis returned');
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-
-      setAnalysisResult(response.data.analysis);
+      setAnalysisResult(data.analysis);
 
       // Save analysis to database
       if (candidateId) {
@@ -121,18 +119,24 @@ For demonstration purposes, please imagine this contains the candidate's:
           candidate_id: candidateId,
           resume_id: selectedResumeId,
           job_description_text: jobDescription || null,
-          match_score: response.data.analysis.match_score,
-          matched_skills: response.data.analysis.matched_skills,
-          missing_skills: response.data.analysis.missing_skills,
-          recommendations: response.data.analysis.recommendations,
-          full_analysis: response.data.analysis,
+          match_score: data.analysis.match_score,
+          matched_skills: data.analysis.matched_skills,
+          missing_skills: data.analysis.missing_skills,
+          recommendations: data.analysis.recommendations,
+          full_analysis: data.analysis,
         });
       }
 
       toast.success('Analysis complete!');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error analyzing resume:', error);
-      toast.error('Failed to analyze resume. Please try again.');
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Failed to analyze resume. Please try again.';
+      toast.error(message);
     } finally {
       setIsAnalyzing(false);
     }
