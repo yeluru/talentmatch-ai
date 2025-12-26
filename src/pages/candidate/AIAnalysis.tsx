@@ -128,14 +128,44 @@ For demonstration purposes, please imagine this contains the candidate's:
       }
 
       toast.success('Analysis complete!');
-    } catch (error: unknown) {
-      console.error('Error analyzing resume:', error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === 'string'
-            ? error
-            : 'Failed to analyze resume. Please try again.';
+    } catch (err: unknown) {
+      console.error('Error analyzing resume:', err);
+
+      // Supabase Functions errors often include a Response in err.context
+      const anyErr = err as any;
+      const ctx = anyErr?.context;
+
+      let message: string | null = null;
+
+      // Try to read JSON/text from the underlying Response
+      if (ctx && typeof ctx === 'object' && typeof ctx.status === 'number') {
+        try {
+          const cloned = typeof ctx.clone === 'function' ? ctx.clone() : ctx;
+          if (typeof cloned.json === 'function') {
+            const body = await cloned.json();
+            message = body?.error ? String(body.error) : null;
+          } else if (typeof cloned.text === 'function') {
+            const t = await cloned.text();
+            message = t ? String(t) : null;
+          }
+
+          if (!message) {
+            message = `Analyze failed (status ${ctx.status})`;
+          }
+        } catch {
+          message = `Analyze failed (status ${ctx.status})`;
+        }
+      }
+
+      if (!message) {
+        message =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : 'Failed to analyze resume. Please try again.';
+      }
+
       toast.error(message);
     } finally {
       setIsAnalyzing(false);
