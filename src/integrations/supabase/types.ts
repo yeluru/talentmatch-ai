@@ -249,6 +249,7 @@ export type Database = {
           id: string
           is_actively_looking: boolean | null
           is_open_to_remote: boolean | null
+          organization_id: string | null
           profile_completeness: number | null
           summary: string | null
           updated_at: string
@@ -267,6 +268,7 @@ export type Database = {
           id?: string
           is_actively_looking?: boolean | null
           is_open_to_remote?: boolean | null
+          organization_id?: string | null
           profile_completeness?: number | null
           summary?: string | null
           updated_at?: string
@@ -285,13 +287,22 @@ export type Database = {
           id?: string
           is_actively_looking?: boolean | null
           is_open_to_remote?: boolean | null
+          organization_id?: string | null
           profile_completeness?: number | null
           summary?: string | null
           updated_at?: string
           user_id?: string
           years_of_experience?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "candidate_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       candidate_skills: {
         Row: {
@@ -443,6 +454,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      organization_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          organization_id: string
+          uses_count: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          organization_id: string
+          uses_count?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          organization_id?: string
+          uses_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invite_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organizations: {
         Row: {
@@ -606,6 +661,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invite_code: { Args: never; Returns: string }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -614,6 +670,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      use_invite_code: { Args: { invite_code: string }; Returns: string }
     }
     Enums: {
       app_role: "candidate" | "recruiter" | "account_manager"
