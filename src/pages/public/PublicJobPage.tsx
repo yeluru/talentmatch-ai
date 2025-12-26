@@ -14,10 +14,6 @@ import {
   CheckCircle, User, Mail, Briefcase, ArrowRight, LogIn
 } from 'lucide-react';
 import { format } from 'date-fns';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set the worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface Job {
   id: string;
@@ -127,41 +123,15 @@ export default function PublicJobPage() {
     }
   };
 
-  const parseResumeFile = async (file: File): Promise<string> => {
-    const fileType = file.type;
-    
-    // Handle PDF files
-    if (fileType === 'application/pdf') {
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ');
-          fullText += pageText + '\n';
-        }
-        
-        return fullText;
-      } catch (error) {
-        console.error('PDF parsing error:', error);
-        throw new Error('Failed to parse PDF. Please try a different file format.');
-      }
-    }
-    
-    // Handle text-based files (txt, doc - though doc won't work well)
+  const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        resolve(text);
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        resolve(base64);
       };
       reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsText(file);
+      reader.readAsDataURL(file);
     });
   };
 
@@ -175,16 +145,16 @@ export default function PublicJobPage() {
     setIsProcessing(true);
 
     try {
-      // Read file content
-      const resumeText = await parseResumeFile(resumeFile);
-      
-      if (resumeText.length < 50) {
-        throw new Error('Could not extract text from file. Please ensure your resume is a text-based document.');
-      }
+      // Convert file to base64 for the edge function
+      const fileBase64 = await fileToBase64(resumeFile);
 
       // Call the parse-resume edge function
       const { data, error } = await supabase.functions.invoke('parse-resume', {
-        body: { resumeText }
+        body: { 
+          fileBase64,
+          fileName: resumeFile.name,
+          fileType: resumeFile.type
+        }
       });
 
       if (error) throw error;
