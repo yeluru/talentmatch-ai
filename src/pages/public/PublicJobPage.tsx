@@ -14,6 +14,10 @@ import {
   CheckCircle, User, Mail, Briefcase, ArrowRight, LogIn
 } from 'lucide-react';
 import { format } from 'date-fns';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set the worker source for PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface Job {
   id: string;
@@ -124,8 +128,32 @@ export default function PublicJobPage() {
   };
 
   const parseResumeFile = async (file: File): Promise<string> => {
-    // For now, we'll read text content from the file
-    // In production, you'd want to use a proper PDF parser
+    const fileType = file.type;
+    
+    // Handle PDF files
+    if (fileType === 'application/pdf') {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ');
+          fullText += pageText + '\n';
+        }
+        
+        return fullText;
+      } catch (error) {
+        console.error('PDF parsing error:', error);
+        throw new Error('Failed to parse PDF. Please try a different file format.');
+      }
+    }
+    
+    // Handle text-based files (txt, doc - though doc won't work well)
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
