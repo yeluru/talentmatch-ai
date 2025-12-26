@@ -146,30 +146,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user returned');
 
-      let organizationId: string | null = null;
+      let newOrganizationId: string | null = null;
 
-      // For recruiters/managers, create new org
+      // For recruiters/managers, create new org first
       if (role !== 'candidate' && organizationName) {
+        console.log('Creating organization:', organizationName);
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
           .insert({ name: organizationName })
           .select()
           .single();
 
-        if (orgError) throw orgError;
-        organizationId = orgData.id;
+        if (orgError) {
+          console.error('Organization creation error:', orgError);
+          throw new Error(`Failed to create organization: ${orgError.message}`);
+        }
+        console.log('Organization created:', orgData);
+        newOrganizationId = orgData.id;
       }
 
+      // Create user role
+      console.log('Creating user role:', role, 'with org:', newOrganizationId);
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: authData.user.id,
           role,
-          organization_id: organizationId
+          organization_id: newOrganizationId
         });
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Role creation error:', roleError);
+        throw new Error(`Failed to create user role: ${roleError.message}`);
+      }
 
+      // For candidates, create candidate profile
       if (role === 'candidate') {
         const { error: candidateError } = await supabase
           .from('candidate_profiles')
@@ -178,7 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             organization_id: candidateOrgId
           });
 
-        if (candidateError) throw candidateError;
+        if (candidateError) {
+          console.error('Candidate profile creation error:', candidateError);
+          throw new Error(`Failed to create candidate profile: ${candidateError.message}`);
+        }
       }
 
       return { error: null };
