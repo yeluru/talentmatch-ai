@@ -28,15 +28,23 @@ serve(async (req) => {
       const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
 
       if (fileType === "application/pdf") {
-        // Robust PDF text extraction (the previous approach was too brittle for many PDFs)
+        // Robust PDF text extraction
         try {
           const pdfjsLib = await import(
             "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs?deno"
           );
 
-          const loadingTask = pdfjsLib.getDocument({
+          // pdf.js expects a worker src to be configured even when workers are disabled in some builds
+          try {
+            // Use a CDN worker (safe even when disableWorker=true)
+            (pdfjsLib as any).GlobalWorkerOptions.workerSrc =
+              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+          } catch {
+            // ignore if not present
+          }
+
+          const loadingTask = (pdfjsLib as any).getDocument({
             data: binaryContent,
-            // Workers aren't available/needed in this environment
             disableWorker: true,
           } as any);
 
@@ -52,9 +60,7 @@ serve(async (req) => {
             }
           }
 
-          textContent = parts.join(" ")
-            .replace(/\s+/g, " ")
-            .trim();
+          textContent = parts.join(" ").replace(/\s+/g, " ").trim();
 
           console.log(
             "PDF.js extracted text length:",
@@ -76,9 +82,7 @@ serve(async (req) => {
             .join(" ");
 
           const plainTextMatches = rawText.match(/[A-Za-z][A-Za-z0-9\s@.,-]+[A-Za-z0-9]/g) || [];
-          const additionalText = plainTextMatches
-            .filter((t) => t.length > 5)
-            .join(" ");
+          const additionalText = plainTextMatches.filter((t) => t.length > 5).join(" ");
 
           textContent = (extracted + " " + additionalText)
             .replace(/\\[nrt]/g, " ")
@@ -86,6 +90,24 @@ serve(async (req) => {
             .trim();
 
           console.log("Fallback extracted text length:", textContent.length);
+        }
+      } else if (
+        fileType ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        fileName?.toLowerCase().endsWith(".docx")
+      ) {
+        // DOCX text extraction
+        try {
+          const mammoth = await import("https://esm.sh/mammoth@1.8.0?deno");
+          const result = await (mammoth as any).extractRawText({
+            arrayBuffer: binaryContent.buffer,
+          });
+          textContent = String(result?.value || "").replace(/\s+/g, " ").trim();
+          console.log("Mammoth extracted text length:", textContent.length);
+        } catch (e) {
+          console.error("DOCX extraction failed, falling back to utf-8 decode:", e);
+          const decoder = new TextDecoder("utf-8", { fatal: false });
+          textContent = decoder.decode(binaryContent);
         }
       } else {
         // For text-based files, just decode as text
