@@ -563,35 +563,43 @@ export default function PublicJobPage() {
                         <Label htmlFor="fullName">Full Name *</Label>
                         <Input
                           id="fullName"
+                          autoComplete="off"
                           value={formData.fullName}
                           onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
                           placeholder="John Doe"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="email">Email *</Label>
+                        <Label htmlFor="app-email">Email *</Label>
                         <Input
-                          id="email"
+                          id="app-email"
+                          name="app-email"
                           type="email"
+                          autoComplete="off"
                           value={formData.email}
                           onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                           placeholder="john@example.com"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="password">Create Password *</Label>
+                        <Label htmlFor="app-password">Create Password *</Label>
                         <Input
-                          id="password"
+                          id="app-password"
+                          name="app-password"
                           type="password"
+                          autoComplete="new-password"
                           value={formData.password}
                           onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                           placeholder="••••••••"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="phone">Phone (optional)</Label>
+                        <Label htmlFor="app-phone">Phone (optional)</Label>
                         <Input
-                          id="phone"
+                          id="app-phone"
+                          name="app-phone"
+                          type="tel"
+                          autoComplete="off"
                           value={formData.phone}
                           onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="+1 (555) 000-0000"
