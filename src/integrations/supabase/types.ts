@@ -14,6 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_recommendations: {
+        Row: {
+          agent_id: string
+          candidate_id: string
+          created_at: string
+          id: string
+          match_score: number | null
+          recommendation_reason: string | null
+          reviewed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          agent_id: string
+          candidate_id: string
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          recommendation_reason?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          agent_id?: string
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          recommendation_reason?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_recommendations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_recruiting_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_recommendations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_recruiting_agents: {
+        Row: {
+          auto_outreach: boolean | null
+          candidates_found: number | null
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean | null
+          job_id: string | null
+          last_run_at: string | null
+          name: string
+          organization_id: string
+          search_criteria: Json
+          updated_at: string
+        }
+        Insert: {
+          auto_outreach?: boolean | null
+          candidates_found?: number | null
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          job_id?: string | null
+          last_run_at?: string | null
+          name: string
+          organization_id: string
+          search_criteria?: Json
+          updated_at?: string
+        }
+        Update: {
+          auto_outreach?: boolean | null
+          candidates_found?: number | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          job_id?: string | null
+          last_run_at?: string | null
+          name?: string
+          organization_id?: string
+          search_criteria?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_recruiting_agents_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_recruiting_agents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_resume_analyses: {
         Row: {
           candidate_id: string
@@ -141,6 +249,60 @@ export type Database = {
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string
+          candidate_id: string
+          created_at: string
+          current_step: number | null
+          email: string
+          id: string
+          opened_at: string | null
+          replied_at: string | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          campaign_id: string
+          candidate_id: string
+          created_at?: string
+          current_step?: number | null
+          email: string
+          id?: string
+          opened_at?: string | null
+          replied_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          candidate_id?: string
+          created_at?: string
+          current_step?: number | null
+          email?: string
+          id?: string
+          opened_at?: string | null
+          replied_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -304,6 +466,44 @@ export type Database = {
           },
         ]
       }
+      candidate_shortlists: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_shortlists_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_skills: {
         Row: {
           candidate_id: string
@@ -335,6 +535,50 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_sequences: {
+        Row: {
+          body_template: string
+          created_at: string
+          created_by: string
+          delay_days: number
+          id: string
+          name: string
+          organization_id: string
+          sequence_order: number
+          subject_template: string
+        }
+        Insert: {
+          body_template: string
+          created_at?: string
+          created_by: string
+          delay_days?: number
+          id?: string
+          name: string
+          organization_id: string
+          sequence_order?: number
+          subject_template: string
+        }
+        Update: {
+          body_template?: string
+          created_at?: string
+          created_by?: string
+          delay_days?: number
+          id?: string
+          name?: string
+          organization_id?: string
+          sequence_order?: number
+          subject_template?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_sequences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -535,6 +779,54 @@ export type Database = {
         }
         Relationships: []
       }
+      outreach_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          job_id: string | null
+          name: string
+          organization_id: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          job_id?: string | null
+          name: string
+          organization_id: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          job_id?: string | null
+          name?: string
+          organization_id?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_campaigns_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -620,6 +912,93 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shortlist_candidates: {
+        Row: {
+          added_at: string
+          added_by: string
+          candidate_id: string
+          id: string
+          notes: string | null
+          shortlist_id: string
+          status: string | null
+        }
+        Insert: {
+          added_at?: string
+          added_by: string
+          candidate_id: string
+          id?: string
+          notes?: string | null
+          shortlist_id: string
+          status?: string | null
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          candidate_id?: string
+          id?: string
+          notes?: string | null
+          shortlist_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shortlist_candidates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shortlist_candidates_shortlist_id_fkey"
+            columns: ["shortlist_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_shortlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talent_insights: {
+        Row: {
+          created_at: string
+          id: string
+          insights_data: Json
+          job_id: string | null
+          organization_id: string
+          search_query: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          insights_data?: Json
+          job_id?: string | null
+          organization_id: string
+          search_query?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          insights_data?: Json
+          job_id?: string | null
+          organization_id?: string
+          search_query?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_insights_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_insights_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

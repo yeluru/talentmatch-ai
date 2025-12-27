@@ -30,3 +30,15 @@ verify_jwt = false
 
 [functions.parse-resume]
 verify_jwt = false
+
+[functions.talent-search]
+verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false
+
+[functions.run-agent]
+verify_jwt = false
+
+[functions.generate-email]
+verify_jwt = false
