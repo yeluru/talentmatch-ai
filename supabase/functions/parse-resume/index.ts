@@ -73,6 +73,14 @@ serve(async (req) => {
 
     console.log("Parsing resume, text length:", textContent.length);
 
+    // Heuristic extraction for contact details (fallback when model misses them)
+    const emailMatch = textContent.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    const extractedEmail = emailMatch?.[0]?.trim();
+
+    // Basic phone matcher (supports +country, separators, parentheses)
+    const phoneMatch = textContent.match(/(\+?\d{1,3}[\s.-]?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/);
+    const extractedPhone = phoneMatch?.[0]?.trim();
+
     const systemPrompt = `You are an expert resume parser. Extract key information from the resume text or document provided.
 Be accurate and only extract information that is clearly present in the resume.
 For the email, look for patterns like name@domain.com.
@@ -83,7 +91,11 @@ If the input seems garbled or unreadable, try to extract any recognizable inform
     const userPrompt = `Parse this resume and extract the candidate's information:
 
 RESUME CONTENT:
-${textContent.substring(0, 10000)}
+${textContent.substring(0, 30000)}
+
+Hints (regex-detected, may be empty):
+- Email: ${extractedEmail ?? ""}
+- Phone: ${extractedPhone ?? ""}
 
 Extract all relevant information including contact details, skills, experience, and education.
 If the text is partially garbled, focus on extracting recognizable patterns like email addresses and phone numbers.`;
@@ -216,6 +228,11 @@ If the text is partially garbled, focus on extracting recognizable patterns like
     }
 
     const parsed = JSON.parse(toolCall.function.arguments);
+
+    // Post-process: fill missing contact fields from regex extraction
+    if (!parsed.email && extractedEmail) parsed.email = extractedEmail;
+    if (!parsed.phone && extractedPhone) parsed.phone = extractedPhone;
+
     console.log("Parsed resume for:", parsed.full_name, "Email:", parsed.email);
 
     return new Response(JSON.stringify({ parsed }), {
