@@ -28,15 +28,13 @@ serve(async (req) => {
       const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
 
       if (fileType === "application/pdf") {
-        // PDF text extraction using pdfjs (run without worker for Deno)
+        // PDF text extraction using a serverless PDF.js build that works in Deno/edge runtimes
         try {
-          const pdfjs = await import(
-            "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs?deno"
-          );
+          const { getDocument } = await import("https://esm.sh/pdfjs-serverless@0.3.2?deno");
 
-          const loadingTask = (pdfjs as any).getDocument({
+          const loadingTask = (getDocument as any)({
             data: binaryContent,
-            disableWorker: true,
+            useSystemFonts: true,
           });
 
           const pdf = await loadingTask.promise;
@@ -53,9 +51,9 @@ serve(async (req) => {
           }
 
           textContent = parts.join("\n\n").replace(/\s+/g, " ").trim();
-          console.log("PDF pdfjs extracted text length:", textContent.length);
+          console.log("PDF extracted text length:", textContent.length);
         } catch (e) {
-          console.error("PDF pdfjs parsing error:", e);
+          console.error("PDF parsing error:", e);
           textContent = "";
         }
       } else if (
