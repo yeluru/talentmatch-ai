@@ -73,32 +73,67 @@ serve(async (req) => {
 
     console.log("Parsing resume, text length:", textContent.length);
 
-    // Heuristic extraction for contact details (fallback when model misses them)
-    const emailMatch = textContent.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-    const extractedEmail = emailMatch?.[0]?.trim();
-
-    // Basic phone matcher (supports +country, separators, parentheses)
-    const phoneMatch = textContent.match(/(\+?\d{1,3}[\s.-]?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/);
-    const extractedPhone = phoneMatch?.[0]?.trim();
+    // Heuristic extraction for contact details using multiple regex patterns
+    // Try multiple email patterns from most specific to general
+    const emailPatterns = [
+      /[a-zA-Z0-9._%+-]+@gmail\.com/gi,
+      /[a-zA-Z0-9._%+-]+@yahoo\.com/gi,
+      /[a-zA-Z0-9._%+-]+@outlook\.com/gi,
+      /[a-zA-Z0-9._%+-]+@hotmail\.com/gi,
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi,
+    ];
+    
+    let extractedEmail: string | undefined;
+    for (const pattern of emailPatterns) {
+      const matches = textContent.match(pattern);
+      if (matches && matches.length > 0) {
+        // Take the first valid-looking email
+        extractedEmail = matches[0].trim();
+        break;
+      }
+    }
+    
+    // Multiple phone patterns - more flexible matching
+    const phonePatterns = [
+      /\+1\s*\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/g,  // +1 (xxx) xxx-xxxx
+      /\+1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/g,  // +1-xxx-xxx-xxxx
+      /\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/g,  // (xxx) xxx-xxxx
+      /\d{3}[-.\s]\d{3}[-.\s]\d{4}/g,  // xxx-xxx-xxxx
+      /\+\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,  // International
+    ];
+    
+    let extractedPhone: string | undefined;
+    for (const pattern of phonePatterns) {
+      const matches = textContent.match(pattern);
+      if (matches && matches.length > 0) {
+        // Take the first valid-looking phone
+        extractedPhone = matches[0].trim();
+        break;
+      }
+    }
+    
+    console.log("Regex extracted - Email:", extractedEmail, "Phone:", extractedPhone);
 
     const systemPrompt = `You are an expert resume parser. Extract key information from the resume text or document provided.
 Be accurate and only extract information that is clearly present in the resume.
-For the email, look for patterns like name@domain.com.
-For phone numbers, look for patterns with area codes.
-For skills, extract both technical and soft skills mentioned.
-If the input seems garbled or unreadable, try to extract any recognizable information like email addresses, phone numbers, and names.`;
+
+CRITICAL INSTRUCTIONS FOR CONTACT INFO:
+- For email: Look carefully for patterns like name@gmail.com, name@domain.com. The email is usually near the top of the resume near the name.
+- For phone: Look for phone number patterns like +1 (xxx) xxx-xxxx or xxx-xxx-xxxx. Usually near email.
+- If you see hints provided with regex-detected values, USE THEM - they are reliable.
+
+For skills, extract both technical and soft skills mentioned.`;
 
     const userPrompt = `Parse this resume and extract the candidate's information:
+
+IMPORTANT - USE THESE CONTACT DETAILS IF DETECTED:
+- Detected Email: ${extractedEmail ?? "NOT FOUND - search the text carefully"}
+- Detected Phone: ${extractedPhone ?? "NOT FOUND - search the text carefully"}
 
 RESUME CONTENT:
 ${textContent.substring(0, 30000)}
 
-Hints (regex-detected, may be empty):
-- Email: ${extractedEmail ?? ""}
-- Phone: ${extractedPhone ?? ""}
-
-Extract all relevant information including contact details, skills, experience, and education.
-If the text is partially garbled, focus on extracting recognizable patterns like email addresses and phone numbers.`;
+IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''}" shown above were extracted via regex. If they look valid, USE THEM in your response.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
