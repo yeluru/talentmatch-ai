@@ -41,6 +41,21 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { StatusBadge, ApplicationStatus } from '@/components/ui/status-badge';
 
+interface ParsedResumeContent {
+  current_title?: string;
+  years_of_experience?: number;
+  full_name?: string;
+  email?: string;
+  skills?: string[];
+}
+
+interface ResumeWithParsed {
+  id: string;
+  file_name: string;
+  file_url: string;
+  parsed_content?: ParsedResumeContent | null;
+}
+
 interface ApplicationWithProfile {
   id: string;
   candidate_id: string;
@@ -54,7 +69,7 @@ interface ApplicationWithProfile {
   ai_match_details: any;
   jobs: { id: string; title: string; organization_id: string } | null;
   candidate_profiles: { id: string; current_title: string | null; years_of_experience: number | null; user_id: string } | null;
-  resumes: { id: string; file_name: string; file_url: string } | { id: string; file_name: string; file_url: string }[] | null;
+  resumes: ResumeWithParsed | ResumeWithParsed[] | null;
   profile?: { user_id: string; full_name: string; email: string };
 }
 
@@ -98,7 +113,7 @@ export default function RecruiterCandidates() {
           *,
           jobs!inner(id, title, organization_id),
           candidate_profiles!inner(id, current_title, years_of_experience, user_id),
-          resumes(id, file_name, file_url)
+          resumes(id, file_name, file_url, parsed_content)
         `)
         .eq('jobs.organization_id', organizationId)
         .order('applied_at', { ascending: false });
@@ -157,10 +172,20 @@ export default function RecruiterCandidates() {
     },
   });
 
+  const getResumeData = (app: ApplicationWithProfile): ParsedResumeContent | null => {
+    if (!app.resumes) return null;
+    const resume = Array.isArray(app.resumes) ? app.resumes[0] : app.resumes;
+    return (resume?.parsed_content as ParsedResumeContent) || null;
+  };
+
   const getDisplayName = (app: ApplicationWithProfile): string => {
     const rawName = (app.profile?.full_name || '').trim();
     const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(rawName.toLowerCase());
     if (rawName && !isPlaceholderName) return rawName;
+
+    // Fallback to parsed resume name
+    const resumeData = getResumeData(app);
+    if (resumeData?.full_name) return resumeData.full_name;
 
     const email = (app.profile?.email || '').trim();
     if (email) return email;
@@ -168,11 +193,28 @@ export default function RecruiterCandidates() {
     return 'Unknown';
   };
 
+  const getDisplayTitle = (app: ApplicationWithProfile): string => {
+    // Prefer profile data, then fall back to resume parsed data
+    if (app.candidate_profiles?.current_title) return app.candidate_profiles.current_title;
+    const resumeData = getResumeData(app);
+    if (resumeData?.current_title) return resumeData.current_title;
+    return 'No title';
+  };
+
+  const getDisplayExperience = (app: ApplicationWithProfile): number => {
+    // Prefer profile data, then fall back to resume parsed data
+    if (app.candidate_profiles?.years_of_experience) return app.candidate_profiles.years_of_experience;
+    const resumeData = getResumeData(app);
+    if (resumeData?.years_of_experience) return resumeData.years_of_experience;
+    return 0;
+  };
+
   const filteredApplications = applications?.filter((app) => {
     const name = getDisplayName(app);
+    const title = getDisplayTitle(app);
     const matchesSearch =
       name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (app.candidate_profiles?.current_title || '').toLowerCase().includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -273,7 +315,7 @@ export default function RecruiterCandidates() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {app.candidate_profiles?.current_title || 'No title'} • {app.candidate_profiles?.years_of_experience || 0} years exp.
+                          {getDisplayTitle(app)} • {getDisplayExperience(app)} years exp.
                         </p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
