@@ -157,10 +157,22 @@ export default function RecruiterCandidates() {
     },
   });
 
-  const filteredApplications = applications?.filter(app => {
-    const name = app.profile?.full_name || '';
-    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.candidate_profiles?.current_title?.toLowerCase().includes(searchQuery.toLowerCase());
+  const getDisplayName = (app: ApplicationWithProfile): string => {
+    const rawName = (app.profile?.full_name || '').trim();
+    const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(rawName.toLowerCase());
+    if (rawName && !isPlaceholderName) return rawName;
+
+    const email = (app.profile?.email || '').trim();
+    if (email) return email;
+
+    return 'Unknown';
+  };
+
+  const filteredApplications = applications?.filter((app) => {
+    const name = getDisplayName(app);
+    const matchesSearch =
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (app.candidate_profiles?.current_title || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -249,12 +261,12 @@ export default function RecruiterCandidates() {
                     <div className="flex items-start gap-4">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback className="bg-accent text-accent-foreground">
-                          {app.profile?.full_name?.charAt(0) || 'C'}
+                          {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{app.profile?.full_name || 'Unknown'}</h3>
+                          <h3 className="font-semibold">{getDisplayName(app)}</h3>
                           <StatusBadge status={(app.status || 'applied') as ApplicationStatus} />
                           {app.ai_match_score && (
                             <ScoreBadge score={app.ai_match_score} size="sm" />
@@ -293,11 +305,11 @@ export default function RecruiterCandidates() {
             <DialogTitle className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarFallback className="bg-accent text-accent-foreground">
-                  {selectedApplication?.profile?.full_name?.charAt(0) || 'C'}
+                  {selectedApplication ? getDisplayName(selectedApplication).charAt(0).toUpperCase() : 'C'}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <div>{selectedApplication?.profile?.full_name || 'Unknown'}</div>
+                <div>{selectedApplication ? getDisplayName(selectedApplication) : 'Unknown'}</div>
                 <div className="text-sm font-normal text-muted-foreground">
                   {selectedApplication?.candidate_profiles?.current_title}
                 </div>
