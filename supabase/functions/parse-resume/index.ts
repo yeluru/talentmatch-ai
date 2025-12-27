@@ -23,42 +23,73 @@ serve(async (req) => {
     // If we received a base64 file, we need to extract text
     if (fileBase64 && !textContent) {
       console.log("Processing file:", fileName, "Type:", fileType);
-      
+
       // Decode base64 to get file content
-      const binaryContent = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
-      
-      // For PDF files, we'll use a simple text extraction approach
-      // by looking for text streams in the PDF
-      if (fileType === 'application/pdf') {
-        const decoder = new TextDecoder('utf-8', { fatal: false });
-        const rawText = decoder.decode(binaryContent);
-        
-        // Extract text between BT (begin text) and ET (end text) markers
-        // This is a simplified PDF text extraction
-        const textMatches = rawText.match(/\(([^)]+)\)/g) || [];
-        textContent = textMatches
-          .map(match => match.slice(1, -1))
-          .filter(text => text.length > 1 && /[a-zA-Z]/.test(text))
-          .join(' ');
-        
-        // Also try to find plain text content
-        const plainTextMatches = rawText.match(/[A-Za-z][A-Za-z0-9\s@.,-]+[A-Za-z0-9]/g) || [];
-        const additionalText = plainTextMatches
-          .filter(t => t.length > 5)
-          .join(' ');
-        
-        textContent = textContent + ' ' + additionalText;
-        
-        // Clean up the extracted text
-        textContent = textContent
-          .replace(/\\[nrt]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-          
-        console.log("Extracted text length:", textContent.length);
+      const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
+
+      if (fileType === "application/pdf") {
+        // Robust PDF text extraction (the previous approach was too brittle for many PDFs)
+        try {
+          const pdfjsLib = await import(
+            "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs?deno"
+          );
+
+          const loadingTask = pdfjsLib.getDocument({
+            data: binaryContent,
+            // Workers aren't available/needed in this environment
+            disableWorker: true,
+          } as any);
+
+          const pdf = await loadingTask.promise;
+          const maxPages = Math.min(pdf.numPages ?? 1, 4);
+
+          const parts: string[] = [];
+          for (let pageNo = 1; pageNo <= maxPages; pageNo++) {
+            const page = await pdf.getPage(pageNo);
+            const tc = await page.getTextContent();
+            for (const item of tc.items as Array<{ str?: string }>) {
+              if (item?.str) parts.push(item.str);
+            }
+          }
+
+          textContent = parts.join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          console.log(
+            "PDF.js extracted text length:",
+            textContent.length,
+            "pages:",
+            maxPages,
+          );
+        } catch (e) {
+          console.error("PDF.js extraction failed, falling back to naive parsing:", e);
+
+          // Fallback: naive decode-based extraction (kept as last resort)
+          const decoder = new TextDecoder("utf-8", { fatal: false });
+          const rawText = decoder.decode(binaryContent);
+
+          const textMatches = rawText.match(/\(([^)]+)\)/g) || [];
+          const extracted = textMatches
+            .map((match) => match.slice(1, -1))
+            .filter((text) => text.length > 1 && /[a-zA-Z]/.test(text))
+            .join(" ");
+
+          const plainTextMatches = rawText.match(/[A-Za-z][A-Za-z0-9\s@.,-]+[A-Za-z0-9]/g) || [];
+          const additionalText = plainTextMatches
+            .filter((t) => t.length > 5)
+            .join(" ");
+
+          textContent = (extracted + " " + additionalText)
+            .replace(/\\[nrt]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          console.log("Fallback extracted text length:", textContent.length);
+        }
       } else {
         // For text-based files, just decode as text
-        const decoder = new TextDecoder('utf-8');
+        const decoder = new TextDecoder("utf-8");
         textContent = decoder.decode(binaryContent);
       }
     }
