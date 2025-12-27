@@ -1,0 +1,334 @@
+import { useState } from 'react';
+import { DashboardLayout } from '@/components/layouts/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { 
+  BarChart3,
+  Sparkles,
+  Loader2,
+  Users,
+  TrendingUp,
+  Building2,
+  GraduationCap,
+  Lightbulb
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+
+interface SkillDistribution {
+  skill: string;
+  count: number;
+  percentage: number;
+}
+
+interface ExperienceDistribution {
+  range: string;
+  count: number;
+  percentage: number;
+}
+
+interface Insights {
+  summary: string;
+  total_candidates: number;
+  skills_distribution: SkillDistribution[];
+  experience_distribution: ExperienceDistribution[];
+  top_companies?: { company: string; count: number }[];
+  recommendations?: string[];
+}
+
+const COLORS = ['hsl(var(--accent))', 'hsl(var(--primary))', 'hsl(var(--secondary))', '#82ca9d', '#ffc658', '#8884d8'];
+
+export default function TalentInsights() {
+  const { roles } = useAuth();
+  const [selectedJob, setSelectedJob] = useState<string>('all');
+  const [insights, setInsights] = useState<Insights | null>(null);
+  
+  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+
+  // Fetch jobs for filter
+  const { data: jobs } = useQuery({
+    queryKey: ['org-jobs', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('id, title')
+        .eq('organization_id', organizationId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  // Fetch candidates
+  const { data: candidates, isLoading: candidatesLoading } = useQuery({
+    queryKey: ['org-candidates-insights', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      
+      const { data: profiles, error } = await supabase
+        .from('candidate_profiles')
+        .select('id, current_title, years_of_experience, summary, user_id, current_company')
+        .eq('organization_id', organizationId);
+      
+      if (error) throw error;
+
+      const userIds = profiles?.map(p => p.user_id) || [];
+      const { data: userProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+
+      const candidateIds = profiles?.map(p => p.id) || [];
+      const { data: skills } = await supabase
+        .from('candidate_skills')
+        .select('candidate_id, skill_name')
+        .in('candidate_id', candidateIds);
+
+      return profiles?.map(p => ({
+        id: p.id,
+        name: userProfiles?.find(up => up.user_id === p.user_id)?.full_name || 'Unknown',
+        title: p.current_title,
+        years_experience: p.years_of_experience,
+        summary: p.summary,
+        company: p.current_company,
+        skills: skills?.filter(s => s.candidate_id === p.id).map(s => s.skill_name) || []
+      })) || [];
+    },
+    enabled: !!organizationId,
+  });
+
+  const generateInsightsMutation = useMutation({
+    mutationFn: async () => {
+      if (!candidates?.length) throw new Error('No candidates to analyze');
+      
+      const jobContext = selectedJob !== 'all' 
+        ? jobs?.find(j => j.id === selectedJob)?.title 
+        : undefined;
+
+      const { data, error } = await supabase.functions.invoke('generate-insights', {
+        body: { candidates, jobContext }
+      });
+
+      if (error) throw error;
+      return data as Insights;
+    },
+    onSuccess: (data) => {
+      setInsights(data);
+      toast.success('Insights generated successfully');
+    },
+    onError: (error: any) => {
+      console.error('Insights error:', error);
+      toast.error(error.message || 'Failed to generate insights');
+    },
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display text-3xl font-bold flex items-center gap-3">
+            <BarChart3 className="h-8 w-8 text-accent" />
+            Talent Insights
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Visualize your candidate pool with AI-powered analytics
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate Insights</CardTitle>
+            <CardDescription>
+              Analyze your talent pool to understand skills distribution, experience levels, and market trends
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4">
+              <Select value={selectedJob} onValueChange={setSelectedJob}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Filter by job (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Candidates</SelectItem>
+                  {jobs?.map((job) => (
+                    <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => generateInsightsMutation.mutate()}
+                disabled={generateInsightsMutation.isPending || candidatesLoading || !candidates?.length}
+              >
+                {generateInsightsMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                Generate Insights
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {candidates?.length || 0} candidates available for analysis
+            </p>
+          </CardContent>
+        </Card>
+
+        {insights && (
+          <>
+            {/* Summary Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5 text-warning" />
+                  Executive Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{insights.summary}</p>
+                <div className="flex items-center gap-2 mt-4">
+                  <Badge variant="secondary" className="text-lg px-4 py-1">
+                    <Users className="h-4 w-4 mr-2" />
+                    {insights.total_candidates} Total Candidates
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Skills Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Skills Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={insights.skills_distribution?.slice(0, 8)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="skill" tick={{ fontSize: 12 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Experience Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5" />
+                    Experience Levels
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={insights.experience_distribution}
+                          dataKey="count"
+                          nameKey="range"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          label={({ range, percentage }) => `${range} (${percentage}%)`}
+                        >
+                          {insights.experience_distribution?.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Companies */}
+              {insights.top_companies && insights.top_companies.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Top Companies
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {insights.top_companies.slice(0, 6).map((company, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                          <span className="font-medium">{company.company}</span>
+                          <Badge variant="secondary">{company.count} candidates</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recommendations */}
+              {insights.recommendations && insights.recommendations.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-accent" />
+                      AI Recommendations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {insights.recommendations.map((rec, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-accent mt-1">•</span>
+                          <span className="text-muted-foreground">{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </>
+        )}
+
+        {!candidatesLoading && (!candidates || candidates.length === 0) && (
+          <EmptyState
+            icon={Users}
+            title="No candidates to analyze"
+            description="Invite candidates to join your organization to generate insights"
+          />
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
