@@ -74,8 +74,9 @@ export default function CreateJob() {
       toast.success(status === 'published' ? 'Job published!' : 'Job saved as draft');
       navigate('/recruiter/jobs');
     },
-    onError: () => {
-      toast.error('Failed to create job');
+    onError: (err: any) => {
+      console.error('Failed to create job', err);
+      toast.error(err?.message ? `Failed to create job: ${err.message}` : 'Failed to create job');
     },
   });
 
