@@ -32,7 +32,7 @@ export default function CreateJob() {
     description: '',
     location: '',
     is_remote: false,
-    job_type: 'full-time',
+    job_type: 'full_time',
     experience_level: 'mid',
     salary_min: '',
     salary_max: '',
@@ -179,8 +179,8 @@ export default function CreateJob() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="full-time">Full-time</SelectItem>
-                    <SelectItem value="part-time">Part-time</SelectItem>
+                    <SelectItem value="full_time">Full-time</SelectItem>
+                    <SelectItem value="part_time">Part-time</SelectItem>
                     <SelectItem value="contract">Contract</SelectItem>
                     <SelectItem value="internship">Internship</SelectItem>
                   </SelectContent>
