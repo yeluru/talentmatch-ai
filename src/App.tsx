@@ -28,6 +28,11 @@ import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import CreateJob from "./pages/recruiter/CreateJob";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import AIMatching from "./pages/recruiter/AIMatching";
+import TalentSearch from "./pages/recruiter/TalentSearch";
+import TalentInsights from "./pages/recruiter/TalentInsights";
+import AIAgents from "./pages/recruiter/AIAgents";
+import OutreachCampaigns from "./pages/recruiter/OutreachCampaigns";
+import Shortlists from "./pages/recruiter/Shortlists";
 
 // Manager Pages
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
@@ -113,6 +118,31 @@ const App = () => (
             <Route path="/recruiter/ai-matching" element={
               <ProtectedRoute allowedRoles={['recruiter']}>
                 <AIMatching />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/talent-search" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <TalentSearch />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/insights" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <TalentInsights />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/agents" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <AIAgents />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/outreach" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <OutreachCampaigns />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/shortlists" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <Shortlists />
               </ProtectedRoute>
             } />
             

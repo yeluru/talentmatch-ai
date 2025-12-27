@@ -37,6 +37,9 @@ import {
   Sparkles,
   Building2,
   ChevronDown,
+  Bot,
+  Mail,
+  ListChecks,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +59,11 @@ const candidateNavItems = [
 
 const recruiterNavItems = [
   { title: 'Dashboard', href: '/recruiter', icon: Home },
+  { title: 'Talent Search', href: '/recruiter/talent-search', icon: Search },
+  { title: 'AI Agents', href: '/recruiter/agents', icon: Bot },
+  { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
+  { title: 'Outreach', href: '/recruiter/outreach', icon: Mail },
+  { title: 'Insights', href: '/recruiter/insights', icon: BarChart3 },
   { title: 'Post a Job', href: '/recruiter/jobs/new', icon: PlusCircle },
   { title: 'My Jobs', href: '/recruiter/jobs', icon: Briefcase },
   { title: 'Candidates', href: '/recruiter/candidates', icon: Users },
