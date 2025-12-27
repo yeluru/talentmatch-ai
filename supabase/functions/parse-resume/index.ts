@@ -28,68 +28,127 @@ serve(async (req) => {
       const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
 
       if (fileType === "application/pdf") {
-        // Robust PDF text extraction
+        // PDF text extraction using manual parsing (most reliable in Deno)
         try {
-          const pdfjsLib = await import(
-            "https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs?deno"
-          );
-
-          // pdf.js expects a worker src to be configured even when workers are disabled in some builds
-          try {
-            // Use a CDN worker (safe even when disableWorker=true)
-            (pdfjsLib as any).GlobalWorkerOptions.workerSrc =
-              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-          } catch {
-            // ignore if not present
-          }
-
-          const loadingTask = (pdfjsLib as any).getDocument({
-            data: binaryContent,
-            disableWorker: true,
-          } as any);
-
-          const pdf = await loadingTask.promise;
-          const maxPages = Math.min(pdf.numPages ?? 1, 4);
-
-          const parts: string[] = [];
-          for (let pageNo = 1; pageNo <= maxPages; pageNo++) {
-            const page = await pdf.getPage(pageNo);
-            const tc = await page.getTextContent();
-            for (const item of tc.items as Array<{ str?: string }>) {
-              if (item?.str) parts.push(item.str);
+          // Decode PDF as latin1 (preserves byte values for PDF parsing)
+          const decoder = new TextDecoder("latin1", { fatal: false });
+          const rawPdf = decoder.decode(binaryContent);
+          
+          const textParts: string[] = [];
+          
+          // Method 1: Extract text from PDF text objects (between BT and ET blocks)
+          const btEtMatches = rawPdf.match(/BT[\s\S]*?ET/g) || [];
+          for (const block of btEtMatches) {
+            // Extract strings from Tj operator (show text)
+            const tjMatches = [...block.matchAll(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*Tj/gi)];
+            for (const tm of tjMatches) {
+              const decoded = tm[1]
+                .replace(/\\n/g, "\n")
+                .replace(/\\r/g, "")
+                .replace(/\\t/g, " ")
+                .replace(/\\\(/g, "(")
+                .replace(/\\\)/g, ")")
+                .replace(/\\\\/g, "\\");
+              if (decoded.trim() && decoded.length > 0) {
+                textParts.push(decoded);
+              }
+            }
+            
+            // Extract strings from TJ operator (text array with positioning)
+            const tjArrayMatches = [...block.matchAll(/\[([\s\S]*?)\]\s*TJ/gi)];
+            for (const tja of tjArrayMatches) {
+              const arrayContent = tja[1];
+              const stringMatches = [...arrayContent.matchAll(/\(([^()]*)\)/g)];
+              for (const sm of stringMatches) {
+                const decoded = sm[1]
+                  .replace(/\\n/g, "\n")
+                  .replace(/\\r/g, "")
+                  .replace(/\\t/g, " ")
+                  .replace(/\\\(/g, "(")
+                  .replace(/\\\)/g, ")")
+                  .replace(/\\\\/g, "\\");
+                if (decoded.trim() && decoded.length > 0) {
+                  textParts.push(decoded);
+                }
+              }
             }
           }
-
-          textContent = parts.join(" ").replace(/\s+/g, " ").trim();
-
-          console.log(
-            "PDF.js extracted text length:",
-            textContent.length,
-            "pages:",
-            maxPages,
-          );
-        } catch (e) {
-          console.error("PDF.js extraction failed, falling back to naive parsing:", e);
-
-          // Fallback: naive decode-based extraction (kept as last resort)
-          const decoder = new TextDecoder("utf-8", { fatal: false });
-          const rawText = decoder.decode(binaryContent);
-
-          const textMatches = rawText.match(/\(([^)]+)\)/g) || [];
-          const extracted = textMatches
-            .map((match) => match.slice(1, -1))
-            .filter((text) => text.length > 1 && /[a-zA-Z]/.test(text))
-            .join(" ");
-
-          const plainTextMatches = rawText.match(/[A-Za-z][A-Za-z0-9\s@.,-]+[A-Za-z0-9]/g) || [];
-          const additionalText = plainTextMatches.filter((t) => t.length > 5).join(" ");
-
-          textContent = (extracted + " " + additionalText)
-            .replace(/\\[nrt]/g, " ")
+          
+          // Method 2: Look for hex-encoded strings in the PDF
+          const hexMatches = [...rawPdf.matchAll(/<([0-9A-Fa-f]{4,})>/g)];
+          for (const hm of hexMatches) {
+            const hex = hm[1];
+            if (hex.length <= 500) {
+              try {
+                let decoded = "";
+                for (let i = 0; i < hex.length; i += 2) {
+                  const byte = parseInt(hex.substr(i, 2), 16);
+                  if (byte >= 32 && byte < 127) {
+                    decoded += String.fromCharCode(byte);
+                  } else if (byte === 0 && i > 0) {
+                    // UTF-16 encoding - skip null bytes
+                    continue;
+                  }
+                }
+                if (decoded.length >= 2 && /[a-zA-Z]/.test(decoded)) {
+                  textParts.push(decoded);
+                }
+              } catch {
+                // ignore hex decode errors
+              }
+            }
+          }
+          
+          // Method 3: Extract text from stream objects that might contain plain text
+          const streamMatches = rawPdf.match(/stream\r?\n([\s\S]*?)\r?\nendstream/g) || [];
+          for (const stream of streamMatches) {
+            // Look for recognizable text patterns in streams
+            const emailMatch = stream.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+            if (emailMatch) textParts.push(...emailMatch);
+            
+            const phoneMatch = stream.match(/\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g);
+            if (phoneMatch) textParts.push(...phoneMatch);
+            
+            // Look for LinkedIn URLs
+            const linkedinMatch = stream.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/gi);
+            if (linkedinMatch) textParts.push(...linkedinMatch);
+          }
+          
+          // Combine all extracted text
+          textContent = textParts
+            .join(" ")
+            .replace(/[\x00-\x1F]/g, " ")
             .replace(/\s+/g, " ")
             .trim();
-
-          console.log("Fallback extracted text length:", textContent.length);
+          
+          console.log("PDF manual parsing extracted text length:", textContent.length);
+          
+          // If text extraction yielded very little, try an alternative approach
+          if (textContent.length < 200) {
+            console.log("Low text extraction, trying alternative parsing...");
+            
+            // Try to find any readable ASCII sequences
+            const asciiMatches = rawPdf.match(/[A-Za-z][A-Za-z0-9\s@._,()-]{5,}[A-Za-z0-9]/g) || [];
+            const filtered = asciiMatches.filter(m => 
+              !m.includes("obj") && 
+              !m.includes("endobj") && 
+              !m.includes("stream") &&
+              !m.includes("xref") &&
+              !m.includes("trailer") &&
+              m.length > 8
+            );
+            
+            if (filtered.length > 0) {
+              const alternativeText = filtered.join(" ").replace(/\s+/g, " ").trim();
+              if (alternativeText.length > textContent.length) {
+                textContent = alternativeText;
+                console.log("Alternative parsing yielded text length:", textContent.length);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("PDF parsing error:", e);
+          textContent = "";
         }
       } else if (
         fileType ===
