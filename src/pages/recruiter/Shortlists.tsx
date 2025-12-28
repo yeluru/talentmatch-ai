@@ -28,7 +28,9 @@ import {
   Briefcase,
   MoreVertical,
   Search,
-  ArrowUpDown
+  ArrowUpDown,
+  Copy,
+  MoveRight
 } from 'lucide-react';
 import {
   Select,
@@ -45,6 +47,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 interface Shortlist {
@@ -209,6 +215,65 @@ export default function Shortlists() {
     },
   });
 
+  const copyToShortlist = useMutation({
+    mutationFn: async ({ candidateId, targetShortlistId }: { candidateId: string; targetShortlistId: string }) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('shortlist_candidates')
+        .insert({
+          shortlist_id: targetShortlistId,
+          candidate_id: candidateId,
+          added_by: user.id,
+          status: 'added',
+        });
+      if (error) {
+        if (error.code === '23505') throw new Error('Candidate already in that shortlist');
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlists'] });
+      toast.success('Candidate copied to shortlist');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to copy candidate');
+    },
+  });
+
+  const moveToShortlist = useMutation({
+    mutationFn: async ({ shortlistCandidateId, candidateId, targetShortlistId }: { shortlistCandidateId: string; candidateId: string; targetShortlistId: string }) => {
+      if (!user) throw new Error('Not authenticated');
+      // Insert into new shortlist
+      const { error: insertError } = await supabase
+        .from('shortlist_candidates')
+        .insert({
+          shortlist_id: targetShortlistId,
+          candidate_id: candidateId,
+          added_by: user.id,
+          status: 'added',
+        });
+      if (insertError) {
+        if (insertError.code === '23505') throw new Error('Candidate already in that shortlist');
+        throw insertError;
+      }
+      // Remove from current shortlist
+      const { error: deleteError } = await supabase
+        .from('shortlist_candidates')
+        .delete()
+        .eq('id', shortlistCandidateId);
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlists'] });
+      toast.success('Candidate moved to shortlist');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to move candidate');
+    },
+  });
+
   if (authLoading || isLoading) {
     return (
       <DashboardLayout>
@@ -370,13 +435,68 @@ export default function Shortlists() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{candidate.status}</Badge>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeFromShortlist.mutate(candidate.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Copy to...
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).map(s => (
+                                    <DropdownMenuItem
+                                      key={s.id}
+                                      onClick={() => copyToShortlist.mutate({
+                                        candidateId: candidate.candidate_id,
+                                        targetShortlistId: s.id,
+                                      })}
+                                    >
+                                      {s.name}
+                                    </DropdownMenuItem>
+                                  ))}
+                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).length === 0 && (
+                                    <DropdownMenuItem disabled>No other shortlists</DropdownMenuItem>
+                                  )}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <MoveRight className="h-4 w-4 mr-2" />
+                                  Move to...
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).map(s => (
+                                    <DropdownMenuItem
+                                      key={s.id}
+                                      onClick={() => moveToShortlist.mutate({
+                                        shortlistCandidateId: candidate.id,
+                                        candidateId: candidate.candidate_id,
+                                        targetShortlistId: s.id,
+                                      })}
+                                    >
+                                      {s.name}
+                                    </DropdownMenuItem>
+                                  ))}
+                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).length === 0 && (
+                                    <DropdownMenuItem disabled>No other shortlists</DropdownMenuItem>
+                                  )}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => removeFromShortlist.mutate(candidate.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     ))}
