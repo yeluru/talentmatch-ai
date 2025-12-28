@@ -33,7 +33,10 @@ import {
   Users,
   Star,
   FileText,
-  Sparkles
+  Sparkles,
+  Phone,
+  Mail,
+  Linkedin
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -68,9 +71,9 @@ interface ApplicationWithProfile {
   ai_match_score: number | null;
   ai_match_details: any;
   jobs: { id: string; title: string; organization_id: string } | null;
-  candidate_profiles: { id: string; current_title: string | null; years_of_experience: number | null; user_id: string } | null;
+  candidate_profiles: { id: string; current_title: string | null; years_of_experience: number | null; user_id: string; email: string | null; phone: string | null; linkedin_url: string | null; full_name: string | null } | null;
   resumes: ResumeWithParsed | ResumeWithParsed[] | null;
-  profile?: { user_id: string; full_name: string; email: string };
+  profile?: { user_id: string; full_name: string; email: string; phone: string | null; linkedin_url: string | null };
 }
 
 export default function RecruiterCandidates() {
@@ -112,7 +115,7 @@ export default function RecruiterCandidates() {
         .select(`
           *,
           jobs!inner(id, title, organization_id),
-          candidate_profiles!inner(id, current_title, years_of_experience, user_id),
+          candidate_profiles!inner(id, current_title, years_of_experience, user_id, email, phone, linkedin_url, full_name),
           resumes(id, file_name, file_url, parsed_content)
         `)
         .eq('jobs.organization_id', organizationId)
@@ -130,7 +133,7 @@ export default function RecruiterCandidates() {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, full_name, email')
+          .select('user_id, full_name, email, phone, linkedin_url')
           .in('user_id', userIds);
         
         return (data?.map(app => ({
@@ -179,6 +182,12 @@ export default function RecruiterCandidates() {
   };
 
   const getDisplayName = (app: ApplicationWithProfile): string => {
+    // First try candidate_profiles.full_name (for sourced candidates)
+    const cpName = (app.candidate_profiles?.full_name || '').trim();
+    const isPlaceholderCpName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(cpName.toLowerCase());
+    if (cpName && !isPlaceholderCpName) return cpName;
+
+    // Then try profile.full_name (for registered users)
     const rawName = (app.profile?.full_name || '').trim();
     const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(rawName.toLowerCase());
     if (rawName && !isPlaceholderName) return rawName;
@@ -187,10 +196,22 @@ export default function RecruiterCandidates() {
     const resumeData = getResumeData(app);
     if (resumeData?.full_name) return resumeData.full_name;
 
-    const email = (app.profile?.email || '').trim();
+    const email = getDisplayEmail(app);
     if (email) return email;
 
     return 'Unknown';
+  };
+
+  const getDisplayEmail = (app: ApplicationWithProfile): string => {
+    return app.candidate_profiles?.email || app.profile?.email || '';
+  };
+
+  const getDisplayPhone = (app: ApplicationWithProfile): string => {
+    return app.candidate_profiles?.phone || app.profile?.phone || '';
+  };
+
+  const getDisplayLinkedIn = (app: ApplicationWithProfile): string => {
+    return app.candidate_profiles?.linkedin_url || app.profile?.linkedin_url || '';
   };
 
   const getDisplayTitle = (app: ApplicationWithProfile): string => {
@@ -307,7 +328,7 @@ export default function RecruiterCandidates() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-semibold">{getDisplayName(app)}</h3>
                           <StatusBadge status={(app.status || 'applied') as ApplicationStatus} />
                           {app.ai_match_score && (
@@ -317,7 +338,33 @@ export default function RecruiterCandidates() {
                         <p className="text-sm text-muted-foreground">
                           {getDisplayTitle(app)} • {getDisplayExperience(app)} years exp.
                         </p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                          {getDisplayEmail(app) && (
+                            <span className="flex items-center gap-1">
+                              <Mail className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate max-w-[200px]">{getDisplayEmail(app)}</span>
+                            </span>
+                          )}
+                          {getDisplayPhone(app) && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              {getDisplayPhone(app)}
+                            </span>
+                          )}
+                          {getDisplayLinkedIn(app) && (
+                            <a 
+                              href={getDisplayLinkedIn(app)} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 hover:text-accent"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Linkedin className="h-3.5 w-3.5 shrink-0" />
+                              LinkedIn
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Briefcase className="h-3.5 w-3.5" />
                             {app.jobs?.title}
