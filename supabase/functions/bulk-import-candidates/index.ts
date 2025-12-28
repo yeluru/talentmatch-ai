@@ -98,6 +98,30 @@ serve(async (req) => {
           }
         }
 
+        // Create resume record if resume file info is provided
+        if (profile.resume_file) {
+          const { file_name, file_url, file_type } = profile.resume_file;
+          
+          const { error: resumeError } = await supabase
+            .from("resumes")
+            .insert({
+              candidate_id: candidateId,
+              file_name: file_name,
+              file_url: file_url,
+              file_type: file_type || 'application/pdf',
+              ats_score: profile.ats_score || null,
+              is_primary: true, // First resume is primary
+              parsed_content: profile // Store parsed data
+            });
+
+          if (resumeError) {
+            console.error("Error creating resume record:", resumeError);
+            // Don't fail the whole import, just log the error
+          } else {
+            console.log("Created resume record for:", profile.full_name);
+          }
+        }
+
         results.imported++;
         console.log("Imported:", profile.full_name);
 
