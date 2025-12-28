@@ -90,34 +90,45 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     enabled: !!talentId && open,
   });
 
+  const extractResumePath = (fileUrl: string) => {
+    // Supports both stored public URLs and raw storage paths
+    // Example public URL: .../storage/v1/object/public/resumes/sourced/...
+    const byPublic = fileUrl.split('/object/public/resumes/')[1];
+    if (byPublic) return byPublic;
+
+    const byBucket = fileUrl.split('/resumes/')[1];
+    if (byBucket) return byBucket;
+
+    return null;
+  };
+
   const handleViewResume = async (fileUrl: string, fileName: string) => {
+    // Open the tab synchronously to avoid popup blockers.
+    const tab = window.open('about:blank', '_blank');
+
     setIsDownloading(true);
     try {
-      // First try the public URL
-      const response = await fetch(fileUrl, { method: 'HEAD' });
-      
-      if (response.ok) {
-        window.open(fileUrl, '_blank');
-      } else {
-        // Fallback to signed URL
-        const filePath = fileUrl.split('/resumes/')[1];
-        if (filePath) {
-          const { data: signedUrlData, error: signedUrlError } = await supabase
-            .storage
-            .from('resumes')
-            .createSignedUrl(filePath, 3600); // 1 hour expiry
+      const filePath = extractResumePath(fileUrl);
 
-          if (signedUrlError) throw signedUrlError;
-          if (signedUrlData?.signedUrl) {
-            window.open(signedUrlData.signedUrl, '_blank');
-          }
-        } else {
-          throw new Error('Invalid file path');
-        }
+      if (filePath) {
+        const { data: signedUrlData, error: signedUrlError } = await supabase
+          .storage
+          .from('resumes')
+          .createSignedUrl(filePath, 3600);
+
+        if (signedUrlError) throw signedUrlError;
+
+        const urlToOpen = signedUrlData?.signedUrl || fileUrl;
+        if (tab) tab.location.href = urlToOpen;
+        else window.open(urlToOpen, '_blank');
+      } else {
+        if (tab) tab.location.href = fileUrl;
+        else window.open(fileUrl, '_blank');
       }
     } catch (error) {
       console.error('Error viewing resume:', error);
-      toast.error('Failed to open resume');
+      if (tab) tab.close();
+      toast.error(`Failed to open resume: ${fileName}`);
     } finally {
       setIsDownloading(false);
     }
