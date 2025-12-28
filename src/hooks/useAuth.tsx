@@ -52,8 +52,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
+          // Ensure route guards/pages that depend on roles wait for fresh role fetch
+          setIsLoading(true);
           setTimeout(() => {
             fetchUserData(session.user.id);
           }, 0);
@@ -71,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setIsLoading(true);
         fetchUserData(session.user.id);
       } else {
         setIsLoading(false);
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserData = async (userId: string) => {
+    setIsLoading(true);
     try {
       const [profileResult, rolesResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
@@ -97,17 +101,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           organization_id: r.organization_id ?? undefined
         }));
         setRoles(userRoles);
-        
-        // Set organization ID from role data
+
         const orgId = userRoles.find(r => r.organization_id)?.organization_id || null;
         setOrganizationId(orgId);
-        
+
         const savedRole = localStorage.getItem('currentRole') as AppRole;
         if (savedRole && userRoles.find(r => r.role === savedRole)) {
           setCurrentRole(savedRole);
         } else {
           setCurrentRole(userRoles[0].role);
         }
+      } else {
+        setRoles([]);
+        setCurrentRole(null);
+        setOrganizationId(null);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
