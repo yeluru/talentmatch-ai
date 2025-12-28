@@ -36,6 +36,7 @@ import {
   Save,
   Loader2,
   User,
+  FileText,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -156,7 +157,16 @@ export function ShortlistCandidateCard({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
+              {onViewProfile ? (
+                <button
+                  onClick={() => onViewProfile(candidate.candidate_id)}
+                  className="font-medium truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer"
+                >
+                  {candidate.candidate_profiles?.full_name || 'Unknown'}
+                </button>
+              ) : (
+                <p className="font-medium truncate">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
+              )}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Briefcase className="h-3 w-3 shrink-0" />
                 <span className="truncate">{candidate.candidate_profiles?.current_title || 'No title'}</span>
@@ -164,17 +174,6 @@ export function ShortlistCandidateCard({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {onViewProfile && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => onViewProfile(candidate.candidate_id)}
-              >
-                <User className="h-4 w-4 mr-1" />
-                Profile
-              </Button>
-            )}
             
             <Select
               value={candidate.status}
@@ -242,8 +241,15 @@ export function ShortlistCandidateCard({
                     {otherShortlists.length === 0 && (
                       <DropdownMenuItem disabled>No other shortlists</DropdownMenuItem>
                     )}
-                  </DropdownMenuSubContent>
+                </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                {onViewProfile && (
+                  <DropdownMenuItem onClick={() => onViewProfile(candidate.candidate_id)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Profile & Resume
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"
