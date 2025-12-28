@@ -22,13 +22,13 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +39,7 @@ import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Label } from '@/components/ui/label';
+
 
 interface TalentProfile {
   id: string;
@@ -83,10 +83,6 @@ export default function TalentPool() {
   
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
-  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
-  const [selectedShortlistId, setSelectedShortlistId] = useState<string>('');
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
 
   const organizationId = roles.find((r) => r.role === 'recruiter')?.organization_id;
 
@@ -195,7 +191,6 @@ export default function TalentPool() {
     onSuccess: () => {
       toast.success(`Added ${selectedIds.size} candidates to shortlist`);
       setSelectedIds(new Set());
-      setShortlistDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
     },
     onError: () => {
@@ -223,7 +218,6 @@ export default function TalentPool() {
     onSuccess: (count) => {
       toast.success(`Added ${count} candidates to campaign`);
       setSelectedIds(new Set());
-      setCampaignDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['campaign-recipients'] });
     },
     onError: (error: Error) => {
@@ -369,24 +363,16 @@ export default function TalentPool() {
     }
   };
 
-  const handleAddToShortlist = () => {
-    if (!selectedShortlistId) {
-      toast.error('Please select a shortlist');
-      return;
-    }
+  const handleAddToShortlist = (shortlistId: string) => {
     addToShortlistMutation.mutate({
-      shortlistId: selectedShortlistId,
+      shortlistId,
       candidateIds: Array.from(selectedIds),
     });
   };
 
-  const handleAddToCampaign = () => {
-    if (!selectedCampaignId) {
-      toast.error('Please select a campaign');
-      return;
-    }
+  const handleAddToCampaign = (campaignId: string) => {
     addToCampaignMutation.mutate({
-      campaignId: selectedCampaignId,
+      campaignId,
       candidateIds: Array.from(selectedIds),
     });
   };
@@ -662,26 +648,81 @@ export default function TalentPool() {
             <span className="font-medium">{selectedIds.size} selected</span>
           </div>
           <div className="h-6 w-px bg-primary-foreground/30" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
-            onClick={() => setShortlistDialogOpen(true)}
-            disabled={!shortlists?.length}
-          >
-            <ListPlus className="h-4 w-4 mr-2" />
-            Add to Shortlist
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
-            onClick={() => setCampaignDialogOpen(true)}
-            disabled={!campaigns?.length}
-          >
-            <Send className="h-4 w-4 mr-2" />
-            Add to Campaign
-          </Button>
+          
+          {/* Add to Shortlist Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
+                disabled={!shortlists?.length || addToShortlistMutation.isPending}
+              >
+                {addToShortlistMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ListPlus className="h-4 w-4 mr-2" />
+                )}
+                Add to Shortlist
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel>Select Shortlist</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {shortlists?.length ? (
+                shortlists.map((s) => (
+                  <DropdownMenuItem
+                    key={s.id}
+                    onClick={() => handleAddToShortlist(s.id)}
+                  >
+                    {s.name}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                  No shortlists available
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Add to Campaign Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
+                disabled={!campaigns?.length || addToCampaignMutation.isPending}
+              >
+                {addToCampaignMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                Add to Campaign
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel>Select Campaign</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {campaigns?.length ? (
+                campaigns.map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => handleAddToCampaign(c.id)}
+                  >
+                    {c.name}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                  No campaigns available
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             variant="ghost"
             size="sm"
@@ -692,94 +733,6 @@ export default function TalentPool() {
           </Button>
         </div>
       )}
-
-      {/* Add to Shortlist Dialog */}
-      <Dialog open={shortlistDialogOpen} onOpenChange={setShortlistDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add to Shortlist</DialogTitle>
-            <DialogDescription>
-              Add {selectedIds.size} selected candidates to a shortlist.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="shortlist-select">Select Shortlist</Label>
-            <Select value={selectedShortlistId} onValueChange={setSelectedShortlistId}>
-              <SelectTrigger id="shortlist-select" className="mt-2">
-                <SelectValue placeholder="Choose a shortlist..." />
-              </SelectTrigger>
-              <SelectContent>
-                {shortlists?.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!shortlists?.length && (
-              <p className="text-sm text-muted-foreground mt-2">
-                No shortlists found. Create one in the Shortlists page first.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShortlistDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddToShortlist}
-              disabled={!selectedShortlistId || addToShortlistMutation.isPending}
-            >
-              {addToShortlistMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add to Shortlist
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add to Campaign Dialog */}
-      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add to Campaign</DialogTitle>
-            <DialogDescription>
-              Add {selectedIds.size} selected candidates to an outreach campaign.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="campaign-select">Select Campaign</Label>
-            <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-              <SelectTrigger id="campaign-select" className="mt-2">
-                <SelectValue placeholder="Choose a campaign..." />
-              </SelectTrigger>
-              <SelectContent>
-                {campaigns?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!campaigns?.length && (
-              <p className="text-sm text-muted-foreground mt-2">
-                No campaigns found. Create one in the Outreach Campaigns page first.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCampaignDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddToCampaign}
-              disabled={!selectedCampaignId || addToCampaignMutation.isPending}
-            >
-              {addToCampaignMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add to Campaign
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <TalentDetailSheet
         talentId={selectedTalentId}
