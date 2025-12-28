@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useBulkUploadStore, type UploadResult } from '@/stores/bulkUploadStore';
 import {
   Upload,
   Search,
@@ -40,14 +41,6 @@ interface SearchedProfile {
   source: string;
 }
 
-interface UploadResult {
-  fileName: string;
-  status: 'pending' | 'parsing' | 'importing' | 'done' | 'error';
-  error?: string;
-  parsed?: any;
-  atsScore?: number;
-}
-
 export default function TalentSourcing() {
   const { roles } = useAuth();
   const queryClient = useQueryClient();
@@ -58,8 +51,8 @@ export default function TalentSourcing() {
   const [searchResults, setSearchResults] = useState<SearchedProfile[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<number>>(new Set());
 
-  // Resume upload state
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
+  // Resume upload state - persisted via zustand
+  const { uploadResults, setUploadResults, clearResults, updateResult } = useBulkUploadStore();
 
   // LinkedIn search mutation
   const linkedinSearch = useMutation({
@@ -96,6 +89,7 @@ export default function TalentSourcing() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       toast.success(`Imported ${data.results.imported} candidates`);
       if (data.results.skipped > 0) {
         toast.info(`${data.results.skipped} duplicates skipped`);
@@ -117,15 +111,17 @@ export default function TalentSourcing() {
       fileName: f.name,
       status: 'pending'
     }));
-    setUploadResults(newResults);
+    
+    // Append to existing results instead of replacing
+    setUploadResults(prev => [...prev, ...newResults]);
+    const startIndex = uploadResults.length;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const resultIndex = startIndex + i;
       
       // Update to parsing
-      setUploadResults(prev => prev.map((p, idx) => 
-        idx === i ? { ...p, status: 'parsing' } : p
-      ));
+      updateResult(resultIndex, { status: 'parsing' });
 
       try {
         // Read file as base64
@@ -154,9 +150,7 @@ export default function TalentSourcing() {
         const parsed = parseData.parsed;
         
         // Update to importing
-        setUploadResults(prev => prev.map((p, idx) => 
-          idx === i ? { ...p, status: 'importing', parsed, atsScore: parsed.ats_score } : p
-        ));
+        updateResult(resultIndex, { status: 'importing', parsed, atsScore: parsed.ats_score });
 
         // Auto-import the candidate
         const { error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
@@ -173,29 +167,20 @@ export default function TalentSourcing() {
 
         if (importError) throw importError;
 
-        setUploadResults(prev => prev.map((p, idx) => 
-          idx === i ? { ...p, status: 'done', parsed, atsScore: parsed.ats_score } : p
-        ));
+        updateResult(resultIndex, { status: 'done', parsed, atsScore: parsed.ats_score });
 
       } catch (error: any) {
         console.error('Upload error for', file.name, error);
-        setUploadResults(prev => prev.map((p, idx) => 
-          idx === i ? { ...p, status: 'error', error: error.message } : p
-        ));
+        updateResult(resultIndex, { status: 'error', error: error.message });
       }
     }
 
     queryClient.invalidateQueries({ queryKey: ['candidates'] });
+    queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
     
-    // Count successes
-    setTimeout(() => {
-      setUploadResults(prev => {
-        const done = prev.filter(p => p.status === 'done').length;
-        if (done > 0) toast.success(`Imported ${done} candidates`);
-        return prev;
-      });
-    }, 500);
-  }, [organizationId, queryClient]);
+    // Reset input
+    e.target.value = '';
+  }, [organizationId, queryClient, uploadResults.length, setUploadResults, updateResult]);
 
   const handleSearch = () => {
     if (!searchQuery.trim()) {
@@ -227,8 +212,6 @@ export default function TalentSourcing() {
     importProfiles.mutate(profiles);
   };
 
-  const clearResults = () => setUploadResults([]);
-
   const completedCount = uploadResults.filter(p => p.status === 'done').length;
   const errorCount = uploadResults.filter(p => p.status === 'error').length;
   const processingCount = uploadResults.filter(p => ['pending', 'parsing', 'importing'].includes(p.status)).length;
@@ -254,6 +237,11 @@ export default function TalentSourcing() {
             <TabsTrigger value="resumes" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
               Resumes
+              {uploadResults.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {uploadResults.length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="search" className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
@@ -321,11 +309,9 @@ export default function TalentSourcing() {
                           </span>
                         )}
                       </div>
-                      {processingCount === 0 && (
-                        <Button variant="outline" size="sm" onClick={clearResults}>
-                          Clear
-                        </Button>
-                      )}
+                      <Button variant="outline" size="sm" onClick={clearResults}>
+                        Clear All
+                      </Button>
                     </div>
 
                     {processingCount > 0 && (
@@ -452,23 +438,31 @@ export default function TalentSourcing() {
                             <div className="font-medium">{profile.full_name}</div>
                             <div className="text-sm text-muted-foreground flex items-center gap-2">
                               {profile.headline && <span className="truncate">{profile.headline}</span>}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                              {profile.current_company && (
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  {profile.current_company}
+                                </span>
+                              )}
                               {profile.location && (
-                                <span className="flex items-center gap-1 shrink-0">
+                                <span className="flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
                                   {profile.location}
                                 </span>
                               )}
                             </div>
-                            {profile.skills && profile.skills.length > 0 && (
-                              <div className="flex gap-1 mt-1">
-                                {profile.skills.slice(0, 4).map((skill, si) => (
-                                  <Badge key={si} variant="secondary" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
                           </div>
+                          {profile.skills && profile.skills.length > 0 && (
+                            <div className="hidden md:flex flex-wrap gap-1 max-w-xs">
+                              {profile.skills.slice(0, 3).map((skill, j) => (
+                                <Badge key={j} variant="secondary" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -478,34 +472,23 @@ export default function TalentSourcing() {
             </Card>
           </TabsContent>
 
-          {/* API Integrations Tab */}
+          {/* API Tab */}
           <TabsContent value="api" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
-                  API Integrations
+                  API Integration
                 </CardTitle>
                 <CardDescription>
-                  Connect to profile data providers
+                  Integrate with external sources via API
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {[
-                    { name: 'Apollo.io', desc: 'B2B contacts & leads' },
-                    { name: 'Hunter.io', desc: 'Email finder' },
-                    { name: 'Clearbit', desc: 'Company & person data' },
-                    { name: 'People Data Labs', desc: 'Professional profiles' }
-                  ].map(api => (
-                    <div key={api.name} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <div className="font-medium">{api.name}</div>
-                        <div className="text-sm text-muted-foreground">{api.desc}</div>
-                      </div>
-                      <Button variant="outline" size="sm">Configure</Button>
-                    </div>
-                  ))}
+                <div className="text-center py-8 text-muted-foreground">
+                  <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>API integration coming soon</p>
+                  <p className="text-sm mt-1">Connect to job boards and HR systems</p>
                 </div>
               </CardContent>
             </Card>
