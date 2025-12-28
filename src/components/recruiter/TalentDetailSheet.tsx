@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,8 +23,12 @@ import {
   Calendar,
   GraduationCap,
   Loader2,
+  FileText,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface TalentDetailSheetProps {
   talentId: string | null;
@@ -31,6 +37,8 @@ interface TalentDetailSheetProps {
 }
 
 export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetailSheetProps) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
   const { data: talent, isLoading } = useQuery({
     queryKey: ['talent-detail', talentId],
     queryFn: async () => {
@@ -64,15 +72,98 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
         .eq('candidate_id', talentId)
         .order('end_date', { ascending: false });
 
+      // Fetch resumes
+      const { data: resumes } = await supabase
+        .from('resumes')
+        .select('*')
+        .eq('candidate_id', talentId)
+        .order('is_primary', { ascending: false });
+
       return {
         ...profile,
         skills: skills || [],
         experience: experience || [],
         education: education || [],
+        resumes: resumes || [],
       };
     },
     enabled: !!talentId && open,
   });
+
+  const handleViewResume = async (fileUrl: string, fileName: string) => {
+    setIsDownloading(true);
+    try {
+      // First try the public URL
+      const response = await fetch(fileUrl, { method: 'HEAD' });
+      
+      if (response.ok) {
+        window.open(fileUrl, '_blank');
+      } else {
+        // Fallback to signed URL
+        const filePath = fileUrl.split('/resumes/')[1];
+        if (filePath) {
+          const { data: signedUrlData, error: signedUrlError } = await supabase
+            .storage
+            .from('resumes')
+            .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+          if (signedUrlError) throw signedUrlError;
+          if (signedUrlData?.signedUrl) {
+            window.open(signedUrlData.signedUrl, '_blank');
+          }
+        } else {
+          throw new Error('Invalid file path');
+        }
+      }
+    } catch (error) {
+      console.error('Error viewing resume:', error);
+      toast.error('Failed to open resume');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadResume = async (fileUrl: string, fileName: string) => {
+    setIsDownloading(true);
+    try {
+      // Extract file path from URL
+      const filePath = fileUrl.split('/resumes/')[1];
+      
+      if (filePath) {
+        // Try to get signed URL for download
+        const { data: signedUrlData, error: signedUrlError } = await supabase
+          .storage
+          .from('resumes')
+          .createSignedUrl(filePath, 3600, { download: true });
+
+        if (signedUrlError) throw signedUrlError;
+        
+        if (signedUrlData?.signedUrl) {
+          const link = document.createElement('a');
+          link.href = signedUrlData.signedUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast.success('Resume downloaded');
+        }
+      } else {
+        // Fallback: try direct download
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      toast.error('Failed to download resume');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -244,6 +335,62 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                               {format(new Date(edu.end_date), 'yyyy')}
                             </div>
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Resumes */}
+              {talent.resumes && talent.resumes.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold mb-3">Resumes</h3>
+                    <div className="space-y-2">
+                      {talent.resumes.map((resume: {
+                        id: string;
+                        file_name: string;
+                        file_url: string;
+                        is_primary?: boolean;
+                        ats_score?: number;
+                        created_at: string;
+                      }) => (
+                        <div key={resume.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">{resume.file_name}</span>
+                                {resume.is_primary && (
+                                  <Badge variant="secondary" className="text-xs">Primary</Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(resume.created_at), 'MMM d, yyyy')}
+                                {resume.ats_score && ` • ATS: ${resume.ats_score}%`}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewResume(resume.file_url, resume.file_name)}
+                              disabled={isDownloading}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}
+                              disabled={isDownloading}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
