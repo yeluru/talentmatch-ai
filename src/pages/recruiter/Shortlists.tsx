@@ -85,6 +85,7 @@ export default function Shortlists() {
   const [searchQuery, setSearchQuery] = useState('');
   const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'count'>('date');
+  const [candidateSortBy, setCandidateSortBy] = useState<'name' | 'date' | 'status'>('date');
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
 
@@ -403,14 +404,27 @@ export default function Shortlists() {
                   {selectedShortlist ? 'Candidates in this shortlist' : 'Click a shortlist to view candidates'}
                 </CardDescription>
                 {selectedShortlist && shortlistCandidates && shortlistCandidates.length > 0 && (
-                  <div className="relative mt-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search candidates..."
-                      value={candidateSearchQuery}
-                      onChange={(e) => setCandidateSearchQuery(e.target.value)}
-                      className="pl-9"
-                    />
+                  <div className="flex items-center gap-2 mt-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search candidates..."
+                        value={candidateSearchQuery}
+                        onChange={(e) => setCandidateSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Select value={candidateSortBy} onValueChange={(v) => setCandidateSortBy(v as 'name' | 'date' | 'status')}>
+                      <SelectTrigger className="w-[130px]">
+                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Date added</SelectItem>
+                        <SelectItem value="name">Name A-Z</SelectItem>
+                        <SelectItem value="status">Status</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </CardHeader>
@@ -429,17 +443,39 @@ export default function Shortlists() {
                   />
                 ) : (
                   <div className="space-y-3">
-                    {shortlistCandidates
-                      .filter(c => {
-                        if (!candidateSearchQuery.trim()) return true;
-                        const q = candidateSearchQuery.toLowerCase();
+                    {(() => {
+                      const filtered = shortlistCandidates
+                        .filter(c => {
+                          if (!candidateSearchQuery.trim()) return true;
+                          const q = candidateSearchQuery.toLowerCase();
+                          return (
+                            c.candidate_profiles?.full_name?.toLowerCase().includes(q) ||
+                            c.candidate_profiles?.current_title?.toLowerCase().includes(q) ||
+                            c.candidate_profiles?.email?.toLowerCase().includes(q)
+                          );
+                        })
+                        .sort((a, b) => {
+                          if (candidateSortBy === 'name') {
+                            return (a.candidate_profiles?.full_name || '').localeCompare(b.candidate_profiles?.full_name || '');
+                          }
+                          if (candidateSortBy === 'status') {
+                            return (a.status || '').localeCompare(b.status || '');
+                          }
+                          // date (newest first)
+                          return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
+                        });
+
+                      if (filtered.length === 0 && candidateSearchQuery.trim()) {
                         return (
-                          c.candidate_profiles?.full_name?.toLowerCase().includes(q) ||
-                          c.candidate_profiles?.current_title?.toLowerCase().includes(q) ||
-                          c.candidate_profiles?.email?.toLowerCase().includes(q)
+                          <EmptyState
+                            icon={Search}
+                            title="No candidates found"
+                            description="Try adjusting your search query"
+                          />
                         );
-                      })
-                      .map((candidate) => (
+                      }
+
+                      return filtered.map((candidate) => (
                       <div key={candidate.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
@@ -521,7 +557,8 @@ export default function Shortlists() {
                           </DropdownMenu>
                         </div>
                       </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 )}
               </CardContent>
