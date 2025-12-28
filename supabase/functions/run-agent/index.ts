@@ -127,12 +127,16 @@ ${JSON.stringify(searchCriteria, null, 2)}`;
     }
 
     const result = JSON.parse(toolCall.function.arguments);
-    console.log("Agent recommendations:", result);
+    console.log("Agent recommendations:", JSON.stringify(result));
 
     // Store recommendations in database
     if (agentId && result.recommendations?.length > 0) {
+      console.log(`Storing ${result.recommendations.length} recommendations for agent ${agentId}`);
+      
       for (const rec of result.recommendations) {
-        await supabase
+        console.log(`Storing recommendation for candidate ${rec.candidate_id} with score ${rec.match_score}`);
+        
+        const { error: upsertError } = await supabase
           .from('agent_recommendations')
           .upsert({
             agent_id: agentId,
@@ -141,16 +145,26 @@ ${JSON.stringify(searchCriteria, null, 2)}`;
             recommendation_reason: rec.recommendation_reason,
             status: rec.is_high_priority ? 'high_priority' : 'pending'
           }, { onConflict: 'agent_id,candidate_id' });
+        
+        if (upsertError) {
+          console.error('Error storing recommendation:', upsertError);
+        }
       }
 
       // Update agent stats
-      await supabase
+      const { error: updateError } = await supabase
         .from('ai_recruiting_agents')
         .update({
           last_run_at: new Date().toISOString(),
           candidates_found: result.recommendations.filter((r: any) => r.match_score >= 70).length
         })
         .eq('id', agentId);
+      
+      if (updateError) {
+        console.error('Error updating agent stats:', updateError);
+      }
+    } else {
+      console.log('No recommendations to store or no agentId provided');
     }
 
     return new Response(JSON.stringify(result), {
