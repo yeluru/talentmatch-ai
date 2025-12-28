@@ -27,8 +27,16 @@ import {
   FolderOpen,
   Briefcase,
   MoreVertical,
-  Search
+  Search,
+  ArrowUpDown
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { format, isValid } from 'date-fns';
@@ -69,6 +77,7 @@ export default function Shortlists() {
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'count'>('date');
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
 
@@ -104,12 +113,21 @@ export default function Shortlists() {
     },
     enabled: !authLoading && !!organizationId,
     select: (data) => {
-      if (!searchQuery.trim()) return data;
-      const q = searchQuery.toLowerCase();
-      return data.filter(s => 
-        s.name.toLowerCase().includes(q) || 
-        s.description?.toLowerCase().includes(q)
-      );
+      let filtered = data;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = data.filter(s => 
+          s.name.toLowerCase().includes(q) || 
+          s.description?.toLowerCase().includes(q)
+        );
+      }
+      // Sort
+      return [...filtered].sort((a, b) => {
+        if (sortBy === 'name') return a.name.localeCompare(b.name);
+        if (sortBy === 'count') return (b.candidates_count || 0) - (a.candidates_count || 0);
+        // date (newest first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
     },
   });
 
@@ -237,14 +255,27 @@ export default function Shortlists() {
                     <CardDescription>Click a shortlist to view candidates</CardDescription>
                   </div>
                 </div>
-                <div className="relative mt-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search shortlists..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
+                <div className="flex items-center gap-2 mt-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search shortlists..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'name' | 'date' | 'count')}>
+                    <SelectTrigger className="w-[140px]">
+                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">Newest</SelectItem>
+                      <SelectItem value="name">Name A-Z</SelectItem>
+                      <SelectItem value="count">Most candidates</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
