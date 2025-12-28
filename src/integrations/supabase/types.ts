@@ -400,6 +400,7 @@ export type Database = {
       }
       candidate_profiles: {
         Row: {
+          ats_score: number | null
           created_at: string
           current_company: string | null
           current_title: string | null
@@ -407,18 +408,24 @@ export type Database = {
           desired_locations: string[] | null
           desired_salary_max: number | null
           desired_salary_min: number | null
+          email: string | null
+          full_name: string | null
           headline: string | null
           id: string
           is_actively_looking: boolean | null
           is_open_to_remote: boolean | null
+          linkedin_url: string | null
+          location: string | null
           organization_id: string | null
+          phone: string | null
           profile_completeness: number | null
           summary: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
           years_of_experience: number | null
         }
         Insert: {
+          ats_score?: number | null
           created_at?: string
           current_company?: string | null
           current_title?: string | null
@@ -426,18 +433,24 @@ export type Database = {
           desired_locations?: string[] | null
           desired_salary_max?: number | null
           desired_salary_min?: number | null
+          email?: string | null
+          full_name?: string | null
           headline?: string | null
           id?: string
           is_actively_looking?: boolean | null
           is_open_to_remote?: boolean | null
+          linkedin_url?: string | null
+          location?: string | null
           organization_id?: string | null
+          phone?: string | null
           profile_completeness?: number | null
           summary?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           years_of_experience?: number | null
         }
         Update: {
+          ats_score?: number | null
           created_at?: string
           current_company?: string | null
           current_title?: string | null
@@ -445,15 +458,20 @@ export type Database = {
           desired_locations?: string[] | null
           desired_salary_max?: number | null
           desired_salary_min?: number | null
+          email?: string | null
+          full_name?: string | null
           headline?: string | null
           id?: string
           is_actively_looking?: boolean | null
           is_open_to_remote?: boolean | null
+          linkedin_url?: string | null
+          location?: string | null
           organization_id?: string | null
+          phone?: string | null
           profile_completeness?: number | null
           summary?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           years_of_experience?: number | null
         }
         Relationships: [
