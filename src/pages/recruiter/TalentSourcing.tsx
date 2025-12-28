@@ -20,10 +20,8 @@ import {
   CheckCircle,
   AlertCircle,
   Linkedin,
-  Users,
   Sparkles,
   Plus,
-  X,
   MapPin,
   Briefcase
 } from 'lucide-react';
@@ -42,11 +40,12 @@ interface SearchedProfile {
   source: string;
 }
 
-interface UploadProgress {
+interface UploadResult {
   fileName: string;
-  status: 'pending' | 'parsing' | 'done' | 'error';
+  status: 'pending' | 'parsing' | 'importing' | 'done' | 'error';
   error?: string;
   parsed?: any;
+  atsScore?: number;
 }
 
 export default function TalentSourcing() {
@@ -60,9 +59,7 @@ export default function TalentSourcing() {
   const [selectedProfiles, setSelectedProfiles] = useState<Set<number>>(new Set());
 
   // Resume upload state
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
-  const [parsedResumes, setParsedResumes] = useState<any[]>([]);
-  const [selectedResumes, setSelectedResumes] = useState<Set<number>>(new Set());
+  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
 
   // LinkedIn search mutation
   const linkedinSearch = useMutation({
@@ -111,21 +108,22 @@ export default function TalentSourcing() {
     }
   });
 
-  // Handle file selection and parsing
+  // Handle file upload - parse and auto-import
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const newProgress: UploadProgress[] = files.map(f => ({
+    const newResults: UploadResult[] = files.map(f => ({
       fileName: f.name,
       status: 'pending'
     }));
-    setUploadProgress(newProgress);
+    setUploadResults(newResults);
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      setUploadProgress(prev => prev.map((p, idx) => 
+      // Update to parsing
+      setUploadResults(prev => prev.map((p, idx) => 
         idx === i ? { ...p, status: 'parsing' } : p
       ));
 
@@ -143,7 +141,7 @@ export default function TalentSourcing() {
         });
 
         // Parse resume
-        const { data, error } = await supabase.functions.invoke('parse-resume', {
+        const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-resume', {
           body: {
             fileBase64: base64,
             fileName: file.name,
@@ -151,47 +149,53 @@ export default function TalentSourcing() {
           }
         });
 
-        if (error) throw error;
+        if (parseError) throw parseError;
 
-        setUploadProgress(prev => prev.map((p, idx) => 
-          idx === i ? { ...p, status: 'done', parsed: data.parsed } : p
+        const parsed = parseData.parsed;
+        
+        // Update to importing
+        setUploadResults(prev => prev.map((p, idx) => 
+          idx === i ? { ...p, status: 'importing', parsed, atsScore: parsed.ats_score } : p
         ));
 
-        setParsedResumes(prev => [...prev, {
-          ...data.parsed,
-          fileName: file.name,
-          source: 'resume_upload'
-        }]);
+        // Auto-import the candidate
+        const { error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
+          body: { 
+            profiles: [{
+              ...parsed,
+              source: 'resume_upload',
+              ats_score: parsed.ats_score
+            }], 
+            organizationId, 
+            source: 'resume_upload' 
+          }
+        });
+
+        if (importError) throw importError;
+
+        setUploadResults(prev => prev.map((p, idx) => 
+          idx === i ? { ...p, status: 'done', parsed, atsScore: parsed.ats_score } : p
+        ));
 
       } catch (error: any) {
-        console.error('Parse error for', file.name, error);
-        setUploadProgress(prev => prev.map((p, idx) => 
+        console.error('Upload error for', file.name, error);
+        setUploadResults(prev => prev.map((p, idx) => 
           idx === i ? { ...p, status: 'error', error: error.message } : p
         ));
       }
     }
-  }, []);
 
-  // Import parsed resumes
-  const importResumes = useMutation({
-    mutationFn: async (profiles: any[]) => {
-      const { data, error } = await supabase.functions.invoke('bulk-import-candidates', {
-        body: { profiles, organizationId, source: 'resume_upload' }
+    queryClient.invalidateQueries({ queryKey: ['candidates'] });
+    
+    // Count successes
+    setTimeout(() => {
+      setUploadResults(prev => {
+        const done = prev.filter(p => p.status === 'done').length;
+        if (done > 0) toast.success(`Imported ${done} candidates`);
+        return prev;
       });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['candidates'] });
-      toast.success(`Imported ${data.results.imported} candidates from resumes`);
-      setSelectedResumes(new Set());
-      setParsedResumes([]);
-      setUploadProgress([]);
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Import failed');
-    }
-  });
+    }, 500);
+  }, [organizationId, queryClient]);
 
   const handleSearch = () => {
     if (!searchQuery.trim()) {
@@ -210,15 +214,6 @@ export default function TalentSourcing() {
     });
   };
 
-  const toggleResumeSelection = (index: number) => {
-    setSelectedResumes(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  };
-
   const selectAllProfiles = () => {
     if (selectedProfiles.size === searchResults.length) {
       setSelectedProfiles(new Set());
@@ -227,26 +222,22 @@ export default function TalentSourcing() {
     }
   };
 
-  const selectAllResumes = () => {
-    if (selectedResumes.size === parsedResumes.length) {
-      setSelectedResumes(new Set());
-    } else {
-      setSelectedResumes(new Set(parsedResumes.map((_, i) => i)));
-    }
-  };
-
   const handleImportSelected = () => {
     const profiles = Array.from(selectedProfiles).map(i => searchResults[i]);
     importProfiles.mutate(profiles);
   };
 
-  const handleImportResumes = () => {
-    const profiles = Array.from(selectedResumes).map(i => parsedResumes[i]);
-    importResumes.mutate(profiles);
-  };
+  const clearResults = () => setUploadResults([]);
 
-  const completedUploads = uploadProgress.filter(p => p.status === 'done').length;
-  const totalUploads = uploadProgress.length;
+  const completedCount = uploadResults.filter(p => p.status === 'done').length;
+  const errorCount = uploadResults.filter(p => p.status === 'error').length;
+  const processingCount = uploadResults.filter(p => ['pending', 'parsing', 'importing'].includes(p.status)).length;
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600';
+    if (score >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
 
   return (
     <DashboardLayout>
@@ -254,7 +245,7 @@ export default function TalentSourcing() {
         <div>
           <h1 className="font-display text-3xl font-bold">Talent Sourcing</h1>
           <p className="text-muted-foreground mt-1">
-            Import candidates from resumes or search the web for profiles
+            Upload resumes or search the web to add candidates
           </p>
         </div>
 
@@ -283,7 +274,7 @@ export default function TalentSourcing() {
                   Bulk Resume Upload
                 </CardTitle>
                 <CardDescription>
-                  Upload multiple resumes at once. We'll parse them using AI and extract candidate profiles.
+                  Upload resumes to automatically parse, score, and import candidates
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -301,103 +292,81 @@ export default function TalentSourcing() {
                     <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <p className="text-lg font-medium mb-1">Drop resumes here or click to upload</p>
                     <p className="text-sm text-muted-foreground">
-                      Supports PDF, DOC, DOCX, TXT • Max 20MB per file
+                      PDF, DOC, DOCX, TXT • Auto-imports with ATS score
                     </p>
                   </label>
                 </div>
 
-                {/* Upload Progress */}
-                {uploadProgress.length > 0 && (
+                {/* Upload Results */}
+                {uploadResults.length > 0 && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium">Processing {totalUploads} files</h3>
-                      <span className="text-sm text-muted-foreground">
-                        {completedUploads} / {totalUploads} complete
-                      </span>
-                    </div>
-                    <Progress value={(completedUploads / totalUploads) * 100} />
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {uploadProgress.map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 text-sm">
-                          {item.status === 'pending' && <div className="h-4 w-4 rounded-full bg-muted" />}
-                          {item.status === 'parsing' && <Loader2 className="h-4 w-4 animate-spin text-accent" />}
-                          {item.status === 'done' && <CheckCircle className="h-4 w-4 text-green-500" />}
-                          {item.status === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
-                          <span className={item.status === 'error' ? 'text-destructive' : ''}>
-                            {item.fileName}
+                      <div className="flex items-center gap-4 text-sm">
+                        {processingCount > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Processing {processingCount}
                           </span>
-                          {item.error && <span className="text-destructive text-xs">({item.error})</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Parsed Results */}
-                {parsedResumes.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={selectedResumes.size === parsedResumes.length}
-                          onCheckedChange={selectAllResumes}
-                        />
-                        <h3 className="font-medium">
-                          Parsed Resumes ({parsedResumes.length})
-                        </h3>
-                      </div>
-                      <Button
-                        onClick={handleImportResumes}
-                        disabled={selectedResumes.size === 0 || importResumes.isPending}
-                      >
-                        {importResumes.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Plus className="h-4 w-4 mr-2" />
                         )}
-                        Import {selectedResumes.size} Selected
-                      </Button>
+                        {completedCount > 0 && (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <CheckCircle className="h-4 w-4" />
+                            {completedCount} imported
+                          </span>
+                        )}
+                        {errorCount > 0 && (
+                          <span className="flex items-center gap-1 text-destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            {errorCount} failed
+                          </span>
+                        )}
+                      </div>
+                      {processingCount === 0 && (
+                        <Button variant="outline" size="sm" onClick={clearResults}>
+                          Clear
+                        </Button>
+                      )}
                     </div>
 
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {parsedResumes.map((resume, i) => (
-                        <div
-                          key={i}
-                          className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                            selectedResumes.has(i) ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
+                    {processingCount > 0 && (
+                      <Progress value={(completedCount / uploadResults.length) * 100} />
+                    )}
+
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {uploadResults.map((item, i) => (
+                        <div 
+                          key={i} 
+                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                            item.status === 'done' ? 'bg-green-50 dark:bg-green-950/20 border-green-200' :
+                            item.status === 'error' ? 'bg-red-50 dark:bg-red-950/20 border-red-200' :
+                            'bg-muted/50'
                           }`}
-                          onClick={() => toggleResumeSelection(i)}
                         >
-                          <Checkbox checked={selectedResumes.has(i)} />
-                          <Avatar>
-                            <AvatarFallback>
-                              {(resume.full_name || 'U').charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
+                          {item.status === 'pending' && <div className="h-5 w-5 rounded-full bg-muted" />}
+                          {item.status === 'parsing' && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}
+                          {item.status === 'importing' && <Loader2 className="h-5 w-5 animate-spin text-green-500" />}
+                          {item.status === 'done' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                          {item.status === 'error' && <AlertCircle className="h-5 w-5 text-destructive" />}
+                          
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium">{resume.full_name || 'Unknown'}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {resume.current_title || resume.headline || 'No title'}
-                              {resume.current_company && ` at ${resume.current_company}`}
+                            <div className="font-medium truncate">
+                              {item.parsed?.full_name || item.fileName}
                             </div>
-                            {resume.skills?.length > 0 && (
-                              <div className="flex gap-1 mt-1 flex-wrap">
-                                {resume.skills.slice(0, 5).map((skill: string, si: number) => (
-                                  <Badge key={si} variant="secondary" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                                {resume.skills.length > 5 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{resume.skills.length - 5}
-                                  </Badge>
-                                )}
+                            {item.parsed?.current_title && (
+                              <div className="text-sm text-muted-foreground truncate">
+                                {item.parsed.current_title}
                               </div>
                             )}
+                            {item.error && (
+                              <div className="text-sm text-destructive">{item.error}</div>
+                            )}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {resume.fileName}
-                          </div>
+
+                          {item.atsScore !== undefined && (
+                            <div className={`font-bold ${getScoreColor(item.atsScore)}`}>
+                              {item.atsScore}%
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -416,14 +385,13 @@ export default function TalentSourcing() {
                   LinkedIn & Web Search
                 </CardTitle>
                 <CardDescription>
-                  Search for candidate profiles across LinkedIn and the web using natural language
+                  Search for profiles using natural language
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Search Input */}
                 <div className="flex gap-3">
                   <Input
-                    placeholder="e.g., React developer San Francisco 5+ years experience"
+                    placeholder="e.g., React developer San Francisco 5+ years"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -439,7 +407,6 @@ export default function TalentSourcing() {
                   </Button>
                 </div>
 
-                {/* Search Results */}
                 {searchResults.length > 0 && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -448,20 +415,21 @@ export default function TalentSourcing() {
                           checked={selectedProfiles.size === searchResults.length}
                           onCheckedChange={selectAllProfiles}
                         />
-                        <h3 className="font-medium">
-                          Found {searchResults.length} profiles
-                        </h3>
+                        <span className="text-sm font-medium">
+                          {searchResults.length} profiles found
+                        </span>
                       </div>
                       <Button
                         onClick={handleImportSelected}
                         disabled={selectedProfiles.size === 0 || importProfiles.isPending}
+                        size="sm"
                       >
                         {importProfiles.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
                           <Plus className="h-4 w-4 mr-2" />
                         )}
-                        Import {selectedProfiles.size} Selected
+                        Import {selectedProfiles.size || ''}
                       </Button>
                     </div>
 
@@ -469,153 +437,75 @@ export default function TalentSourcing() {
                       {searchResults.map((profile, i) => (
                         <div
                           key={i}
-                          className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                          className={`flex items-center gap-4 p-3 border rounded-lg cursor-pointer transition-colors ${
                             selectedProfiles.has(i) ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
                           }`}
                           onClick={() => toggleProfileSelection(i)}
                         >
                           <Checkbox checked={selectedProfiles.has(i)} />
-                          <Avatar>
+                          <Avatar className="h-10 w-10">
                             <AvatarFallback>
-                              {profile.full_name.charAt(0).toUpperCase()}
+                              {(profile.full_name || 'U').charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium">{profile.full_name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {profile.headline || 'No headline'}
-                            </div>
-                            <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                              {profile.current_company && (
-                                <span className="flex items-center gap-1">
-                                  <Briefcase className="h-3 w-3" />
-                                  {profile.current_company}
-                                </span>
-                              )}
+                            <div className="text-sm text-muted-foreground flex items-center gap-2">
+                              {profile.headline && <span className="truncate">{profile.headline}</span>}
                               {profile.location && (
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1 shrink-0">
                                   <MapPin className="h-3 w-3" />
                                   {profile.location}
                                 </span>
                               )}
                             </div>
-                            {profile.skills?.length ? (
-                              <div className="flex gap-1 mt-2 flex-wrap">
-                                {profile.skills.slice(0, 5).map((skill, si) => (
+                            {profile.skills && profile.skills.length > 0 && (
+                              <div className="flex gap-1 mt-1">
+                                {profile.skills.slice(0, 4).map((skill, si) => (
                                   <Badge key={si} variant="secondary" className="text-xs">
                                     {skill}
                                   </Badge>
                                 ))}
-                                {profile.skills.length > 5 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{profile.skills.length - 5}
-                                  </Badge>
-                                )}
                               </div>
-                            ) : null}
+                            )}
                           </div>
-                          {profile.linkedin_url && (
-                            <a
-                              href={profile.linkedin_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-blue-500 hover:text-blue-600"
-                            >
-                              <Linkedin className="h-5 w-5" />
-                            </a>
-                          )}
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                {linkedinSearch.isPending && (
-                  <div className="text-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Searching the web for profiles...</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* API Integration Tab */}
+          {/* API Integrations Tab */}
           <TabsContent value="api" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5" />
-                  Profile API Integrations
+                  API Integrations
                 </CardTitle>
                 <CardDescription>
-                  Connect to professional profile databases for enriched candidate data
+                  Connect to profile data providers
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   {[
-                    {
-                      name: 'Apollo.io',
-                      description: 'B2B database with 275M+ contacts. Get verified emails, phone numbers, and company data.',
-                      status: 'available',
-                      logo: '🚀'
-                    },
-                    {
-                      name: 'Hunter.io',
-                      description: 'Find and verify professional email addresses. Domain search and email finder.',
-                      status: 'available',
-                      logo: '🎯'
-                    },
-                    {
-                      name: 'RocketReach',
-                      description: 'Access 700M+ professional profiles with direct contact info.',
-                      status: 'available',
-                      logo: '🔥'
-                    },
-                    {
-                      name: 'People Data Labs',
-                      description: 'Comprehensive people data API for enrichment and search.',
-                      status: 'available',
-                      logo: '📊'
-                    }
-                  ].map((api) => (
-                    <div
-                      key={api.name}
-                      className="p-4 border rounded-lg hover:border-primary/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl">{api.logo}</span>
-                        <div>
-                          <h3 className="font-semibold">{api.name}</h3>
-                          <Badge variant="outline" className="text-xs">
-                            Requires API Key
-                          </Badge>
-                        </div>
+                    { name: 'Apollo.io', desc: 'B2B contacts & leads' },
+                    { name: 'Hunter.io', desc: 'Email finder' },
+                    { name: 'Clearbit', desc: 'Company & person data' },
+                    { name: 'People Data Labs', desc: 'Professional profiles' }
+                  ].map(api => (
+                    <div key={api.name} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{api.name}</div>
+                        <div className="text-sm text-muted-foreground">{api.desc}</div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {api.description}
-                      </p>
-                      <Button variant="outline" className="w-full">
-                        Configure API Key
-                      </Button>
+                      <Button variant="outline" size="sm">Configure</Button>
                     </div>
                   ))}
-                </div>
-
-                <div className="mt-6 p-4 bg-muted rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <h4 className="font-medium mb-1">Need help choosing?</h4>
-                      <p className="text-sm text-muted-foreground">
-                        <strong>Apollo.io</strong> is best for sales-focused sourcing with company data. 
-                        <strong> Hunter.io</strong> excels at email verification. 
-                        <strong> RocketReach</strong> and <strong>People Data Labs</strong> offer comprehensive profile data for technical recruiting.
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -132,17 +132,24 @@ serve(async (req) => {
     
     console.log("Regex extracted - Email:", extractedEmail, "Phone:", extractedPhone);
 
-    const systemPrompt = `You are an expert resume parser. Extract key information from the resume text or document provided.
-Be accurate and only extract information that is clearly present in the resume.
+    const systemPrompt = `You are an expert resume parser and ATS analyst. Extract key information from the resume and evaluate its quality.
 
 CRITICAL INSTRUCTIONS FOR CONTACT INFO:
 - For email: Look carefully for patterns like name@gmail.com, name@domain.com. The email is usually near the top of the resume near the name.
 - For phone: Look for phone number patterns like +1 (xxx) xxx-xxxx or xxx-xxx-xxxx. Usually near email.
 - If you see hints provided with regex-detected values, USE THEM - they are reliable.
 
-For skills, extract both technical and soft skills mentioned.`;
+For skills, extract both technical and soft skills mentioned.
 
-    const userPrompt = `Parse this resume and extract the candidate's information:
+ATS SCORING CRITERIA (score 0-100):
+- Keyword optimization for their target role (25 points)
+- Clear structure and formatting (20 points)
+- Quantifiable achievements (20 points)
+- Skills section completeness (15 points)
+- Contact info completeness (10 points)
+- Professional summary quality (10 points)`;
+
+    const userPrompt = `Parse this resume and extract the candidate's information. Also calculate an ATS score based on how well the resume is optimized for the candidate's target/current role.
 
 IMPORTANT - USE THESE CONTACT DETAILS IF DETECTED:
 - Detected Email: ${extractedEmail ?? "NOT FOUND - search the text carefully"}
@@ -170,7 +177,7 @@ IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''
             type: "function",
             function: {
               name: "parse_resume",
-              description: "Extract structured information from a resume",
+              description: "Extract structured information from a resume and calculate ATS score",
               parameters: {
                 type: "object",
                 properties: {
@@ -192,7 +199,7 @@ IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''
                   },
                   current_title: { 
                     type: "string", 
-                    description: "Current or most recent job title" 
+                    description: "Current or most recent job title - this is the target role for ATS scoring" 
                   },
                   current_company: { 
                     type: "string", 
@@ -240,9 +247,17 @@ IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''
                   linkedin_url: {
                     type: "string",
                     description: "LinkedIn profile URL if found"
+                  },
+                  ats_score: {
+                    type: "number",
+                    description: "ATS compatibility score from 0-100 based on how well the resume is optimized for the target role"
+                  },
+                  ats_feedback: {
+                    type: "string",
+                    description: "Brief feedback on resume quality and what could be improved"
                   }
                 },
-                required: ["full_name", "skills"],
+                required: ["full_name", "skills", "ats_score"],
                 additionalProperties: false
               }
             }
