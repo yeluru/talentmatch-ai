@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ShortlistCandidateCard } from '@/components/recruiter/ShortlistCandidateCard';
+import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
 
 interface Shortlist {
   id: string;
@@ -78,6 +79,8 @@ export default function Shortlists() {
   const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'count'>('date');
   const [candidateSortBy, setCandidateSortBy] = useState<'name' | 'date' | 'status'>('date');
+  const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
+  const [talentSheetOpen, setTalentSheetOpen] = useState(false);
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
 
@@ -480,6 +483,10 @@ export default function Shortlists() {
                             moveToShortlist.mutate({ shortlistCandidateId, candidateId, targetShortlistId })
                           }
                           onRemove={(id) => removeFromShortlist.mutate(id)}
+                          onViewProfile={(candidateId) => {
+                            setSelectedTalentId(candidateId);
+                            setTalentSheetOpen(true);
+                          }}
                         />
                       ));
                     })()}
@@ -530,6 +537,12 @@ export default function Shortlists() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <TalentDetailSheet
+        talentId={selectedTalentId}
+        open={talentSheetOpen}
+        onOpenChange={setTalentSheetOpen}
+      />
     </DashboardLayout>
   );
 }

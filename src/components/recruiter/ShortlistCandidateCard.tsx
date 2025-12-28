@@ -34,7 +34,8 @@ import {
   ChevronDown,
   MessageSquare,
   Save,
-  Loader2
+  Loader2,
+  User,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,6 +81,7 @@ interface ShortlistCandidateCardProps {
   onCopy: (candidateId: string, targetShortlistId: string) => void;
   onMove: (shortlistCandidateId: string, candidateId: string, targetShortlistId: string) => void;
   onRemove: (id: string) => void;
+  onViewProfile?: (candidateId: string) => void;
 }
 
 export function ShortlistCandidateCard({
@@ -89,6 +91,7 @@ export function ShortlistCandidateCard({
   onCopy,
   onMove,
   onRemove,
+  onViewProfile,
 }: ShortlistCandidateCardProps) {
   const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -161,6 +164,18 @@ export function ShortlistCandidateCard({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {onViewProfile && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => onViewProfile(candidate.candidate_id)}
+              >
+                <User className="h-4 w-4 mr-1" />
+                Profile
+              </Button>
+            )}
+            
             <Select
               value={candidate.status}
               onValueChange={(value) => updateStatus.mutate(value)}
