@@ -539,13 +539,18 @@ export default function TalentPool() {
                       onClick={() => handleTalentClick(talent.id)}
                     >
                       <div className="flex items-start gap-4">
-                        <div className="flex items-center gap-3">
+                        <div 
+                          className="flex items-center justify-center w-10 h-12 shrink-0 cursor-pointer"
+                          onClick={(e) => toggleSelection(talent.id, e)}
+                        >
                           <Checkbox
                             checked={selectedIds.has(talent.id)}
-                            onClick={(e) => toggleSelection(talent.id, e)}
                             onCheckedChange={() => {}}
                             aria-label={`Select ${talent.full_name || 'talent'}`}
+                            className="pointer-events-none"
                           />
+                        </div>
+                        <div className="flex items-center gap-3">
                           <Avatar className="h-12 w-12">
                             <AvatarFallback className="bg-accent text-accent-foreground">
                               {(talent.full_name || 'U').charAt(0).toUpperCase()}
