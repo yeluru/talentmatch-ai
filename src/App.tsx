@@ -29,6 +29,7 @@ import CreateJob from "./pages/recruiter/CreateJob";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import AIMatching from "./pages/recruiter/AIMatching";
 import TalentSearch from "./pages/recruiter/TalentSearch";
+import TalentSourcing from "./pages/recruiter/TalentSourcing";
 import TalentInsights from "./pages/recruiter/TalentInsights";
 import AIAgents from "./pages/recruiter/AIAgents";
 import OutreachCampaigns from "./pages/recruiter/OutreachCampaigns";
@@ -123,6 +124,11 @@ const App = () => (
             <Route path="/recruiter/talent-search" element={
               <ProtectedRoute allowedRoles={['recruiter']}>
                 <TalentSearch />
+              </ProtectedRoute>
+            } />
+            <Route path="/recruiter/talent-sourcing" element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <TalentSourcing />
               </ProtectedRoute>
             } />
             <Route path="/recruiter/insights" element={

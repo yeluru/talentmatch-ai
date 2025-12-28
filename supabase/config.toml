@@ -42,3 +42,9 @@ verify_jwt = false
 
 [functions.generate-email]
 verify_jwt = false
+
+[functions.linkedin-search]
+verify_jwt = false
+
+[functions.bulk-import-candidates]
+verify_jwt = false
