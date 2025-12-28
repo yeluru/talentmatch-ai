@@ -152,9 +152,11 @@ export default function AIAgents() {
   });
 
   // Fetch ALL candidates who are actively looking (public talent pool)
-  const { data: candidates, isLoading: candidatesLoading } = useQuery({
+  const { data: candidates, isLoading: candidatesLoading, error: candidatesError } = useQuery({
     queryKey: ['all-candidates-for-agent'],
     queryFn: async () => {
+      console.log('Fetching candidates for talent pool...');
+      
       // Recruiters search the public candidate pool - not org-specific
       const { data: profiles, error } = await supabase
         .from('candidate_profiles')
@@ -167,6 +169,8 @@ export default function AIAgents() {
         throw error;
       }
 
+      console.log('Fetched candidate profiles:', profiles?.length || 0);
+
       if (!profiles?.length) {
         console.log('No active candidates found in pool');
         return [];
@@ -178,13 +182,17 @@ export default function AIAgents() {
         .select('user_id, full_name')
         .in('user_id', userIds);
 
+      console.log('Fetched user profiles:', userProfiles?.length || 0);
+
       const candidateIds = profiles.map(p => p.id);
       const { data: skills } = await supabase
         .from('candidate_skills')
         .select('candidate_id, skill_name')
         .in('candidate_id', candidateIds);
 
-      return profiles.map(p => ({
+      console.log('Fetched skills:', skills?.length || 0);
+
+      const result = profiles.map(p => ({
         id: p.id,
         name: userProfiles?.find(up => up.user_id === p.user_id)?.full_name || 'Unknown Candidate',
         title: p.current_title || 'No title specified',
@@ -192,9 +200,17 @@ export default function AIAgents() {
         summary: p.summary || 'No summary available',
         skills: skills?.filter(s => s.candidate_id === p.id).map(s => s.skill_name) || []
       }));
+
+      console.log('Mapped candidates for agent:', result);
+      return result;
     },
     enabled: true,
   });
+
+  // Log candidates error
+  if (candidatesError) {
+    console.error('Candidates query error:', candidatesError);
+  }
 
   const createAgent = useMutation({
     mutationFn: async () => {
@@ -414,11 +430,19 @@ export default function AIAgents() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Run AI Agent - Analyze candidates"
                           onClick={(e) => {
                             e.stopPropagation();
+                            console.log('Run button clicked for agent:', agent.name);
+                            console.log('Current candidates count:', candidates?.length || 0);
+                            console.log('Candidates data:', candidates);
+                            if (!candidates?.length) {
+                              toast.error('No candidates in talent pool to analyze');
+                              return;
+                            }
                             runAgent.mutate(agent);
                           }}
-                          disabled={runAgent.isPending}
+                          disabled={runAgent.isPending || candidatesLoading || !candidates?.length}
                         >
                           {runAgent.isPending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
