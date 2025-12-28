@@ -151,39 +151,49 @@ export default function AIAgents() {
     enabled: !!selectedAgent,
   });
 
-  // Fetch candidates for running agent
-  const { data: candidates } = useQuery({
-    queryKey: ['org-candidates-for-agent', organizationId],
+  // Fetch ALL candidates who are actively looking (public talent pool)
+  const { data: candidates, isLoading: candidatesLoading } = useQuery({
+    queryKey: ['all-candidates-for-agent'],
     queryFn: async () => {
-      if (!organizationId) return [];
-      
-      const { data: profiles } = await supabase
+      // Recruiters search the public candidate pool - not org-specific
+      const { data: profiles, error } = await supabase
         .from('candidate_profiles')
         .select('id, current_title, years_of_experience, summary, user_id')
-        .eq('organization_id', organizationId);
+        .eq('is_actively_looking', true)
+        .limit(100);
 
-      const userIds = profiles?.map(p => p.user_id) || [];
+      if (error) {
+        console.error('Error fetching candidates:', error);
+        throw error;
+      }
+
+      if (!profiles?.length) {
+        console.log('No active candidates found in pool');
+        return [];
+      }
+
+      const userIds = profiles.map(p => p.user_id).filter(Boolean);
       const { data: userProfiles } = await supabase
         .from('profiles')
         .select('user_id, full_name')
         .in('user_id', userIds);
 
-      const candidateIds = profiles?.map(p => p.id) || [];
+      const candidateIds = profiles.map(p => p.id);
       const { data: skills } = await supabase
         .from('candidate_skills')
         .select('candidate_id, skill_name')
         .in('candidate_id', candidateIds);
 
-      return profiles?.map(p => ({
+      return profiles.map(p => ({
         id: p.id,
-        name: userProfiles?.find(up => up.user_id === p.user_id)?.full_name || 'Unknown',
-        title: p.current_title,
-        years_experience: p.years_of_experience,
-        summary: p.summary,
+        name: userProfiles?.find(up => up.user_id === p.user_id)?.full_name || 'Unknown Candidate',
+        title: p.current_title || 'No title specified',
+        years_experience: p.years_of_experience || 0,
+        summary: p.summary || 'No summary available',
         skills: skills?.filter(s => s.candidate_id === p.id).map(s => s.skill_name) || []
-      })) || [];
+      }));
     },
-    enabled: !!organizationId,
+    enabled: true,
   });
 
   const createAgent = useMutation({
@@ -225,7 +235,13 @@ export default function AIAgents() {
 
   const runAgent = useMutation({
     mutationFn: async (agent: Agent) => {
-      if (!candidates?.length) throw new Error('No candidates to evaluate');
+      console.log('Running agent:', agent.name, 'with', candidates?.length || 0, 'candidates');
+      
+      if (!candidates?.length) {
+        throw new Error('No candidates available in the talent pool. Add some test candidates first.');
+      }
+      
+      toast.info(`Analyzing ${candidates.length} candidates...`, { duration: 3000 });
       
       const { data, error } = await supabase.functions.invoke('run-agent', {
         body: {
@@ -235,13 +251,24 @@ export default function AIAgents() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to run AI agent');
+      }
+      
+      if (data?.error) {
+        console.error('Agent error:', data.error);
+        throw new Error(data.error);
+      }
+      
+      console.log('Agent results:', data);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
       queryClient.invalidateQueries({ queryKey: ['agent-recommendations'] });
-      toast.success('Agent run complete!');
+      const matchCount = data?.recommendations?.length || 0;
+      toast.success(`Agent found ${matchCount} candidate matches!`);
     },
     onError: (error: any) => {
       console.error('Run agent error:', error);
@@ -318,6 +345,29 @@ export default function AIAgents() {
             Create Agent
           </Button>
         </div>
+
+        {/* Candidate Pool Status */}
+        <Card className="border-dashed">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Talent Pool</p>
+                  <p className="text-sm text-muted-foreground">
+                    {candidatesLoading ? 'Loading...' : `${candidates?.length || 0} active candidates available`}
+                  </p>
+                </div>
+              </div>
+              {!candidatesLoading && !candidates?.length && (
+                <Badge variant="destructive">No candidates</Badge>
+              )}
+              {!candidatesLoading && (candidates?.length || 0) > 0 && (
+                <Badge variant="default">{candidates?.length} ready</Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {!agents?.length ? (
           <EmptyState

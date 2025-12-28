@@ -18,12 +18,29 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("LOVABLE_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ error: "AI service not configured. Please contact support." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!candidates || candidates.length === 0) {
+      console.log("No candidates provided to evaluate");
+      return new Response(
+        JSON.stringify({ 
+          error: "No candidates to evaluate", 
+          recommendations: [],
+          summary: "No candidates were provided for evaluation",
+          total_evaluated: 0 
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log("Running agent:", agentId);
-    console.log("Search criteria:", searchCriteria);
-    console.log("Candidates to evaluate:", candidates?.length || 0);
+    console.log("Search criteria:", JSON.stringify(searchCriteria));
+    console.log("Candidates to evaluate:", candidates.length);
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
