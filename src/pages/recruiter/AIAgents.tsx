@@ -420,6 +420,7 @@ export default function AIAgents() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title={agent.is_active ? 'Pause agent' : 'Resume agent'}
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleAgent.mutate(agent);
@@ -427,15 +428,15 @@ export default function AIAgents() {
                         >
                           {agent.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </Button>
+
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Run AI Agent - Analyze candidates"
+                          variant="secondary"
+                          size="sm"
+                          title="Run AI agent now"
                           onClick={(e) => {
                             e.stopPropagation();
                             console.log('Run button clicked for agent:', agent.name);
                             console.log('Current candidates count:', candidates?.length || 0);
-                            console.log('Candidates data:', candidates);
                             if (!candidates?.length) {
                               toast.error('No candidates in talent pool to analyze');
                               return;
@@ -449,6 +450,7 @@ export default function AIAgents() {
                           ) : (
                             <Sparkles className="h-4 w-4" />
                           )}
+                          <span className="ml-2">Run</span>
                         </Button>
                       </div>
                     </div>
