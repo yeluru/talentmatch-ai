@@ -69,6 +69,8 @@ export default function Shortlists() {
   const [newDescription, setNewDescription] = useState('');
   
   const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  
+  console.log('Shortlists - roles:', roles, 'organizationId:', organizationId);
 
   // Fetch shortlists
   const { data: shortlists, isLoading } = useQuery({
