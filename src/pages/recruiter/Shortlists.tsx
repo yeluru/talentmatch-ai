@@ -26,7 +26,8 @@ import {
   Users,
   FolderOpen,
   Briefcase,
-  MoreVertical
+  MoreVertical,
+  Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -67,6 +68,7 @@ export default function Shortlists() {
   const [selectedShortlist, setSelectedShortlist] = useState<Shortlist | null>(null);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
 
@@ -101,6 +103,14 @@ export default function Shortlists() {
       })) as Shortlist[];
     },
     enabled: !authLoading && !!organizationId,
+    select: (data) => {
+      if (!searchQuery.trim()) return data;
+      const q = searchQuery.toLowerCase();
+      return data.filter(s => 
+        s.name.toLowerCase().includes(q) || 
+        s.description?.toLowerCase().includes(q)
+      );
+    },
   });
 
   // Fetch candidates in selected shortlist
@@ -221,8 +231,21 @@ export default function Shortlists() {
             {/* Shortlists */}
             <Card>
               <CardHeader>
-                <CardTitle>Your Shortlists</CardTitle>
-                <CardDescription>Click a shortlist to view candidates</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Your Shortlists</CardTitle>
+                    <CardDescription>Click a shortlist to view candidates</CardDescription>
+                  </div>
+                </div>
+                <div className="relative mt-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search shortlists..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {shortlists.map((shortlist) => (
