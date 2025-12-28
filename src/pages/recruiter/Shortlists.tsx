@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +69,12 @@ export default function Shortlists() {
   const [newDescription, setNewDescription] = useState('');
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
+
+  const safeFormatDate = (value?: string | null) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    return isValid(d) ? format(d, 'MMM d, yyyy') : '—';
+  };
 
   // Fetch shortlists - wait for auth to finish loading before enabling
   const { data: shortlists, isLoading } = useQuery({
@@ -260,7 +266,7 @@ export default function Shortlists() {
                         <Users className="h-3 w-3" />
                         {shortlist.candidates_count} candidates
                       </span>
-                      <span>Created {format(new Date(shortlist.created_at), 'MMM d, yyyy')}</span>
+                      <span>Created {safeFormatDate(shortlist.created_at)}</span>
                     </div>
                   </div>
                 ))}
