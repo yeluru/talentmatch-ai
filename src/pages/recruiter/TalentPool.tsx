@@ -253,19 +253,25 @@ export default function TalentPool() {
     if (!talents) return [];
 
     let result = talents.filter((t) => {
-      // Text search
-      const name = t.full_name || '';
-      const title = t.current_title || '';
-      const skillsText = t.skills.map((s) => s.skill_name).join(' ');
-      const companiesText = t.companies.join(' ');
-      const searchLower = searchQuery.toLowerCase();
+      // Text search with boolean OR support (comma-separated terms)
+      const name = (t.full_name || '').toLowerCase();
+      const title = (t.current_title || '').toLowerCase();
+      const headline = (t.headline || '').toLowerCase();
+      const skillsText = t.skills.map((s) => s.skill_name.toLowerCase()).join(' ');
+      const companiesText = t.companies.map((c) => c.toLowerCase()).join(' ');
+      const location = (t.location || '').toLowerCase();
+      const searchableText = `${name} ${title} ${headline} ${skillsText} ${companiesText} ${location}`;
 
+      // Parse search terms: split by comma, trim whitespace, filter empty
+      const searchTerms = searchQuery
+        .split(',')
+        .map((term) => term.trim().toLowerCase())
+        .filter((term) => term.length > 0);
+
+      // Match if ANY term is found (OR logic)
       const matchesSearch =
-        !searchQuery ||
-        name.toLowerCase().includes(searchLower) ||
-        title.toLowerCase().includes(searchLower) ||
-        skillsText.toLowerCase().includes(searchLower) ||
-        companiesText.toLowerCase().includes(searchLower);
+        searchTerms.length === 0 ||
+        searchTerms.some((term) => searchableText.includes(term));
 
       // Company filter
       const matchesCompany =
@@ -429,7 +435,7 @@ export default function TalentPool() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name, title, skills, or company..."
+                  placeholder="Boolean search: Fannie, Freddie, react (comma = OR)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
