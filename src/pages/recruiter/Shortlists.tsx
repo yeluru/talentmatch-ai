@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -25,12 +23,9 @@ import {
   Loader2,
   Users,
   FolderOpen,
-  Briefcase,
   MoreVertical,
   Search,
   ArrowUpDown,
-  Copy,
-  MoveRight
 } from 'lucide-react';
 import {
   Select,
@@ -47,11 +42,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { ShortlistCandidateCard } from '@/components/recruiter/ShortlistCandidateCard';
 
 interface Shortlist {
   id: string;
@@ -476,87 +468,19 @@ export default function Shortlists() {
                       }
 
                       return filtered.map((candidate) => (
-                      <div key={candidate.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback className="bg-accent text-accent-foreground">
-                              {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Briefcase className="h-3 w-3" />
-                              {candidate.candidate_profiles?.current_title || 'No title'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{candidate.status}</Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  Copy to...
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).map(s => (
-                                    <DropdownMenuItem
-                                      key={s.id}
-                                      onClick={() => copyToShortlist.mutate({
-                                        candidateId: candidate.candidate_id,
-                                        targetShortlistId: s.id,
-                                      })}
-                                    >
-                                      {s.name}
-                                    </DropdownMenuItem>
-                                  ))}
-                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).length === 0 && (
-                                    <DropdownMenuItem disabled>No other shortlists</DropdownMenuItem>
-                                  )}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuSub>
-                              <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                  <MoveRight className="h-4 w-4 mr-2" />
-                                  Move to...
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).map(s => (
-                                    <DropdownMenuItem
-                                      key={s.id}
-                                      onClick={() => moveToShortlist.mutate({
-                                        shortlistCandidateId: candidate.id,
-                                        candidateId: candidate.candidate_id,
-                                        targetShortlistId: s.id,
-                                      })}
-                                    >
-                                      {s.name}
-                                    </DropdownMenuItem>
-                                  ))}
-                                  {shortlists?.filter(s => s.id !== selectedShortlist?.id).length === 0 && (
-                                    <DropdownMenuItem disabled>No other shortlists</DropdownMenuItem>
-                                  )}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuSub>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => removeFromShortlist.mutate(candidate.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Remove
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
+                        <ShortlistCandidateCard
+                          key={candidate.id}
+                          candidate={candidate}
+                          shortlists={shortlists}
+                          selectedShortlistId={selectedShortlist!.id}
+                          onCopy={(candidateId, targetShortlistId) => 
+                            copyToShortlist.mutate({ candidateId, targetShortlistId })
+                          }
+                          onMove={(shortlistCandidateId, candidateId, targetShortlistId) =>
+                            moveToShortlist.mutate({ shortlistCandidateId, candidateId, targetShortlistId })
+                          }
+                          onRemove={(id) => removeFromShortlist.mutate(id)}
+                        />
                       ));
                     })()}
                   </div>
