@@ -343,11 +343,12 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
               )}
 
               {/* Resumes */}
-              {talent.resumes && talent.resumes.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="font-semibold mb-3">Resumes</h3>
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-3">Resumes</h3>
+
+                  {talent.resumes && talent.resumes.length > 0 ? (
                     <div className="space-y-2">
                       {talent.resumes.map((resume: {
                         id: string;
@@ -357,14 +358,21 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                         ats_score?: number;
                         created_at: string;
                       }) => (
-                        <div key={resume.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                        <div
+                          key={resume.id}
+                          className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                        >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium truncate">{resume.file_name}</span>
+                                <span className="text-sm font-medium truncate">
+                                  {resume.file_name}
+                                </span>
                                 {resume.is_primary && (
-                                  <Badge variant="secondary" className="text-xs">Primary</Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    Primary
+                                  </Badge>
                                 )}
                               </div>
                               <div className="text-xs text-muted-foreground">
@@ -379,6 +387,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                               size="sm"
                               onClick={() => handleViewResume(resume.file_url, resume.file_name)}
                               disabled={isDownloading}
+                              aria-label={`View resume ${resume.file_name}`}
                             >
                               <ExternalLink className="h-4 w-4" />
                             </Button>
@@ -387,6 +396,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                               size="sm"
                               onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}
                               disabled={isDownloading}
+                              aria-label={`Download resume ${resume.file_name}`}
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -394,9 +404,13 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                         </div>
                       ))}
                     </div>
-                  </div>
-                </>
-              )}
+                  ) : (
+                    <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                      No resumes found for this candidate.
+                    </div>
+                  )}
+                </div>
+              </>
 
               {/* Meta info */}
               <Separator />
