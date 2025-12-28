@@ -265,12 +265,12 @@ export default function TalentPool() {
                 <Filter className="h-4 w-4" />
                 Filters:
               </div>
-              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Company" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Companies</SelectItem>
+                  <SelectItem value="all">All Companies</SelectItem>
                   {uniqueCompanies.map((company) => (
                     <SelectItem key={company} value={company}>
                       {company}
@@ -278,12 +278,12 @@ export default function TalentPool() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Locations</SelectItem>
+                  <SelectItem value="all">All Locations</SelectItem>
                   {uniqueLocations.map((location) => (
                     <SelectItem key={location} value={location}>
                       {location}
@@ -291,12 +291,12 @@ export default function TalentPool() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={experienceFilter} onValueChange={setExperienceFilter}>
+              <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Experience" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Levels</SelectItem>
+                  <SelectItem value="all">All Levels</SelectItem>
                   {EXPERIENCE_LEVELS.map((level) => (
                     <SelectItem key={level.value} value={level.value}>
                       {level.label}
