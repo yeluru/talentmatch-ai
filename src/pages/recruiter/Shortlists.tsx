@@ -83,6 +83,7 @@ export default function Shortlists() {
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'count'>('date');
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
@@ -401,6 +402,17 @@ export default function Shortlists() {
                 <CardDescription>
                   {selectedShortlist ? 'Candidates in this shortlist' : 'Click a shortlist to view candidates'}
                 </CardDescription>
+                {selectedShortlist && shortlistCandidates && shortlistCandidates.length > 0 && (
+                  <div className="relative mt-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search candidates..."
+                      value={candidateSearchQuery}
+                      onChange={(e) => setCandidateSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {!selectedShortlist ? (
@@ -417,7 +429,17 @@ export default function Shortlists() {
                   />
                 ) : (
                   <div className="space-y-3">
-                    {shortlistCandidates.map((candidate) => (
+                    {shortlistCandidates
+                      .filter(c => {
+                        if (!candidateSearchQuery.trim()) return true;
+                        const q = candidateSearchQuery.toLowerCase();
+                        return (
+                          c.candidate_profiles?.full_name?.toLowerCase().includes(q) ||
+                          c.candidate_profiles?.current_title?.toLowerCase().includes(q) ||
+                          c.candidate_profiles?.email?.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((candidate) => (
                       <div key={candidate.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
