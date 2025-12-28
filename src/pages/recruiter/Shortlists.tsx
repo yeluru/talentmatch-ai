@@ -70,7 +70,7 @@ export default function Shortlists() {
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
 
-  // Fetch shortlists
+  // Fetch shortlists - wait for auth to finish loading before enabling
   const { data: shortlists, isLoading } = useQuery({
     queryKey: ['shortlists', organizationId],
     queryFn: async () => {
@@ -94,7 +94,7 @@ export default function Shortlists() {
         candidates_count: counts?.filter(c => c.shortlist_id === s.id).length || 0
       })) as Shortlist[];
     },
-    enabled: !!organizationId,
+    enabled: !authLoading && !!organizationId,
   });
 
   // Fetch candidates in selected shortlist
