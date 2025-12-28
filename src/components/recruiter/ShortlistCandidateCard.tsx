@@ -25,6 +25,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 import { 
   Briefcase, 
   MoreVertical, 
@@ -150,29 +155,51 @@ export function ShortlistCandidateCard({
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <div className="border rounded-lg overflow-hidden">
         <div className="flex items-center justify-between p-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Avatar className="h-10 w-10 shrink-0">
-              <AvatarFallback className="bg-accent text-accent-foreground">
-                {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              {onViewProfile ? (
-                <button
-                  onClick={() => onViewProfile(candidate.candidate_id)}
-                  className="font-medium truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer"
-                >
-                  {candidate.candidate_profiles?.full_name || 'Unknown'}
-                </button>
-              ) : (
-                <p className="font-medium truncate">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
-              )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Briefcase className="h-3 w-3 shrink-0" />
-                <span className="truncate">{candidate.candidate_profiles?.current_title || 'No title'}</span>
+          <HoverCard openDelay={300} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <div className="flex items-center gap-3 flex-1 min-w-0 cursor-default">
+                <Avatar className="h-10 w-10 shrink-0">
+                  <AvatarFallback className="bg-accent text-accent-foreground">
+                    {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  {onViewProfile ? (
+                    <button
+                      onClick={() => onViewProfile(candidate.candidate_id)}
+                      className="font-medium truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer"
+                    >
+                      {candidate.candidate_profiles?.full_name || 'Unknown'}
+                    </button>
+                  ) : (
+                    <p className="font-medium truncate">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Briefcase className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{candidate.candidate_profiles?.current_title || 'No title'}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-80" align="start">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Status</span>
+                  <Badge variant={currentStatus.variant}>{currentStatus.label}</Badge>
+                </div>
+                <div>
+                  <span className="text-sm font-medium">Notes</span>
+                  {candidate.notes ? (
+                    <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-4">
+                      {candidate.notes}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1 italic">No notes added</p>
+                  )}
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
           <div className="flex items-center gap-2 shrink-0">
             
             <Select
