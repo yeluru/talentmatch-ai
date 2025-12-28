@@ -61,6 +61,7 @@ const candidateNavItems = [
 const recruiterNavItems = [
   { title: 'Dashboard', href: '/recruiter', icon: Home },
   { title: 'Talent Sourcing', href: '/recruiter/talent-sourcing', icon: Upload },
+  { title: 'Talent Pool', href: '/recruiter/talent-pool', icon: Users },
   { title: 'Talent Search', href: '/recruiter/talent-search', icon: Search },
   { title: 'AI Agents', href: '/recruiter/agents', icon: Bot },
   { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
