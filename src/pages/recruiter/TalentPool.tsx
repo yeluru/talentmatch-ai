@@ -12,6 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -47,6 +56,8 @@ const EXPERIENCE_LEVELS = [
   { value: 'lead', label: 'Lead (10+ years)', min: 10, max: 100 },
 ];
 
+const ITEMS_PER_PAGE = 10;
+
 export default function TalentPool() {
   const { roles } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +67,7 @@ export default function TalentPool() {
   const [experienceFilter, setExperienceFilter] = useState<string>('');
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const organizationId = roles.find((r) => r.role === 'recruiter')?.organization_id;
 
@@ -198,6 +210,18 @@ export default function TalentPool() {
     return result;
   }, [talents, searchQuery, sortBy, companyFilter, locationFilter, experienceFilter]);
 
+  // Reset page when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchQuery, companyFilter, locationFilter, experienceFilter, sortBy]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTalents.length / ITEMS_PER_PAGE);
+  const paginatedTalents = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredTalents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredTalents, currentPage]);
+
   const hasActiveFilters = companyFilter || locationFilter || experienceFilter;
 
   const clearFilters = () => {
@@ -209,6 +233,28 @@ export default function TalentPool() {
   const handleTalentClick = (id: string) => {
     setSelectedTalentId(id);
     setSheetOpen(true);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('ellipsis');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('ellipsis');
+      pages.push(totalPages);
+    }
+    return pages;
   };
 
   if (isLoading) {
@@ -311,6 +357,13 @@ export default function TalentPool() {
                 </Button>
               )}
             </div>
+
+            {/* Results count */}
+            {filteredTalents.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredTalents.length)} of {filteredTalents.length} profiles
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {!filteredTalents?.length ? (
@@ -324,64 +377,103 @@ export default function TalentPool() {
                 }
               />
             ) : (
-              <div className="divide-y">
-                {filteredTalents.map((talent) => (
-                  <div
-                    key={talent.id}
-                    className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 -mx-4 px-4 transition-colors"
-                    onClick={() => handleTalentClick(talent.id)}
-                  >
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-accent text-accent-foreground">
-                          {(talent.full_name || 'U').charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{talent.full_name || 'Unknown'}</h3>
-                          {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-                          {talent.current_title && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="h-3.5 w-3.5" />
-                              {talent.current_title}
-                              {talent.current_company && ` at ${talent.current_company}`}
-                            </span>
-                          )}
-                          {talent.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
-                              {talent.location}
-                            </span>
-                          )}
-                          {talent.years_of_experience !== null && (
-                            <span>{talent.years_of_experience} yrs exp</span>
-                          )}
-                        </div>
-                        {talent.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {talent.skills.slice(0, 5).map((skill, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {skill.skill_name}
-                              </Badge>
-                            ))}
-                            {talent.skills.length > 5 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{talent.skills.length - 5} more
-                              </Badge>
+              <>
+                <div className="divide-y">
+                  {paginatedTalents.map((talent) => (
+                    <div
+                      key={talent.id}
+                      className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 -mx-4 px-4 transition-colors"
+                      onClick={() => handleTalentClick(talent.id)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-accent text-accent-foreground">
+                            {(talent.full_name || 'U').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold">{talent.full_name || 'Unknown'}</h3>
+                            {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                            {talent.current_title && (
+                              <span className="flex items-center gap-1">
+                                <Briefcase className="h-3.5 w-3.5" />
+                                {talent.current_title}
+                                {talent.current_company && ` at ${talent.current_company}`}
+                              </span>
+                            )}
+                            {talent.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {talent.location}
+                              </span>
+                            )}
+                            {talent.years_of_experience !== null && (
+                              <span>{talent.years_of_experience} yrs exp</span>
                             )}
                           </div>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Added {format(new Date(talent.created_at), 'MMM d')}
+                          {talent.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {talent.skills.slice(0, 5).map((skill, i) => (
+                                <Badge key={i} variant="secondary" className="text-xs">
+                                  {skill.skill_name}
+                                </Badge>
+                              ))}
+                              {talent.skills.length > 5 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{talent.skills.length - 5} more
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Added {format(new Date(talent.created_at), 'MMM d')}
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-6 pt-4 border-t">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((page, idx) => (
+                          <PaginationItem key={idx}>
+                            {page === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                onClick={() => handlePageChange(page)}
+                                isActive={currentPage === page}
+                                className="cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
