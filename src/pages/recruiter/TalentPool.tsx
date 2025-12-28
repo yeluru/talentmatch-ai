@@ -262,9 +262,9 @@ export default function TalentPool() {
       const location = (t.location || '').toLowerCase();
       const searchableText = `${name} ${title} ${headline} ${skillsText} ${companiesText} ${location}`;
 
-      // Parse search terms: split by comma, trim whitespace, filter empty
+      // Parse search terms: split by comma or " or ", trim whitespace, filter empty
       const searchTerms = searchQuery
-        .split(',')
+        .split(/,|\s+or\s+/i)
         .map((term) => term.trim().toLowerCase())
         .filter((term) => term.length > 0);
 
@@ -435,7 +435,7 @@ export default function TalentPool() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Boolean search: Fannie, Freddie, react (comma = OR)"
+                  placeholder="Boolean search: Fannie, Freddie or react (use comma or 'or')"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
