@@ -353,7 +353,7 @@ export default function AIAgents() {
               AI Recruiting Agents
             </h1>
             <p className="text-muted-foreground mt-1">
-              Autonomous agents that source and recommend candidates 24/7
+              Create agents to match candidates against your job criteria. Click <strong>"Run"</strong> to analyze.
             </p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
@@ -410,49 +410,36 @@ export default function AIAgents() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Bot className={`h-5 w-5 ${agent.is_active ? 'text-success' : 'text-muted-foreground'}`} />
+                        <Bot className="h-5 w-5 text-accent" />
                         <h4 className="font-semibold">{agent.name}</h4>
-                        <Badge variant={agent.is_active ? 'default' : 'secondary'}>
-                          {agent.is_active ? 'Active' : 'Paused'}
-                        </Badge>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title={agent.is_active ? 'Pause agent' : 'Resume agent'}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleAgent.mutate(agent);
-                          }}
-                        >
-                          {agent.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          title="Run AI agent now"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Run button clicked for agent:', agent.name);
-                            console.log('Current candidates count:', candidates?.length || 0);
-                            if (!candidates?.length) {
-                              toast.error('No candidates in talent pool to analyze');
-                              return;
-                            }
-                            runAgent.mutate(agent);
-                          }}
-                          disabled={runAgent.isPending || candidatesLoading || !candidates?.length}
-                        >
-                          {runAgent.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
-                          )}
-                          <span className="ml-2">Run</span>
-                        </Button>
-                      </div>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('Run button clicked for agent:', agent.name);
+                          console.log('Current candidates count:', candidates?.length || 0);
+                          if (!candidates?.length) {
+                            toast.error('No candidates in talent pool to analyze. Check if you have recruiter permissions.');
+                            return;
+                          }
+                          runAgent.mutate(agent);
+                        }}
+                        disabled={runAgent.isPending || candidatesLoading}
+                      >
+                        {runAgent.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Running...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Run Now
+                          </>
+                        )}
+                      </Button>
                     </div>
                     {agent.jobs && (
                       <p className="text-sm text-muted-foreground mb-2">
