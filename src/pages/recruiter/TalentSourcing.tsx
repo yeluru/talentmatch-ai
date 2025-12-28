@@ -102,7 +102,7 @@ export default function TalentSourcing() {
     }
   });
 
-  // Handle file upload - parse and auto-import
+  // Handle file upload - parse, store file, and auto-import
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -152,13 +152,39 @@ export default function TalentSourcing() {
         // Update to importing
         updateResult(resultIndex, { status: 'importing', parsed, atsScore: parsed.ats_score });
 
-        // Auto-import the candidate
+        // Upload file to storage
+        const fileExt = file.name.split('.').pop();
+        const uniqueFileName = `sourced/${organizationId}/${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('resumes')
+          .upload(uniqueFileName, file, {
+            contentType: file.type,
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError);
+          throw new Error(`Failed to upload file: ${uploadError.message}`);
+        }
+
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from('resumes')
+          .getPublicUrl(uniqueFileName);
+
+        // Auto-import the candidate with resume file info
         const { error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
           body: { 
             profiles: [{
               ...parsed,
               source: 'resume_upload',
-              ats_score: parsed.ats_score
+              ats_score: parsed.ats_score,
+              resume_file: {
+                file_name: file.name,
+                file_url: urlData.publicUrl,
+                file_type: file.type
+              }
             }], 
             organizationId, 
             source: 'resume_upload' 
