@@ -54,23 +54,21 @@ interface ShortlistCandidate {
   added_at: string;
   candidate_profiles?: {
     id: string;
+    full_name: string | null;
     current_title: string | null;
-    user_id: string;
+    email: string | null;
   };
-  profile?: { full_name: string; email: string };
 }
 
 export default function Shortlists() {
-  const { user, roles } = useAuth();
+  const { user, roles, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedShortlist, setSelectedShortlist] = useState<Shortlist | null>(null);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
-  
-  console.log('Shortlists - roles:', roles, 'organizationId:', organizationId);
+  const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
 
   // Fetch shortlists
   const { data: shortlists, isLoading } = useQuery({
@@ -108,25 +106,11 @@ export default function Shortlists() {
         .from('shortlist_candidates')
         .select(`
           *,
-          candidate_profiles(id, current_title, user_id)
+          candidate_profiles(id, full_name, current_title, email)
         `)
         .eq('shortlist_id', selectedShortlist.id)
         .order('added_at', { ascending: false });
       if (error) throw error;
-
-      // Fetch profile names
-      const userIds = data?.map(c => c.candidate_profiles?.user_id).filter(Boolean) || [];
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name, email')
-          .in('user_id', userIds);
-        
-        return data?.map(c => ({
-          ...c,
-          profile: profiles?.find(p => p.user_id === c.candidate_profiles?.user_id)
-        })) as ShortlistCandidate[];
-      }
       
       return data as ShortlistCandidate[];
     },
@@ -191,7 +175,7 @@ export default function Shortlists() {
     },
   });
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
@@ -313,11 +297,11 @@ export default function Shortlists() {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
                             <AvatarFallback className="bg-accent text-accent-foreground">
-                              {candidate.profile?.full_name?.charAt(0) || 'C'}
+                              {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{candidate.profile?.full_name || 'Unknown'}</p>
+                            <p className="font-medium">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Briefcase className="h-3 w-3" />
                               {candidate.candidate_profiles?.current_title || 'No title'}
