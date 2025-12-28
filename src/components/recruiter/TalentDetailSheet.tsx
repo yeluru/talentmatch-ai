@@ -371,45 +371,47 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                       }) => (
                         <div
                           key={resume.id}
-                          className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                          className="p-3 rounded-md bg-muted/50 space-y-2"
                         >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium truncate">
+                          <div className="flex items-start gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium break-words">
                                   {resume.file_name}
                                 </span>
                                 {resume.is_primary && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-xs flex-shrink-0">
                                     Primary
                                   </Badge>
                                 )}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 {format(new Date(resume.created_at), 'MMM d, yyyy')}
                                 {resume.ats_score && ` • ATS: ${resume.ats_score}%`}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2 pl-6">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => handleViewResume(resume.file_url, resume.file_name)}
                               disabled={isDownloading}
-                              aria-label={`View resume ${resume.file_name}`}
+                              className="h-8"
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              View
                             </Button>
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}
                               disabled={isDownloading}
-                              aria-label={`Download resume ${resume.file_name}`}
+                              className="h-8"
                             >
-                              <Download className="h-4 w-4" />
+                              <Download className="h-4 w-4 mr-1" />
+                              Download
                             </Button>
                           </div>
                         </div>
