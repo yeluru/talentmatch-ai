@@ -51,49 +51,35 @@ serve(async (req) => {
           }
         }
 
-        // Create a placeholder auth user (for external candidates)
-        // We generate a unique ID for tracking
+        // Generate a unique ID for the sourced profile
         const candidateId = crypto.randomUUID();
 
-        // Create candidate profile directly
-        const { data: candidateProfile, error: candidateError } = await supabase
+        // Create candidate profile with null user_id (sourced profile, not an actual user)
+        const { error: candidateError } = await supabase
           .from("candidate_profiles")
           .insert({
             id: candidateId,
-            user_id: candidateId, // Self-referential for external candidates
+            user_id: null, // Null for sourced/imported profiles (not real users)
             organization_id: organizationId,
+            full_name: profile.full_name || "Unknown",
+            email: profile.email || null,
+            phone: profile.phone || null,
+            location: profile.location || null,
+            linkedin_url: profile.linkedin_url || null,
             current_title: profile.headline || profile.current_title || null,
             current_company: profile.current_company || null,
             years_of_experience: profile.experience_years || profile.years_of_experience || null,
             headline: profile.headline || profile.summary || null,
             summary: profile.summary || null,
+            ats_score: profile.ats_score || null,
             is_actively_looking: true,
             profile_completeness: 50
-          })
-          .select()
-          .single();
+          });
 
         if (candidateError) {
           console.error("Error creating candidate:", candidateError);
           results.errors.push(`Failed to import ${profile.full_name || 'unknown'}: ${candidateError.message}`);
           continue;
-        }
-
-        // Add profile record for name/email/contact info
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: candidateId,
-            email: profile.email || `imported-${candidateId.substring(0, 8)}@placeholder.local`,
-            full_name: profile.full_name || "Unknown",
-            location: profile.location || null,
-            linkedin_url: profile.linkedin_url || null,
-            phone: profile.phone || null
-          });
-
-        if (profileError) {
-          console.error("Error creating profile:", profileError);
-          // Don't fail completely, candidate profile was created
         }
 
         // Add skills if provided

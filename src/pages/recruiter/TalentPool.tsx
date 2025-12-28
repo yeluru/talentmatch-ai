@@ -14,19 +14,15 @@ import { format } from 'date-fns';
 
 interface TalentProfile {
   id: string;
+  full_name: string | null;
+  email: string | null;
+  location: string | null;
   current_title: string | null;
   current_company: string | null;
   years_of_experience: number | null;
   headline: string | null;
+  ats_score: number | null;
   created_at: string;
-  profile: {
-    full_name: string;
-    email: string;
-    location: string | null;
-  } | null;
-  resumes: {
-    ats_score: number | null;
-  }[];
   skills: {
     skill_name: string;
   }[];
@@ -43,39 +39,30 @@ export default function TalentPool() {
     queryFn: async (): Promise<TalentProfile[]> => {
       if (!organizationId) return [];
       
-      // Get candidate profiles for this organization
+      // Get sourced candidate profiles (user_id is null) for this organization
       const { data: candidates, error } = await supabase
         .from('candidate_profiles')
         .select(`
           id,
+          full_name,
+          email,
+          location,
           current_title,
           current_company,
           years_of_experience,
           headline,
-          created_at,
-          user_id
+          ats_score,
+          created_at
         `)
         .eq('organization_id', organizationId)
+        .is('user_id', null) // Only sourced profiles
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       if (!candidates?.length) return [];
 
-      // Get profiles for these candidates
-      const userIds = candidates.map(c => c.user_id);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email, location')
-        .in('user_id', userIds);
-
-      // Get resumes with ATS scores
-      const candidateIds = candidates.map(c => c.id);
-      const { data: resumes } = await supabase
-        .from('resumes')
-        .select('candidate_id, ats_score')
-        .in('candidate_id', candidateIds);
-
       // Get skills
+      const candidateIds = candidates.map(c => c.id);
       const { data: skills } = await supabase
         .from('candidate_skills')
         .select('candidate_id, skill_name')
@@ -83,8 +70,6 @@ export default function TalentPool() {
 
       return candidates.map(c => ({
         ...c,
-        profile: profiles?.find(p => p.user_id === c.user_id) || null,
-        resumes: resumes?.filter(r => r.candidate_id === c.id) || [],
         skills: skills?.filter(s => s.candidate_id === c.id) || [],
       }));
     },
@@ -92,7 +77,7 @@ export default function TalentPool() {
   });
 
   const filteredTalents = talents?.filter((t) => {
-    const name = t.profile?.full_name || '';
+    const name = t.full_name || '';
     const title = t.current_title || '';
     const skills = t.skills.map(s => s.skill_name).join(' ');
     const searchLower = searchQuery.toLowerCase();
@@ -102,11 +87,6 @@ export default function TalentPool() {
       skills.toLowerCase().includes(searchLower)
     );
   });
-
-  const getAtsScore = (t: TalentProfile) => {
-    const scores = t.resumes.map(r => r.ats_score).filter(Boolean) as number[];
-    return scores.length > 0 ? Math.max(...scores) : null;
-  };
 
   if (isLoading) {
     return (
@@ -149,9 +129,7 @@ export default function TalentPool() {
               />
             ) : (
               <div className="divide-y">
-                {filteredTalents.map((talent) => {
-                  const atsScore = getAtsScore(talent);
-                  return (
+                {filteredTalents.map((talent) => (
                     <div 
                       key={talent.id} 
                       className="py-4 first:pt-0 last:pb-0"
@@ -159,15 +137,15 @@ export default function TalentPool() {
                       <div className="flex items-start gap-4">
                         <Avatar className="h-12 w-12">
                           <AvatarFallback className="bg-accent text-accent-foreground">
-                            {(talent.profile?.full_name || 'U').charAt(0).toUpperCase()}
+                            {(talent.full_name || 'U').charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">
-                              {talent.profile?.full_name || 'Unknown'}
+                              {talent.full_name || 'Unknown'}
                             </h3>
-                            {atsScore && <ScoreBadge score={atsScore} size="sm" />}
+                            {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             {talent.current_title && (
@@ -177,10 +155,10 @@ export default function TalentPool() {
                                 {talent.current_company && ` at ${talent.current_company}`}
                               </span>
                             )}
-                            {talent.profile?.location && (
+                            {talent.location && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3.5 w-3.5" />
-                                {talent.profile.location}
+                                {talent.location}
                               </span>
                             )}
                           </div>
@@ -204,8 +182,8 @@ export default function TalentPool() {
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  )
+                )}
               </div>
             )}
           </CardContent>
