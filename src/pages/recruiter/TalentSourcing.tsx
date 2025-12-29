@@ -174,7 +174,7 @@ export default function TalentSourcing() {
           .getPublicUrl(uniqueFileName);
 
         // Auto-import the candidate with resume file info
-        const { error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
+        const { data: importData, error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
           body: { 
             profiles: [{
               ...parsed,
@@ -192,8 +192,22 @@ export default function TalentSourcing() {
         });
 
         if (importError) throw importError;
-
-        updateResult(resultIndex, { status: 'done', parsed, atsScore: parsed.ats_score });
+        
+        // Check if this was flagged as a duplicate
+        const hasDuplicateError = importData?.results?.errors?.some((e: string) => 
+          e.toUpperCase().includes('DUPLICATE')
+        );
+        
+        if (hasDuplicateError) {
+          updateResult(resultIndex, { 
+            status: 'error', 
+            error: 'Duplicate resume: identical content already exists in the system',
+            parsed, 
+            atsScore: parsed.ats_score 
+          });
+        } else {
+          updateResult(resultIndex, { status: 'done', parsed, atsScore: parsed.ats_score });
+        }
 
       } catch (error: any) {
         console.error('Upload error for', file.name, error);

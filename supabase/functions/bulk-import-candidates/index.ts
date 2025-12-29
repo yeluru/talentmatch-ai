@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Helper function to compute SHA-256 hash of content
+async function computeHash(content: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,6 +46,36 @@ serve(async (req) => {
 
     for (const profile of profiles) {
       try {
+        // Check for exact duplicate resume FIRST (before creating any records)
+        if (profile.resume_file) {
+          const contentToHash = JSON.stringify({
+            full_name: profile.full_name,
+            email: profile.email,
+            phone: profile.phone,
+            skills: profile.skills,
+            experience: profile.experience,
+            education: profile.education,
+            summary: profile.summary
+          });
+          const contentHash = await computeHash(contentToHash);
+          
+          const { data: existingResume } = await supabase
+            .from("resumes")
+            .select("id, candidate_id")
+            .eq("content_hash", contentHash)
+            .maybeSingle();
+          
+          if (existingResume) {
+            console.log("Exact duplicate resume detected, rejecting:", profile.resume_file.file_name);
+            results.skipped++;
+            results.errors.push(`DUPLICATE: ${profile.full_name || profile.resume_file.file_name} - identical resume already exists`);
+            continue; // Skip this profile entirely
+          }
+          
+          // Store hash for later use when creating resume record
+          profile._contentHash = contentHash;
+        }
+        
         // Check if candidate already exists by email (if provided)
         if (profile.email) {
           const { data: existingProfile } = await supabase
@@ -45,7 +85,7 @@ serve(async (req) => {
             .maybeSingle();
 
           if (existingProfile) {
-            console.log("Skipping duplicate:", profile.email);
+            console.log("Skipping duplicate email:", profile.email);
             results.skipped++;
             continue;
           }
@@ -99,8 +139,10 @@ serve(async (req) => {
         }
 
         // Create resume record if resume file info is provided
+        // Duplicate check was already done earlier, so we can safely create
         if (profile.resume_file) {
           const { file_name, file_url, file_type } = profile.resume_file;
+          const contentHash = profile._contentHash; // Use pre-computed hash
           
           const { error: resumeError } = await supabase
             .from("resumes")
@@ -110,13 +152,13 @@ serve(async (req) => {
               file_url: file_url,
               file_type: file_type || 'application/pdf',
               ats_score: profile.ats_score || null,
-              is_primary: true, // First resume is primary
-              parsed_content: profile // Store parsed data
+              is_primary: true,
+              parsed_content: profile,
+              content_hash: contentHash
             });
 
           if (resumeError) {
             console.error("Error creating resume record:", resumeError);
-            // Don't fail the whole import, just log the error
           } else {
             console.log("Created resume record for:", profile.full_name);
           }
