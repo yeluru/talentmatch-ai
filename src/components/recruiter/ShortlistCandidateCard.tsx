@@ -246,7 +246,7 @@ export function ShortlistCandidateCard({
   };
 
   const statusValues = new Set(CANDIDATE_STATUSES.map((s) => s.value));
-  const rawStatus = candidate.candidate_profiles?.recruiter_status || 'new';
+  const rawStatus = candidate.candidate_profiles?.recruiter_status ?? candidate.status ?? 'new';
   const currentStatus = statusValues.has(rawStatus) ? rawStatus : 'new';
   const otherShortlists = shortlists?.filter(s => s.id !== selectedShortlistId) || [];
 
