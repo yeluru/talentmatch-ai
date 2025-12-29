@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Sheet,
@@ -14,6 +14,15 @@ import { Button } from '@/components/ui/button';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Briefcase,
   MapPin,
@@ -26,6 +35,9 @@ import {
   FileText,
   Download,
   ExternalLink,
+  MessageSquare,
+  Check,
+  X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -36,8 +48,20 @@ interface TalentDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'New', variant: 'default' as const },
+  { value: 'contacted', label: 'Contacted', variant: 'info' as const },
+  { value: 'interviewing', label: 'Interviewing', variant: 'warning' as const },
+  { value: 'offered', label: 'Offered', variant: 'success' as const },
+  { value: 'hired', label: 'Hired', variant: 'success' as const },
+  { value: 'rejected', label: 'Rejected', variant: 'destructive' as const },
+];
+
 export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetailSheetProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [editedNotes, setEditedNotes] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: talent, isLoading } = useQuery({
     queryKey: ['talent-detail', talentId],
@@ -89,6 +113,57 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     },
     enabled: !!talentId && open,
   });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update({ recruiter_status: newStatus })
+        .eq('id', talentId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-detail', talentId] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      toast.success('Status updated');
+    },
+    onError: () => {
+      toast.error('Failed to update status');
+    },
+  });
+
+  const updateNotesMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update({ recruiter_notes: notes })
+        .eq('id', talentId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-detail', talentId] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      setIsEditingNotes(false);
+      toast.success('Notes updated');
+    },
+    onError: () => {
+      toast.error('Failed to update notes');
+    },
+  });
+
+  const handleStartEditNotes = () => {
+    setEditedNotes(talent?.recruiter_notes || '');
+    setIsEditingNotes(true);
+  };
+
+  const handleSaveNotes = () => {
+    updateNotesMutation.mutate(editedNotes);
+  };
+
+  const handleCancelEditNotes = () => {
+    setIsEditingNotes(false);
+    setEditedNotes('');
+  };
 
   const extractResumePath = (fileUrl: string) => {
     // Supports both stored public URLs and raw storage paths
@@ -251,6 +326,80 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
                     </a>
                   </div>
                 )}
+              </div>
+
+              {/* Recruiter Status & Notes */}
+              <Separator />
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Status</h3>
+                  <Select
+                    value={talent.recruiter_status || 'new'}
+                    onValueChange={(value) => updateStatusMutation.mutate(value)}
+                    disabled={updateStatusMutation.isPending}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue>
+                        <StatusBadge 
+                          status={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.label || 'New'} 
+                          variant={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.variant || 'default'} 
+                        />
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          <StatusBadge status={status.label} variant={status.variant} />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">Recruiter Notes</h3>
+                    {!isEditingNotes && (
+                      <Button variant="ghost" size="sm" onClick={handleStartEditNotes}>
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        {talent.recruiter_notes ? 'Edit' : 'Add'}
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingNotes ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editedNotes}
+                        onChange={(e) => setEditedNotes(e.target.value)}
+                        placeholder="Add notes about this candidate..."
+                        className="min-h-[100px]"
+                      />
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={handleSaveNotes}
+                          disabled={updateNotesMutation.isPending}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Save
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={handleCancelEditNotes}
+                          disabled={updateNotesMutation.isPending}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : talent.recruiter_notes ? (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{talent.recruiter_notes}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No notes yet</p>
+                  )}
+                </div>
               </div>
 
               {/* Summary */}
