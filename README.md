@@ -39,408 +39,45 @@ MatchTalAI is a comprehensive recruitment solution designed to streamline the hi
 
 ### System Architecture
 
-```mermaid
-graph TB
-    subgraph Client["🌐 Client Layer"]
-        Browser["Browser/PWA"]
-    end
+![System Architecture](src/assets/diagrams/system-architecture.png)
 
-    subgraph Frontend["⚛️ Frontend (React + Vite)"]
-        Router["React Router v6"]
-        Auth["Auth Provider"]
-        Query["React Query"]
-        UI["shadcn/ui Components"]
-        State["Zustand Store"]
-    end
-
-    subgraph Backend["☁️ Backend (Supabase)"]
-        subgraph Auth_Service["🔐 Auth Service"]
-            AuthAPI["Supabase Auth"]
-            JWT["JWT Tokens"]
-        end
-        
-        subgraph Database["🗄️ PostgreSQL"]
-            Tables["Tables"]
-            RLS["Row Level Security"]
-            Functions["DB Functions"]
-            Triggers["Triggers"]
-        end
-        
-        subgraph Edge["⚡ Edge Functions"]
-            AI_Funcs["AI Functions"]
-            Search["Search Functions"]
-            Email["Email Functions"]
-        end
-        
-        subgraph Storage["📁 Storage"]
-            Buckets["File Buckets"]
-        end
-    end
-
-    subgraph External["🔌 External Services"]
-        AI["AI Models"]
-        LinkedIn["LinkedIn API"]
-    end
-
-    Browser --> Frontend
-    Router --> Auth
-    Auth --> Query
-    Query --> UI
-    State --> UI
-    
-    Frontend -->|REST API| AuthAPI
-    Frontend -->|REST API| Tables
-    Frontend -->|Invoke| Edge
-    Frontend -->|Upload/Download| Storage
-    
-    Edge --> AI
-    Edge --> LinkedIn
-    Edge --> Database
-    
-    AuthAPI --> JWT
-    Tables --> RLS
-    RLS --> Functions
-```
+*Three-tier architecture: Client (Browser/PWA) → Frontend (React + Vite with React Router, Auth, React Query, shadcn/ui, Zustand) → Backend (Supabase with Auth Service, PostgreSQL + RLS, Edge Functions, Storage) + External Services (AI Models, LinkedIn API)*
 
 ### Component Architecture
 
-```mermaid
-graph TB
-    subgraph App["App.tsx"]
-        Providers["Providers Layer"]
-        ErrorBoundary["Error Boundary"]
-        RouterConfig["Router Config"]
-    end
+![Component Architecture](src/assets/diagrams/component-architecture.png)
 
-    subgraph Providers_Detail["Providers"]
-        Helmet["HelmetProvider (SEO)"]
-        QueryClient["QueryClientProvider"]
-        AuthProvider["AuthProvider"]
-        Tooltip["TooltipProvider"]
-        Theme["Theme Provider"]
-    end
-
-    subgraph Routes["Route Groups"]
-        Public["Public Routes"]
-        Candidate["Candidate Routes"]
-        Recruiter["Recruiter Routes"]
-        Manager["Manager Routes"]
-    end
-
-    subgraph Protected["Protected Route Wrapper"]
-        RoleCheck["Role Validation"]
-        Redirect["Auth Redirect"]
-    end
-
-    subgraph Layouts["Layouts"]
-        DashboardLayout["Dashboard Layout"]
-        Sidebar["Sidebar Nav"]
-        Header["Header"]
-    end
-
-    subgraph Shared["Shared Components"]
-        UIComponents["UI Components"]
-        Forms["Form Components"]
-        Tables["Table Components"]
-        Cards["Card Components"]
-    end
-
-    App --> Providers_Detail
-    Providers --> RouterConfig
-    RouterConfig --> Routes
-    
-    Candidate --> Protected
-    Recruiter --> Protected
-    Manager --> Protected
-    
-    Protected --> RoleCheck
-    Protected --> Layouts
-    Layouts --> Shared
-```
+*Hierarchical component structure: App.tsx → Providers (Helmet, QueryClient, Auth, Tooltip, Theme) → Route Groups (Public, Candidate, Recruiter, Manager) → Protected Route Wrapper → Dashboard Layout → Shared Components*
 
 ### Authentication Flow
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant C as Client App
-    participant A as Auth Provider
-    participant S as Supabase Auth
-    participant D as Database
-    participant R as RPC Functions
+![Authentication Flow](src/assets/diagrams/auth-flow.png)
 
-    rect rgb(240, 248, 255)
-        Note over U,R: Sign Up Flow
-        U->>C: Fill signup form
-        C->>S: signUp(email, password, metadata)
-        S->>S: Create auth.users record
-        S->>D: Trigger handle_new_user()
-        D->>D: Create profiles record
-        S-->>C: Return session + user
-        C->>R: assign_user_role(user_id, role, org_id)
-        R->>D: Insert user_roles record
-        C->>A: Update auth state
-        A-->>U: Redirect to dashboard
-    end
-
-    rect rgb(255, 248, 240)
-        Note over U,R: Sign In Flow
-        U->>C: Enter credentials
-        C->>S: signInWithPassword()
-        S->>S: Validate credentials
-        S-->>C: Return session + user
-        C->>D: Fetch user roles
-        D-->>C: Return roles array
-        C->>A: Set user, session, roles
-        A-->>U: Redirect based on role
-    end
-
-    rect rgb(240, 255, 240)
-        Note over U,R: Password Reset Flow
-        U->>C: Request password reset
-        C->>S: resetPasswordForEmail()
-        S->>U: Send reset email
-        U->>C: Click reset link
-        C->>S: updateUser(new_password)
-        S-->>C: Confirm update
-        C-->>U: Redirect to login
-    end
-```
+*Three authentication flows: Sign Up (form → create user → trigger profile creation → assign role → redirect), Sign In (validate credentials → return session → fetch roles → redirect), Password Reset (request → email → link click → update)*
 
 ### Data Flow Architecture
 
-```mermaid
-flowchart LR
-    subgraph Client["Client Layer"]
-        Components["React Components"]
-        Hooks["Custom Hooks"]
-        Store["Zustand Store"]
-    end
+![Data Flow Architecture](src/assets/diagrams/data-flow.png)
 
-    subgraph Query["React Query Layer"]
-        Queries["useQuery"]
-        Mutations["useMutation"]
-        Cache["Query Cache"]
-    end
-
-    subgraph API["API Layer"]
-        SupaClient["Supabase Client"]
-        EdgeCalls["Edge Function Calls"]
-    end
-
-    subgraph Backend["Backend Layer"]
-        Tables["Database Tables"]
-        RLS_Policies["RLS Policies"]
-        EdgeFuncs["Edge Functions"]
-        Storage["File Storage"]
-    end
-
-    Components --> Hooks
-    Hooks --> Queries
-    Hooks --> Mutations
-    Queries --> Cache
-    Mutations --> Cache
-    Cache --> SupaClient
-    Cache --> EdgeCalls
-    SupaClient --> Tables
-    SupaClient --> Storage
-    EdgeCalls --> EdgeFuncs
-    Tables --> RLS_Policies
-    EdgeFuncs --> Tables
-
-    Store -.->|Local State| Components
-```
+*Horizontal data flow: Client Layer (React Components, Custom Hooks, Zustand Store) → React Query Layer (useQuery, useMutation, Cache) → API Layer (Supabase Client, Edge Functions) → Backend Layer (Database + RLS, Edge Functions, Storage)*
 
 ### Database Entity Relationship Diagram
 
-```mermaid
-erDiagram
-    ORGANIZATIONS ||--o{ USER_ROLES : has
-    ORGANIZATIONS ||--o{ JOBS : posts
-    ORGANIZATIONS ||--o{ CANDIDATE_PROFILES : manages
-    ORGANIZATIONS ||--o{ CANDIDATE_SHORTLISTS : creates
-    ORGANIZATIONS ||--o{ OUTREACH_CAMPAIGNS : runs
-    ORGANIZATIONS ||--o{ AI_RECRUITING_AGENTS : configures
-    ORGANIZATIONS ||--o{ ORGANIZATION_INVITE_CODES : generates
-    ORGANIZATIONS ||--o{ EMAIL_SEQUENCES : defines
-    ORGANIZATIONS ||--o{ TALENT_INSIGHTS : stores
+![Database ERD](src/assets/diagrams/database-erd.png)
 
-    PROFILES ||--|| USER_ROLES : has
-    
-    CANDIDATE_PROFILES ||--o{ CANDIDATE_SKILLS : has
-    CANDIDATE_PROFILES ||--o{ CANDIDATE_EXPERIENCE : has
-    CANDIDATE_PROFILES ||--o{ CANDIDATE_EDUCATION : has
-    CANDIDATE_PROFILES ||--o{ RESUMES : uploads
-    CANDIDATE_PROFILES ||--o{ APPLICATIONS : submits
-    CANDIDATE_PROFILES ||--o{ SHORTLIST_CANDIDATES : included_in
-    CANDIDATE_PROFILES ||--o{ CAMPAIGN_RECIPIENTS : receives
-    CANDIDATE_PROFILES ||--o{ AGENT_RECOMMENDATIONS : matched_by
-    CANDIDATE_PROFILES ||--o{ AI_RESUME_ANALYSES : analyzed_by
-
-    JOBS ||--o{ APPLICATIONS : receives
-    JOBS ||--o{ AI_RECRUITING_AGENTS : linked_to
-    JOBS ||--o{ OUTREACH_CAMPAIGNS : associated_with
-    JOBS ||--o{ TALENT_INSIGHTS : generates
-    JOBS ||--o{ AI_RESUME_ANALYSES : compared_against
-
-    CANDIDATE_SHORTLISTS ||--o{ SHORTLIST_CANDIDATES : contains
-
-    OUTREACH_CAMPAIGNS ||--o{ CAMPAIGN_RECIPIENTS : targets
-
-    AI_RECRUITING_AGENTS ||--o{ AGENT_RECOMMENDATIONS : produces
-
-    RESUMES ||--o{ AI_RESUME_ANALYSES : analyzed_in
-    RESUMES ||--o{ APPLICATIONS : attached_to
-
-    ORGANIZATIONS {
-        uuid id PK
-        string name
-        string industry
-        string size
-        string website
-        string logo_url
-        string description
-    }
-
-    PROFILES {
-        uuid id PK
-        uuid user_id FK
-        string email
-        string full_name
-        string phone
-        string location
-    }
-
-    USER_ROLES {
-        uuid id PK
-        uuid user_id FK
-        enum role
-        uuid organization_id FK
-    }
-
-    JOBS {
-        uuid id PK
-        uuid organization_id FK
-        uuid recruiter_id FK
-        string title
-        text description
-        string status
-        string[] required_skills
-    }
-
-    CANDIDATE_PROFILES {
-        uuid id PK
-        uuid user_id FK
-        uuid organization_id FK
-        string full_name
-        string current_title
-        string current_company
-        int years_of_experience
-    }
-
-    APPLICATIONS {
-        uuid id PK
-        uuid candidate_id FK
-        uuid job_id FK
-        uuid resume_id FK
-        string status
-        int ai_match_score
-    }
-```
+*Central ORGANIZATIONS entity connecting to: USER_ROLES, PROFILES, JOBS, CANDIDATE_PROFILES, APPLICATIONS, RESUMES, CANDIDATE_SHORTLISTS, AI_RECRUITING_AGENTS, OUTREACH_CAMPAIGNS, and more*
 
 ### Recruiter Workflow
 
-```mermaid
-flowchart TD
-    Start([Recruiter Login]) --> Dashboard[View Dashboard]
-    
-    Dashboard --> PostJob[Post New Job]
-    Dashboard --> ViewPool[View Talent Pool]
-    Dashboard --> ViewShortlists[Manage Shortlists]
-    Dashboard --> RunAgents[Configure AI Agents]
-    
-    PostJob --> DefineReqs[Define Requirements]
-    DefineReqs --> Publish[Publish Job]
-    Publish --> ReceiveApps[Receive Applications]
-    
-    ViewPool --> Search[Search Candidates]
-    Search --> Filter[Apply Filters]
-    Filter --> ViewProfile[View Candidate Profile]
-    ViewProfile --> AddToShortlist[Add to Shortlist]
-    ViewProfile --> StartOutreach[Start Outreach]
-    
-    ReceiveApps --> AIMatch[AI Matching]
-    AIMatch --> ReviewMatches[Review Matches]
-    ReviewMatches --> ViewProfile
-    
-    RunAgents --> ConfigCriteria[Set Search Criteria]
-    ConfigCriteria --> AutoSearch[Automated Search]
-    AutoSearch --> Recommendations[Get Recommendations]
-    Recommendations --> ReviewMatches
-    
-    AddToShortlist --> ViewShortlists
-    ViewShortlists --> CreateCampaign[Create Campaign]
-    CreateCampaign --> StartOutreach
-    StartOutreach --> TrackResponses[Track Responses]
-    TrackResponses --> Schedule[Schedule Interviews]
-```
+![Recruiter Workflow](src/assets/diagrams/recruiter-workflow.png)
+
+*Complete recruiter journey: Login → Dashboard → (Post Job | View Talent Pool | Manage Shortlists | Configure AI Agents) → AI Matching → Review → Outreach → Track Responses → Schedule Interviews*
 
 ### Edge Function Architecture
 
-```mermaid
-flowchart TB
-    subgraph Client["Client Application"]
-        React["React App"]
-    end
+![Edge Functions Architecture](src/assets/diagrams/edge-functions.png)
 
-    subgraph EdgeLayer["Edge Functions Layer (Deno)"]
-        subgraph AI_Functions["AI Functions"]
-            AnalyzeResume["analyze-resume"]
-            MatchCandidates["match-candidates"]
-            GenerateEmail["generate-email"]
-            GenerateInsights["generate-insights"]
-            RecommendJobs["recommend-jobs"]
-        end
-
-        subgraph Data_Functions["Data Functions"]
-            ParseResume["parse-resume"]
-            BulkImport["bulk-import-candidates"]
-            TalentSearch["talent-search"]
-            LinkedInSearch["linkedin-search"]
-        end
-
-        subgraph Automation["Automation"]
-            RunAgent["run-agent"]
-        end
-    end
-
-    subgraph External["External Services"]
-        AIModels["AI Models<br/>(Lovable AI)"]
-        LinkedIn["LinkedIn API"]
-    end
-
-    subgraph Database["Supabase Database"]
-        Tables["PostgreSQL Tables"]
-    end
-
-    React -->|invoke| AI_Functions
-    React -->|invoke| Data_Functions
-    React -->|invoke| Automation
-
-    AnalyzeResume --> AIModels
-    MatchCandidates --> AIModels
-    GenerateEmail --> AIModels
-    GenerateInsights --> AIModels
-    RecommendJobs --> AIModels
-
-    LinkedInSearch --> LinkedIn
-
-    AI_Functions --> Tables
-    Data_Functions --> Tables
-    Automation --> Tables
-    Automation --> AI_Functions
-```
+*Deno-based edge functions: AI Functions (analyze-resume, match-candidates, generate-email, generate-insights, recommend-jobs) + Data Functions (parse-resume, bulk-import, talent-search, linkedin-search) + Automation (run-agent) → External Services (AI Models, LinkedIn API) + Supabase Database*
 
 
 
