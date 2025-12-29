@@ -68,35 +68,30 @@ export default function Index() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center hero-gradient text-white overflow-hidden">
-        {/* Background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-subtle" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/20 rounded-full blur-3xl animate-pulse-subtle animation-delay-500" />
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-accent/5 to-transparent" />
+          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
         
         <div className="container mx-auto px-4 pt-32 pb-20 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 mb-8 backdrop-blur-sm animate-fade-in">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
-              </span>
-              <span className="text-sm font-medium">Intelligent Recruitment Platform</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 mb-8 backdrop-blur-sm animate-fade-in">
+              <span className="h-2 w-2 rounded-full bg-accent"></span>
+              <span className="text-sm font-medium text-white/80">Trusted by 500+ Companies</span>
             </div>
             
             {/* Headline */}
             <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] animate-fade-in animation-delay-100">
-              Find the Perfect Match,{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-purple-300">
-                Every Time
-              </span>
+              Find the Right Talent,{' '}
+              <span className="text-accent">Faster</span>
             </h1>
             
             {/* Subheadline */}
-            <p className="text-lg sm:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
-              Connect top talent with great opportunities through intelligent matching. 
-              Smart resume analysis, automated sourcing, and data-driven insights.
+            <p className="text-lg sm:text-xl text-white/60 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
+              The modern recruitment platform that connects exceptional candidates 
+              with opportunities that match their skills and ambitions.
             </p>
             
             {/* CTAs */}
@@ -122,7 +117,7 @@ export default function Index() {
                 <div className="font-display text-3xl sm:text-4xl font-bold text-white mb-1">
                   {stat.value}
                 </div>
-                <div className="text-sm text-white/60">{stat.label}</div>
+                <div className="text-sm text-white/50">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -242,19 +237,13 @@ export default function Index() {
       {/* CTA Section */}
       <section className="section-container">
         <div className="container mx-auto px-4">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-accent p-8 md:p-12 lg:p-16 text-center">
-            {/* Background decoration */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
-            </div>
-            
+          <div className="relative overflow-hidden rounded-2xl bg-primary p-8 md:p-12 lg:p-16 text-center">
             <div className="relative z-10">
               <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                Ready to Transform Your Hiring?
+                Ready to Get Started?
               </h2>
-              <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-                Join thousands of companies and candidates already using TalentMatch to find their perfect match.
+              <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
+                Join thousands of companies and candidates using TalentMatch.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="xl" variant="hero-primary" asChild>
