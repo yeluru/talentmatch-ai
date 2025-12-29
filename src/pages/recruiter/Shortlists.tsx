@@ -150,7 +150,16 @@ export default function Shortlists() {
         .eq('shortlist_id', selectedShortlist.id)
         .order('added_at', { ascending: false });
       if (error) throw error;
-      
+
+      console.debug('[Shortlists] candidates:', (data || []).length);
+      console.debug(
+        '[Shortlists] first candidate recruiter_status/notes:',
+        data?.[0]?.candidate_profiles?.recruiter_status,
+        !!data?.[0]?.candidate_profiles?.recruiter_notes,
+        'shortlist_notes:',
+        !!data?.[0]?.notes
+      );
+
       return data as ShortlistCandidate[];
     },
     enabled: !!selectedShortlist,
