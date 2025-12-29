@@ -124,14 +124,7 @@ export function TalentPoolRow({
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
 
-      if (shortlistCount === 0) {
-        toast.message('Status updated (not in any shortlist)', {
-          description:
-            'No shortlist rows matched this profile. If the candidate is in a shortlist, it may be a different (duplicate) profile record.',
-        });
-      } else {
-        toast.success('Status updated');
-      }
+      toast.success('Status updated');
     },
     onError: () => {
       toast.error('Failed to update status');
@@ -181,14 +174,7 @@ export function TalentPoolRow({
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       setHasUnsavedNotes(false);
 
-      if (shortlistCount === 0) {
-        toast.message('Notes saved (not in any shortlist)', {
-          description:
-            'No shortlist rows matched this profile. If the candidate is in a shortlist, it may be a different (duplicate) profile record.',
-        });
-      } else {
-        toast.success('Notes saved');
-      }
+      toast.success('Notes saved');
     },
     onError: () => {
       toast.error('Failed to save notes');
