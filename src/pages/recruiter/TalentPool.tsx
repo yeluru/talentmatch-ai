@@ -559,7 +559,15 @@ export default function TalentPool() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold">{talent.full_name || 'Unknown'}</h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTalentClick(talent.id);
+                              }}
+                              className="font-semibold text-left hover:text-primary hover:underline transition-colors cursor-pointer"
+                            >
+                              {talent.full_name || 'Unknown'}
+                            </button>
                             {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
                           </div>
                           <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
