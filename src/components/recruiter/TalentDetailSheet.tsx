@@ -125,6 +125,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-detail', talentId] });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
       toast.success('Status updated');
     },
     onError: () => {
@@ -143,6 +144,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-detail', talentId] });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
       setIsEditingNotes(false);
       toast.success('Notes updated');
     },
