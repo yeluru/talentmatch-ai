@@ -6,10 +6,10 @@ import {
   Briefcase, 
   BarChart3, 
   CheckCircle2,
-  Target,
-  Zap,
-  Shield,
-  TrendingUp
+  FileText,
+  Search,
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { SEOHead } from '@/components/SEOHead';
@@ -26,130 +26,131 @@ export default function Index() {
     return '/manager';
   };
 
-  const features = [
+  const howItHelps = [
     {
-      icon: Target,
-      title: 'Precision Matching',
-      description: 'Advanced algorithms analyze skills, experience, and culture fit to connect the right candidates with the right opportunities.',
+      icon: FileText,
+      title: 'Resume Analysis',
+      description: 'Upload your resume and get actionable feedback on how to improve it. See which skills are missing for jobs you want.',
     },
     {
-      icon: Zap,
-      title: 'Instant Analysis',
-      description: 'Get comprehensive resume feedback and job compatibility scores in seconds, not hours.',
+      icon: Search,
+      title: 'Smart Job Matching',
+      description: 'Instead of scrolling through hundreds of listings, see jobs ranked by how well they fit your experience.',
     },
     {
-      icon: Shield,
-      title: 'Enterprise Security',
-      description: 'Bank-level encryption and compliance with global data protection standards keep your information safe.',
+      icon: Clock,
+      title: 'Save Time Sourcing',
+      description: 'Recruiters can filter candidates by skills, experience, and availability instead of reading every application.',
     },
     {
-      icon: TrendingUp,
-      title: 'Data-Driven Insights',
-      description: 'Make smarter hiring decisions with real-time analytics and market intelligence.',
+      icon: MessageSquare,
+      title: 'Better Communication',
+      description: 'Keep all candidate conversations and notes in one place. No more lost emails or spreadsheets.',
     },
-  ];
-
-  const stats = [
-    { value: '50K+', label: 'Successful Placements' },
-    { value: '98%', label: 'Match Accuracy' },
-    { value: '3x', label: 'Faster Hiring' },
-    { value: '500+', label: 'Companies Trust Us' },
   ];
 
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="TalentMatch - Intelligent Talent Matching Platform"
-        description="Connect top talent with great opportunities through intelligent matching. Smart resume analysis, automated sourcing, and data-driven insights for candidates, recruiters, and managers."
-        keywords="recruitment, talent matching, resume analysis, ATS, applicant tracking, hiring platform"
+        title="TalentMatch - A Better Way to Match Talent with Jobs"
+        description="A recruitment platform that helps candidates find relevant jobs and helps recruiters find qualified candidates. Resume analysis, job matching, and pipeline management."
+        keywords="recruitment, job search, resume analysis, hiring platform, candidate matching"
       />
       
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center hero-gradient text-white overflow-hidden">
-        {/* Subtle geometric pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-        }} />
-        
-        <div className="container mx-auto px-4 pt-32 pb-20 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-8 animate-fade-in">
-              <span className="h-2 w-2 rounded-full bg-accent"></span>
-              <span className="text-sm font-medium text-accent">Trusted by 500+ Companies Worldwide</span>
-            </div>
-            
-            {/* Headline */}
-            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] animate-fade-in animation-delay-100 text-white">
-              Recruit Smarter.{' '}
-              <br className="hidden sm:block" />
-              <span className="text-accent">Hire Faster.</span>
+      {/* Hero Section - Clean and honest */}
+      <section className="pt-32 pb-20 bg-background border-b">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl">
+            <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
+              Finding the right job—or the right candidate—shouldn't take forever.
             </h1>
             
-            {/* Subheadline */}
-            <p className="text-lg sm:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
-              The enterprise recruitment platform that connects exceptional 
-              candidates with opportunities that match their expertise.
+            <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+              TalentMatch helps candidates understand how their resume stacks up against real job requirements, 
+              and helps recruiters quickly find people who actually match what they're looking for.
             </p>
             
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in animation-delay-300">
-              <Button size="xl" className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg font-semibold" asChild>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button size="lg" asChild>
                 <Link to={user ? getDashboardLink() : '/auth'}>
-                  {user ? 'Go to Dashboard' : 'Start Free Trial'}
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  {user ? 'Go to Dashboard' : "Get Started — It's Free"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="xl" variant="hero-secondary" asChild>
+              <Button size="lg" variant="outline" asChild>
                 <Link to="/candidates">
-                  Learn More
+                  See How It Works
                 </Link>
               </Button>
             </div>
           </div>
-          
-          {/* Stats */}
-          <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto animate-fade-in animation-delay-400">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="font-display text-3xl sm:text-4xl font-bold text-white mb-1">
-                  {stat.value}
+        </div>
+      </section>
+
+      {/* What this app actually does */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-4">
+              Here's what TalentMatch actually does
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              No vague promises. These are the specific problems we help solve.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {howItHelps.map((item) => (
+              <div key={item.title} className="flex gap-4">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <item.icon className="h-5 w-5 text-primary" />
                 </div>
-                <div className="text-sm text-white/50">{stat.label}</div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">{item.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         </div>
-        
-        {/* Bottom gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </section>
 
       {/* Audience Cards */}
-      <section className="section-container relative -mt-16 z-20">
+      <section className="py-20 bg-muted/30 border-y">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-4">
+              Built for three types of users
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              Pick your path based on what you need.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
             {/* Candidates */}
             <Link to="/candidates" className="group">
-              <div className="card-elevated p-8 h-full hover:border-candidate/50">
-                <div className="h-14 w-14 rounded-2xl bg-candidate/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Users className="h-7 w-7 text-candidate" />
+              <div className="bg-card border rounded-lg p-6 h-full hover:border-candidate/50 hover:shadow-sm transition-all">
+                <div className="h-12 w-12 rounded-lg bg-candidate/10 flex items-center justify-center mb-4">
+                  <Users className="h-6 w-6 text-candidate" />
                 </div>
-                <h3 className="font-display text-xl font-semibold mb-3">For Candidates</h3>
-                <p className="text-muted-foreground mb-6">
-                  Build your profile, get resume feedback, and find jobs that match your skills and goals.
+                <h3 className="text-lg font-semibold text-foreground mb-2">I'm looking for a job</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Upload your resume, see how it matches against real jobs, and track your applications.
                 </p>
-                <ul className="space-y-2 mb-6">
-                  {['Resume Analysis', 'Job Matching', 'Application Tracking'].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                <ul className="space-y-2 mb-4">
+                  {['Get resume feedback', 'Find matching jobs', 'Track applications'].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-candidate flex-shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
-                <span className="inline-flex items-center text-sm font-medium text-candidate group-hover:gap-2 transition-all">
+                <span className="inline-flex items-center text-sm font-medium text-candidate">
                   Learn more <ArrowRight className="h-4 w-4 ml-1" />
                 </span>
               </div>
@@ -157,23 +158,23 @@ export default function Index() {
 
             {/* Recruiters */}
             <Link to="/recruiters" className="group">
-              <div className="card-elevated p-8 h-full hover:border-recruiter/50">
-                <div className="h-14 w-14 rounded-2xl bg-recruiter/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Briefcase className="h-7 w-7 text-recruiter" />
+              <div className="bg-card border rounded-lg p-6 h-full hover:border-recruiter/50 hover:shadow-sm transition-all">
+                <div className="h-12 w-12 rounded-lg bg-recruiter/10 flex items-center justify-center mb-4">
+                  <Briefcase className="h-6 w-6 text-recruiter" />
                 </div>
-                <h3 className="font-display text-xl font-semibold mb-3">For Recruiters</h3>
-                <p className="text-muted-foreground mb-6">
-                  Post jobs, source candidates efficiently, and manage your hiring pipeline with ease.
+                <h3 className="text-lg font-semibold text-foreground mb-2">I'm hiring people</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Post jobs, search for candidates, and manage your hiring pipeline without the chaos.
                 </p>
-                <ul className="space-y-2 mb-6">
-                  {['Candidate Matching', 'Pipeline Management', 'Outreach Campaigns'].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                <ul className="space-y-2 mb-4">
+                  {['Search by skills', 'Manage pipeline', 'Send outreach'].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-recruiter flex-shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
-                <span className="inline-flex items-center text-sm font-medium text-recruiter group-hover:gap-2 transition-all">
+                <span className="inline-flex items-center text-sm font-medium text-recruiter">
                   Learn more <ArrowRight className="h-4 w-4 ml-1" />
                 </span>
               </div>
@@ -181,23 +182,23 @@ export default function Index() {
 
             {/* Managers */}
             <Link to="/managers" className="group">
-              <div className="card-elevated p-8 h-full hover:border-manager/50">
-                <div className="h-14 w-14 rounded-2xl bg-manager/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <BarChart3 className="h-7 w-7 text-manager" />
+              <div className="bg-card border rounded-lg p-6 h-full hover:border-manager/50 hover:shadow-sm transition-all">
+                <div className="h-12 w-12 rounded-lg bg-manager/10 flex items-center justify-center mb-4">
+                  <BarChart3 className="h-6 w-6 text-manager" />
                 </div>
-                <h3 className="font-display text-xl font-semibold mb-3">For Managers</h3>
-                <p className="text-muted-foreground mb-6">
-                  Get full visibility into team performance with analytics, metrics, and reporting.
+                <h3 className="text-lg font-semibold text-foreground mb-2">I manage a team</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  See how your recruiting team is performing and where the bottlenecks are.
                 </p>
-                <ul className="space-y-2 mb-6">
-                  {['Team Analytics', 'Hiring Metrics', 'Performance Insights'].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                <ul className="space-y-2 mb-4">
+                  {['Team performance', 'Hiring metrics', 'Pipeline reports'].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-manager flex-shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
-                <span className="inline-flex items-center text-sm font-medium text-manager group-hover:gap-2 transition-all">
+                <span className="inline-flex items-center text-sm font-medium text-manager">
                   Learn more <ArrowRight className="h-4 w-4 ml-1" />
                 </span>
               </div>
@@ -206,54 +207,22 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="section-container">
+      {/* Simple CTA */}
+      <section className="py-20">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
-              Why Teams Choose TalentMatch
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-3xl font-bold text-foreground mb-4">
+              Ready to try it?
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Built for modern recruitment teams who value efficiency, accuracy, and great candidate experiences.
+            <p className="text-muted-foreground text-lg mb-8">
+              Create a free account and see if it helps. No credit card required.
             </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature) => (
-              <div key={feature.title} className="feature-card">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-display text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="section-container">
-        <div className="container mx-auto px-4">
-          <div className="relative overflow-hidden rounded-xl bg-primary p-8 md:p-12 lg:p-16 text-center">
-            <div className="relative z-10">
-              <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                Ready to Transform Your Hiring?
-              </h2>
-              <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
-                Join leading companies that trust TalentMatch for their recruitment needs.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="xl" className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold" asChild>
-                  <Link to="/auth">
-                    Start Your Free Trial
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
+            <Button size="lg" asChild>
+              <Link to="/auth">
+                Create Free Account
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
