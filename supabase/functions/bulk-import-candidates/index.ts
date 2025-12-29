@@ -6,6 +6,67 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Input validation helpers
+const MAX_STRING_LENGTH = 500;
+const MAX_SUMMARY_LENGTH = 5000;
+const MAX_SKILLS = 50;
+const MAX_SKILL_LENGTH = 100;
+const MAX_PROFILES = 100;
+
+function validateEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const trimmed = String(email).trim().toLowerCase();
+  if (trimmed.length > 255) return null;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(trimmed) ? trimmed : null;
+}
+
+function validatePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const trimmed = String(phone).trim();
+  if (trimmed.length > 30) return null;
+  // Allow common phone formats
+  const phoneRegex = /^[+]?[0-9\s().-]{7,25}$/;
+  return phoneRegex.test(trimmed) ? trimmed : null;
+}
+
+function validateUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = String(url).trim();
+  if (trimmed.length > 500) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeString(value: string | null | undefined, maxLength: number = MAX_STRING_LENGTH): string | null {
+  if (!value) return null;
+  // Convert to string, trim, and limit length
+  const sanitized = String(value).trim().slice(0, maxLength);
+  // Remove potentially dangerous characters for XSS prevention
+  return sanitized.replace(/[<>]/g, '');
+}
+
+function validateSkills(skills: unknown): string[] {
+  if (!Array.isArray(skills)) return [];
+  return skills
+    .slice(0, MAX_SKILLS)
+    .filter((skill): skill is string => typeof skill === 'string')
+    .map(skill => sanitizeString(skill, MAX_SKILL_LENGTH))
+    .filter((skill): skill is string => skill !== null && skill.length > 0);
+}
+
+function validateNumber(value: unknown, min: number = 0, max: number = 100): number | null {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (isNaN(num)) return null;
+  return Math.min(Math.max(Math.round(num), min), max);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,7 +103,16 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    const { profiles, organizationId, source } = await req.json();
+    const body = await req.json();
+    const { profiles, organizationId, source } = body;
+
+    // Validate organizationId format
+    if (!organizationId || typeof organizationId !== 'string') {
+      return new Response(JSON.stringify({ error: "Invalid organization ID" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Verify user has access to this organization
     const { data: userRole, error: roleError } = await supabaseAuth
@@ -75,11 +145,18 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
-      throw new Error("No profiles provided");
+      return new Response(JSON.stringify({ error: "No profiles provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (!organizationId) {
-      throw new Error("Organization ID is required");
+    // Limit number of profiles per batch
+    if (profiles.length > MAX_PROFILES) {
+      return new Response(JSON.stringify({ error: `Maximum ${MAX_PROFILES} profiles per batch` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Importing", profiles.length, "profiles for org:", organizationId);
@@ -92,17 +169,30 @@ serve(async (req) => {
 
     for (const profile of profiles) {
       try {
+        // Validate and sanitize all input fields
+        const validatedEmail = validateEmail(profile.email);
+        const validatedPhone = validatePhone(profile.phone);
+        const validatedLinkedin = validateUrl(profile.linkedin_url);
+        const validatedName = sanitizeString(profile.full_name, 200) || "Unknown";
+        const validatedLocation = sanitizeString(profile.location);
+        const validatedTitle = sanitizeString(profile.headline || profile.current_title);
+        const validatedCompany = sanitizeString(profile.current_company);
+        const validatedSummary = sanitizeString(profile.summary, MAX_SUMMARY_LENGTH);
+        const validatedHeadline = sanitizeString(profile.headline || profile.summary, MAX_STRING_LENGTH);
+        const validatedSkills = validateSkills(profile.skills);
+        const validatedYearsExp = validateNumber(profile.experience_years || profile.years_of_experience, 0, 70);
+        const validatedAtsScore = validateNumber(profile.ats_score, 0, 100);
         
         // Check if candidate already exists by email (if provided)
-        if (profile.email) {
+        if (validatedEmail) {
           const { data: existingProfile } = await supabase
             .from("profiles")
             .select("user_id")
-            .eq("email", profile.email)
+            .eq("email", validatedEmail)
             .maybeSingle();
 
           if (existingProfile) {
-            console.log("Skipping duplicate email:", profile.email);
+            console.log("Skipping duplicate email:", validatedEmail);
             results.skipped++;
             continue;
           }
@@ -110,7 +200,7 @@ serve(async (req) => {
 
         // If resume content hash is provided, enforce duplicate prevention server-side too
         if (profile.resume_file?.content_hash) {
-          const incomingHash = String(profile.resume_file.content_hash);
+          const incomingHash = String(profile.resume_file.content_hash).slice(0, 128);
           console.log("[bulk-import] incoming resume hash", incomingHash.slice(0, 12), "...", "file:", profile.resume_file.file_name);
 
           const { data: existingByHash, error: hashLookupError } = await supabase
@@ -124,9 +214,9 @@ serve(async (req) => {
           }
 
           if (existingByHash) {
-            console.log("[bulk-import] DUPLICATE detected - rejecting import for", profile.full_name);
+            console.log("[bulk-import] DUPLICATE detected - rejecting import for", validatedName);
             results.skipped++;
-            results.errors.push(`DUPLICATE: ${profile.full_name || profile.resume_file.file_name} - identical resume already exists`);
+            results.errors.push(`DUPLICATE: ${validatedName} - identical resume already exists`);
             continue;
           }
         }
@@ -134,39 +224,39 @@ serve(async (req) => {
         // Generate a unique ID for the sourced profile
         const candidateId = crypto.randomUUID();
 
-        // Create candidate profile with null user_id (sourced profile, not an actual user)
+        // Create candidate profile with validated/sanitized data
         const { error: candidateError } = await supabase
           .from("candidate_profiles")
           .insert({
             id: candidateId,
             user_id: null, // Null for sourced/imported profiles (not real users)
             organization_id: organizationId,
-            full_name: profile.full_name || "Unknown",
-            email: profile.email || null,
-            phone: profile.phone || null,
-            location: profile.location || null,
-            linkedin_url: profile.linkedin_url || null,
-            current_title: profile.headline || profile.current_title || null,
-            current_company: profile.current_company || null,
-            years_of_experience: profile.experience_years || profile.years_of_experience || null,
-            headline: profile.headline || profile.summary || null,
-            summary: profile.summary || null,
-            ats_score: profile.ats_score || null,
+            full_name: validatedName,
+            email: validatedEmail,
+            phone: validatedPhone,
+            location: validatedLocation,
+            linkedin_url: validatedLinkedin,
+            current_title: validatedTitle,
+            current_company: validatedCompany,
+            years_of_experience: validatedYearsExp,
+            headline: validatedHeadline,
+            summary: validatedSummary,
+            ats_score: validatedAtsScore,
             is_actively_looking: true,
             profile_completeness: 50
           });
 
         if (candidateError) {
           console.error("Error creating candidate:", candidateError);
-          results.errors.push(`Failed to import ${profile.full_name || 'unknown'}: ${candidateError.message}`);
+          results.errors.push(`Failed to import ${validatedName}: ${candidateError.message}`);
           continue;
         }
 
-        // Add skills if provided
-        if (profile.skills && Array.isArray(profile.skills) && profile.skills.length > 0) {
-          const skillInserts = profile.skills.map((skill: string) => ({
+        // Add validated skills
+        if (validatedSkills.length > 0) {
+          const skillInserts = validatedSkills.map((skill: string) => ({
             candidate_id: candidateId,
-            skill_name: skill.trim()
+            skill_name: skill
           }));
 
           const { error: skillsError } = await supabase
@@ -180,31 +270,45 @@ serve(async (req) => {
 
         // Create resume record if resume file info is provided
         if (profile.resume_file) {
-          const { file_name, file_url, file_type, content_hash } = profile.resume_file;
-          console.log("[bulk-import] inserting resume with hash", (content_hash || "(none)").toString().slice(0, 12), "...");
+          const validatedFileName = sanitizeString(profile.resume_file.file_name, 255) || "resume.pdf";
+          const validatedFileUrl = validateUrl(profile.resume_file.file_url);
+          const validatedFileType = sanitizeString(profile.resume_file.file_type, 100) || 'application/pdf';
+          const validatedHash = profile.resume_file.content_hash 
+            ? String(profile.resume_file.content_hash).slice(0, 128) 
+            : null;
 
-          const { error: resumeError } = await supabase
-            .from("resumes")
-            .insert({
-              candidate_id: candidateId,
-              file_name: file_name,
-              file_url: file_url,
-              file_type: file_type || 'application/pdf',
-              ats_score: profile.ats_score || null,
-              is_primary: true,
-              parsed_content: profile,
-              content_hash: content_hash || null
-            });
+          if (validatedFileUrl) {
+            console.log("[bulk-import] inserting resume with hash", (validatedHash || "(none)").slice(0, 12), "...");
 
-          if (resumeError) {
-            console.error("Error creating resume record:", resumeError);
-          } else {
-            console.log("Created resume record for:", profile.full_name);
+            const { error: resumeError } = await supabase
+              .from("resumes")
+              .insert({
+                candidate_id: candidateId,
+                file_name: validatedFileName,
+                file_url: validatedFileUrl,
+                file_type: validatedFileType,
+                ats_score: validatedAtsScore,
+                is_primary: true,
+                parsed_content: {
+                  full_name: validatedName,
+                  email: validatedEmail,
+                  phone: validatedPhone,
+                  skills: validatedSkills,
+                  summary: validatedSummary
+                },
+                content_hash: validatedHash
+              });
+
+            if (resumeError) {
+              console.error("Error creating resume record:", resumeError);
+            } else {
+              console.log("Created resume record for:", validatedName);
+            }
           }
         }
 
         results.imported++;
-        console.log("Imported:", profile.full_name);
+        console.log("Imported:", validatedName);
 
       } catch (e) {
         console.error("Error importing profile:", e);
