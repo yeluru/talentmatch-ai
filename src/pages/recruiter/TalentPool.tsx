@@ -167,6 +167,8 @@ export default function TalentPool() {
       }
 
       const candidates = [...(sourced || []), ...(applicants || [])];
+      console.debug('[TalentPool] sourced:', sourced?.length || 0, 'applicants:', applicants?.length || 0);
+
       if (!candidates.length) return [];
 
       // De-dupe by id
@@ -187,7 +189,7 @@ export default function TalentPool() {
         .select('candidate_id, company_name')
         .in('candidate_id', candidateIds);
 
-      return deduped
+      const result = deduped
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .map((c) => ({
           ...c,
@@ -202,6 +204,9 @@ export default function TalentPool() {
             c.current_company,
           ].filter(Boolean) as string[],
         }));
+
+      console.debug('[TalentPool] first candidate recruiter_status/notes:', result[0]?.recruiter_status, !!result[0]?.recruiter_notes);
+      return result;
     },
     enabled: !!organizationId,
   });
