@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -104,13 +104,17 @@ export function ShortlistCandidateCard({
   const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Profile-level notes/status (synced across Talent Pool, Shortlists, and Profile sheet)
-  const [profileNotes, setProfileNotes] = useState(candidate.candidate_profiles?.recruiter_notes || '');
+  // Notes/status are candidate-level and MUST match everywhere.
+  // We also support legacy shortlist-only notes by falling back to candidate.notes.
+  const [profileNotes, setProfileNotes] = useState(
+    candidate.candidate_profiles?.recruiter_notes ?? candidate.notes ?? ''
+  );
   const [hasUnsavedProfileNotes, setHasUnsavedProfileNotes] = useState(false);
 
-  // Shortlist-level notes (unique per shortlist)
-  const [shortlistNotes, setShortlistNotes] = useState(candidate.notes || '');
-  const [hasUnsavedShortlistNotes, setHasUnsavedShortlistNotes] = useState(false);
+  useEffect(() => {
+    setProfileNotes(candidate.candidate_profiles?.recruiter_notes ?? candidate.notes ?? '');
+    setHasUnsavedProfileNotes(false);
+  }, [candidate.id, candidate.candidate_profiles?.recruiter_notes, candidate.notes]);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -133,50 +137,36 @@ export function ShortlistCandidateCard({
 
   const updateProfileNotes = useMutation({
     mutationFn: async (newNotes: string) => {
-      const { error } = await supabase
+      // Keep notes in candidate_profiles as the single source of truth.
+      const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_notes: newNotes })
         .eq('id', candidate.candidate_id);
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Also mirror into shortlist_candidates.notes so older UI/queries stay consistent.
+      const { error: shortlistError } = await supabase
+        .from('shortlist_candidates')
+        .update({ notes: newNotes })
+        .eq('id', candidate.id);
+      if (shortlistError) throw shortlistError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       setHasUnsavedProfileNotes(false);
-      toast.success('Profile notes saved');
+      toast.success('Notes saved');
     },
     onError: () => {
-      toast.error('Failed to save profile notes');
+      toast.error('Failed to save notes');
     },
   });
 
-  const updateShortlistNotes = useMutation({
-    mutationFn: async (newNotes: string) => {
-      const { error } = await supabase
-        .from('shortlist_candidates')
-        .update({ notes: newNotes })
-        .eq('id', candidate.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
-      setHasUnsavedShortlistNotes(false);
-      toast.success('Shortlist notes saved');
-    },
-    onError: () => {
-      toast.error('Failed to save shortlist notes');
-    },
-  });
-
-  const handleProfileNotesChange = (value: string) => {
+  const handleNotesChange = (value: string) => {
     setProfileNotes(value);
-    setHasUnsavedProfileNotes(value !== (candidate.candidate_profiles?.recruiter_notes || ''));
-  };
-
-  const handleShortlistNotesChange = (value: string) => {
-    setShortlistNotes(value);
-    setHasUnsavedShortlistNotes(value !== (candidate.notes || ''));
+    const existing = candidate.candidate_profiles?.recruiter_notes ?? candidate.notes ?? '';
+    setHasUnsavedProfileNotes(value !== existing);
   };
 
   const statusValues = new Set(CANDIDATE_STATUSES.map((s) => s.value));
@@ -245,25 +235,10 @@ export function ShortlistCandidateCard({
                 </Button>
               </HoverCardTrigger>
               <HoverCardContent className="w-72" align="end">
-                {(candidate.candidate_profiles?.recruiter_notes || candidate.notes) ? (
-                  <div className="space-y-3">
-                    {candidate.candidate_profiles?.recruiter_notes && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">Profile notes</p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">
-                          {candidate.candidate_profiles.recruiter_notes}
-                        </p>
-                      </div>
-                    )}
-                    {candidate.notes && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">Shortlist notes</p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">
-                          {candidate.notes}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                {candidate.candidate_profiles?.recruiter_notes || candidate.notes ? (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                    {candidate.candidate_profiles?.recruiter_notes || candidate.notes}
+                  </p>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">No notes added</p>
                 )}
@@ -337,58 +312,30 @@ export function ShortlistCandidateCard({
 
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-0 border-t bg-muted/30">
-            <div className="pt-3 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Profile Notes (synced)</label>
-                <Textarea
-                  placeholder="Notes that follow the candidate everywhere..."
-                  value={profileNotes}
-                  onChange={(e) => handleProfileNotesChange(e.target.value)}
-                  className="min-h-[80px] resize-none"
-                />
-                {hasUnsavedProfileNotes && (
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={() => updateProfileNotes.mutate(profileNotes)}
-                      disabled={updateProfileNotes.isPending}
-                    >
-                      {updateProfileNotes.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      Save Profile Notes
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Shortlist Notes (this list only)</label>
-                <Textarea
-                  placeholder="Notes specific to this shortlist..."
-                  value={shortlistNotes}
-                  onChange={(e) => handleShortlistNotesChange(e.target.value)}
-                  className="min-h-[80px] resize-none"
-                />
-                {hasUnsavedShortlistNotes && (
-                  <div className="flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={() => updateShortlistNotes.mutate(shortlistNotes)}
-                      disabled={updateShortlistNotes.isPending}
-                    >
-                      {updateShortlistNotes.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      Save Shortlist Notes
-                    </Button>
-                  </div>
-                )}
-              </div>
+            <div className="pt-3 space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Notes</label>
+              <Textarea
+                placeholder="Notes about this candidate (shows in Talent Pool and Shortlists)..."
+                value={profileNotes}
+                onChange={(e) => handleNotesChange(e.target.value)}
+                className="min-h-[120px] resize-none"
+              />
+              {hasUnsavedProfileNotes && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => updateProfileNotes.mutate(profileNotes)}
+                    disabled={updateProfileNotes.isPending}
+                  >
+                    {updateProfileNotes.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    Save Notes
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </CollapsibleContent>
