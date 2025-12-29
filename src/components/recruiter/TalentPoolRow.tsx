@@ -97,11 +97,32 @@ export function TalentPoolRow({
         .update({ status: newStatus })
         .eq('candidate_id', talent.id);
       if (shortlistError) throw shortlistError;
+
+      return newStatus;
     },
-    onSuccess: () => {
+    onSuccess: (newStatus) => {
+      // Update any cached shortlist candidates immediately (avoid "stale UI" across pages)
+      queryClient.setQueriesData(
+        { queryKey: ['shortlist-candidates'] },
+        (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((row: any) => {
+            if (row?.candidate_id !== talent.id) return row;
+            return {
+              ...row,
+              status: newStatus,
+              candidate_profiles: {
+                ...row.candidate_profiles,
+                recruiter_status: newStatus,
+              },
+            };
+          });
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       toast.success('Status updated');
     },
     onError: () => {
@@ -124,11 +145,32 @@ export function TalentPoolRow({
         .update({ notes: newNotes })
         .eq('candidate_id', talent.id);
       if (shortlistError) throw shortlistError;
+
+      return newNotes;
     },
-    onSuccess: () => {
+    onSuccess: (newNotes) => {
+      // Update cached shortlist candidates immediately
+      queryClient.setQueriesData(
+        { queryKey: ['shortlist-candidates'] },
+        (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((row: any) => {
+            if (row?.candidate_id !== talent.id) return row;
+            return {
+              ...row,
+              notes: newNotes,
+              candidate_profiles: {
+                ...row.candidate_profiles,
+                recruiter_notes: newNotes,
+              },
+            };
+          });
+        }
+      );
+
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       setHasUnsavedNotes(false);
       toast.success('Notes saved');
     },
