@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { User, Briefcase, Building2, Loader2, ArrowLeft, Mail } from 'lucide-react';
+import { User, Briefcase, Building2, Loader2, ArrowLeft, Mail, Sparkles } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { SEOHead } from '@/components/SEOHead';
@@ -33,11 +33,45 @@ const resetSchema = z.object({
 
 type AuthView = 'main' | 'forgot-password' | 'reset-sent';
 
+// Role theme configurations
+const roleThemes = {
+  candidate: {
+    gradient: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20',
+    accent: 'text-emerald-500',
+    border: 'border-emerald-500/30',
+    bg: 'bg-emerald-500/10',
+    label: 'Candidate',
+    icon: User,
+  },
+  recruiter: {
+    gradient: 'from-violet-500/20 via-purple-500/10 to-fuchsia-500/20',
+    accent: 'text-violet-500',
+    border: 'border-violet-500/30',
+    bg: 'bg-violet-500/10',
+    label: 'Recruiter',
+    icon: Briefcase,
+  },
+  account_manager: {
+    gradient: 'from-amber-500/20 via-orange-500/10 to-rose-500/20',
+    accent: 'text-amber-500',
+    border: 'border-amber-500/30',
+    bg: 'bg-amber-500/10',
+    label: 'Manager',
+    icon: Building2,
+  },
+};
+
 export default function AuthPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager'>('candidate');
+  
+  // Get role from URL or default to candidate
+  const roleFromUrl = searchParams.get('role') as 'candidate' | 'recruiter' | 'account_manager' | null;
+  const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager'>(
+    roleFromUrl && roleThemes[roleFromUrl] ? roleFromUrl : 'candidate'
+  );
   const [authView, setAuthView] = useState<AuthView>('main');
   
   const [signInData, setSignInData] = useState({ email: '', password: '' });
@@ -49,6 +83,8 @@ export default function AuthPage() {
     inviteCode: ''
   });
   const [resetEmail, setResetEmail] = useState('');
+
+  const currentTheme = roleThemes[selectedRole];
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,10 +177,35 @@ export default function AuthPage() {
     setIsLoading(false);
   };
 
+  // Background component with animated gradient
+  const AuthBackground = ({ children }: { children: React.ReactNode }) => (
+    <div className="min-h-screen relative overflow-hidden bg-background">
+      {/* Animated gradient background */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${currentTheme.gradient} transition-all duration-700`} />
+      
+      {/* Grid pattern overlay */}
+      <div 
+        className="absolute inset-0 opacity-[0.02]"
+        style={{
+          backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
+          backgroundSize: '60px 60px'
+        }}
+      />
+      
+      {/* Floating orbs */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        {children}
+      </div>
+    </div>
+  );
+
   // Forgot Password View
   if (authView === 'forgot-password') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+      <AuthBackground>
         <SEOHead 
           title="Reset Password" 
           description="Reset your TalentMatch AI account password"
@@ -152,12 +213,13 @@ export default function AuthPage() {
         />
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto" />
+            <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
+              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto transition-transform group-hover:scale-105" />
+              <span className="text-2xl font-display font-bold text-foreground">TalentMatch</span>
             </Link>
           </div>
 
-          <Card className="border-0 shadow-xl">
+          <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
             <CardHeader>
               <Button
                 variant="ghost"
@@ -168,7 +230,7 @@ export default function AuthPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to sign in
               </Button>
-              <CardTitle>Reset your password</CardTitle>
+              <CardTitle className="text-2xl font-display">Reset your password</CardTitle>
               <CardDescription>
                 Enter your email address and we'll send you a link to reset your password.
               </CardDescription>
@@ -183,10 +245,11 @@ export default function AuthPage() {
                     placeholder="you@example.com"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
+                    className="h-12"
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send reset link
                 </Button>
@@ -194,14 +257,14 @@ export default function AuthPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   // Reset Email Sent View
   if (authView === 'reset-sent') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+      <AuthBackground>
         <SEOHead 
           title="Check Your Email" 
           description="Password reset email sent"
@@ -209,24 +272,25 @@ export default function AuthPage() {
         />
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto" />
+            <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
+              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto transition-transform group-hover:scale-105" />
+              <span className="text-2xl font-display font-bold text-foreground">TalentMatch</span>
             </Link>
           </div>
 
-          <Card className="border-0 shadow-xl">
+          <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
             <CardContent className="pt-8 pb-8 text-center space-y-4">
-              <div className="mx-auto w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center">
-                <Mail className="h-8 w-8 text-accent" />
+              <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
+                <Mail className="h-10 w-10 text-primary" />
               </div>
-              <CardTitle>Check your email</CardTitle>
+              <CardTitle className="text-2xl font-display">Check your email</CardTitle>
               <CardDescription className="text-base">
-                We've sent a password reset link to <strong>{resetEmail}</strong>
+                We've sent a password reset link to <strong className="text-foreground">{resetEmail}</strong>
               </CardDescription>
               <p className="text-sm text-muted-foreground">
                 Didn't receive the email? Check your spam folder or{' '}
                 <button 
-                  className="text-accent hover:underline"
+                  className="text-primary hover:underline font-medium"
                   onClick={() => setAuthView('forgot-password')}
                 >
                   try again
@@ -245,36 +309,40 @@ export default function AuthPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </AuthBackground>
     );
   }
 
   // Main Auth View
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
+    <AuthBackground>
       <SEOHead 
         title="Sign In" 
         description="Sign in to your TalentMatch AI account to access AI-powered recruitment tools"
       />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <img src={logo} alt="TalentMatch AI" className="h-12 w-auto" />
+          <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
+            <img src={logo} alt="TalentMatch AI" className="h-12 w-auto transition-transform group-hover:scale-105" />
+            <span className="text-2xl font-display font-bold text-foreground">TalentMatch</span>
           </Link>
-          <p className="text-muted-foreground">AI-Powered Recruitment Platform</p>
+          <p className="text-muted-foreground flex items-center justify-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            AI-Powered Recruitment Platform
+          </p>
         </div>
 
-        <Card className="border-0 shadow-xl">
+        <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
           <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50">
+              <TabsTrigger value="signin" className="data-[state=active]:bg-background">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-background">Sign Up</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
               <form onSubmit={handleSignIn}>
                 <CardHeader>
-                  <CardTitle>Welcome back</CardTitle>
+                  <CardTitle className="text-2xl font-display">Welcome back</CardTitle>
                   <CardDescription>Sign in to your account</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -286,6 +354,7 @@ export default function AuthPage() {
                       placeholder="you@example.com"
                       value={signInData.email}
                       onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                      className="h-12"
                       required
                     />
                   </div>
@@ -294,7 +363,7 @@ export default function AuthPage() {
                       <Label htmlFor="signin-password">Password</Label>
                       <button
                         type="button"
-                        className="text-sm text-accent hover:underline"
+                        className="text-sm text-primary hover:underline font-medium"
                         onClick={() => setAuthView('forgot-password')}
                       >
                         Forgot password?
@@ -306,10 +375,11 @@ export default function AuthPage() {
                       placeholder="••••••••"
                       value={signInData.password}
                       onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                      className="h-12"
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                   </Button>
@@ -320,29 +390,35 @@ export default function AuthPage() {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp}>
                 <CardHeader>
-                  <CardTitle>Create an account</CardTitle>
+                  <CardTitle className="text-2xl font-display">Create an account</CardTitle>
                   <CardDescription>Get started with TalentMatch AI</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <Label>I am a...</Label>
                     <RadioGroup value={selectedRole} onValueChange={(v) => setSelectedRole(v as any)}>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Label htmlFor="role-candidate" className="flex flex-col items-center gap-2 p-3 rounded-lg border-2 cursor-pointer hover:border-accent transition-colors [&:has([data-state=checked])]:border-accent [&:has([data-state=checked])]:bg-accent/5">
-                          <RadioGroupItem value="candidate" id="role-candidate" className="sr-only" />
-                          <User className="h-5 w-5 text-candidate" />
-                          <span className="text-xs font-medium">Candidate</span>
-                        </Label>
-                        <Label htmlFor="role-recruiter" className="flex flex-col items-center gap-2 p-3 rounded-lg border-2 cursor-pointer hover:border-accent transition-colors [&:has([data-state=checked])]:border-accent [&:has([data-state=checked])]:bg-accent/5">
-                          <RadioGroupItem value="recruiter" id="role-recruiter" className="sr-only" />
-                          <Briefcase className="h-5 w-5 text-recruiter" />
-                          <span className="text-xs font-medium">Recruiter</span>
-                        </Label>
-                        <Label htmlFor="role-manager" className="flex flex-col items-center gap-2 p-3 rounded-lg border-2 cursor-pointer hover:border-accent transition-colors [&:has([data-state=checked])]:border-accent [&:has([data-state=checked])]:bg-accent/5">
-                          <RadioGroupItem value="account_manager" id="role-manager" className="sr-only" />
-                          <Building2 className="h-5 w-5 text-manager" />
-                          <span className="text-xs font-medium">Manager</span>
-                        </Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {(['candidate', 'recruiter', 'account_manager'] as const).map((role) => {
+                          const theme = roleThemes[role];
+                          const Icon = theme.icon;
+                          return (
+                            <Label 
+                              key={role}
+                              htmlFor={`role-${role}`} 
+                              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                                selectedRole === role 
+                                  ? `${theme.border} ${theme.bg}` 
+                                  : 'border-border hover:border-muted-foreground/30'
+                              }`}
+                            >
+                              <RadioGroupItem value={role} id={`role-${role}`} className="sr-only" />
+                              <div className={`p-2 rounded-lg ${theme.bg}`}>
+                                <Icon className={`h-5 w-5 ${theme.accent}`} />
+                              </div>
+                              <span className="text-xs font-medium">{theme.label}</span>
+                            </Label>
+                          );
+                        })}
                       </div>
                     </RadioGroup>
                   </div>
@@ -354,6 +430,7 @@ export default function AuthPage() {
                       placeholder="John Doe"
                       value={signUpData.fullName}
                       onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
+                      className="h-12"
                       required
                       maxLength={100}
                     />
@@ -367,6 +444,7 @@ export default function AuthPage() {
                       placeholder="you@example.com"
                       value={signUpData.email}
                       onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                      className="h-12"
                       required
                       maxLength={255}
                     />
@@ -380,6 +458,7 @@ export default function AuthPage() {
                       placeholder="••••••••"
                       value={signUpData.password}
                       onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                      className="h-12"
                       required
                       minLength={8}
                       maxLength={72}
@@ -394,13 +473,14 @@ export default function AuthPage() {
                       <Label htmlFor="signup-invite">Invite Code (optional)</Label>
                       <Input
                         id="signup-invite"
-                        placeholder="Enter invite code to join an organization"
+                        placeholder="Enter invite code"
                         value={signUpData.inviteCode}
                         onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value.toUpperCase() })}
+                        className="h-12"
                         maxLength={20}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Get this code from a recruiter to see their organization's jobs
+                        Get this code from a recruiter to join their organization
                       </p>
                     </div>
                   )}
@@ -413,13 +493,14 @@ export default function AuthPage() {
                         placeholder="Acme Corp"
                         value={signUpData.organizationName}
                         onChange={(e) => setSignUpData({ ...signUpData, organizationName: e.target.value })}
+                        className="h-12"
                         required
                         maxLength={100}
                       />
                     </div>
                   )}
                   
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Create Account
                   </Button>
@@ -428,7 +509,14 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
         </Card>
+
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          By continuing, you agree to our{' '}
+          <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
+          {' '}and{' '}
+          <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+        </p>
       </div>
-    </div>
+    </AuthBackground>
   );
 }
