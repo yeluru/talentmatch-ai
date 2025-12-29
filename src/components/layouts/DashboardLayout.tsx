@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import logo from '@/assets/logo.png';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -122,12 +123,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="border-b border-sidebar-border p-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold text-sidebar-foreground">
-                MatchTal<span className="text-accent">AI</span>
-              </span>
+              <img src={logo} alt="TalMatch AI" className="h-9 w-auto" />
             </Link>
           </SidebarHeader>
           

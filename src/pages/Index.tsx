@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Users, Briefcase, BarChart3, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Users, Briefcase, BarChart3, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { SEOHead } from '@/components/SEOHead';
+import logo from '@/assets/logo.png';
 
 export default function Index() {
   const { user, currentRole } = useAuth();
@@ -17,7 +18,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="MatchTalAI - AI-Powered Recruitment Platform"
+        title="TalentMatch AI - AI-Powered Recruitment Platform"
         description="Transform your hiring process with AI-powered candidate matching, resume analysis, and intelligent talent sourcing. Connect top talent with great opportunities."
         keywords="AI recruitment, talent matching, resume analysis, ATS, applicant tracking system, hiring platform, job matching"
       />
@@ -25,12 +26,7 @@ export default function Index() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <span className="font-display text-xl font-bold">
-              MatchTal<span className="text-accent">AI</span>
-            </span>
+            <img src={logo} alt="TalMatch AI" className="h-10 w-auto" />
           </Link>
           <nav className="flex items-center gap-4">
             {user ? (
@@ -87,7 +83,7 @@ export default function Index() {
               Three Portals, One Platform
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Whether you're looking for a job, hiring talent, or managing a team, MatchTalAI has you covered.
+              Whether you're looking for a job, hiring talent, or managing a team, TalentMatch AI has you covered.
             </p>
           </div>
 
@@ -153,15 +149,10 @@ export default function Index() {
       <footer className="border-t py-12">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-accent-foreground" />
-            </div>
-            <span className="font-display text-xl font-bold">
-              MatchTal<span className="text-accent">AI</span>
-            </span>
+            <img src={logo} alt="TalMatch AI" className="h-10 w-auto" />
           </div>
           <p className="text-muted-foreground text-sm">
-            © 2024 MatchTalAI. AI-Powered Recruitment Platform.
+            © 2024 TalentMatch AI. AI-Powered Recruitment Platform.
           </p>
         </div>
       </footer>

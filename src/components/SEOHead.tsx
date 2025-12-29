@@ -11,7 +11,7 @@ interface SEOHeadProps {
 }
 
 export function SEOHead({
-  title = 'MatchTalAI - AI-Powered Recruitment Platform',
+  title = 'TalentMatch AI - AI-Powered Recruitment Platform',
   description = 'Transform your hiring process with AI-powered candidate matching, resume analysis, and intelligent talent sourcing. Find the perfect match faster.',
   keywords = 'recruitment, hiring, AI matching, talent sourcing, resume analysis, ATS, applicant tracking',
   ogImage = '/og-image.png',
@@ -19,7 +19,7 @@ export function SEOHead({
   canonical,
   noIndex = false,
 }: SEOHeadProps) {
-  const fullTitle = title.includes('MatchTalAI') ? title : `${title} | MatchTalAI`;
+  const fullTitle = title.includes('TalentMatch') ? title : `${title} | TalentMatch AI`;
   
   return (
     <Helmet>
