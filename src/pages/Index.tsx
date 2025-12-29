@@ -62,7 +62,7 @@ export default function Index() {
       {/* Hero Section - Clean and honest */}
       <section className="pt-32 pb-20 bg-background border-b">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl">
+          <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6 leading-tight">
               Finding the right job—or the right candidate—shouldn't take forever.
             </h1>
@@ -72,7 +72,7 @@ export default function Index() {
               and helps recruiters quickly find people who actually match what they're looking for.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
                 <Link to={user ? getDashboardLink() : '/auth'}>
                   {user ? 'Go to Dashboard' : "Get Started — It's Free"}
