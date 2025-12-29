@@ -1,5 +1,22 @@
 import { Link } from 'react-router-dom';
-import logo from '@/assets/logo.png';
+
+function Logo({ className }: { className?: string }) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <span className="font-display font-bold text-xl tracking-tight">
+        Talent<span className="text-accent">Match</span>
+      </span>
+    </div>
+  );
+}
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -28,7 +45,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="inline-block mb-4">
-              <img src={logo} alt="TalentMatch" className="h-10 w-auto" />
+              <Logo />
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
               Connecting top talent with great opportunities through intelligent matching.
