@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Users, Briefcase, BarChart3, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function Index() {
   const { user, currentRole } = useAuth();
@@ -15,6 +16,11 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead 
+        title="MatchTalAI - AI-Powered Recruitment Platform"
+        description="Transform your hiring process with AI-powered candidate matching, resume analysis, and intelligent talent sourcing. Connect top talent with great opportunities."
+        keywords="AI recruitment, talent matching, resume analysis, ATS, applicant tracking system, hiring platform, job matching"
+      />
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
