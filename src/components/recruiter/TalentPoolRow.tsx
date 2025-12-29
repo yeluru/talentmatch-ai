@@ -84,14 +84,24 @@ export function TalentPoolRow({
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
-      const { error } = await supabase
+      // Candidate-level status: keep candidate_profiles as source of truth...
+      const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_status: newStatus })
         .eq('id', talent.id);
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // ...and mirror to any shortlist rows so Shortlists shows the same value.
+      const { error: shortlistError } = await supabase
+        .from('shortlist_candidates')
+        .update({ status: newStatus })
+        .eq('candidate_id', talent.id);
+      if (shortlistError) throw shortlistError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       toast.success('Status updated');
     },
     onError: () => {
@@ -101,14 +111,24 @@ export function TalentPoolRow({
 
   const updateNotes = useMutation({
     mutationFn: async (newNotes: string) => {
-      const { error } = await supabase
+      // Candidate-level notes: keep candidate_profiles as source of truth...
+      const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_notes: newNotes })
         .eq('id', talent.id);
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // ...and mirror to any shortlist rows so Shortlists shows the same value.
+      const { error: shortlistError } = await supabase
+        .from('shortlist_candidates')
+        .update({ notes: newNotes })
+        .eq('candidate_id', talent.id);
+      if (shortlistError) throw shortlistError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       setHasUnsavedNotes(false);
       toast.success('Notes saved');
     },
