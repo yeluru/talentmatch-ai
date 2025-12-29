@@ -12,10 +12,66 @@ serve(async (req) => {
   }
 
   try {
-    const { profiles, organizationId, source } = await req.json();
-    
+    // Authentication check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing authorization header");
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // Create client with user's auth to verify identity
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError?.message || "No user found");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Authenticated user:", user.id);
+
+    const { profiles, organizationId, source } = await req.json();
+
+    // Verify user has access to this organization
+    const { data: userRole, error: roleError } = await supabaseAuth
+      .from('user_roles')
+      .select('organization_id, role')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (roleError || !userRole) {
+      console.error("User doesn't have access to organization:", organizationId);
+      return new Response(JSON.stringify({ error: "Forbidden - no access to this organization" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify user has recruiter or account_manager role
+    if (userRole.role !== 'recruiter' && userRole.role !== 'account_manager') {
+      console.error("User doesn't have required role:", userRole.role);
+      return new Response(JSON.stringify({ error: "Forbidden - requires recruiter or manager role" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("User role verified:", userRole.role);
+
+    // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
