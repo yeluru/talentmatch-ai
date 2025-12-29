@@ -1,4 +1,4 @@
-# MatchTalAI - AI-Powered Recruitment Platform
+# TalentMatch AI - AI-Powered Recruitment Platform
 
 A modern, full-stack recruitment platform that connects candidates with recruiters using AI-powered matching, resume analysis, and talent insights.
 
@@ -27,7 +27,7 @@ A modern, full-stack recruitment platform that connects candidates with recruite
 
 ## Overview
 
-MatchTalAI is a comprehensive recruitment solution designed to streamline the hiring process for organizations of all sizes. The platform leverages AI to match candidates with job opportunities, analyze resumes, and provide actionable talent insights.
+TalentMatch AI is a comprehensive recruitment solution designed to streamline the hiring process for organizations of all sizes. The platform leverages AI to match candidates with job opportunities, analyze resumes, and provide actionable talent insights.
 
 ### Key Capabilities
 
@@ -188,8 +188,8 @@ Use the pre-configured Supabase project (database already set up):
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yeluru/query-create-launch.git
-cd query-create-launch
+git clone https://github.com/yeluru/talentmatch-ai.git
+cd talentmatch-ai
 ```
 
 #### 2. Install Dependencies
@@ -231,8 +231,8 @@ Set up your own Supabase project with fresh database:
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yeluru/query-create-launch.git
-cd query-create-launch
+git clone https://github.com/yeluru/talentmatch-ai.git
+cd talentmatch-ai
 ```
 
 #### 2. Install Dependencies
@@ -246,7 +246,7 @@ npm install
 1. Go to [supabase.com](https://supabase.com) and create an account
 2. Click "New Project"
 3. Fill in project details:
-   - **Name**: MatchTalAI (or your preferred name)
+   - **Name**: TalentMatch AI (or your preferred name)
    - **Database Password**: Create a strong password (save this!)
    - **Region**: Choose closest to your users
 4. Wait for project to be created (~2 minutes)
@@ -729,8 +729,8 @@ http {
 
 **Build and run:**
 ```bash
-docker build -t matchtalai .
-docker run -p 80:80 matchtalai
+docker build -t talentmatch-ai .
+docker run -p 80:80 talentmatch-ai
 ```
 
 ### Option 5: AWS S3 + CloudFront
