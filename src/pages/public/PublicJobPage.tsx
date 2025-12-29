@@ -230,11 +230,11 @@ export default function PublicJobPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Create candidate role
-        await supabase.from('user_roles').insert({
-          user_id: authData.user.id,
-          role: 'candidate',
-          organization_id: job?.organization?.id
+        // Create candidate role using the secure RPC function
+        await supabase.rpc('assign_user_role', {
+          _user_id: authData.user.id,
+          _role: 'candidate',
+          _organization_id: job?.organization?.id || null
         });
 
         // Create candidate profile

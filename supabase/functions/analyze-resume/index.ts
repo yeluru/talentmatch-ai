@@ -6,6 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Input validation constants
+const MAX_RESUME_TEXT_LENGTH = 100000; // 100KB
+const MAX_JOB_DESCRIPTION_LENGTH = 50000; // 50KB
+
+function sanitizeString(value: string | null | undefined, maxLength: number): string | null {
+  if (!value) return null;
+  return String(value).trim().slice(0, maxLength).replace(/[<>]/g, '');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -39,11 +48,22 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    const { resumeText, jobDescription } = await req.json();
+    const body = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Input validation
+    const resumeText = sanitizeString(body.resumeText, MAX_RESUME_TEXT_LENGTH);
+    const jobDescription = sanitizeString(body.jobDescription, MAX_JOB_DESCRIPTION_LENGTH);
+
+    if (!resumeText || resumeText.length < 50) {
+      return new Response(JSON.stringify({ error: "Resume text is required and must be at least 50 characters" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
 const systemPrompt = `You are an ACCURATE and FAIR AI resume analyst for MatchTalent AI.
@@ -194,6 +214,51 @@ Provide a detailed analysis with an overall ATS score, identified skills, key st
     }
 
     const analysis = JSON.parse(toolCall.function.arguments);
+
+    // Sanitize AI output before returning
+    analysis.summary = sanitizeString(analysis.summary, 2000);
+    
+    if (Array.isArray(analysis.matched_skills)) {
+      analysis.matched_skills = analysis.matched_skills
+        .slice(0, 50)
+        .map((s: unknown) => sanitizeString(String(s), 100))
+        .filter(Boolean);
+    }
+    
+    if (Array.isArray(analysis.missing_skills)) {
+      analysis.missing_skills = analysis.missing_skills
+        .slice(0, 50)
+        .map((s: unknown) => sanitizeString(String(s), 100))
+        .filter(Boolean);
+    }
+    
+    if (Array.isArray(analysis.key_strengths)) {
+      analysis.key_strengths = analysis.key_strengths
+        .slice(0, 20)
+        .map((s: unknown) => sanitizeString(String(s), 500))
+        .filter(Boolean);
+    }
+    
+    if (Array.isArray(analysis.areas_for_improvement)) {
+      analysis.areas_for_improvement = analysis.areas_for_improvement
+        .slice(0, 20)
+        .map((s: unknown) => sanitizeString(String(s), 500))
+        .filter(Boolean);
+    }
+    
+    if (Array.isArray(analysis.recommendations)) {
+      analysis.recommendations = analysis.recommendations
+        .slice(0, 20)
+        .map((s: unknown) => sanitizeString(String(s), 500))
+        .filter(Boolean);
+    }
+
+    // Ensure match_score is a valid number between 0-100
+    if (typeof analysis.match_score !== 'number' || isNaN(analysis.match_score)) {
+      analysis.match_score = 0;
+    } else {
+      analysis.match_score = Math.min(100, Math.max(0, Math.round(analysis.match_score)));
+    }
 
     return new Response(JSON.stringify({ analysis }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -6,6 +6,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Input validation constants
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_TEXT_LENGTH = 100000; // 100KB of text
+const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'text/plain'
+];
+
+function validateFileType(fileType: string | null | undefined, fileName: string | null | undefined): boolean {
+  if (!fileType && !fileName) return false;
+  
+  // Check by MIME type
+  if (fileType && ALLOWED_FILE_TYPES.includes(fileType)) return true;
+  
+  // Check by extension as fallback
+  if (fileName) {
+    const lowerName = fileName.toLowerCase();
+    if (lowerName.endsWith('.pdf') || 
+        lowerName.endsWith('.docx') || 
+        lowerName.endsWith('.doc') || 
+        lowerName.endsWith('.txt')) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function validateBase64Size(base64: string): boolean {
+  // Base64 encoded data is ~4/3 the size of the original
+  const estimatedBytes = (base64.length * 3) / 4;
+  return estimatedBytes <= MAX_FILE_SIZE_BYTES;
+}
+
+function sanitizeString(value: string | null | undefined, maxLength: number): string | null {
+  if (!value) return null;
+  return String(value).trim().slice(0, maxLength).replace(/[<>]/g, '');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -39,23 +80,44 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    const { fileBase64, fileName, fileType, resumeText } = await req.json();
+    const body = await req.json();
+    const { fileBase64, fileName, fileType, resumeText } = body;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    let textContent = resumeText;
+    // Input validation
+    const validatedFileName = sanitizeString(fileName, 255);
+    const validatedFileType = sanitizeString(fileType, 100);
+
+    // Validate file type
+    if (fileBase64 && !validateFileType(validatedFileType, validatedFileName)) {
+      return new Response(JSON.stringify({ error: "Invalid file type. Allowed: PDF, DOCX, DOC, TXT" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate file size
+    if (fileBase64 && !validateBase64Size(fileBase64)) {
+      return new Response(JSON.stringify({ error: "File too large. Maximum size is 10MB" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let textContent = resumeText ? String(resumeText).slice(0, MAX_TEXT_LENGTH) : null;
 
     // If we received a base64 file, we need to extract text
     if (fileBase64 && !textContent) {
-      console.log("Processing file:", fileName, "Type:", fileType);
+      console.log("Processing file:", validatedFileName, "Type:", validatedFileType);
 
       // Decode base64 to get file content
       const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
 
-      if (fileType === "application/pdf") {
+      if (validatedFileType === "application/pdf" || validatedFileName?.toLowerCase().endsWith('.pdf')) {
         // PDF text extraction using a serverless PDF.js build that works in Deno/edge runtimes
         try {
           const { getDocument } = await import("https://esm.sh/pdfjs-serverless@0.3.2?deno");
@@ -78,16 +140,16 @@ serve(async (req) => {
             if (pageText.trim()) parts.push(pageText);
           }
 
-          textContent = parts.join("\n\n").replace(/\s+/g, " ").trim();
+          textContent = parts.join("\n\n").replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
           console.log("PDF extracted text length:", textContent.length);
         } catch (e) {
           console.error("PDF parsing error:", e);
           textContent = "";
         }
       } else if (
-        fileType ===
+        validatedFileType ===
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-        fileName?.toLowerCase().endsWith(".docx")
+        validatedFileName?.toLowerCase().endsWith(".docx")
       ) {
         // DOCX text extraction
         try {
@@ -95,17 +157,17 @@ serve(async (req) => {
           const result = await (mammoth as any).extractRawText({
             arrayBuffer: binaryContent.buffer,
           });
-          textContent = String(result?.value || "").replace(/\s+/g, " ").trim();
+          textContent = String(result?.value || "").replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
           console.log("Mammoth extracted text length:", textContent.length);
         } catch (e) {
           console.error("DOCX extraction failed, falling back to utf-8 decode:", e);
           const decoder = new TextDecoder("utf-8", { fatal: false });
-          textContent = decoder.decode(binaryContent);
+          textContent = decoder.decode(binaryContent).slice(0, MAX_TEXT_LENGTH);
         }
       } else {
         // For text-based files, just decode as text
         const decoder = new TextDecoder("utf-8");
-        textContent = decoder.decode(binaryContent);
+        textContent = decoder.decode(binaryContent).slice(0, MAX_TEXT_LENGTH);
       }
     }
 
@@ -114,7 +176,7 @@ serve(async (req) => {
       
       // If we couldn't extract enough text, use AI with base64 image/document
       // The AI can understand document structure from the raw content
-      textContent = `[Document uploaded: ${fileName}. File type: ${fileType}. Please analyze and extract candidate information from this resume document.]`;
+      textContent = `[Document uploaded: ${validatedFileName}. File type: ${validatedFileType}. Please analyze and extract candidate information from this resume document.]`;
     }
 
     console.log("Parsing resume, text length:", textContent.length);
@@ -134,7 +196,7 @@ serve(async (req) => {
       const matches = textContent.match(pattern);
       if (matches && matches.length > 0) {
         // Take the first valid-looking email
-        extractedEmail = matches[0].trim();
+        extractedEmail = matches[0].trim().slice(0, 255);
         break;
       }
     }
@@ -153,7 +215,7 @@ serve(async (req) => {
       const matches = textContent.match(pattern);
       if (matches && matches.length > 0) {
         // Take the first valid-looking phone
-        extractedPhone = matches[0].trim();
+        extractedPhone = matches[0].trim().slice(0, 30);
         break;
       }
     }
@@ -325,9 +387,27 @@ IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''
 
     const parsed = JSON.parse(toolCall.function.arguments);
 
-    // Post-process: fill missing contact fields from regex extraction
+    // Post-process: fill missing contact fields from regex extraction and sanitize output
     if (!parsed.email && extractedEmail) parsed.email = extractedEmail;
     if (!parsed.phone && extractedPhone) parsed.phone = extractedPhone;
+
+    // Sanitize AI output before returning
+    parsed.full_name = sanitizeString(parsed.full_name, 200);
+    parsed.email = sanitizeString(parsed.email, 255);
+    parsed.phone = sanitizeString(parsed.phone, 30);
+    parsed.location = sanitizeString(parsed.location, 200);
+    parsed.current_title = sanitizeString(parsed.current_title, 200);
+    parsed.current_company = sanitizeString(parsed.current_company, 200);
+    parsed.summary = sanitizeString(parsed.summary, 2000);
+    parsed.linkedin_url = sanitizeString(parsed.linkedin_url, 500);
+    parsed.ats_feedback = sanitizeString(parsed.ats_feedback, 1000);
+    
+    if (Array.isArray(parsed.skills)) {
+      parsed.skills = parsed.skills
+        .slice(0, 50)
+        .map((s: unknown) => sanitizeString(String(s), 100))
+        .filter(Boolean);
+    }
 
     console.log("Parsed resume for:", parsed.full_name, "Email:", parsed.email);
 
