@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,12 @@ export function TalentPoolRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const [notes, setNotes] = useState(talent.recruiter_notes || '');
   const [hasUnsavedNotes, setHasUnsavedNotes] = useState(false);
+
+  useEffect(() => {
+    // Keep local textarea in sync when notes are updated elsewhere (e.g. Shortlists / Profile sheet)
+    setNotes(talent.recruiter_notes || '');
+    setHasUnsavedNotes(false);
+  }, [talent.id, talent.recruiter_notes]);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
