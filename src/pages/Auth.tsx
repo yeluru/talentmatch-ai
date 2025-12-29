@@ -8,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { Sparkles, User, Briefcase, Building2, Loader2, ArrowLeft, Mail } from 'lucide-react';
+import { User, Briefcase, Building2, Loader2, ArrowLeft, Mail } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { SEOHead } from '@/components/SEOHead';
+import logo from '@/assets/logo.png';
 
 const signUpSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(255),
@@ -146,18 +147,13 @@ export default function AuthPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
         <SEOHead 
           title="Reset Password" 
-          description="Reset your MatchTalAI account password"
+          description="Reset your TalentMatch AI account password"
           noIndex
         />
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
-                <Sparkles className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <span className="font-display text-2xl font-bold">
-                MatchTal<span className="text-accent">AI</span>
-              </span>
+              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto" />
             </Link>
           </div>
 
@@ -214,12 +210,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
-                <Sparkles className="h-6 w-6 text-accent-foreground" />
-              </div>
-              <span className="font-display text-2xl font-bold">
-                MatchTal<span className="text-accent">AI</span>
-              </span>
+              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto" />
             </Link>
           </div>
 
@@ -263,17 +254,12 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
       <SEOHead 
         title="Sign In" 
-        description="Sign in to your MatchTalAI account to access AI-powered recruitment tools"
+        description="Sign in to your TalentMatch AI account to access AI-powered recruitment tools"
       />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-accent-foreground" />
-            </div>
-            <span className="font-display text-2xl font-bold">
-              MatchTal<span className="text-accent">AI</span>
-            </span>
+            <img src={logo} alt="TalentMatch AI" className="h-12 w-auto" />
           </Link>
           <p className="text-muted-foreground">AI-Powered Recruitment Platform</p>
         </div>
@@ -335,7 +321,7 @@ export default function AuthPage() {
               <form onSubmit={handleSignUp}>
                 <CardHeader>
                   <CardTitle>Create an account</CardTitle>
-                  <CardDescription>Get started with MatchTalAI</CardDescription>
+                  <CardDescription>Get started with TalentMatch AI</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
