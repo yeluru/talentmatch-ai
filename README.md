@@ -506,31 +506,62 @@ Before you begin, ensure you have the following installed:
 - **Node.js** (v18.0.0 or higher) - [Download](https://nodejs.org/)
 - **npm** (v9.0.0 or higher) - Comes with Node.js
 - **Git** - [Download](https://git-scm.com/)
+- **Supabase CLI** (for database setup) - [Install Guide](https://supabase.com/docs/guides/cli)
 
 To verify your installations:
 
 ```bash
-node --version  # Should be v18.x.x or higher
-npm --version   # Should be v9.x.x or higher
-git --version   # Any recent version
+node --version      # Should be v18.x.x or higher
+npm --version       # Should be v9.x.x or higher
+git --version       # Any recent version
+supabase --version  # Should be v1.x.x or higher
+```
+
+### Installing Supabase CLI
+
+**macOS (Homebrew):**
+```bash
+brew install supabase/tap/supabase
+```
+
+**Windows (Scoop):**
+```bash
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
+
+**Linux/WSL:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/supabase/cli/main/install.sh | sh
+```
+
+**npm (all platforms):**
+```bash
+npm install -g supabase
 ```
 
 ## Getting Started
 
-### 1. Clone the Repository
+You have two options for setting up the backend:
+
+### Option A: Use Existing Supabase Project (Quickest)
+
+Use the pre-configured Supabase project (database already set up):
+
+#### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/yeluru/query-create-launch.git
 cd query-create-launch
 ```
 
-### 2. Install Dependencies
+#### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Set Up Environment Variables
+#### 3. Set Up Environment Variables
 
 Create a `.env` file in the project root:
 
@@ -546,7 +577,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 VITE_SUPABASE_PROJECT_ID=rnwyflevkpamxhxkhkww
 ```
 
-### 4. Start the Development Server
+#### 4. Start the Development Server
 
 ```bash
 npm run dev
@@ -554,17 +585,211 @@ npm run dev
 
 The application will be available at `http://localhost:8080`
 
-### 5. Build for Production
+---
+
+### Option B: Create Your Own Supabase Project (Full Independence)
+
+Set up your own Supabase project with fresh database:
+
+#### 1. Clone the Repository
 
 ```bash
-npm run build
+git clone https://github.com/yeluru/query-create-launch.git
+cd query-create-launch
 ```
 
-### 6. Preview Production Build
+#### 2. Install Dependencies
 
 ```bash
-npm run preview
+npm install
 ```
+
+#### 3. Create a Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and create an account
+2. Click "New Project"
+3. Fill in project details:
+   - **Name**: MatchTalAI (or your preferred name)
+   - **Database Password**: Create a strong password (save this!)
+   - **Region**: Choose closest to your users
+4. Wait for project to be created (~2 minutes)
+
+#### 4. Get Your Supabase Credentials
+
+From your Supabase dashboard:
+1. Go to **Settings** → **API**
+2. Copy the following values:
+   - **Project URL** (e.g., `https://xxxxxxxxxxxx.supabase.co`)
+   - **anon public** key (starts with `eyJ...`)
+   - **Project Reference ID** (the `xxxxxxxxxxxx` part from URL)
+
+#### 5. Set Up Environment Variables
+
+Create a `.env` file:
+
+```bash
+touch .env
+```
+
+Add your credentials:
+
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key_here
+VITE_SUPABASE_PROJECT_ID=YOUR_PROJECT_ID
+```
+
+#### 6. Link Supabase CLI to Your Project
+
+```bash
+# Login to Supabase
+supabase login
+
+# Link to your project (you'll need your project reference ID)
+supabase link --project-ref YOUR_PROJECT_ID
+```
+
+#### 7. Run Database Migrations
+
+Apply all database migrations to set up tables, RLS policies, and functions:
+
+```bash
+supabase db push
+```
+
+This command will:
+- Create all required tables (22 migrations)
+- Set up Row Level Security policies
+- Create database functions and triggers
+- Configure storage buckets
+
+#### 8. Deploy Edge Functions
+
+Deploy all serverless functions:
+
+```bash
+supabase functions deploy
+```
+
+Or deploy specific functions:
+
+```bash
+supabase functions deploy analyze-resume
+supabase functions deploy match-candidates
+supabase functions deploy generate-email
+supabase functions deploy generate-insights
+supabase functions deploy parse-resume
+supabase functions deploy recommend-jobs
+supabase functions deploy talent-search
+supabase functions deploy linkedin-search
+supabase functions deploy bulk-import-candidates
+supabase functions deploy run-agent
+```
+
+#### 9. Set Up Edge Function Secrets
+
+Some edge functions require API keys. Set them via CLI:
+
+```bash
+# Required for AI features
+supabase secrets set LOVABLE_API_KEY=your_lovable_api_key
+
+# Optional - for LinkedIn search feature
+supabase secrets set FIRECRAWL_API_KEY=your_firecrawl_key
+```
+
+#### 10. Create Storage Bucket
+
+The resume upload feature requires a storage bucket:
+
+```bash
+# Via Supabase Dashboard:
+# 1. Go to Storage → New Bucket
+# 2. Name: "resumes"
+# 3. Set as Public bucket
+# 4. Create bucket
+```
+
+Or via SQL (run in SQL Editor):
+
+```sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('resumes', 'resumes', true);
+```
+
+#### 11. Start the Development Server
+
+```bash
+npm run dev
+```
+
+---
+
+## Database Migrations
+
+The project includes 22 database migrations in `supabase/migrations/`. These set up:
+
+### Tables Created
+- `organizations` - Company data
+- `profiles` - User profiles
+- `user_roles` - Role assignments (candidate, recruiter, account_manager)
+- `jobs` - Job postings
+- `applications` - Job applications
+- `candidate_profiles` - Extended candidate info
+- `candidate_skills` - Skills data
+- `candidate_experience` - Work history
+- `candidate_education` - Education records
+- `resumes` - Resume files
+- `candidate_shortlists` - Recruiter shortlists
+- `shortlist_candidates` - Candidates in shortlists
+- `outreach_campaigns` - Email campaigns
+- `campaign_recipients` - Campaign targets
+- `email_sequences` - Email templates
+- `ai_recruiting_agents` - AI agent configs
+- `agent_recommendations` - AI recommendations
+- `ai_resume_analyses` - Resume analysis results
+- `talent_insights` - Generated insights
+- `notifications` - User notifications
+- `organization_invite_codes` - Invite codes
+
+### Database Functions
+- `has_role()` - Check if user has specific role
+- `get_user_organization()` - Get user's organization ID
+- `assign_user_role()` - Securely assign roles
+- `recruiter_can_access_candidate()` - Check candidate access
+- `generate_invite_code()` - Generate org invite codes
+- `use_invite_code()` - Validate and use invite codes
+- `handle_new_user()` - Trigger for new user setup
+- `update_updated_at_column()` - Timestamp trigger
+
+### Verifying Migration Success
+
+After running migrations, verify in Supabase Dashboard:
+
+1. **Tables**: Go to Table Editor - should see all 20+ tables
+2. **Functions**: Go to Database → Functions - should see 8 functions
+3. **Policies**: Each table should have RLS enabled with policies
+
+Or via CLI:
+
+```bash
+# List all tables
+supabase db diff
+
+# Check migration status
+supabase migration list
+```
+
+---
+
+## Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server (port 8080) |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | Run ESLint |
 
 ## Environment Variables
 
@@ -773,35 +998,139 @@ The platform includes several Supabase Edge Functions:
 
 ## Deployment
 
-### Lovable Deployment (Recommended)
+### Option 1: Lovable Deployment
 
 1. Open project in Lovable
 2. Click "Publish" button
 3. Your app is live!
 
-### Self-Hosting
+### Option 2: Vercel Deployment
 
-1. Build the project:
-   ```bash
-   npm run build
-   ```
+```bash
+# Install Vercel CLI
+npm install -g vercel
 
-2. Deploy the `dist` folder to any static hosting:
-   - Vercel
-   - Netlify
-   - AWS S3 + CloudFront
-   - GitHub Pages
+# Deploy
+vercel
 
-3. Configure environment variables on your hosting platform
+# Follow prompts to link/create project
+# Set environment variables in Vercel dashboard
+```
+
+**Environment Variables to set in Vercel:**
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PROJECT_ID`
+
+### Option 3: Netlify Deployment
+
+```bash
+# Install Netlify CLI
+npm install -g netlify-cli
+
+# Build the project
+npm run build
+
+# Deploy
+netlify deploy --prod --dir=dist
+```
+
+**netlify.toml** (create in project root):
+```toml
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+### Option 4: Docker Deployment
+
+**Dockerfile** (create in project root):
+```dockerfile
+# Build stage
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+**nginx.conf** (create in project root):
+```nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    server {
+        listen 80;
+        server_name localhost;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}
+```
+
+**Build and run:**
+```bash
+docker build -t matchtalai .
+docker run -p 80:80 matchtalai
+```
+
+### Option 5: AWS S3 + CloudFront
+
+```bash
+# Build
+npm run build
+
+# Sync to S3
+aws s3 sync dist/ s3://your-bucket-name --delete
+
+# Invalidate CloudFront cache (if using)
+aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
+```
 
 ## Available Scripts
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start development server |
+| `npm run dev` | Start development server (port 8080) |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build |
 | `npm run lint` | Run ESLint |
+
+## Supabase CLI Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `supabase login` | Authenticate with Supabase |
+| `supabase link --project-ref ID` | Link to existing project |
+| `supabase db push` | Apply all migrations |
+| `supabase db diff` | Show schema differences |
+| `supabase migration list` | List all migrations |
+| `supabase functions deploy` | Deploy all edge functions |
+| `supabase functions deploy NAME` | Deploy specific function |
+| `supabase secrets set KEY=VALUE` | Set edge function secret |
+| `supabase secrets list` | List all secrets |
 
 ## Contributing
 
@@ -826,14 +1155,39 @@ The platform includes several Supabase Edge Functions:
 **"Cannot connect to database"**
 - Verify `.env` file exists with correct values
 - Check Supabase project is active
+- Ensure you're using the correct project URL
 
 **"Unauthorized" errors**
 - Clear browser storage and re-login
 - Verify RLS policies are correctly applied
+- Check that user has correct role assigned
+
+**"Edge function not found"**
+- Deploy functions: `supabase functions deploy`
+- Check function name matches exactly
+- Verify function is in `supabase/functions/` directory
+
+**"Migration failed"**
+- Check for existing conflicting tables
+- Run `supabase db reset` to start fresh (WARNING: deletes all data)
+- Review migration SQL for errors
 
 **Build failures**
 - Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
 - Clear Vite cache: `rm -rf node_modules/.vite`
+- Check for TypeScript errors: `npx tsc --noEmit`
+
+**Resume upload fails**
+- Verify `resumes` storage bucket exists
+- Check bucket is set to public
+- Verify file size is under limit
+
+### Debug Mode
+
+Enable detailed logging by opening browser DevTools:
+- **Console tab**: View application logs
+- **Network tab**: Monitor API requests
+- **Application tab**: Check localStorage/sessionStorage
 
 ## License
 
