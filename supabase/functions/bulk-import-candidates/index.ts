@@ -52,6 +52,29 @@ serve(async (req) => {
           }
         }
 
+        // If resume content hash is provided, enforce duplicate prevention server-side too
+        if (profile.resume_file?.content_hash) {
+          const incomingHash = String(profile.resume_file.content_hash);
+          console.log("[bulk-import] incoming resume hash", incomingHash.slice(0, 12), "...", "file:", profile.resume_file.file_name);
+
+          const { data: existingByHash, error: hashLookupError } = await supabase
+            .from("resumes")
+            .select("id")
+            .eq("content_hash", incomingHash)
+            .maybeSingle();
+
+          if (hashLookupError) {
+            console.error("[bulk-import] hash lookup error:", hashLookupError);
+          }
+
+          if (existingByHash) {
+            console.log("[bulk-import] DUPLICATE detected - rejecting import for", profile.full_name);
+            results.skipped++;
+            results.errors.push(`DUPLICATE: ${profile.full_name || profile.resume_file.file_name} - identical resume already exists`);
+            continue;
+          }
+        }
+
         // Generate a unique ID for the sourced profile
         const candidateId = crypto.randomUUID();
 
@@ -102,7 +125,8 @@ serve(async (req) => {
         // Create resume record if resume file info is provided
         if (profile.resume_file) {
           const { file_name, file_url, file_type, content_hash } = profile.resume_file;
-          
+          console.log("[bulk-import] inserting resume with hash", (content_hash || "(none)").toString().slice(0, 12), "...");
+
           const { error: resumeError } = await supabase
             .from("resumes")
             .insert({
@@ -113,7 +137,7 @@ serve(async (req) => {
               ats_score: profile.ats_score || null,
               is_primary: true,
               parsed_content: profile,
-              content_hash: content_hash
+              content_hash: content_hash || null
             });
 
           if (resumeError) {
