@@ -206,22 +206,13 @@ export function ShortlistCandidateCard({
                 </CollapsibleTrigger>
               </HoverCardTrigger>
               <HoverCardContent className="w-72" align="end">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Status</span>
-                    <Badge variant={currentStatus.variant}>{currentStatus.label}</Badge>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium">Notes</span>
-                    {candidate.notes ? (
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-4">
-                        {candidate.notes}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground mt-1 italic">No notes added</p>
-                    )}
-                  </div>
-                </div>
+                {candidate.notes ? (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                    {candidate.notes}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No notes added</p>
+                )}
               </HoverCardContent>
             </HoverCard>
 
