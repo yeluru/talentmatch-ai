@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -29,17 +30,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Users, Briefcase, MapPin, ArrowUpDown, Filter, X, ListPlus, Send, CheckSquare } from 'lucide-react';
+import { Search, Loader2, Users, Briefcase, MapPin, ArrowUpDown, Filter, X, ListPlus, Send, CheckSquare, MessageSquare, Save } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
+import { TalentPoolRow } from '@/components/recruiter/TalentPoolRow';
 import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-
 
 interface TalentProfile {
   id: string;
@@ -52,6 +63,8 @@ interface TalentProfile {
   headline: string | null;
   ats_score: number | null;
   created_at: string;
+  recruiter_notes: string | null;
+  recruiter_status: string | null;
   skills: {
     skill_name: string;
   }[];
@@ -105,7 +118,9 @@ export default function TalentPool() {
           years_of_experience,
           headline,
           ats_score,
-          created_at
+          created_at,
+          recruiter_notes,
+          recruiter_status
         `
         )
         .eq('organization_id', organizationId)
@@ -531,83 +546,13 @@ export default function TalentPool() {
 
                 <div className="divide-y">
                   {paginatedTalents.map((talent) => (
-                    <div
+                    <TalentPoolRow
                       key={talent.id}
-                      className={`py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 -mx-4 px-4 transition-colors ${
-                        selectedIds.has(talent.id) ? 'bg-muted/30' : ''
-                      }`}
-                      onClick={() => handleTalentClick(talent.id)}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div 
-                          className="flex items-center justify-center w-10 h-12 shrink-0 cursor-pointer"
-                          onClick={(e) => toggleSelection(talent.id, e)}
-                        >
-                          <Checkbox
-                            checked={selectedIds.has(talent.id)}
-                            onCheckedChange={() => {}}
-                            aria-label={`Select ${talent.full_name || 'talent'}`}
-                            className="pointer-events-none"
-                          />
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarFallback className="bg-accent text-accent-foreground">
-                              {(talent.full_name || 'U').charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleTalentClick(talent.id);
-                              }}
-                              className="font-semibold text-left hover:text-primary hover:underline transition-colors cursor-pointer"
-                            >
-                              {talent.full_name || 'Unknown'}
-                            </button>
-                            {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
-                          </div>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-                            {talent.current_title && (
-                              <span className="flex items-center gap-1">
-                                <Briefcase className="h-3.5 w-3.5" />
-                                {talent.current_title}
-                                {talent.current_company && ` at ${talent.current_company}`}
-                              </span>
-                            )}
-                            {talent.location && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3.5 w-3.5" />
-                                {talent.location}
-                              </span>
-                            )}
-                            {talent.years_of_experience !== null && (
-                              <span>{talent.years_of_experience} yrs exp</span>
-                            )}
-                          </div>
-                          {talent.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {talent.skills.slice(0, 5).map((skill, i) => (
-                                <Badge key={i} variant="secondary" className="text-xs">
-                                  {skill.skill_name}
-                                </Badge>
-                              ))}
-                              {talent.skills.length > 5 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{talent.skills.length - 5} more
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Added {format(new Date(talent.created_at), 'MMM d')}
-                        </div>
-                      </div>
-                    </div>
+                      talent={talent}
+                      isSelected={selectedIds.has(talent.id)}
+                      onToggleSelection={toggleSelection}
+                      onViewProfile={handleTalentClick}
+                    />
                   ))}
                 </div>
 

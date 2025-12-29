@@ -65,6 +65,8 @@ interface ShortlistCandidate {
     full_name: string | null;
     current_title: string | null;
     email: string | null;
+    recruiter_notes: string | null;
+    recruiter_status: string | null;
   };
 }
 
@@ -143,7 +145,7 @@ export default function Shortlists() {
         .from('shortlist_candidates')
         .select(`
           *,
-          candidate_profiles(id, full_name, current_title, email)
+          candidate_profiles(id, full_name, current_title, email, recruiter_notes, recruiter_status)
         `)
         .eq('shortlist_id', selectedShortlist.id)
         .order('added_at', { ascending: false });

@@ -69,6 +69,8 @@ interface ShortlistCandidate {
     full_name: string | null;
     current_title: string | null;
     email: string | null;
+    recruiter_notes: string | null;
+    recruiter_status: string | null;
   };
 }
 
@@ -101,19 +103,22 @@ export function ShortlistCandidateCard({
 }: ShortlistCandidateCardProps) {
   const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [notes, setNotes] = useState(candidate.notes || '');
+  // Use candidate-level notes/status for consistency across Talent Pool and Shortlists
+  const [notes, setNotes] = useState(candidate.candidate_profiles?.recruiter_notes || '');
   const [hasUnsavedNotes, setHasUnsavedNotes] = useState(false);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
+      // Update candidate-level status
       const { error } = await supabase
-        .from('shortlist_candidates')
-        .update({ status: newStatus })
-        .eq('id', candidate.id);
+        .from('candidate_profiles')
+        .update({ recruiter_status: newStatus })
+        .eq('id', candidate.candidate_id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       toast.success('Status updated');
     },
     onError: () => {
@@ -123,14 +128,16 @@ export function ShortlistCandidateCard({
 
   const updateNotes = useMutation({
     mutationFn: async (newNotes: string) => {
+      // Update candidate-level notes
       const { error } = await supabase
-        .from('shortlist_candidates')
-        .update({ notes: newNotes })
-        .eq('id', candidate.id);
+        .from('candidate_profiles')
+        .update({ recruiter_notes: newNotes })
+        .eq('id', candidate.candidate_id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       setHasUnsavedNotes(false);
       toast.success('Notes saved');
     },
@@ -141,14 +148,14 @@ export function ShortlistCandidateCard({
 
   const handleNotesChange = (value: string) => {
     setNotes(value);
-    setHasUnsavedNotes(value !== (candidate.notes || ''));
+    setHasUnsavedNotes(value !== (candidate.candidate_profiles?.recruiter_notes || ''));
   };
 
   const handleSaveNotes = () => {
     updateNotes.mutate(notes);
   };
 
-  const currentStatus = CANDIDATE_STATUSES.find(s => s.value === candidate.status) || CANDIDATE_STATUSES[0];
+  const currentStatus = candidate.candidate_profiles?.recruiter_status || 'new';
   const otherShortlists = shortlists?.filter(s => s.id !== selectedShortlistId) || [];
 
   return (
@@ -181,7 +188,7 @@ export function ShortlistCandidateCard({
           <div className="flex items-center gap-2 shrink-0">
             
             <Select
-              value={candidate.status}
+              value={currentStatus}
               onValueChange={(value) => updateStatus.mutate(value)}
               disabled={updateStatus.isPending}
             >
@@ -201,14 +208,14 @@ export function ShortlistCandidateCard({
               <HoverCardTrigger asChild>
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MessageSquare className={`h-4 w-4 ${candidate.notes ? 'text-accent' : ''}`} />
+                    <MessageSquare className={`h-4 w-4 ${candidate.candidate_profiles?.recruiter_notes ? 'text-primary' : ''}`} />
                   </Button>
                 </CollapsibleTrigger>
               </HoverCardTrigger>
               <HoverCardContent className="w-72" align="end">
-                {candidate.notes ? (
+                {candidate.candidate_profiles?.recruiter_notes ? (
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
-                    {candidate.notes}
+                    {candidate.candidate_profiles.recruiter_notes}
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">No notes added</p>

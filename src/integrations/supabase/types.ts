@@ -419,6 +419,8 @@ export type Database = {
           organization_id: string | null
           phone: string | null
           profile_completeness: number | null
+          recruiter_notes: string | null
+          recruiter_status: string | null
           summary: string | null
           updated_at: string
           user_id: string | null
@@ -444,6 +446,8 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           profile_completeness?: number | null
+          recruiter_notes?: string | null
+          recruiter_status?: string | null
           summary?: string | null
           updated_at?: string
           user_id?: string | null
@@ -469,6 +473,8 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           profile_completeness?: number | null
+          recruiter_notes?: string | null
+          recruiter_status?: string | null
           summary?: string | null
           updated_at?: string
           user_id?: string | null
