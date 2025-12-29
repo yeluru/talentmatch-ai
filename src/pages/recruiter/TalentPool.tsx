@@ -104,8 +104,8 @@ export default function TalentPool() {
     queryFn: async (): Promise<TalentProfile[]> => {
       if (!organizationId) return [];
 
-      // Get sourced candidate profiles (user_id is null) for this organization
-      const { data: candidates, error } = await supabase
+      // 1) Candidates sourced into this org (uploaded/imported)
+      const { data: sourced, error: sourcedError } = await supabase
         .from('candidate_profiles')
         .select(
           `
@@ -124,14 +124,58 @@ export default function TalentPool() {
         `
         )
         .eq('organization_id', organizationId)
-        .is('user_id', null) // Only sourced profiles
-        .order('created_at', { ascending: false });
+        .is('user_id', null);
 
-      if (error) throw error;
-      if (!candidates?.length) return [];
+      if (sourcedError) throw sourcedError;
+
+      // 2) Candidates who applied to this org's jobs
+      const { data: applicantLinks, error: applicantLinksError } = await supabase
+        .from('applications')
+        .select('candidate_id, jobs!inner(organization_id)')
+        .eq('jobs.organization_id', organizationId);
+
+      if (applicantLinksError) throw applicantLinksError;
+
+      const applicantIds = Array.from(
+        new Set((applicantLinks || []).map((a) => a.candidate_id).filter(Boolean))
+      ) as string[];
+
+      let applicants: TalentProfile[] = [];
+      if (applicantIds.length) {
+        const { data: applicantProfiles, error: applicantProfilesError } = await supabase
+          .from('candidate_profiles')
+          .select(
+            `
+            id,
+            full_name,
+            email,
+            location,
+            current_title,
+            current_company,
+            years_of_experience,
+            headline,
+            ats_score,
+            created_at,
+            recruiter_notes,
+            recruiter_status
+          `
+          )
+          .in('id', applicantIds);
+
+        if (applicantProfilesError) throw applicantProfilesError;
+        applicants = (applicantProfiles || []) as TalentProfile[];
+      }
+
+      const candidates = [...(sourced || []), ...(applicants || [])];
+      if (!candidates.length) return [];
+
+      // De-dupe by id
+      const byId = new Map<string, any>();
+      for (const c of candidates) byId.set(c.id, c);
+      const deduped = Array.from(byId.values());
 
       // Get skills
-      const candidateIds = candidates.map((c) => c.id);
+      const candidateIds = deduped.map((c) => c.id);
       const { data: skills } = await supabase
         .from('candidate_skills')
         .select('candidate_id, skill_name')
@@ -143,19 +187,21 @@ export default function TalentPool() {
         .select('candidate_id, company_name')
         .in('candidate_id', candidateIds);
 
-      return candidates.map((c) => ({
-        ...c,
-        skills: skills?.filter((s) => s.candidate_id === c.id) || [],
-        companies: [
-          ...new Set(
-            experience
-              ?.filter((e) => e.candidate_id === c.id)
-              .map((e) => e.company_name)
-              .filter(Boolean) || []
-          ),
-          c.current_company,
-        ].filter(Boolean) as string[],
-      }));
+      return deduped
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((c) => ({
+          ...c,
+          skills: skills?.filter((s) => s.candidate_id === c.id) || [],
+          companies: [
+            ...new Set(
+              experience
+                ?.filter((e) => e.candidate_id === c.id)
+                .map((e) => e.company_name)
+                .filter(Boolean) || []
+            ),
+            c.current_company,
+          ].filter(Boolean) as string[],
+        }));
     },
     enabled: !!organizationId,
   });
