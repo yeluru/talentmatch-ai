@@ -144,14 +144,43 @@ export function ShortlistCandidateCard({
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
-      const { error } = await supabase
+      // Candidate-level status: keep candidate_profiles as source of truth...
+      const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_status: newStatus })
         .eq('id', candidate.candidate_id);
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // ...and mirror to shortlist rows so status sort + other screens stay consistent.
+      const { error: shortlistError } = await supabase
+        .from('shortlist_candidates')
+        .update({ status: newStatus })
+        .eq('candidate_id', candidate.candidate_id);
+      if (shortlistError) throw shortlistError;
+
+      return newStatus;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+    onSuccess: (newStatus) => {
+      // Update cached shortlist candidates immediately (avoid "stale UI" in other shortlists)
+      queryClient.setQueriesData(
+        { queryKey: ['shortlist-candidates'] },
+        (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((row: any) => {
+            if (row?.candidate_id !== candidate.candidate_id) return row;
+            return {
+              ...row,
+              status: newStatus,
+              candidate_profiles: {
+                ...row.candidate_profiles,
+                recruiter_status: newStatus,
+              },
+            };
+          });
+        }
+      );
+
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       toast.success('Status updated');
@@ -174,11 +203,32 @@ export function ShortlistCandidateCard({
       const { error: shortlistError } = await supabase
         .from('shortlist_candidates')
         .update({ notes: newNotes })
-        .eq('id', candidate.id);
+        .eq('candidate_id', candidate.candidate_id);
       if (shortlistError) throw shortlistError;
+
+      return newNotes;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+    onSuccess: (newNotes) => {
+      // Update cached shortlist candidates immediately
+      queryClient.setQueriesData(
+        { queryKey: ['shortlist-candidates'] },
+        (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((row: any) => {
+            if (row?.candidate_id !== candidate.candidate_id) return row;
+            return {
+              ...row,
+              notes: newNotes,
+              candidate_profiles: {
+                ...row.candidate_profiles,
+                recruiter_notes: newNotes,
+              },
+            };
+          });
+        }
+      );
+
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       setHasUnsavedProfileNotes(false);
