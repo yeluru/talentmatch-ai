@@ -68,43 +68,43 @@ export default function Index() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center hero-gradient text-white overflow-hidden">
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-accent/5 to-transparent" />
-          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/20 to-transparent" />
-        </div>
+        {/* Subtle geometric pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        }} />
         
         <div className="container mx-auto px-4 pt-32 pb-20 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 mb-8 backdrop-blur-sm animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-8 animate-fade-in">
               <span className="h-2 w-2 rounded-full bg-accent"></span>
-              <span className="text-sm font-medium text-white/80">Trusted by 500+ Companies</span>
+              <span className="text-sm font-medium text-accent">Trusted by 500+ Companies Worldwide</span>
             </div>
             
             {/* Headline */}
-            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] animate-fade-in animation-delay-100">
-              Find the Right Talent,{' '}
-              <span className="text-accent">Faster</span>
+            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] animate-fade-in animation-delay-100 text-white">
+              Recruit Smarter.{' '}
+              <br className="hidden sm:block" />
+              <span className="text-accent">Hire Faster.</span>
             </h1>
             
             {/* Subheadline */}
-            <p className="text-lg sm:text-xl text-white/60 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
-              The modern recruitment platform that connects exceptional candidates 
-              with opportunities that match their skills and ambitions.
+            <p className="text-lg sm:text-xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed animate-fade-in animation-delay-200">
+              The enterprise recruitment platform that connects exceptional 
+              candidates with opportunities that match their expertise.
             </p>
             
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in animation-delay-300">
-              <Button size="xl" variant="hero-primary" asChild>
+              <Button size="xl" className="bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg font-semibold" asChild>
                 <Link to={user ? getDashboardLink() : '/auth'}>
-                  {user ? 'Go to Dashboard' : 'Get Started Free'}
+                  {user ? 'Go to Dashboard' : 'Start Free Trial'}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
               <Button size="xl" variant="hero-secondary" asChild>
                 <Link to="/candidates">
-                  Explore Platform
+                  Learn More
                 </Link>
               </Button>
             </div>
@@ -237,18 +237,18 @@ export default function Index() {
       {/* CTA Section */}
       <section className="section-container">
         <div className="container mx-auto px-4">
-          <div className="relative overflow-hidden rounded-2xl bg-primary p-8 md:p-12 lg:p-16 text-center">
+          <div className="relative overflow-hidden rounded-xl bg-primary p-8 md:p-12 lg:p-16 text-center">
             <div className="relative z-10">
               <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                Ready to Get Started?
+                Ready to Transform Your Hiring?
               </h2>
               <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
-                Join thousands of companies and candidates using TalentMatch.
+                Join leading companies that trust TalentMatch for their recruitment needs.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="xl" variant="hero-primary" asChild>
+                <Button size="xl" className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold" asChild>
                   <Link to="/auth">
-                    Start Free Today
+                    Start Your Free Trial
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
