@@ -136,6 +136,27 @@ export default function TalentSourcing() {
           reader.readAsDataURL(file);
         });
 
+        // Compute SHA-256 hash of the raw file content for duplicate detection
+        const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // Check if this exact file already exists BEFORE parsing
+        const { data: existingResume } = await supabase
+          .from('resumes')
+          .select('id, file_name')
+          .eq('content_hash', fileHash)
+          .maybeSingle();
+
+        if (existingResume) {
+          console.log('Duplicate resume detected:', file.name);
+          updateResult(resultIndex, { 
+            status: 'error', 
+            error: `Duplicate rejected: This exact resume already exists in the system`
+          });
+          continue; // Skip to next file
+        }
+
         // Parse resume
         const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-resume', {
           body: {
@@ -148,6 +169,9 @@ export default function TalentSourcing() {
         if (parseError) throw parseError;
 
         const parsed = parseData.parsed;
+        
+        // Store the file hash for later use
+        parsed._fileHash = fileHash;
         
         // Update to importing
         updateResult(resultIndex, { status: 'importing', parsed, atsScore: parsed.ats_score });
@@ -183,7 +207,8 @@ export default function TalentSourcing() {
               resume_file: {
                 file_name: file.name,
                 file_url: urlData.publicUrl,
-                file_type: file.type
+                file_type: file.type,
+                content_hash: parsed._fileHash // Pass the pre-computed file hash
               }
             }], 
             organizationId, 
