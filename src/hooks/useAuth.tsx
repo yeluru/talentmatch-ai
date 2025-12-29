@@ -173,15 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         newOrganizationId = orgData.id;
       }
 
-      // Create user role
+      // Create user role using secure RPC function
       console.log('Creating user role:', role, 'with org:', newOrganizationId);
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role,
-          organization_id: newOrganizationId,
-        });
+      const { error: roleError } = await supabase.rpc('assign_user_role', {
+        _user_id: authData.user.id,
+        _role: role,
+        _organization_id: newOrganizationId,
+      });
 
       if (roleError) {
         console.error('Role creation error:', roleError);

@@ -1067,6 +1067,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_user_role: {
+        Args: {
+          _organization_id?: string
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       generate_invite_code: { Args: never; Returns: string }
       get_user_organization: { Args: { _user_id: string }; Returns: string }
       has_role: {
@@ -1074,6 +1082,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      recruiter_can_access_candidate: {
+        Args: { _candidate_id: string }
         Returns: boolean
       }
       use_invite_code: { Args: { invite_code: string }; Returns: string }
