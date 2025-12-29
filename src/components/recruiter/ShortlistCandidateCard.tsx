@@ -48,7 +48,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const CANDIDATE_STATUSES = [
-  { value: 'added', label: 'Added', variant: 'outline' as const },
+  { value: 'new', label: 'New', variant: 'outline' as const },
   { value: 'contacted', label: 'Contacted', variant: 'secondary' as const },
   { value: 'screening', label: 'Screening', variant: 'default' as const },
   { value: 'interviewing', label: 'Interviewing', variant: 'default' as const },
@@ -179,7 +179,9 @@ export function ShortlistCandidateCard({
     setHasUnsavedShortlistNotes(value !== (candidate.notes || ''));
   };
 
-  const currentStatus = candidate.candidate_profiles?.recruiter_status || 'new';
+  const statusValues = new Set(CANDIDATE_STATUSES.map((s) => s.value));
+  const rawStatus = candidate.candidate_profiles?.recruiter_status || 'new';
+  const currentStatus = statusValues.has(rawStatus) ? rawStatus : 'new';
   const otherShortlists = shortlists?.filter(s => s.id !== selectedShortlistId) || [];
 
   return (
@@ -230,13 +232,17 @@ export function ShortlistCandidateCard({
 
             <HoverCard openDelay={300} closeDelay={100}>
               <HoverCardTrigger asChild>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MessageSquare
-                      className={`h-4 w-4 ${(candidate.candidate_profiles?.recruiter_notes || candidate.notes) ? 'text-primary' : ''}`}
-                    />
-                  </Button>
-                </CollapsibleTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsExpanded((v) => !v)}
+                  aria-label="Toggle notes"
+                >
+                  <MessageSquare
+                    className={`h-4 w-4 ${(candidate.candidate_profiles?.recruiter_notes || candidate.notes) ? 'text-primary' : ''}`}
+                  />
+                </Button>
               </HoverCardTrigger>
               <HoverCardContent className="w-72" align="end">
                 {(candidate.candidate_profiles?.recruiter_notes || candidate.notes) ? (
