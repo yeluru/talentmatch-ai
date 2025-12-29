@@ -152,15 +152,15 @@ export function ShortlistCandidateCard({
       if (profileError) throw profileError;
 
       // ...and mirror to shortlist rows so status sort + other screens stay consistent.
-      const { error: shortlistError } = await supabase
+      const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
-        .update({ status: newStatus })
+        .update({ status: newStatus }, { count: 'exact' })
         .eq('candidate_id', candidate.candidate_id);
       if (shortlistError) throw shortlistError;
 
-      return newStatus;
+      return { newStatus, shortlistCount: shortlistCount ?? 0 };
     },
-    onSuccess: (newStatus) => {
+    onSuccess: ({ newStatus }) => {
       // Update cached shortlist candidates immediately (avoid "stale UI" in other shortlists)
       queryClient.setQueriesData(
         { queryKey: ['shortlist-candidates'] },
@@ -200,15 +200,15 @@ export function ShortlistCandidateCard({
       if (profileError) throw profileError;
 
       // Also mirror into shortlist_candidates.notes so older UI/queries stay consistent.
-      const { error: shortlistError } = await supabase
+      const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
-        .update({ notes: newNotes })
+        .update({ notes: newNotes }, { count: 'exact' })
         .eq('candidate_id', candidate.candidate_id);
       if (shortlistError) throw shortlistError;
 
-      return newNotes;
+      return { newNotes, shortlistCount: shortlistCount ?? 0 };
     },
-    onSuccess: (newNotes) => {
+    onSuccess: ({ newNotes, shortlistCount }) => {
       // Update cached shortlist candidates immediately
       queryClient.setQueriesData(
         { queryKey: ['shortlist-candidates'] },

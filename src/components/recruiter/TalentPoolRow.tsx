@@ -92,15 +92,15 @@ export function TalentPoolRow({
       if (profileError) throw profileError;
 
       // ...and mirror to any shortlist rows so Shortlists shows the same value.
-      const { error: shortlistError } = await supabase
+      const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
-        .update({ status: newStatus })
+        .update({ status: newStatus }, { count: 'exact' })
         .eq('candidate_id', talent.id);
       if (shortlistError) throw shortlistError;
 
-      return newStatus;
+      return { newStatus, shortlistCount: shortlistCount ?? 0 };
     },
-    onSuccess: (newStatus) => {
+    onSuccess: ({ newStatus, shortlistCount }) => {
       // Update any cached shortlist candidates immediately (avoid "stale UI" across pages)
       queryClient.setQueriesData(
         { queryKey: ['shortlist-candidates'] },
@@ -123,7 +123,15 @@ export function TalentPoolRow({
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
-      toast.success('Status updated');
+
+      if (shortlistCount === 0) {
+        toast.message('Status updated (not in any shortlist)', {
+          description:
+            'No shortlist rows matched this profile. If the candidate is in a shortlist, it may be a different (duplicate) profile record.',
+        });
+      } else {
+        toast.success('Status updated');
+      }
     },
     onError: () => {
       toast.error('Failed to update status');
@@ -140,15 +148,15 @@ export function TalentPoolRow({
       if (profileError) throw profileError;
 
       // ...and mirror to any shortlist rows so Shortlists shows the same value.
-      const { error: shortlistError } = await supabase
+      const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
-        .update({ notes: newNotes })
+        .update({ notes: newNotes }, { count: 'exact' })
         .eq('candidate_id', talent.id);
       if (shortlistError) throw shortlistError;
 
-      return newNotes;
+      return { newNotes, shortlistCount: shortlistCount ?? 0 };
     },
-    onSuccess: (newNotes) => {
+    onSuccess: ({ newNotes, shortlistCount }) => {
       // Update cached shortlist candidates immediately
       queryClient.setQueriesData(
         { queryKey: ['shortlist-candidates'] },
@@ -172,7 +180,15 @@ export function TalentPoolRow({
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       setHasUnsavedNotes(false);
-      toast.success('Notes saved');
+
+      if (shortlistCount === 0) {
+        toast.message('Notes saved (not in any shortlist)', {
+          description:
+            'No shortlist rows matched this profile. If the candidate is in a shortlist, it may be a different (duplicate) profile record.',
+        });
+      } else {
+        toast.success('Notes saved');
+      }
     },
     onError: () => {
       toast.error('Failed to save notes');
