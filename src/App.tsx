@@ -16,6 +16,9 @@ import NotFound from "./pages/NotFound";
 
 // Public Pages
 import PublicJobPage from "./pages/public/PublicJobPage";
+import CandidatesLanding from "./pages/public/CandidatesLanding";
+import RecruitersLanding from "./pages/public/RecruitersLanding";
+import ManagersLanding from "./pages/public/ManagersLanding";
 
 // Candidate Pages
 import CandidateDashboard from "./pages/candidate/CandidateDashboard";
@@ -63,6 +66,11 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
+
+                  {/* Public Landing Pages */}
+                  <Route path="/candidates" element={<CandidatesLanding />} />
+                  <Route path="/recruiters" element={<RecruitersLanding />} />
+                  <Route path="/managers" element={<ManagersLanding />} />
 
                   {/* Public Job Routes */}
                   <Route path="/jobs/:orgSlug/:jobId" element={<PublicJobPage />} />
