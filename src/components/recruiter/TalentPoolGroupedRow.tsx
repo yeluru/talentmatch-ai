@@ -4,10 +4,36 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, MapPin, Briefcase, Users } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import { ChevronDown, ChevronRight, MapPin, Briefcase, Users, MessageSquare } from 'lucide-react';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentPoolRow } from './TalentPoolRow';
 import { format } from 'date-fns';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+const CANDIDATE_STATUSES = [
+  { value: 'new', label: 'New' },
+  { value: 'contacted', label: 'Contacted' },
+  { value: 'screening', label: 'Screening' },
+  { value: 'interviewing', label: 'Interviewing' },
+  { value: 'offered', label: 'Offered' },
+  { value: 'hired', label: 'Hired' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+];
 
 interface TalentProfile {
   id: string;
@@ -42,6 +68,7 @@ export function TalentPoolGroupedRow({
   onViewProfile,
 }: TalentPoolGroupedRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const queryClient = useQueryClient();
   
   // If only one profile, render the regular row
   if (profiles.length === 1) {
@@ -200,41 +227,143 @@ export function TalentPoolGroupedRow({
           {profiles
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
             .map((profile, idx) => (
-              <div 
+              <GroupedProfileRow
                 key={profile.id}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                  selectedIds.has(profile.id) ? 'bg-primary/10' : 'hover:bg-muted/50'
-                }`}
-                onClick={() => onViewProfile(profile.id)}
-              >
-                <Checkbox
-                  checked={selectedIds.has(profile.id)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleSelection(profile.id, e as unknown as React.MouseEvent);
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {profile.current_title || 'No title'}
-                    </span>
-                    {idx === 0 && (
-                      <Badge variant="default" className="text-xs">Latest</Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {profile.current_company && `${profile.current_company} · `}
-                    Added {format(new Date(profile.created_at), 'MMM d, yyyy')}
-                  </div>
-                </div>
-                {profile.ats_score && profile.ats_score > 0 && (
-                  <ScoreBadge score={profile.ats_score} size="sm" />
-                )}
-              </div>
+                profile={profile}
+                isLatest={idx === 0}
+                isSelected={selectedIds.has(profile.id)}
+                onToggleSelection={onToggleSelection}
+                onViewProfile={onViewProfile}
+                queryClient={queryClient}
+              />
             ))}
         </div>
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+interface GroupedProfileRowProps {
+  profile: TalentProfile;
+  isLatest: boolean;
+  isSelected: boolean;
+  onToggleSelection: (id: string, e: React.MouseEvent) => void;
+  onViewProfile: (id: string) => void;
+  queryClient: ReturnType<typeof useQueryClient>;
+}
+
+function GroupedProfileRow({
+  profile,
+  isLatest,
+  isSelected,
+  onToggleSelection,
+  onViewProfile,
+  queryClient,
+}: GroupedProfileRowProps) {
+  const updateStatus = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error: profileError } = await supabase
+        .from('candidate_profiles')
+        .update({ recruiter_status: newStatus })
+        .eq('id', profile.id);
+      if (profileError) throw profileError;
+
+      await supabase
+        .from('shortlist_candidates')
+        .update({ status: newStatus })
+        .eq('candidate_id', profile.id);
+
+      return newStatus;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      toast.success('Status updated');
+    },
+    onError: () => {
+      toast.error('Failed to update status');
+    },
+  });
+
+  return (
+    <div 
+      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+        isSelected ? 'bg-primary/10' : 'hover:bg-muted/50'
+      }`}
+      onClick={() => onViewProfile(profile.id)}
+    >
+      <Checkbox
+        checked={isSelected}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSelection(profile.id, e as unknown as React.MouseEvent);
+        }}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">
+            {profile.current_title || 'No title'}
+          </span>
+          {isLatest && (
+            <Badge variant="default" className="text-xs">Latest</Badge>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {profile.current_company && `${profile.current_company} · `}
+          Added {format(new Date(profile.created_at), 'MMM d, yyyy')}
+        </div>
+      </div>
+      
+      {/* Status selector */}
+      <Select
+        value={profile.recruiter_status || 'new'}
+        onValueChange={(value) => updateStatus.mutate(value)}
+        disabled={updateStatus.isPending}
+      >
+        <SelectTrigger 
+          className="w-[110px] h-7 text-xs" 
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {CANDIDATE_STATUSES.map((status) => (
+            <SelectItem key={status.value} value={status.value}>
+              {status.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      {/* Notes indicator */}
+      <HoverCard openDelay={300} closeDelay={100}>
+        <HoverCardTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewProfile(profile.id);
+            }}
+          >
+            <MessageSquare className={`h-3.5 w-3.5 ${profile.recruiter_notes ? 'text-primary' : 'text-muted-foreground'}`} />
+          </Button>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-72" align="end">
+          {profile.recruiter_notes ? (
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+              {profile.recruiter_notes}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No notes added</p>
+          )}
+        </HoverCardContent>
+      </HoverCard>
+      
+      {profile.ats_score && profile.ats_score > 0 && (
+        <ScoreBadge score={profile.ats_score} size="sm" />
+      )}
+    </div>
   );
 }
