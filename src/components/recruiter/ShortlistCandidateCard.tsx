@@ -116,6 +116,32 @@ export function ShortlistCandidateCard({
     setHasUnsavedProfileNotes(false);
   }, [candidate.id, candidate.candidate_profiles?.recruiter_notes, candidate.notes]);
 
+  // One-time migration: older data may exist only in shortlist_candidates.notes.
+  // If so, sync it into candidate_profiles so Talent Pool shows it too.
+  const syncLegacyNotesToProfile = useMutation({
+    mutationFn: async (legacyNotes: string) => {
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update({ recruiter_notes: legacyNotes })
+        .eq('id', candidate.candidate_id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+    },
+  });
+
+  useEffect(() => {
+    if (!candidate.notes) return;
+    if (candidate.candidate_profiles?.recruiter_notes) return;
+    if (syncLegacyNotesToProfile.isPending) return;
+
+    syncLegacyNotesToProfile.mutate(candidate.notes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidate.id, candidate.notes, candidate.candidate_profiles?.recruiter_notes]);
+
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
       const { error } = await supabase
