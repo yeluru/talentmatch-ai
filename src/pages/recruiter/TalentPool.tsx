@@ -48,6 +48,7 @@ import { Search, Loader2, Users, Briefcase, MapPin, ArrowUpDown, Filter, X, List
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentPoolRow } from '@/components/recruiter/TalentPoolRow';
+import { TalentPoolGroupedRow } from '@/components/recruiter/TalentPoolGroupedRow';
 import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -377,17 +378,42 @@ export default function TalentPool() {
     return result;
   }, [talents, searchQuery, sortBy, companyFilter, locationFilter, experienceFilter]);
 
+  // Group filtered talents by email for visual grouping
+  const groupedTalents = useMemo(() => {
+    const groups = new Map<string, TalentProfile[]>();
+    
+    for (const talent of filteredTalents) {
+      // Group by email if available, otherwise treat as individual
+      const key = talent.email?.toLowerCase().trim() || `no-email-${talent.id}`;
+      const existing = groups.get(key) || [];
+      existing.push(talent);
+      groups.set(key, existing);
+    }
+    
+    // Convert to array and sort groups by most recent profile date
+    return Array.from(groups.values()).sort((a, b) => {
+      const latestA = Math.max(...a.map(p => new Date(p.created_at).getTime()));
+      const latestB = Math.max(...b.map(p => new Date(p.created_at).getTime()));
+      return latestB - latestA;
+    });
+  }, [filteredTalents]);
+
   // Reset page when filters change
   useMemo(() => {
     setCurrentPage(1);
   }, [searchQuery, companyFilter, locationFilter, experienceFilter, sortBy]);
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredTalents.length / ITEMS_PER_PAGE);
-  const paginatedTalents = useMemo(() => {
+  // Pagination calculations - now based on groups, not individual profiles
+  const totalPages = Math.ceil(groupedTalents.length / ITEMS_PER_PAGE);
+  const paginatedGroups = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredTalents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredTalents, currentPage]);
+    return groupedTalents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [groupedTalents, currentPage]);
+  
+  // Flatten paginated groups for selection logic
+  const paginatedTalents = useMemo(() => {
+    return paginatedGroups.flat();
+  }, [paginatedGroups]);
 
   const hasActiveFilters = companyFilter || locationFilter || experienceFilter;
 
@@ -562,9 +588,9 @@ export default function TalentPool() {
             </div>
 
             {/* Results count */}
-            {filteredTalents.length > 0 && (
+            {groupedTalents.length > 0 && (
               <div className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredTalents.length)} of {filteredTalents.length} profiles
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, groupedTalents.length)} of {groupedTalents.length} candidates ({filteredTalents.length} profiles)
               </div>
             )}
           </CardHeader>
@@ -596,11 +622,11 @@ export default function TalentPool() {
                 </div>
 
                 <div className="divide-y">
-                  {paginatedTalents.map((talent) => (
-                    <TalentPoolRow
-                      key={talent.id}
-                      talent={talent}
-                      isSelected={selectedIds.has(talent.id)}
+                  {paginatedGroups.map((group, idx) => (
+                    <TalentPoolGroupedRow
+                      key={group[0]?.email || group[0]?.id || idx}
+                      profiles={group}
+                      selectedIds={selectedIds}
                       onToggleSelection={toggleSelection}
                       onViewProfile={handleTalentClick}
                     />

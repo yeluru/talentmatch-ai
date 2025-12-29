@@ -897,6 +897,7 @@ export type Database = {
         Row: {
           ats_score: number | null
           candidate_id: string
+          content_hash: string | null
           created_at: string
           file_name: string
           file_type: string
@@ -909,6 +910,7 @@ export type Database = {
         Insert: {
           ats_score?: number | null
           candidate_id: string
+          content_hash?: string | null
           created_at?: string
           file_name: string
           file_type: string
@@ -921,6 +923,7 @@ export type Database = {
         Update: {
           ats_score?: number | null
           candidate_id?: string
+          content_hash?: string | null
           created_at?: string
           file_name?: string
           file_type?: string
