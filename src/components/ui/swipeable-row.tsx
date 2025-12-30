@@ -105,7 +105,7 @@ export function SwipeableRow({
   return (
     <div
       ref={containerRef}
-      className={cn('relative overflow-hidden touch-pan-y', className)}
+      className={cn('relative overflow-x-hidden touch-pan-y', className)}
     >
       {/* Left actions (revealed when swiping right) */}
       {leftActions.length > 0 && (
