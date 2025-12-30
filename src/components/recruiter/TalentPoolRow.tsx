@@ -193,7 +193,7 @@ export function TalentPoolRow({
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <div
-        className={`py-4 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-4 px-4 transition-colors ${
+        className={`border rounded-lg p-4 hover:bg-muted/50 transition-colors ${
           isSelected ? 'bg-muted/30' : ''
         }`}
       >
@@ -311,7 +311,7 @@ export function TalentPoolRow({
         </div>
 
         <CollapsibleContent>
-          <div className="ml-14 mt-3 pt-3 border-t bg-muted/30 rounded-md p-3">
+          <div className="mt-3 pt-3 border-t bg-muted/30 rounded-b-md p-3">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Recruiter Notes</label>
               <Textarea

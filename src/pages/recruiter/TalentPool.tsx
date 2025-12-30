@@ -621,7 +621,7 @@ export default function TalentPool() {
                   </span>
                 </div>
 
-                <div className="divide-y">
+                <div className="space-y-3">
                   {paginatedGroups.map((group, idx) => (
                     <TalentPoolGroupedRow
                       key={group[0]?.email || group[0]?.id || idx}
