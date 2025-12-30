@@ -41,6 +41,7 @@ import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileListHeader } from '@/components/ui/mobile-list-header';
 
 export default function RecruiterJobs() {
   const { roles } = useAuth();
@@ -139,48 +140,45 @@ export default function RecruiterJobs() {
   return (
     <DashboardLayout>
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold">My Jobs</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your job postings
-            </p>
-          </div>
-          <Button asChild>
+      <MobileListHeader
+        title="My Jobs"
+        subtitle="Manage your job postings"
+        filterCount={statusFilter !== 'all' ? 1 : 0}
+        action={
+          <Button asChild size={isMobile ? 'sm' : 'default'}>
             <Link to="/recruiter/jobs/new">
               <Plus className="h-4 w-4 mr-2" />
-              Post New Job
+              {isMobile ? 'New' : 'Post New Job'}
             </Link>
           </Button>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search jobs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+      </MobileListHeader>
 
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search jobs..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
+      <Card className="mt-4">
+        <CardContent className="pt-6">
             {!filteredJobs?.length ? (
               <EmptyState
                 icon={Briefcase}
@@ -284,7 +282,6 @@ export default function RecruiterJobs() {
             )}
           </CardContent>
         </Card>
-      </div>
       <ScrollToTop />
     </DashboardLayout>
   );
