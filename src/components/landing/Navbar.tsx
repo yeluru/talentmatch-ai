@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, X, Moon, Sun } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 // Custom wordmark logo component
 function Logo({ className }: { className?: string }) {
@@ -26,6 +26,33 @@ function Logo({ className }: { className?: string }) {
 export function Navbar() {
   const { user, currentRole } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setIsDark(true);
+    } else if (savedTheme === 'light') {
+      setIsDark(false);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDark(true);
+    }
+  }, []);
 
   const getDashboardLink = () => {
     if (!user) return '/auth';
@@ -62,8 +89,15 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Desktop Auth */}
+          {/* Desktop Auth & Theme Toggle */}
           <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
             {user ? (
               <Button asChild size="sm">
                 <Link to={getDashboardLink()}>Go to Dashboard</Link>
@@ -103,6 +137,14 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              <hr className="my-2 border-border" />
+              <button
+                onClick={() => setIsDark(!isDark)}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors w-full"
+              >
+                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {isDark ? 'Light Mode' : 'Dark Mode'}
+              </button>
               <hr className="my-2 border-border" />
               {user ? (
                 <Button asChild className="w-full">
