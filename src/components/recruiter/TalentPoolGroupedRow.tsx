@@ -153,7 +153,7 @@ export function TalentPoolGroupedRow({
               </Avatar>
               <Badge 
                 variant="secondary" 
-                className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold bg-primary text-primary-foreground"
+                className="absolute top-0 right-0 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold bg-primary text-primary-foreground"
               >
                 {profiles.length}
               </Badge>

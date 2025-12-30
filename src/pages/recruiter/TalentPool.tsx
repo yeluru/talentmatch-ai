@@ -710,7 +710,7 @@ export default function TalentPool() {
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground shadow-lg rounded-full px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground shadow-lg rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 flex flex-wrap items-center justify-center gap-2 sm:gap-4 animate-in slide-in-from-bottom-4 duration-300 w-[min(46rem,calc(100vw-1.5rem))] sm:w-auto">
           <div className="flex items-center gap-2">
             <CheckSquare className="h-5 w-5" />
             <span className="font-medium">{selectedIds.size} selected</span>
