@@ -21,12 +21,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Briefcase, MapPin, MessageSquare, Save, Loader2 } from 'lucide-react';
+import { Briefcase, MapPin, MessageSquare, Save, Loader2, ListPlus, Mail, Phone } from 'lucide-react';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SwipeableRow } from '@/components/ui/swipeable-row';
 
 const CANDIDATE_STATUSES = [
   { value: 'new', label: 'New' },
@@ -63,6 +65,8 @@ interface TalentPoolRowProps {
   isSelected: boolean;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onViewProfile: (id: string) => void;
+  onAddToShortlist?: (id: string) => void;
+  onSendEmail?: (id: string) => void;
 }
 
 export function TalentPoolRow({
@@ -70,28 +74,28 @@ export function TalentPoolRow({
   isSelected,
   onToggleSelection,
   onViewProfile,
+  onAddToShortlist,
+  onSendEmail,
 }: TalentPoolRowProps) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
   const [notes, setNotes] = useState(talent.recruiter_notes || '');
   const [hasUnsavedNotes, setHasUnsavedNotes] = useState(false);
 
   useEffect(() => {
-    // Keep local textarea in sync when notes are updated elsewhere (e.g. Shortlists / Profile sheet)
     setNotes(talent.recruiter_notes || '');
     setHasUnsavedNotes(false);
   }, [talent.id, talent.recruiter_notes]);
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
-      // Candidate-level status: keep candidate_profiles as source of truth...
       const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_status: newStatus })
         .eq('id', talent.id);
       if (profileError) throw profileError;
 
-      // ...and mirror to any shortlist rows so Shortlists shows the same value.
       const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
         .update({ status: newStatus }, { count: 'exact' })
@@ -101,7 +105,6 @@ export function TalentPoolRow({
       return { newStatus, shortlistCount: shortlistCount ?? 0 };
     },
     onSuccess: ({ newStatus, shortlistCount }) => {
-      // Update any cached shortlist candidates immediately (avoid "stale UI" across pages)
       queryClient.setQueriesData(
         { queryKey: ['shortlist-candidates'] },
         (old: unknown) => {
@@ -133,14 +136,12 @@ export function TalentPoolRow({
 
   const updateNotes = useMutation({
     mutationFn: async (newNotes: string) => {
-      // Candidate-level notes: keep candidate_profiles as source of truth...
       const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_notes: newNotes })
         .eq('id', talent.id);
       if (profileError) throw profileError;
 
-      // ...and mirror to any shortlist rows so Shortlists shows the same value.
       const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
         .update({ notes: newNotes }, { count: 'exact' })
@@ -150,7 +151,6 @@ export function TalentPoolRow({
       return { newNotes, shortlistCount: shortlistCount ?? 0 };
     },
     onSuccess: ({ newNotes, shortlistCount }) => {
-      // Update cached shortlist candidates immediately
       queryClient.setQueriesData(
         { queryKey: ['shortlist-candidates'] },
         (old: unknown) => {
@@ -190,7 +190,27 @@ export function TalentPoolRow({
     updateNotes.mutate(notes);
   };
 
-  return (
+  const handleSwipeShortlist = () => {
+    if (onAddToShortlist) {
+      onAddToShortlist(talent.id);
+    } else {
+      toast.info('Select candidates to add to shortlist');
+    }
+  };
+
+  const handleSwipeEmail = () => {
+    if (talent.email) {
+      window.location.href = `mailto:${talent.email}`;
+    } else {
+      toast.error('No email available');
+    }
+  };
+
+  const handleSwipeCall = () => {
+    toast.info('Call feature coming soon');
+  };
+
+  const rowContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <div
         className={`border rounded-lg bg-card hover:bg-muted/30 transition-colors ${
@@ -262,14 +282,14 @@ export function TalentPoolRow({
             {/* Skills Row */}
             {talent.skills.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {talent.skills.slice(0, 4).map((skill, i) => (
+                {talent.skills.slice(0, isMobile ? 3 : 4).map((skill, i) => (
                   <Badge key={i} variant="secondary" className="text-xs">
                     {skill.skill_name}
                   </Badge>
                 ))}
-                {talent.skills.length > 4 && (
+                {talent.skills.length > (isMobile ? 3 : 4) && (
                   <Badge variant="outline" className="text-xs">
-                    +{talent.skills.length - 4}
+                    +{talent.skills.length - (isMobile ? 3 : 4)}
                   </Badge>
                 )}
               </div>
@@ -365,4 +385,38 @@ export function TalentPoolRow({
       </div>
     </Collapsible>
   );
+
+  // On mobile, wrap with swipeable actions
+  if (isMobile) {
+    return (
+      <SwipeableRow
+        leftActions={[
+          {
+            icon: <ListPlus className="h-5 w-5" />,
+            label: 'Shortlist',
+            color: 'bg-primary',
+            onAction: handleSwipeShortlist,
+          },
+        ]}
+        rightActions={[
+          {
+            icon: <Mail className="h-5 w-5" />,
+            label: 'Email',
+            color: 'bg-blue-500',
+            onAction: handleSwipeEmail,
+          },
+          {
+            icon: <Phone className="h-5 w-5" />,
+            label: 'Call',
+            color: 'bg-green-500',
+            onAction: handleSwipeCall,
+          },
+        ]}
+      >
+        {rowContent}
+      </SwipeableRow>
+    );
+  }
+
+  return rowContent;
 }
