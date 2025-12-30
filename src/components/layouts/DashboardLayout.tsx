@@ -141,7 +141,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="flex w-full bg-background" style={{ minHeight: '100vh' }}>
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="border-b border-sidebar-border p-4">
             <Link to="/" className="flex items-center gap-2">
@@ -203,7 +203,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+        <div className="flex-1 min-w-0 flex flex-col">
           <header className="sticky top-0 z-40 h-16 border-b bg-card/80 backdrop-blur-lg">
             <div className="flex h-full items-center justify-between px-4 lg:px-6">
               <div className="flex items-center gap-4">
