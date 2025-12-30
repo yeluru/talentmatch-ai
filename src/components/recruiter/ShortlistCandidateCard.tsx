@@ -30,6 +30,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import { SwipeableRow } from '@/components/ui/swipeable-row';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   Briefcase, 
   MoreVertical, 
@@ -42,6 +44,8 @@ import {
   Loader2,
   User,
   FileText,
+  Mail,
+  XCircle,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -102,6 +106,7 @@ export function ShortlistCandidateCard({
   onViewProfile,
 }: ShortlistCandidateCardProps) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Notes/status are candidate-level and MUST match everywhere.
@@ -250,9 +255,26 @@ export function ShortlistCandidateCard({
   const currentStatus = statusValues.has(rawStatus) ? rawStatus : 'new';
   const otherShortlists = shortlists?.filter(s => s.id !== selectedShortlistId) || [];
 
-  return (
+  const handleSwipeEmail = () => {
+    const email = candidate.candidate_profiles?.email;
+    if (email) {
+      window.location.href = `mailto:${email}`;
+    } else {
+      toast.error('No email available');
+    }
+  };
+
+  const handleSwipeReject = () => {
+    updateStatus.mutate('rejected');
+  };
+
+  const handleSwipeRemove = () => {
+    onRemove(candidate.id);
+  };
+
+  const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border rounded-lg overflow-hidden bg-background">
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Avatar className="h-10 w-10 shrink-0">
@@ -418,4 +440,37 @@ export function ShortlistCandidateCard({
       </div>
     </Collapsible>
   );
+
+  if (isMobile) {
+    return (
+      <SwipeableRow
+        leftActions={[
+          {
+            icon: <Mail className="h-5 w-5" />,
+            label: 'Email',
+            className: 'bg-primary text-primary-foreground',
+            onAction: handleSwipeEmail,
+          },
+        ]}
+        rightActions={[
+          {
+            icon: <XCircle className="h-5 w-5" />,
+            label: 'Reject',
+            className: 'bg-orange-500 text-white',
+            onAction: handleSwipeReject,
+          },
+          {
+            icon: <Trash2 className="h-5 w-5" />,
+            label: 'Remove',
+            className: 'bg-destructive text-destructive-foreground',
+            onAction: handleSwipeRemove,
+          },
+        ]}
+      >
+        {cardContent}
+      </SwipeableRow>
+    );
+  }
+
+  return cardContent;
 }

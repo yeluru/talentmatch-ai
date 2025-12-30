@@ -44,7 +44,9 @@ import {
   Sparkles,
   Phone,
   Mail,
-  Linkedin
+  Linkedin,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -55,6 +57,7 @@ import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { MobileListHeader } from '@/components/ui/mobile-list-header';
+import { SwipeableRow } from '@/components/ui/swipeable-row';
 
 interface ParsedResumeContent {
   current_title?: string;
@@ -491,73 +494,111 @@ export default function RecruiterCandidates() {
               />
             ) : (
               <div className="divide-y">
-                {filteredApplications.map((app) => (
-                  <div 
-                    key={app.id} 
-                    className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 -mx-6 px-6 transition-colors active:bg-muted"
-                    onClick={() => handleOpenDetails(app)}
-                  >
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-12 w-12 flex-shrink-0">
-                        <AvatarFallback className="bg-accent text-accent-foreground">
-                          {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-semibold">{getDisplayName(app)}</h3>
-                          <StatusBadge status={(app.status || 'applied') as ApplicationStatus} />
-                          {app.ai_match_score && (
-                            <ScoreBadge score={app.ai_match_score} size="sm" />
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {getDisplayTitle(app)} • {getDisplayExperience(app)} years exp.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
-                          {getDisplayEmail(app) && (
+                {filteredApplications.map((app) => {
+                  const rowContent = (
+                    <div 
+                      className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 px-6 transition-colors active:bg-muted bg-background"
+                      onClick={() => handleOpenDetails(app)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-12 w-12 flex-shrink-0">
+                          <AvatarFallback className="bg-accent text-accent-foreground">
+                            {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className="font-semibold">{getDisplayName(app)}</h3>
+                            <StatusBadge status={(app.status || 'applied') as ApplicationStatus} />
+                            {app.ai_match_score && (
+                              <ScoreBadge score={app.ai_match_score} size="sm" />
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {getDisplayTitle(app)} • {getDisplayExperience(app)} years exp.
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                            {getDisplayEmail(app) && (
+                              <span className="flex items-center gap-1">
+                                <Mail className="h-3.5 w-3.5 shrink-0" />
+                                <span className="truncate max-w-[200px]">{getDisplayEmail(app)}</span>
+                              </span>
+                            )}
+                            {getDisplayPhone(app) && !isMobile && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="h-3.5 w-3.5 shrink-0" />
+                                {getDisplayPhone(app)}
+                              </span>
+                            )}
+                            {getDisplayLinkedIn(app) && !isMobile && (
+                              <a 
+                                href={getDisplayLinkedIn(app)} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 hover:text-accent"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Linkedin className="h-3.5 w-3.5 shrink-0" />
+                                LinkedIn
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
-                              <Mail className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate max-w-[200px]">{getDisplayEmail(app)}</span>
+                              <Briefcase className="h-3.5 w-3.5" />
+                              <span className="truncate max-w-[150px]">{app.jobs?.title}</span>
                             </span>
-                          )}
-                          {getDisplayPhone(app) && !isMobile && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3.5 w-3.5 shrink-0" />
-                              {getDisplayPhone(app)}
-                            </span>
-                          )}
-                          {getDisplayLinkedIn(app) && !isMobile && (
-                            <a 
-                              href={getDisplayLinkedIn(app)} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 hover:text-accent"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Linkedin className="h-3.5 w-3.5 shrink-0" />
-                              LinkedIn
-                            </a>
-                          )}
+                            <span className="hidden sm:inline">Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}</span>
+                            <span className="sm:hidden">{format(new Date(app.applied_at), 'MMM d')}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="h-3.5 w-3.5" />
-                            <span className="truncate max-w-[150px]">{app.jobs?.title}</span>
-                          </span>
-                          <span className="hidden sm:inline">Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}</span>
-                          <span className="sm:hidden">{format(new Date(app.applied_at), 'MMM d')}</span>
-                        </div>
+                        {app.recruiter_rating ? (
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm font-medium">{app.recruiter_rating}</span>
+                          </div>
+                        ) : null}
                       </div>
-                      {app.recruiter_rating ? (
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">{app.recruiter_rating}</span>
-                        </div>
-                      ) : null}
                     </div>
-                  </div>
-                ))}
+                  );
+
+                  if (isMobile) {
+                    return (
+                      <SwipeableRow
+                        key={app.id}
+                        leftActions={[
+                          {
+                            icon: <CheckCircle className="h-5 w-5" />,
+                            label: 'Shortlist',
+                            className: 'bg-green-600 text-white',
+                            onAction: () => {
+                              updateApplication.mutate({ appId: app.id, status: 'shortlisted' });
+                            },
+                          },
+                        ]}
+                        rightActions={[
+                          {
+                            icon: <XCircle className="h-5 w-5" />,
+                            label: 'Reject',
+                            className: 'bg-destructive text-destructive-foreground',
+                            onAction: () => {
+                              updateApplication.mutate({ appId: app.id, status: 'rejected' });
+                            },
+                          },
+                        ]}
+                        className="-mx-6"
+                      >
+                        {rowContent}
+                      </SwipeableRow>
+                    );
+                  }
+
+                  return (
+                    <div key={app.id} className="-mx-6">
+                      {rowContent}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
