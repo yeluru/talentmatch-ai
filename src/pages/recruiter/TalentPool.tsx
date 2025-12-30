@@ -54,6 +54,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
+import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 
 interface TalentProfile {
   id: string;
@@ -511,24 +513,12 @@ export default function TalentPool() {
   return (
     <DashboardLayout>
       {/* Pull-to-refresh indicator (mobile) */}
-      {isMobile && (pullDistance > 0 || isRefreshing) && (
-        <div
-          className="fixed left-0 right-0 top-16 z-50 pointer-events-none"
-          aria-hidden="true"
-        >
-          <div
-            className="mx-auto w-full max-w-md px-4"
-            style={{ height: Math.min(80, Math.max(36, pullDistance)) }}
-          >
-            <div className="h-full w-full rounded-b-2xl bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center gap-2">
-              <Loader2 className={`h-4 w-4 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="text-xs text-muted-foreground">
-                {isRefreshing ? 'Refreshing…' : 'Pull to refresh'}
-              </span>
-            </div>
-          </div>
-        </div>
+      {isMobile && (
+        <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       )}
+      
+      {/* Scroll to top button */}
+      <ScrollToTop />
 
       <div className="space-y-6">
         <div>
