@@ -18,13 +18,13 @@ export function DevDebugBanner() {
   ];
 
   return (
-    <div className="fixed bottom-3 left-3 z-[100] rounded-lg border bg-card/90 backdrop-blur px-3 py-2 text-xs text-foreground shadow-sm">
+    <div className="fixed bottom-3 left-3 z-[100] w-[min(18rem,calc(100vw-1.5rem))] rounded-lg border bg-card/90 backdrop-blur px-3 py-2 text-xs text-foreground shadow-sm overflow-hidden">
       <div className="font-medium mb-1">Debug</div>
       <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
         {items.map(([k, v]) => (
           <div key={k} className="contents">
             <div className="text-muted-foreground">{k}:</div>
-            <div className="font-mono">{v}</div>
+            <div className="font-mono truncate">{v}</div>
           </div>
         ))}
       </div>
