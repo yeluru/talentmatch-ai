@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils';
 interface SwipeAction {
   icon: React.ReactNode;
   label: string;
-  color: string;
+  /** Tailwind classes using design tokens, e.g. "bg-primary text-primary-foreground" */
+  className: string;
   onAction: () => void;
 }
 
@@ -114,8 +115,8 @@ export function SwipeableRow({
               key={i}
               onClick={() => handleActionClick(action)}
               className={cn(
-                'flex flex-col items-center justify-center w-[72px] text-white text-xs font-medium gap-1 transition-transform active:scale-95',
-                action.color
+                'flex flex-col items-center justify-center w-[72px] text-xs font-medium gap-1 transition-transform active:scale-95',
+                action.className
               )}
               style={{
                 transform: `translateX(${Math.min(0, offset - maxLeftOffset)}px)`,
@@ -136,8 +137,8 @@ export function SwipeableRow({
               key={i}
               onClick={() => handleActionClick(action)}
               className={cn(
-                'flex flex-col items-center justify-center w-[72px] text-white text-xs font-medium gap-1 transition-transform active:scale-95',
-                action.color
+                'flex flex-col items-center justify-center w-[72px] text-xs font-medium gap-1 transition-transform active:scale-95',
+                action.className
               )}
               style={{
                 transform: `translateX(${Math.max(0, offset + maxRightOffset)}px)`,

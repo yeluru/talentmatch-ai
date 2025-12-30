@@ -394,7 +394,7 @@ export function TalentPoolRow({
           {
             icon: <ListPlus className="h-5 w-5" />,
             label: 'Shortlist',
-            color: 'bg-primary',
+            className: 'bg-primary text-primary-foreground',
             onAction: handleSwipeShortlist,
           },
         ]}
@@ -402,13 +402,13 @@ export function TalentPoolRow({
           {
             icon: <Mail className="h-5 w-5" />,
             label: 'Email',
-            color: 'bg-blue-500',
+            className: 'bg-info text-info-foreground',
             onAction: handleSwipeEmail,
           },
           {
             icon: <Phone className="h-5 w-5" />,
             label: 'Call',
-            color: 'bg-green-500',
+            className: 'bg-success text-success-foreground',
             onAction: handleSwipeCall,
           },
         ]}
