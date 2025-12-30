@@ -274,28 +274,28 @@ export function ShortlistCandidateCard({
 
   const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className={`rounded-lg overflow-hidden bg-background ${isMobile ? '' : 'border'}`}>
+      <div className={`rounded-lg bg-background ${isMobile ? 'overflow-hidden' : 'border overflow-hidden'}`}>
         <div className={`flex p-3 gap-2 ${isMobile ? 'flex-col items-stretch' : 'items-center justify-between'}`}>
-          <div className={`flex items-center gap-3 flex-1 min-w-0 ${isMobile ? 'w-full' : ''}`}>
+          <div className={`flex items-center gap-3 min-w-0 overflow-hidden ${isMobile ? 'w-full' : 'flex-1'}`}>
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-hidden">
               {onViewProfile ? (
                 <button
                   onClick={() => onViewProfile(candidate.candidate_id)}
-                  className="font-medium truncate text-left hover:text-primary hover:underline transition-colors cursor-pointer"
+                  className="font-medium truncate block max-w-full text-left hover:text-primary hover:underline transition-colors cursor-pointer"
                 >
                   {candidate.candidate_profiles?.full_name || 'Unknown'}
                 </button>
               ) : (
                 <p className="font-medium truncate">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
               )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden">
                 <Briefcase className="h-3 w-3 shrink-0" />
-                <span className="truncate">{candidate.candidate_profiles?.current_title || 'No title'}</span>
+                <span className="truncate block">{candidate.candidate_profiles?.current_title || 'No title'}</span>
               </div>
             </div>
           </div>
