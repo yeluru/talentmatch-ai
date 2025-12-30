@@ -124,7 +124,7 @@ export function TalentPoolGroupedRow({
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       {/* Group Header Row */}
-      <div className="flex items-center gap-4 py-4 hover:bg-muted/50 transition-colors group">
+      <div className="border rounded-lg flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors group">
         {/* Expand Toggle */}
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
