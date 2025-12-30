@@ -274,7 +274,7 @@ export function ShortlistCandidateCard({
 
   const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className="border rounded-lg overflow-hidden bg-background">
+      <div className={`rounded-lg overflow-hidden bg-background ${isMobile ? '' : 'border'}`}>
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <Avatar className="h-10 w-10 shrink-0">
@@ -444,6 +444,7 @@ export function ShortlistCandidateCard({
   if (isMobile) {
     return (
       <SwipeableRow
+        className="w-full border rounded-lg"
         leftActions={[
           {
             icon: <Mail className="h-5 w-5" />,
