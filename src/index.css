@@ -59,7 +59,7 @@
     /* Role colors */
     --candidate: 199 89% 48%;
     --candidate-foreground: 0 0% 100%;
-    --recruiter: 222 47% 20%;
+    --recruiter: 271 81% 56%;
     --recruiter-foreground: 0 0% 100%;
     --manager: 45 93% 47%;
     --manager-foreground: 222 47% 11%;
@@ -73,7 +73,7 @@
     
     /* Audience gradients */
     --gradient-candidate: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 85% 55%) 100%);
-    --gradient-recruiter: linear-gradient(135deg, hsl(222 47% 20%) 0%, hsl(222 40% 28%) 100%);
+    --gradient-recruiter: linear-gradient(135deg, hsl(271 81% 56%) 0%, hsl(280 75% 62%) 100%);
     --gradient-manager: linear-gradient(135deg, hsl(45 93% 47%) 0%, hsl(40 90% 52%) 100%);
     
     /* Shadows - Clean corporate */
