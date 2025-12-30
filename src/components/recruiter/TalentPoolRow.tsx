@@ -193,82 +193,97 @@ export function TalentPoolRow({
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <div
-        className={`border rounded-lg p-4 hover:bg-muted/50 transition-colors ${
-          isSelected ? 'bg-muted/30' : ''
+        className={`border rounded-lg bg-card hover:bg-muted/30 transition-colors ${
+          isSelected ? 'ring-2 ring-primary/20 bg-primary/5' : ''
         }`}
       >
-        <div className="flex items-start gap-4">
-          <div
-            className="flex items-center justify-center w-10 h-12 shrink-0 cursor-pointer"
-            onClick={(e) => onToggleSelection(talent.id, e)}
-          >
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={() => {}}
-              aria-label={`Select ${talent.full_name || 'talent'}`}
-              className="pointer-events-none"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
-              <AvatarFallback className="bg-accent text-accent-foreground">
+        {/* Main Row Content */}
+        <div className="p-4">
+          {/* Top Section: Checkbox, Avatar, Name, Score */}
+          <div className="flex items-center gap-3 mb-3">
+            <div
+              className="shrink-0 cursor-pointer"
+              onClick={(e) => onToggleSelection(talent.id, e)}
+            >
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => {}}
+                aria-label={`Select ${talent.full_name || 'talent'}`}
+                className="pointer-events-none"
+              />
+            </div>
+            <Avatar className="h-10 w-10 shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary font-medium">
                 {(talent.full_name || 'U').charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewProfile(talent.id);
-                }}
-                className="font-semibold text-left hover:text-primary hover:underline transition-colors cursor-pointer"
-              >
-                {talent.full_name || 'Unknown'}
-              </button>
-              {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewProfile(talent.id);
+                  }}
+                  className="font-semibold text-left hover:text-primary hover:underline transition-colors cursor-pointer truncate"
+                >
+                  {talent.full_name || 'Unknown'}
+                </button>
+                {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+            <div className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
+              {format(new Date(talent.created_at), 'MMM d')}
+            </div>
+          </div>
+
+          {/* Middle Section: Title, Location, Experience */}
+          <div className="ml-[52px] space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
               {talent.current_title && (
-                <span className="flex items-center gap-1">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  {talent.current_title}
-                  {talent.current_company && ` at ${talent.current_company}`}
+                <span className="flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {talent.current_title}
+                    {talent.current_company && <span className="text-foreground/70"> at {talent.current_company}</span>}
+                  </span>
                 </span>
               )}
               {talent.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {talent.location}
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{talent.location}</span>
                 </span>
               )}
               {talent.years_of_experience !== null && (
-                <span>{talent.years_of_experience} yrs exp</span>
+                <span className="whitespace-nowrap">{talent.years_of_experience} yrs exp</span>
               )}
             </div>
+
+            {/* Skills Row */}
             {talent.skills.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {talent.skills.slice(0, 5).map((skill, i) => (
+              <div className="flex flex-wrap gap-1.5">
+                {talent.skills.slice(0, 4).map((skill, i) => (
                   <Badge key={i} variant="secondary" className="text-xs">
                     {skill.skill_name}
                   </Badge>
                 ))}
-                {talent.skills.length > 5 && (
+                {talent.skills.length > 4 && (
                   <Badge variant="outline" className="text-xs">
-                    +{talent.skills.length - 5} more
+                    +{talent.skills.length - 4}
                   </Badge>
                 )}
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          {/* Bottom Section: Actions */}
+          <div className="mt-3 ml-[52px] flex flex-wrap items-center gap-2">
             <Select
               value={talent.recruiter_status || 'new'}
               onValueChange={(value) => updateStatus.mutate(value)}
               disabled={updateStatus.isPending}
             >
-              <SelectTrigger className="w-[130px] h-8" onClick={(e) => e.stopPropagation()}>
+              <SelectTrigger className="w-[120px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -285,15 +300,18 @@ export function TalentPoolRow({
                 <CollapsibleTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MessageSquare className={`h-4 w-4 ${talent.recruiter_notes ? 'text-primary' : ''}`} />
+                    <MessageSquare className={`h-3.5 w-3.5 ${talent.recruiter_notes ? 'text-primary' : ''}`} />
+                    <span className="hidden sm:inline">
+                      {talent.recruiter_notes ? 'View Notes' : 'Add Note'}
+                    </span>
                   </Button>
                 </CollapsibleTrigger>
               </HoverCardTrigger>
-              <HoverCardContent className="w-72" align="end">
+              <HoverCardContent className="w-72" align="start">
                 {talent.recruiter_notes ? (
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
                     {talent.recruiter_notes}
@@ -304,14 +322,15 @@ export function TalentPoolRow({
               </HoverCardContent>
             </HoverCard>
 
-            <div className="text-xs text-muted-foreground whitespace-nowrap">
+            <span className="text-xs text-muted-foreground sm:hidden">
               {format(new Date(talent.created_at), 'MMM d')}
-            </div>
+            </span>
           </div>
         </div>
 
+        {/* Collapsible Notes Section */}
         <CollapsibleContent>
-          <div className="mt-3 pt-3 border-t bg-muted/30 rounded-b-md p-3">
+          <div className="border-t bg-muted/30 p-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Recruiter Notes</label>
               <Textarea

@@ -123,122 +123,135 @@ export function TalentPoolGroupedRow({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      {/* Group Header Row */}
-      <div className="border rounded-lg flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors group">
-        {/* Expand Toggle */}
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-        </CollapsibleTrigger>
-        
-        {/* Group Checkbox */}
-        <Checkbox
-          checked={allSelected}
-          className={someSelected && !allSelected ? 'data-[state=checked]:bg-muted' : ''}
-          onClick={handleGroupSelect}
-          aria-label="Select all profiles in group"
-        />
-        
-        {/* Avatar with count badge */}
-        <div className="relative">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {getInitials(primaryProfile.full_name)}
-            </AvatarFallback>
-          </Avatar>
-          <Badge 
-            variant="secondary" 
-            className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold bg-primary text-primary-foreground"
-          >
-            {profiles.length}
-          </Badge>
-        </div>
-        
-        {/* Name & Title */}
-        <div 
-          className="flex-1 min-w-0 cursor-pointer"
-          onClick={() => onViewProfile(primaryProfile.id)}
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-medium truncate">
-              {primaryProfile.full_name || 'Unknown'}
-            </span>
-            <Badge variant="outline" className="text-xs flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {profiles.length} profiles
-            </Badge>
+      <div className="border rounded-lg bg-card hover:bg-muted/30 transition-colors">
+        {/* Group Header */}
+        <div className="p-4">
+          {/* Top Section: Expand, Checkbox, Avatar, Name */}
+          <div className="flex items-center gap-3 mb-3">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            
+            <Checkbox
+              checked={allSelected}
+              className={`shrink-0 ${someSelected && !allSelected ? 'data-[state=checked]:bg-muted' : ''}`}
+              onClick={handleGroupSelect}
+              aria-label="Select all profiles in group"
+            />
+            
+            <div className="relative shrink-0">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                  {getInitials(primaryProfile.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <Badge 
+                variant="secondary" 
+                className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold bg-primary text-primary-foreground"
+              >
+                {profiles.length}
+              </Badge>
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  className="font-semibold truncate hover:text-primary hover:underline transition-colors cursor-pointer"
+                  onClick={() => onViewProfile(primaryProfile.id)}
+                >
+                  {primaryProfile.full_name || 'Unknown'}
+                </button>
+                <Badge variant="outline" className="text-xs flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {profiles.length} profiles
+                </Badge>
+                {bestScore > 0 && (
+                  <ScoreBadge score={bestScore} size="sm" className="hidden sm:flex" />
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            {primaryProfile.current_title && (
-              <span className="flex items-center gap-1 truncate">
-                <Briefcase className="h-3 w-3 flex-shrink-0" />
-                {primaryProfile.current_title}
-                {primaryProfile.current_company && ` at ${primaryProfile.current_company}`}
-              </span>
+
+          {/* Middle Section: Title, Location */}
+          <div className="ml-[84px] space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
+              {primaryProfile.current_title && (
+                <span className="flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {primaryProfile.current_title}
+                    {primaryProfile.current_company && <span className="text-foreground/70"> at {primaryProfile.current_company}</span>}
+                  </span>
+                </span>
+              )}
+              {primaryProfile.location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{primaryProfile.location}</span>
+                </span>
+              )}
+            </div>
+
+            {/* Skills Row */}
+            {allSkills.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {allSkills.slice(0, 4).map((skill) => (
+                  <Badge key={skill} variant="secondary" className="text-xs">
+                    {skill}
+                  </Badge>
+                ))}
+                {allSkills.length > 4 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{allSkills.length - 4}
+                  </Badge>
+                )}
+              </div>
             )}
-            {primaryProfile.location && (
-              <span className="flex items-center gap-1 truncate">
-                <MapPin className="h-3 w-3 flex-shrink-0" />
-                {primaryProfile.location}
-              </span>
-            )}
+          </div>
+
+          {/* Actions */}
+          <div className="mt-3 ml-[84px]">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewProfile(primaryProfile.id)}
+              className="text-xs"
+            >
+              View Latest Profile
+            </Button>
           </div>
         </div>
         
-        {/* Skills preview */}
-        <div className="hidden md:flex items-center gap-1.5 max-w-xs overflow-hidden">
-          {allSkills.slice(0, 4).map((skill) => (
-            <Badge key={skill} variant="secondary" className="text-xs whitespace-nowrap">
-              {skill}
-            </Badge>
-          ))}
-          {allSkills.length > 4 && (
-            <span className="text-xs text-muted-foreground">+{allSkills.length - 4}</span>
-          )}
-        </div>
-        
-        {/* Best Score */}
-        {bestScore > 0 && (
-          <ScoreBadge score={bestScore} className="hidden sm:flex" />
-        )}
-        
-        {/* View button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onViewProfile(primaryProfile.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          View Latest
-        </Button>
+        {/* Expanded Profiles */}
+        <CollapsibleContent>
+          <div className="border-t bg-muted/20 p-4">
+            <div className="text-xs font-medium text-muted-foreground mb-3">
+              All profiles for {primaryProfile.email || primaryProfile.full_name}:
+            </div>
+            <div className="space-y-2">
+              {profiles
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map((profile, idx) => (
+                  <GroupedProfileRow
+                    key={profile.id}
+                    profile={profile}
+                    isLatest={idx === 0}
+                    isSelected={selectedIds.has(profile.id)}
+                    onToggleSelection={onToggleSelection}
+                    onViewProfile={onViewProfile}
+                    queryClient={queryClient}
+                  />
+                ))}
+            </div>
+          </div>
+        </CollapsibleContent>
       </div>
-      
-      {/* Expanded Profiles */}
-      <CollapsibleContent>
-        <div className="pl-14 border-l-2 border-primary/20 ml-4 space-y-1 py-2">
-          <div className="text-xs font-medium text-muted-foreground mb-2 px-2">
-            All profiles for {primaryProfile.email || primaryProfile.full_name}:
-          </div>
-          {profiles
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .map((profile, idx) => (
-              <GroupedProfileRow
-                key={profile.id}
-                profile={profile}
-                isLatest={idx === 0}
-                isSelected={selectedIds.has(profile.id)}
-                onToggleSelection={onToggleSelection}
-                onViewProfile={onViewProfile}
-                queryClient={queryClient}
-              />
-            ))}
-        </div>
-      </CollapsibleContent>
     </Collapsible>
   );
 }
@@ -287,83 +300,94 @@ function GroupedProfileRow({
 
   return (
     <div 
-      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-        isSelected ? 'bg-primary/10' : 'hover:bg-muted/50'
+      className={`rounded-lg border bg-card p-3 cursor-pointer transition-colors ${
+        isSelected ? 'ring-2 ring-primary/20 bg-primary/5' : 'hover:bg-muted/30'
       }`}
       onClick={() => onViewProfile(profile.id)}
     >
-      <Checkbox
-        checked={isSelected}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleSelection(profile.id, e as unknown as React.MouseEvent);
-        }}
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">
-            {profile.current_title || 'No title'}
-          </span>
-          {isLatest && (
-            <Badge variant="default" className="text-xs">Latest</Badge>
-          )}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {profile.current_company && `${profile.current_company} · `}
-          Added {format(new Date(profile.created_at), 'MMM d, yyyy')}
+      {/* Top Row: Checkbox, Title, Latest Badge */}
+      <div className="flex items-center gap-3 mb-2">
+        <Checkbox
+          checked={isSelected}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelection(profile.id, e as unknown as React.MouseEvent);
+          }}
+          className="shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium truncate">
+              {profile.current_title || 'No title'}
+            </span>
+            {isLatest && (
+              <Badge variant="default" className="text-xs">Latest</Badge>
+            )}
+            {profile.ats_score && profile.ats_score > 0 && (
+              <ScoreBadge score={profile.ats_score} size="sm" className="hidden sm:flex" />
+            )}
+          </div>
         </div>
       </div>
-      
-      {/* Status selector */}
-      <Select
-        value={profile.recruiter_status || 'new'}
-        onValueChange={(value) => updateStatus.mutate(value)}
-        disabled={updateStatus.isPending}
-      >
-        <SelectTrigger 
-          className="w-[110px] h-7 text-xs" 
-          onClick={(e) => e.stopPropagation()}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {CANDIDATE_STATUSES.map((status) => (
-            <SelectItem key={status.value} value={status.value}>
-              {status.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      
-      {/* Notes indicator */}
-      <HoverCard openDelay={300} closeDelay={100}>
-        <HoverCardTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewProfile(profile.id);
-            }}
+
+      {/* Bottom Row: Company, Date, Status, Notes */}
+      <div className="ml-7 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <div className="text-xs text-muted-foreground flex-1 min-w-0">
+          {profile.current_company && <span className="truncate">{profile.current_company} · </span>}
+          Added {format(new Date(profile.created_at), 'MMM d, yyyy')}
+        </div>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select
+            value={profile.recruiter_status || 'new'}
+            onValueChange={(value) => updateStatus.mutate(value)}
+            disabled={updateStatus.isPending}
           >
-            <MessageSquare className={`h-3.5 w-3.5 ${profile.recruiter_notes ? 'text-primary' : 'text-muted-foreground'}`} />
-          </Button>
-        </HoverCardTrigger>
-        <HoverCardContent className="w-72" align="end">
-          {profile.recruiter_notes ? (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
-              {profile.recruiter_notes}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">No notes added</p>
+            <SelectTrigger 
+              className="w-[100px] h-7 text-xs" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CANDIDATE_STATUSES.map((status) => (
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <HoverCard openDelay={300} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewProfile(profile.id);
+                }}
+              >
+                <MessageSquare className={`h-3.5 w-3.5 ${profile.recruiter_notes ? 'text-primary' : 'text-muted-foreground'}`} />
+              </Button>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-72" align="end">
+              {profile.recruiter_notes ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                  {profile.recruiter_notes}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No notes added</p>
+              )}
+            </HoverCardContent>
+          </HoverCard>
+
+          {profile.ats_score && profile.ats_score > 0 && (
+            <ScoreBadge score={profile.ats_score} size="sm" className="sm:hidden" />
           )}
-        </HoverCardContent>
-      </HoverCard>
-      
-      {profile.ats_score && profile.ats_score > 0 && (
-        <ScoreBadge score={profile.ats_score} size="sm" />
-      )}
+        </div>
+      </div>
     </div>
   );
 }
