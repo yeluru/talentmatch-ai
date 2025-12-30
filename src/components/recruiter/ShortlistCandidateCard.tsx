@@ -275,8 +275,8 @@ export function ShortlistCandidateCard({
   const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <div className={`rounded-lg overflow-hidden bg-background ${isMobile ? '' : 'border'}`}>
-        <div className="flex items-center justify-between p-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className={`flex p-3 gap-2 ${isMobile ? 'flex-col items-stretch' : 'items-center justify-between'}`}>
+          <div className={`flex items-center gap-3 flex-1 min-w-0 ${isMobile ? 'w-full' : ''}`}>
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
@@ -299,7 +299,7 @@ export function ShortlistCandidateCard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className={`flex items-center gap-2 shrink-0 ${isMobile ? 'w-full justify-between' : ''}`}>
             
             <Select
               value={currentStatus}
