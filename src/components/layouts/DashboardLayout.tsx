@@ -203,7 +203,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex-1 min-w-0 flex flex-col min-h-screen">
           <header className="sticky top-0 z-40 h-16 border-b bg-card/80 backdrop-blur-lg">
             <div className="flex h-full items-center justify-between px-4 lg:px-6">
               <div className="flex items-center gap-4">
@@ -290,7 +290,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
 
-          <main className="flex-1 p-4 lg:p-6">
+          <main className="flex-1 min-w-0 p-4 lg:p-6">
             {children}
           </main>
         </div>

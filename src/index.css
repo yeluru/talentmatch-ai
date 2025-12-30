@@ -155,13 +155,13 @@
   }
 
   html {
-    @apply scroll-smooth overflow-x-hidden;
+    @apply scroll-smooth overflow-x-hidden overflow-y-auto;
     width: 100%;
     max-width: 100%;
   }
 
   body {
-    @apply bg-background text-foreground antialiased overflow-x-hidden;
+    @apply bg-background text-foreground antialiased overflow-x-hidden overflow-y-auto;
     width: 100%;
     max-width: 100%;
     font-family: 'Inter', system-ui, sans-serif;
@@ -172,6 +172,7 @@
     max-width: 100%;
     min-height: 100vh;
     overflow-x: hidden;
+    overflow-y: auto;
   }
 
   h1, h2, h3, h4, h5, h6 {
