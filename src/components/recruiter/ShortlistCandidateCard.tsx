@@ -274,33 +274,41 @@ export function ShortlistCandidateCard({
 
   const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className={`rounded-lg bg-background w-full ${isMobile ? '' : 'border'}`}>
-        <div className={`flex p-3 gap-2 ${isMobile ? 'flex-col items-stretch' : 'items-center justify-between'}`}>
-          <div className={`flex items-center gap-3 min-w-0 overflow-hidden ${isMobile ? 'w-full' : 'flex-1'}`}>
+      <div className={`rounded-lg bg-background w-full min-w-0 ${isMobile ? '' : 'border'}`}>
+        <div
+          className={`flex p-3 gap-2 min-w-0 ${isMobile ? 'flex-col items-stretch' : 'items-center justify-between'}`}
+        >
+          <div className={`flex items-center gap-3 min-w-0 ${isMobile ? 'w-full' : 'flex-1'}`}>
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarFallback className="bg-accent text-accent-foreground">
                 {candidate.candidate_profiles?.full_name?.charAt(0) || 'C'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0 flex-1 overflow-hidden">
+
+            <div className="min-w-0 flex-1">
               {onViewProfile ? (
                 <button
                   onClick={() => onViewProfile(candidate.candidate_id)}
-                  className="font-medium truncate block max-w-full text-left hover:text-primary hover:underline transition-colors cursor-pointer"
+                  className="font-medium block max-w-full text-left whitespace-normal break-words leading-snug hover:text-primary hover:underline transition-colors cursor-pointer"
                 >
                   {candidate.candidate_profiles?.full_name || 'Unknown'}
                 </button>
               ) : (
-                <p className="font-medium truncate">{candidate.candidate_profiles?.full_name || 'Unknown'}</p>
+                <p className="font-medium max-w-full whitespace-normal break-words leading-snug">
+                  {candidate.candidate_profiles?.full_name || 'Unknown'}
+                </p>
               )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden">
-                <Briefcase className="h-3 w-3 shrink-0" />
-                <span className="truncate block">{candidate.candidate_profiles?.current_title || 'No title'}</span>
+
+              <div className="flex items-start gap-2 text-sm text-muted-foreground min-w-0">
+                <Briefcase className="h-3 w-3 shrink-0 mt-1" />
+                <span className="block min-w-0 flex-1 whitespace-normal break-words leading-snug">
+                  {candidate.candidate_profiles?.current_title || 'No title'}
+                </span>
               </div>
             </div>
           </div>
+
           <div className={`flex items-center gap-2 shrink-0 ${isMobile ? 'w-full justify-between' : ''}`}>
-            
             <Select
               value={currentStatus}
               onValueChange={(value) => updateStatus.mutate(value)}
@@ -356,7 +364,7 @@ export function ShortlistCandidateCard({
                     Copy to...
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    {otherShortlists.map(s => (
+                    {otherShortlists.map((s) => (
                       <DropdownMenuItem
                         key={s.id}
                         onClick={() => onCopy(candidate.candidate_id, s.id)}
@@ -369,13 +377,14 @@ export function ShortlistCandidateCard({
                     )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <MoveRight className="h-4 w-4 mr-2" />
                     Move to...
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    {otherShortlists.map(s => (
+                    {otherShortlists.map((s) => (
                       <DropdownMenuItem
                         key={s.id}
                         onClick={() => onMove(candidate.id, candidate.candidate_id, s.id)}
@@ -386,8 +395,9 @@ export function ShortlistCandidateCard({
                     {otherShortlists.length === 0 && (
                       <DropdownMenuItem disabled>No other shortlists</DropdownMenuItem>
                     )}
-                </DropdownMenuSubContent>
+                  </DropdownMenuSubContent>
                 </DropdownMenuSub>
+
                 <DropdownMenuSeparator />
                 {onViewProfile && (
                   <DropdownMenuItem onClick={() => onViewProfile(candidate.candidate_id)}>
