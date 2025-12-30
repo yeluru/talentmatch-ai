@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,10 @@ import { toast } from 'sonner';
 import { Loader2, Search, MapPin, DollarSign, Briefcase, Clock, Building2, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
+import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Job {
   id: string;
@@ -36,13 +40,11 @@ export default function JobSearch() {
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [experienceLevel, setExperienceLevel] = useState<string>('');
   const [jobType, setJobType] = useState<string>('');
+  const isMobile = useIsMobile();
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
+      setIsLoading(true);
       let query = supabase
         .from('jobs')
         .select(`
@@ -62,7 +64,16 @@ export default function JobSearch() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const { pullDistance, refreshing: isRefreshing } = usePullToRefresh({
+    enabled: isMobile,
+    onRefresh: fetchJobs,
+  });
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = searchQuery === '' || 
@@ -103,6 +114,7 @@ export default function JobSearch() {
 
   return (
     <DashboardLayout>
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">Find Jobs</h1>
@@ -279,6 +291,7 @@ export default function JobSearch() {
           </div>
         )}
       </div>
+      <ScrollToTop />
     </DashboardLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,9 @@ import { format } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { StatusBadge, ApplicationStatus } from '@/components/ui/status-badge';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
+import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 interface ParsedResumeContent {
   current_title?: string;
@@ -236,6 +239,15 @@ export default function RecruiterCandidates() {
   
   const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['recruiter-applications', organizationId, selectedJobFilter] });
+  }, [queryClient, organizationId, selectedJobFilter]);
+
+  const { pullDistance, refreshing: isRefreshing } = usePullToRefresh({
+    enabled: isMobile,
+    onRefresh: handleRefresh,
+  });
+
   // Fetch jobs for filter
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs-filter', organizationId],
@@ -420,6 +432,7 @@ export default function RecruiterCandidates() {
 
   return (
     <DashboardLayout>
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">Candidates</h1>
@@ -595,6 +608,7 @@ export default function RecruiterCandidates() {
           </DialogContent>
         </Dialog>
       )}
+      <ScrollToTop />
     </DashboardLayout>
   );
 }
