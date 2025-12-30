@@ -19,12 +19,20 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   Search, 
   MapPin, 
@@ -76,10 +84,146 @@ interface ApplicationWithProfile {
   profile?: { user_id: string; full_name: string; email: string; phone: string | null; linkedin_url: string | null };
 }
 
+interface CandidateDetailContentProps {
+  selectedApplication: ApplicationWithProfile | null;
+  notes: string;
+  setNotes: (notes: string) => void;
+  rating: number;
+  setRating: (rating: number) => void;
+  getDisplayName: (app: ApplicationWithProfile) => string;
+  updateApplication: any;
+  isMobile?: boolean;
+}
+
+function CandidateDetailContent({
+  selectedApplication,
+  notes,
+  setNotes,
+  rating,
+  setRating,
+  getDisplayName,
+  updateApplication,
+  isMobile = false,
+}: CandidateDetailContentProps) {
+  if (!selectedApplication) return null;
+
+  return (
+    <div className={`space-y-6 ${isMobile ? 'px-4 pb-8 overflow-y-auto' : 'py-4'}`}>
+      {/* Status */}
+      <div className="space-y-2">
+        <Label>Status</Label>
+        <Select 
+          value={selectedApplication?.status || 'applied'} 
+          onValueChange={(value) => updateApplication.mutate({ 
+            appId: selectedApplication.id, 
+            status: value 
+          })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="applied">Applied</SelectItem>
+            <SelectItem value="reviewing">Reviewing</SelectItem>
+            <SelectItem value="shortlisted">Shortlisted</SelectItem>
+            <SelectItem value="interviewing">Interviewing</SelectItem>
+            <SelectItem value="offered">Offered</SelectItem>
+            <SelectItem value="hired">Hired</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* AI Match Score */}
+      {selectedApplication?.ai_match_score && (
+        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+          <Sparkles className="h-5 w-5 text-accent" />
+          <div>
+            <div className="font-medium">AI Match Score</div>
+            <div className="text-sm text-muted-foreground">
+              {selectedApplication.ai_match_score}% match for this position
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cover Letter */}
+      {selectedApplication?.cover_letter && (
+        <div className="space-y-2">
+          <Label>Cover Letter</Label>
+          <div className="p-4 bg-muted rounded-lg text-sm">
+            {selectedApplication.cover_letter}
+          </div>
+        </div>
+      )}
+
+      {/* Resume */}
+      {selectedApplication?.resumes && (Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes.length > 0 : true) && (
+        <div className="space-y-2">
+          <Label>Resume</Label>
+          <Button variant="outline" asChild className="w-full sm:w-auto">
+            <a 
+              href={Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes[0]?.file_url : selectedApplication.resumes?.file_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              View Resume
+            </a>
+          </Button>
+        </div>
+      )}
+
+      {/* Rating */}
+      <div className="space-y-2">
+        <Label>Your Rating</Label>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              onClick={() => setRating(star)}
+              className="p-1"
+            >
+              <Star 
+                className={`h-6 w-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-2">
+        <Label>Notes</Label>
+        <Textarea
+          placeholder="Add your notes about this candidate..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+        />
+      </div>
+
+      <Button 
+        onClick={() => updateApplication.mutate({ 
+          appId: selectedApplication.id, 
+          notes, 
+          rating 
+        })}
+        disabled={updateApplication.isPending}
+        className="w-full"
+      >
+        {updateApplication.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        Save Changes
+      </Button>
+    </div>
+  );
+}
+
 export default function RecruiterCandidates() {
   const { roles } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedJobFilter, setSelectedJobFilter] = useState<string>(searchParams.get('job') || 'all');
@@ -182,17 +326,14 @@ export default function RecruiterCandidates() {
   };
 
   const getDisplayName = (app: ApplicationWithProfile): string => {
-    // First try candidate_profiles.full_name (for sourced candidates)
     const cpName = (app.candidate_profiles?.full_name || '').trim();
     const isPlaceholderCpName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(cpName.toLowerCase());
     if (cpName && !isPlaceholderCpName) return cpName;
 
-    // Then try profile.full_name (for registered users)
     const rawName = (app.profile?.full_name || '').trim();
     const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(rawName.toLowerCase());
     if (rawName && !isPlaceholderName) return rawName;
 
-    // Fallback to parsed resume name
     const resumeData = getResumeData(app);
     if (resumeData?.full_name) return resumeData.full_name;
 
@@ -215,7 +356,6 @@ export default function RecruiterCandidates() {
   };
 
   const getDisplayTitle = (app: ApplicationWithProfile): string => {
-    // Prefer profile data, then fall back to resume parsed data
     if (app.candidate_profiles?.current_title) return app.candidate_profiles.current_title;
     const resumeData = getResumeData(app);
     if (resumeData?.current_title) return resumeData.current_title;
@@ -223,7 +363,6 @@ export default function RecruiterCandidates() {
   };
 
   const getDisplayExperience = (app: ApplicationWithProfile): number => {
-    // Prefer profile data, then fall back to resume parsed data
     if (app.candidate_profiles?.years_of_experience) return app.candidate_profiles.years_of_experience;
     const resumeData = getResumeData(app);
     if (resumeData?.years_of_experience) return resumeData.years_of_experience;
@@ -246,6 +385,10 @@ export default function RecruiterCandidates() {
     setRating(app.recruiter_rating || 0);
   };
 
+  const handleCloseDetails = () => {
+    setSelectedApplication(null);
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -255,6 +398,22 @@ export default function RecruiterCandidates() {
       </DashboardLayout>
     );
   }
+
+  const detailHeader = selectedApplication ? (
+    <div className="flex items-center gap-3">
+      <Avatar className="h-10 w-10">
+        <AvatarFallback className="bg-accent text-accent-foreground">
+          {getDisplayName(selectedApplication).charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div>
+        <div className="font-semibold">{getDisplayName(selectedApplication)}</div>
+        <div className="text-sm text-muted-foreground">
+          {selectedApplication?.candidate_profiles?.current_title}
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <DashboardLayout>
@@ -318,11 +477,11 @@ export default function RecruiterCandidates() {
                 {filteredApplications.map((app) => (
                   <div 
                     key={app.id} 
-                    className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 -mx-6 px-6 transition-colors"
+                    className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 -mx-6 px-6 transition-colors active:bg-muted"
                     onClick={() => handleOpenDetails(app)}
                   >
                     <div className="flex items-start gap-4">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-12 w-12 flex-shrink-0">
                         <AvatarFallback className="bg-accent text-accent-foreground">
                           {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
                         </AvatarFallback>
@@ -345,13 +504,13 @@ export default function RecruiterCandidates() {
                               <span className="truncate max-w-[200px]">{getDisplayEmail(app)}</span>
                             </span>
                           )}
-                          {getDisplayPhone(app) && (
+                          {getDisplayPhone(app) && !isMobile && (
                             <span className="flex items-center gap-1">
                               <Phone className="h-3.5 w-3.5 shrink-0" />
                               {getDisplayPhone(app)}
                             </span>
                           )}
-                          {getDisplayLinkedIn(app) && (
+                          {getDisplayLinkedIn(app) && !isMobile && (
                             <a 
                               href={getDisplayLinkedIn(app)} 
                               target="_blank" 
@@ -367,13 +526,14 @@ export default function RecruiterCandidates() {
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Briefcase className="h-3.5 w-3.5" />
-                            {app.jobs?.title}
+                            <span className="truncate max-w-[150px]">{app.jobs?.title}</span>
                           </span>
-                          <span>Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}</span>
+                          <span className="hidden sm:inline">Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}</span>
+                          <span className="sm:hidden">{format(new Date(app.applied_at), 'MMM d')}</span>
                         </div>
                       </div>
                       {app.recruiter_rating ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                           <span className="text-sm font-medium">{app.recruiter_rating}</span>
                         </div>
@@ -387,138 +547,51 @@ export default function RecruiterCandidates() {
         </Card>
       </div>
 
-      {/* Candidate Details Dialog */}
-      <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-accent text-accent-foreground">
-                  {selectedApplication ? getDisplayName(selectedApplication).charAt(0).toUpperCase() : 'C'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div>{selectedApplication ? getDisplayName(selectedApplication) : 'Unknown'}</div>
-                <div className="text-sm font-normal text-muted-foreground">
-                  {selectedApplication?.candidate_profiles?.current_title}
-                </div>
-              </div>
-            </DialogTitle>
-            <DialogDescription>
-              Applied for {selectedApplication?.jobs?.title}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            {/* Status */}
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select 
-                value={selectedApplication?.status || 'applied'} 
-                onValueChange={(value) => updateApplication.mutate({ 
-                  appId: selectedApplication.id, 
-                  status: value 
-                })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="applied">Applied</SelectItem>
-                  <SelectItem value="reviewing">Reviewing</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interviewing">Interviewing</SelectItem>
-                  <SelectItem value="offered">Offered</SelectItem>
-                  <SelectItem value="hired">Hired</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* AI Match Score */}
-            {selectedApplication?.ai_match_score && (
-              <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-                <Sparkles className="h-5 w-5 text-accent" />
-                <div>
-                  <div className="font-medium">AI Match Score</div>
-                  <div className="text-sm text-muted-foreground">
-                    {selectedApplication.ai_match_score}% match for this position
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Cover Letter */}
-            {selectedApplication?.cover_letter && (
-              <div className="space-y-2">
-                <Label>Cover Letter</Label>
-                <div className="p-4 bg-muted rounded-lg text-sm">
-                  {selectedApplication.cover_letter}
-                </div>
-              </div>
-            )}
-
-            {/* Resume */}
-            {selectedApplication?.resumes && (Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes.length > 0 : true) && (
-              <div className="space-y-2">
-                <Label>Resume</Label>
-                <Button variant="outline" asChild>
-                  <a 
-                    href={Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes[0]?.file_url : selectedApplication.resumes?.file_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    View Resume
-                  </a>
-                </Button>
-              </div>
-            )}
-
-            {/* Rating */}
-            <div className="space-y-2">
-              <Label>Your Rating</Label>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => setRating(star)}
-                    className="p-1"
-                  >
-                    <Star 
-                      className={`h-6 w-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                placeholder="Add your notes about this candidate..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-              />
-            </div>
-
-            <Button 
-              onClick={() => updateApplication.mutate({ 
-                appId: selectedApplication.id, 
-                notes, 
-                rating 
-              })}
-              disabled={updateApplication.isPending}
-              className="w-full"
-            >
-              {updateApplication.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Save Changes
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Candidate Details - Drawer on mobile, Dialog on desktop */}
+      {isMobile ? (
+        <Drawer open={!!selectedApplication} onOpenChange={(open) => !open && handleCloseDetails()}>
+          <DrawerContent className="max-h-[90vh] flex flex-col">
+            <DrawerHeader className="text-left flex-shrink-0 pb-2">
+              {detailHeader}
+              <DrawerDescription className="text-xs mt-1">
+                Applied for {selectedApplication?.jobs?.title}
+              </DrawerDescription>
+            </DrawerHeader>
+            <CandidateDetailContent
+              selectedApplication={selectedApplication}
+              notes={notes}
+              setNotes={setNotes}
+              rating={rating}
+              setRating={setRating}
+              getDisplayName={getDisplayName}
+              updateApplication={updateApplication}
+              isMobile
+            />
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={!!selectedApplication} onOpenChange={(open) => !open && handleCloseDetails()}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                {detailHeader}
+              </DialogTitle>
+              <DialogDescription>
+                Applied for {selectedApplication?.jobs?.title}
+              </DialogDescription>
+            </DialogHeader>
+            <CandidateDetailContent
+              selectedApplication={selectedApplication}
+              notes={notes}
+              setNotes={setNotes}
+              rating={rating}
+              setRating={setRating}
+              getDisplayName={getDisplayName}
+              updateApplication={updateApplication}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 }

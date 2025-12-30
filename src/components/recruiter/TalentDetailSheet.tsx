@@ -161,7 +161,7 @@ function TalentDetailContent({
   }
 
   const content = (
-    <div className="space-y-6">
+    <div className={isMobile ? "space-y-5" : "space-y-6"}>
       {/* Header */}
       <div className="flex items-start gap-4">
         <Avatar className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0">
@@ -466,7 +466,11 @@ function TalentDetailContent({
   );
 
   if (isMobile) {
-    return <div className="px-4 pb-4 overflow-y-auto max-h-[70vh]">{content}</div>;
+    return (
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-8 -webkit-overflow-scrolling-touch">
+        {content}
+      </div>
+    );
   }
 
   return (
@@ -688,10 +692,10 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[85vh]">
-          <DrawerHeader className="text-left">
-            <DrawerTitle>Candidate Profile</DrawerTitle>
-            <DrawerDescription>Full profile details</DrawerDescription>
+        <DrawerContent className="max-h-[90vh] flex flex-col">
+          <DrawerHeader className="text-left flex-shrink-0 pb-2">
+            <DrawerTitle className="text-base">Candidate Profile</DrawerTitle>
+            <DrawerDescription className="text-xs">View and manage candidate details</DrawerDescription>
           </DrawerHeader>
           <TalentDetailContent {...contentProps} />
         </DrawerContent>
