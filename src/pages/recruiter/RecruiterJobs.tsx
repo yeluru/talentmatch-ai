@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,14 +37,28 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { generateOrgSlug } from '@/lib/orgSlug';
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
+import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function RecruiterJobs() {
   const { roles } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const isMobile = useIsMobile();
   
   const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
+  }, [queryClient, organizationId]);
+
+  const { pullDistance, refreshing: isRefreshing } = usePullToRefresh({
+    enabled: isMobile,
+    onRefresh: handleRefresh,
+  });
 
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['recruiter-jobs', organizationId],
@@ -124,6 +138,7 @@ export default function RecruiterJobs() {
 
   return (
     <DashboardLayout>
+      <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -270,6 +285,7 @@ export default function RecruiterJobs() {
           </CardContent>
         </Card>
       </div>
+      <ScrollToTop />
     </DashboardLayout>
   );
 }
