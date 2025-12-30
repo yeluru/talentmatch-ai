@@ -108,7 +108,10 @@ function CandidateDetailContent({
   if (!selectedApplication) return null;
 
   return (
-    <div className={`space-y-6 ${isMobile ? 'px-4 pb-8 overflow-y-auto' : 'py-4'}`}>
+    <div
+      className={`space-y-6 ${isMobile ? 'px-4 pb-8 overflow-y-auto overscroll-contain scrollbar-hide' : 'py-4'}`}
+      style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
+    >
       {/* Status */}
       <div className="space-y-2">
         <Label>Status</Label>
@@ -550,7 +553,7 @@ export default function RecruiterCandidates() {
       {/* Candidate Details - Drawer on mobile, Dialog on desktop */}
       {isMobile ? (
         <Drawer open={!!selectedApplication} onOpenChange={(open) => !open && handleCloseDetails()}>
-          <DrawerContent className="max-h-[90vh] flex flex-col">
+          <DrawerContent className="max-h-[92vh] w-full overflow-hidden flex flex-col">
             <DrawerHeader className="text-left flex-shrink-0 pb-2">
               {detailHeader}
               <DrawerDescription className="text-xs mt-1">

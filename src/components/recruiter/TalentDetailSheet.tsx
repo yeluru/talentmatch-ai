@@ -467,7 +467,10 @@ function TalentDetailContent({
 
   if (isMobile) {
     return (
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-8 -webkit-overflow-scrolling-touch">
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain px-4 pb-8 scrollbar-hide"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {content}
       </div>
     );
@@ -692,7 +695,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh] flex flex-col">
+        <DrawerContent className="max-h-[92vh] w-full overflow-hidden flex flex-col">
           <DrawerHeader className="text-left flex-shrink-0 pb-2">
             <DrawerTitle className="text-base">Candidate Profile</DrawerTitle>
             <DrawerDescription className="text-xs">View and manage candidate details</DrawerDescription>

@@ -52,6 +52,8 @@ import { TalentPoolGroupedRow } from '@/components/recruiter/TalentPoolGroupedRo
 import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 interface TalentProfile {
   id: string;
@@ -86,6 +88,8 @@ const ITEMS_PER_PAGE = 10;
 export default function TalentPool() {
   const { roles, user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
   const [companyFilter, setCompanyFilter] = useState('');
@@ -100,10 +104,18 @@ export default function TalentPool() {
 
   const organizationId = roles.find((r) => r.role === 'recruiter')?.organization_id;
 
+  const { pullDistance, refreshing: isRefreshing } = usePullToRefresh({
+    enabled: isMobile,
+    onRefresh: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+    },
+  });
+
   const { data: talents, isLoading } = useQuery({
     queryKey: ['talent-pool', organizationId],
     queryFn: async (): Promise<TalentProfile[]> => {
       if (!organizationId) return [];
+
 
       // 1) Candidates sourced into this org (uploaded/imported)
       const { data: sourced, error: sourcedError } = await supabase
@@ -498,6 +510,26 @@ export default function TalentPool() {
 
   return (
     <DashboardLayout>
+      {/* Pull-to-refresh indicator (mobile) */}
+      {isMobile && (pullDistance > 0 || isRefreshing) && (
+        <div
+          className="fixed left-0 right-0 top-16 z-50 pointer-events-none"
+          aria-hidden="true"
+        >
+          <div
+            className="mx-auto w-full max-w-md px-4"
+            style={{ height: Math.min(80, Math.max(36, pullDistance)) }}
+          >
+            <div className="h-full w-full rounded-b-2xl bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center gap-2">
+              <Loader2 className={`h-4 w-4 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="text-xs text-muted-foreground">
+                {isRefreshing ? 'Refreshing…' : 'Pull to refresh'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">Talent Pool</h1>
@@ -505,6 +537,7 @@ export default function TalentPool() {
             Sourced profiles from bulk uploads and searches
           </p>
         </div>
+
 
         <Card>
           <CardHeader className="space-y-4">
