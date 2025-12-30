@@ -54,6 +54,7 @@ import { StatusBadge, ApplicationStatus } from '@/components/ui/status-badge';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { MobileListHeader } from '@/components/ui/mobile-list-header';
 
 interface ParsedResumeContent {
   current_title?: string;
@@ -433,55 +434,55 @@ export default function RecruiterCandidates() {
   return (
     <DashboardLayout>
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Candidates</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and manage job applicants
-          </p>
+      <MobileListHeader
+        title="Candidates"
+        subtitle="Review and manage job applicants"
+        filterCount={
+          (statusFilter !== 'all' ? 1 : 0) + 
+          (selectedJobFilter !== 'all' ? 1 : 0)
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search candidates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Jobs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Jobs</SelectItem>
+              {jobs?.map((job) => (
+                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="applied">Applied</SelectItem>
+              <SelectItem value="reviewing">Reviewing</SelectItem>
+              <SelectItem value="shortlisted">Shortlisted</SelectItem>
+              <SelectItem value="interviewing">Interviewing</SelectItem>
+              <SelectItem value="offered">Offered</SelectItem>
+              <SelectItem value="hired">Hired</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+      </MobileListHeader>
 
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search candidates..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="All Jobs" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Jobs</SelectItem>
-                  {jobs?.map((job) => (
-                    <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="applied">Applied</SelectItem>
-                  <SelectItem value="reviewing">Reviewing</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interviewing">Interviewing</SelectItem>
-                  <SelectItem value="offered">Offered</SelectItem>
-                  <SelectItem value="hired">Hired</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
+      <Card className="mt-4">
+        <CardContent className="pt-6">
             {!filteredApplications?.length ? (
               <EmptyState
                 icon={Users}
@@ -561,7 +562,6 @@ export default function RecruiterCandidates() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       {/* Candidate Details - Drawer on mobile, Dialog on desktop */}
       {isMobile ? (

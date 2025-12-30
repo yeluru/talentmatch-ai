@@ -56,6 +56,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
+import { MobileListHeader } from '@/components/ui/mobile-list-header';
 
 interface TalentProfile {
   id: string;
@@ -520,103 +521,105 @@ export default function TalentPool() {
       {/* Scroll to top button */}
       <ScrollToTop />
 
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Talent Pool</h1>
-          <p className="text-muted-foreground mt-1">
-            Sourced profiles from bulk uploads and searches
-          </p>
+      <MobileListHeader
+        title="Talent Pool"
+        subtitle="Sourced profiles from bulk uploads and searches"
+        filterCount={
+          (companyFilter ? 1 : 0) + 
+          (locationFilter ? 1 : 0) + 
+          (experienceFilter ? 1 : 0)
+        }
+      >
+        <div className="space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Boolean search: Fannie, Freddie or react"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          {/* Sort */}
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+            <SelectTrigger>
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Newest First</SelectItem>
+              <SelectItem value="date_asc">Oldest First</SelectItem>
+              <SelectItem value="score_desc">Highest Score</SelectItem>
+              <SelectItem value="score_asc">Lowest Score</SelectItem>
+              <SelectItem value="name_asc">Name A-Z</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Company Filter */}
+          <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Company" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              {uniqueCompanies.map((company) => (
+                <SelectItem key={company} value={company}>
+                  {company}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Location Filter */}
+          <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {uniqueLocations.map((location) => (
+                <SelectItem key={location} value={location}>
+                  {location}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Experience Filter */}
+          <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Experience" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              {EXPERIENCE_LEVELS.map((level) => (
+                <SelectItem key={level.value} value={level.value}>
+                  {level.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
+              <X className="h-4 w-4 mr-1" />
+              Clear Filters
+            </Button>
+          )}
         </div>
+      </MobileListHeader>
 
-
-        <Card>
-          <CardHeader className="space-y-4">
-            {/* Search and Sort Row */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Boolean search: Fannie, Freddie or react (use comma or 'or')"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date_desc">Newest First</SelectItem>
-                  <SelectItem value="date_asc">Oldest First</SelectItem>
-                  <SelectItem value="score_desc">Highest Score</SelectItem>
-                  <SelectItem value="score_asc">Lowest Score</SelectItem>
-                  <SelectItem value="name_asc">Name A-Z</SelectItem>
-                </SelectContent>
-              </Select>
+      <Card className="mt-4">
+        <CardHeader>
+          {/* Results count */}
+          {groupedTalents.length > 0 && (
+            <div className="text-sm text-muted-foreground">
+              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, groupedTalents.length)} of {groupedTalents.length} candidates ({filteredTalents.length} profiles)
             </div>
-
-            {/* Filters Row */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Filter className="h-4 w-4" />
-                Filters:
-              </div>
-              <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="Company" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Companies</SelectItem>
-                  {uniqueCompanies.map((company) => (
-                    <SelectItem key={company} value={company}>
-                      {company}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {uniqueLocations.map((location) => (
-                    <SelectItem key={location} value={location}>
-                      {location}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="Experience" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Levels</SelectItem>
-                  {EXPERIENCE_LEVELS.map((level) => (
-                    <SelectItem key={level.value} value={level.value}>
-                      {level.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  <X className="h-4 w-4 mr-1" />
-                  Clear
-                </Button>
-              )}
-            </div>
-
-            {/* Results count */}
-            {groupedTalents.length > 0 && (
-              <div className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, groupedTalents.length)} of {groupedTalents.length} candidates ({filteredTalents.length} profiles)
-              </div>
-            )}
-          </CardHeader>
+          )}
+        </CardHeader>
           <CardContent>
             {!filteredTalents?.length ? (
               <EmptyState
@@ -696,7 +699,6 @@ export default function TalentPool() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (

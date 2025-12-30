@@ -15,6 +15,7 @@ import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileListHeader } from '@/components/ui/mobile-list-header';
 
 interface Job {
   id: string;
@@ -115,84 +116,73 @@ export default function JobSearch() {
   return (
     <DashboardLayout>
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Find Jobs</h1>
-          <p className="text-muted-foreground mt-1">
-            Discover opportunities that match your skills
-          </p>
+      <MobileListHeader
+        title="Find Jobs"
+        subtitle="Discover opportunities that match your skills"
+        filterCount={
+          (locationFilter ? 1 : 0) + 
+          (remoteOnly ? 1 : 0) + 
+          (experienceLevel && experienceLevel !== 'all' ? 1 : 0) + 
+          (jobType && jobType !== 'all' ? 1 : 0)
+        }
+      >
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search jobs, skills, companies..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Input
+            placeholder="Location"
+            value={locationFilter}
+            onChange={(e) => setLocationFilter(e.target.value)}
+          />
+          <Select value={experienceLevel} onValueChange={setExperienceLevel}>
+            <SelectTrigger>
+              <SelectValue placeholder="Experience Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Levels</SelectItem>
+              <SelectItem value="entry">Entry Level</SelectItem>
+              <SelectItem value="mid">Mid Level</SelectItem>
+              <SelectItem value="senior">Senior Level</SelectItem>
+              <SelectItem value="lead">Lead / Manager</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={jobType} onValueChange={setJobType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Job Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="full-time">Full-time</SelectItem>
+              <SelectItem value="part-time">Part-time</SelectItem>
+              <SelectItem value="contract">Contract</SelectItem>
+              <SelectItem value="internship">Internship</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="remote"
+              checked={remoteOnly}
+              onCheckedChange={(checked) => setRemoteOnly(checked as boolean)}
+            />
+            <label htmlFor="remote" className="text-sm cursor-pointer">
+              Remote only
+            </label>
+          </div>
         </div>
+      </MobileListHeader>
 
-        {/* Search and Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <div className="lg:col-span-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search jobs, skills, companies..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div>
-                <Input
-                  placeholder="Location"
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                />
-              </div>
-              <div>
-                <Select value={experienceLevel} onValueChange={setExperienceLevel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Experience Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Levels</SelectItem>
-                    <SelectItem value="entry">Entry Level</SelectItem>
-                    <SelectItem value="mid">Mid Level</SelectItem>
-                    <SelectItem value="senior">Senior Level</SelectItem>
-                    <SelectItem value="lead">Lead / Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Select value={jobType} onValueChange={setJobType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Job Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="full-time">Full-time</SelectItem>
-                    <SelectItem value="part-time">Part-time</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                    <SelectItem value="internship">Internship</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-4">
-              <Checkbox
-                id="remote"
-                checked={remoteOnly}
-                onCheckedChange={(checked) => setRemoteOnly(checked as boolean)}
-              />
-              <label htmlFor="remote" className="text-sm cursor-pointer">
-                Remote only
-              </label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Results */}
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground">
-            {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} found
-          </p>
-        </div>
+      <div className="space-y-4 mt-4">
+        {/* Results count */}
+        <p className="text-muted-foreground text-sm">
+          {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} found
+        </p>
 
         {filteredJobs.length === 0 ? (
           <Card>
