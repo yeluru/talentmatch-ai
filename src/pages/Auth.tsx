@@ -12,7 +12,7 @@ import { User, Briefcase, Building2, Loader2, ArrowLeft, Mail, Sparkles } from '
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { SEOHead } from '@/components/SEOHead';
-import logo from '@/assets/logo.png';
+import { Zap } from 'lucide-react';
 
 const signUpSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(255),
@@ -213,9 +213,9 @@ export default function AuthPage() {
         />
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
-              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto transition-transform group-hover:scale-105" />
-              <span className="text-2xl font-display font-bold text-foreground">TalentMatch</span>
+            <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+              <Zap className="h-8 w-8 text-primary" />
+              <span className="text-2xl font-bold text-foreground">TalentMatch</span>
             </Link>
           </div>
 
@@ -272,9 +272,9 @@ export default function AuthPage() {
         />
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
-              <img src={logo} alt="TalentMatch AI" className="h-12 w-auto transition-transform group-hover:scale-105" />
-              <span className="text-2xl font-display font-bold text-foreground">TalentMatch</span>
+            <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+              <Zap className="h-8 w-8 text-primary" />
+              <span className="text-2xl font-bold text-foreground">TalentMatch</span>
             </Link>
           </div>
 
@@ -322,9 +322,9 @@ export default function AuthPage() {
       />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
-            <img src={logo} alt="TalentMatch AI" className="h-12 w-auto transition-transform group-hover:scale-105" />
-            <span className="text-2xl font-display font-bold text-foreground">TalentMatch</span>
+          <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+            <Zap className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold text-foreground">TalentMatch</span>
           </Link>
           <p className="text-muted-foreground flex items-center justify-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
