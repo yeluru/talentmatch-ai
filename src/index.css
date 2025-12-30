@@ -155,16 +155,21 @@
   }
 
   html {
-    @apply scroll-smooth;
+    @apply scroll-smooth overflow-x-hidden;
+    width: 100%;
+    max-width: 100%;
   }
 
   body {
     @apply bg-background text-foreground antialiased overflow-x-hidden;
+    width: 100%;
+    max-width: 100%;
     font-family: 'Inter', system-ui, sans-serif;
   }
 
   #root {
     width: 100%;
+    max-width: 100%;
     min-height: 100vh;
     overflow-x: hidden;
   }
@@ -350,12 +355,18 @@
   .animation-delay-300 { animation-delay: 300ms; }
   .animation-delay-400 { animation-delay: 400ms; }
   .animation-delay-500 { animation-delay: 500ms; }
-  
+
+  /* Ensure media never forces horizontal overflow */
+  .media-fluid {
+    max-width: 100%;
+    height: auto;
+  }
+
   /* Gradient border utility */
   .gradient-border {
     @apply relative;
   }
-  
+
   .gradient-border::before {
     content: '';
     @apply absolute inset-0 rounded-inherit p-[1px];
@@ -365,13 +376,13 @@
     -webkit-mask-composite: xor;
     mask-composite: exclude;
   }
-  
+
   /* Hide scrollbar but keep functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
