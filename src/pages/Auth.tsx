@@ -12,7 +12,25 @@ import { User, Briefcase, Building2, Loader2, ArrowLeft, Mail, Sparkles } from '
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { SEOHead } from '@/components/SEOHead';
-import { Zap } from 'lucide-react';
+
+// Logo component matching Navbar
+function Logo() {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="h-6 w-6 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </div>
+      <span className="font-bold text-2xl tracking-tight">
+        Talent<span className="text-accent">Match</span>
+      </span>
+    </div>
+  );
+}
 
 const signUpSchema = z.object({
   email: z.string().trim().email('Invalid email address').max(255),
@@ -214,8 +232,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
-              <Zap className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold text-foreground">TalentMatch</span>
+              <Logo />
             </Link>
           </div>
 
@@ -273,8 +290,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
-              <Zap className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold text-foreground">TalentMatch</span>
+              <Logo />
             </Link>
           </div>
 
@@ -323,8 +339,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
-            <Zap className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">TalentMatch</span>
+            <Logo />
           </Link>
           <p className="text-muted-foreground flex items-center justify-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
