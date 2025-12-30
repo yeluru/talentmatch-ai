@@ -274,7 +274,7 @@ export function ShortlistCandidateCard({
 
   const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className={`rounded-lg bg-background ${isMobile ? 'overflow-hidden' : 'border overflow-hidden'}`}>
+      <div className={`rounded-lg bg-background w-full ${isMobile ? '' : 'border'}`}>
         <div className={`flex p-3 gap-2 ${isMobile ? 'flex-col items-stretch' : 'items-center justify-between'}`}>
           <div className={`flex items-center gap-3 min-w-0 overflow-hidden ${isMobile ? 'w-full' : 'flex-1'}`}>
             <Avatar className="h-10 w-10 shrink-0">
@@ -443,33 +443,37 @@ export function ShortlistCandidateCard({
 
   if (isMobile) {
     return (
-      <SwipeableRow
-        className="w-full border rounded-lg"
-        leftActions={[
-          {
-            icon: <Mail className="h-5 w-5" />,
-            label: 'Email',
-            className: 'bg-primary text-primary-foreground',
-            onAction: handleSwipeEmail,
-          },
-        ]}
-        rightActions={[
-          {
-            icon: <XCircle className="h-5 w-5" />,
-            label: 'Reject',
-            className: 'bg-orange-500 text-white',
-            onAction: handleSwipeReject,
-          },
-          {
-            icon: <Trash2 className="h-5 w-5" />,
-            label: 'Remove',
-            className: 'bg-destructive text-destructive-foreground',
-            onAction: handleSwipeRemove,
-          },
-        ]}
-      >
-        {cardContent}
-      </SwipeableRow>
+      <div className="w-full">
+        <SwipeableRow
+          className="w-full"
+          leftActions={[
+            {
+              icon: <Mail className="h-5 w-5" />,
+              label: 'Email',
+              className: 'bg-primary text-primary-foreground',
+              onAction: handleSwipeEmail,
+            },
+          ]}
+          rightActions={[
+            {
+              icon: <XCircle className="h-5 w-5" />,
+              label: 'Reject',
+              className: 'bg-orange-500 text-white',
+              onAction: handleSwipeReject,
+            },
+            {
+              icon: <Trash2 className="h-5 w-5" />,
+              label: 'Remove',
+              className: 'bg-destructive text-destructive-foreground',
+              onAction: handleSwipeRemove,
+            },
+          ]}
+        >
+          <div className="border rounded-lg w-full">
+            {cardContent}
+          </div>
+        </SwipeableRow>
+      </div>
     );
   }
 
