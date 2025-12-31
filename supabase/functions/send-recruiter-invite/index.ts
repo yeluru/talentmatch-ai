@@ -86,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build the invite URL
-    const baseUrl = req.headers.get("origin") || "https://talentmatch.lovable.app";
+    const baseUrl = req.headers.get("origin") || "https://preview--talmatch.lovable.app";
     const inviteUrl = `${baseUrl}/auth?invite=${inviteToken}`;
 
     // Send the email
