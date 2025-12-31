@@ -72,10 +72,17 @@ export default function ManagerTeam() {
   const [createPassword, setCreatePassword] = useState('');
 
   useEffect(() => {
+    // When auth is hydrated but the org isn't available, don't spin forever.
+    if (user && !organizationId) {
+      setIsLoading(false);
+      return;
+    }
+
     if (organizationId) {
       fetchTeamData();
     }
-  }, [organizationId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, user]);
 
   const fetchTeamData = async () => {
     if (!organizationId) return;
@@ -264,6 +271,34 @@ export default function ManagerTeam() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!organizationId) {
+    return (
+      <DashboardLayout>
+        <main className="space-y-4">
+          <header>
+            <h1 className="font-display text-3xl font-bold">Team Management</h1>
+            <p className="text-muted-foreground mt-1">We couldn’t find an organization for this manager account.</p>
+          </header>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Action needed</CardTitle>
+              <CardDescription>
+                This page requires an organization to be linked to your user role. If you were just invited/changed roles, try signing out and back in.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => supabase.auth.signOut()}>
+                Sign out
+              </Button>
+              <Button onClick={() => (window.location.href = '/auth')}>Go to login</Button>
+            </CardContent>
+          </Card>
+        </main>
       </DashboardLayout>
     );
   }
