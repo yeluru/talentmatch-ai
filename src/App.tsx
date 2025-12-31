@@ -53,6 +53,8 @@ import ManagerJobs from "./pages/manager/ManagerJobs";
 import ManagerOrganization from "./pages/manager/ManagerOrganization";
 import ManagerAnalytics from "./pages/manager/ManagerAnalytics";
 import ManagerCandidates from "./pages/manager/ManagerCandidates";
+import ClientManagement from "./pages/manager/ClientManagement";
+import AuditLogs from "./pages/manager/AuditLogs";
 
 // Shared Pages
 import Settings from "./pages/Settings";
@@ -342,6 +344,22 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <ManagerOrganization />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/clients"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        <ClientManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/audit-logs"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        <AuditLogs />
                       </ProtectedRoute>
                     }
                   />

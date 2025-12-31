@@ -86,8 +86,10 @@ const managerNavItems = [
   { title: 'Analytics', href: '/manager/analytics', icon: BarChart3 },
   { title: 'Team', href: '/manager/team', icon: Users },
   { title: 'Candidates', href: '/manager/candidates', icon: Users },
+  { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
+  { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

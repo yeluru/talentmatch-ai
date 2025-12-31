@@ -227,6 +227,8 @@ export type Database = {
           job_id: string
           recruiter_notes: string | null
           recruiter_rating: number | null
+          rejection_feedback: string | null
+          rejection_reason: string | null
           resume_id: string | null
           status: string | null
           updated_at: string
@@ -241,6 +243,8 @@ export type Database = {
           job_id: string
           recruiter_notes?: string | null
           recruiter_rating?: number | null
+          rejection_feedback?: string | null
+          rejection_reason?: string | null
           resume_id?: string | null
           status?: string | null
           updated_at?: string
@@ -255,6 +259,8 @@ export type Database = {
           job_id?: string
           recruiter_notes?: string | null
           recruiter_rating?: number | null
+          rejection_feedback?: string | null
+          rejection_reason?: string | null
           resume_id?: string | null
           status?: string | null
           updated_at?: string
@@ -632,6 +638,62 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string
+          id: string
+          industry: string | null
+          name: string
+          notes: string | null
+          organization_id: string
+          status: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          industry?: string | null
+          name: string
+          notes?: string | null
+          organization_id: string
+          status?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          industry?: string | null
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          status?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_sequences: {
         Row: {
           body_template: string
@@ -811,6 +873,7 @@ export type Database = {
       jobs: {
         Row: {
           applications_count: number | null
+          client_id: string | null
           closes_at: string | null
           created_at: string
           description: string
@@ -835,6 +898,7 @@ export type Database = {
         }
         Insert: {
           applications_count?: number | null
+          client_id?: string | null
           closes_at?: string | null
           created_at?: string
           description: string
@@ -859,6 +923,7 @@ export type Database = {
         }
         Update: {
           applications_count?: number | null
+          client_id?: string | null
           closes_at?: string | null
           created_at?: string
           description?: string
@@ -882,6 +947,13 @@ export type Database = {
           views_count?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_organization_id_fkey"
             columns: ["organization_id"]
