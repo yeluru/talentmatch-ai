@@ -238,10 +238,10 @@ export default function ManagerDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} />
-          <StatCard title="Recruiters" value={stats.totalRecruiters.toString()} icon={Users} />
-          <StatCard title="Candidates" value={stats.totalCandidates.toString()} icon={Users} />
-          <StatCard title="Applications" value={stats.totalApplications.toString()} icon={Clock} />
+          <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} href="/manager/jobs" />
+          <StatCard title="Recruiters" value={stats.totalRecruiters.toString()} icon={Users} href="/manager/team" />
+          <StatCard title="Candidates" value={stats.totalCandidates.toString()} icon={Users} href="/manager/team" />
+          <StatCard title="Applications" value={stats.totalApplications.toString()} icon={Clock} href="/manager/analytics" />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
