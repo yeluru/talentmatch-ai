@@ -79,6 +79,13 @@ const roleThemes = {
   },
 };
 
+// Invite details fetched from the token
+interface InviteDetails {
+  email: string;
+  fullName: string | null;
+  organizationName: string;
+}
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -105,11 +112,60 @@ export default function AuthPage() {
   });
   const [resetEmail, setResetEmail] = useState('');
 
-  // If this page is opened from a recruiter invite, force recruiter UI context.
+  // Invite data fetched from token
+  const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  // Fetch invite details when token is present
   useEffect(() => {
-    if (inviteToken) {
-      setSelectedRole('recruiter');
-    }
+    if (!inviteToken) return;
+
+    setSelectedRole('recruiter');
+    setInviteLoading(true);
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('recruiter_invites')
+        .select('email, full_name, status, expires_at, organizations(name)')
+        .eq('invite_token', inviteToken)
+        .single();
+
+      if (error || !data) {
+        setInviteError('Invalid or expired invitation link.');
+        setInviteLoading(false);
+        return;
+      }
+
+      if (data.status !== 'pending') {
+        setInviteError('This invitation has already been used.');
+        setInviteLoading(false);
+        return;
+      }
+
+      if (new Date(data.expires_at) < new Date()) {
+        setInviteError('This invitation has expired.');
+        setInviteLoading(false);
+        return;
+      }
+
+      const orgName = (data.organizations as any)?.name || 'your organization';
+
+      setInviteDetails({
+        email: data.email,
+        fullName: data.full_name,
+        organizationName: orgName,
+      });
+
+      // Pre-fill signup form
+      setSignUpData((prev) => ({
+        ...prev,
+        email: data.email,
+        fullName: data.full_name || '',
+      }));
+
+      setInviteLoading(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inviteToken]);
 
@@ -192,14 +248,23 @@ export default function AuthPage() {
     setIsLoading(true);
 
     try {
-      signUpSchema.parse(signUpData);
+      // When signing up via invite, org name is not required
+      const isInviteSignup = !!inviteDetails;
+      
+      signUpSchema.parse({
+        ...signUpData,
+        // Make org name optional for invite signups
+        organizationName: isInviteSignup ? undefined : signUpData.organizationName,
+      });
 
+      // For invite signups, we create user without org (invite acceptance handles role)
       const { error } = await signUp(
         signUpData.email,
         signUpData.password,
         signUpData.fullName,
-        selectedRole,
-        selectedRole !== 'candidate' ? signUpData.organizationName : undefined,
+        isInviteSignup ? 'recruiter' : selectedRole,
+        // Don't create an org for invite signups
+        !isInviteSignup && selectedRole !== 'candidate' ? signUpData.organizationName : undefined,
         selectedRole === 'candidate' ? signUpData.inviteCode : undefined
       );
 
@@ -213,7 +278,7 @@ export default function AuthPage() {
         // If this signup was initiated via recruiter invite, accept it and route to recruiter.
         const { accepted } = await acceptRecruiterInviteIfPresent();
 
-        toast.success('Account created successfully!');
+        toast.success(isInviteSignup ? 'Welcome to the team!' : 'Account created successfully!');
 
         if (accepted) {
           navigate(nextPath || '/recruiter');
@@ -423,7 +488,7 @@ export default function AuthPage() {
           </div>
 
           <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
-            <Tabs defaultValue="signin">
+            <Tabs defaultValue={inviteToken ? "signup" : "signin"}>
               <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50">
                 <TabsTrigger value="signin" className="data-[state=active]:bg-background">Sign In</TabsTrigger>
                 <TabsTrigger value="signup" className="data-[state=active]:bg-background">Sign Up</TabsTrigger>
@@ -480,126 +545,187 @@ export default function AuthPage() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp}>
                   <CardHeader>
-                    <CardTitle className="text-2xl font-display">Create an account</CardTitle>
-                    <CardDescription>Get started with TalentMatch AI</CardDescription>
+                    {inviteToken && inviteDetails ? (
+                      <>
+                        <CardTitle className="text-2xl font-display">Join {inviteDetails.organizationName}</CardTitle>
+                        <CardDescription>Set up your recruiter account</CardDescription>
+                      </>
+                    ) : inviteToken && inviteLoading ? (
+                      <>
+                        <CardTitle className="text-2xl font-display">Loading invitation...</CardTitle>
+                        <CardDescription>Please wait</CardDescription>
+                      </>
+                    ) : inviteToken && inviteError ? (
+                      <>
+                        <CardTitle className="text-2xl font-display">Invitation Error</CardTitle>
+                        <CardDescription className="text-destructive">{inviteError}</CardDescription>
+                      </>
+                    ) : (
+                      <>
+                        <CardTitle className="text-2xl font-display">Create an account</CardTitle>
+                        <CardDescription>Get started with TalentMatch AI</CardDescription>
+                      </>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                      <Label>I am a...</Label>
-                      <RadioGroup
-                        value={selectedRole}
-                        onValueChange={(v) => {
-                          if (inviteToken) return;
-                          setSelectedRole(v as any);
-                        }}
-                      >
-                        <div className="grid grid-cols-3 gap-3">
-                          {(['candidate', 'recruiter', 'account_manager'] as const).map((role) => {
-                            const theme = roleThemes[role];
-                            const Icon = theme.icon;
-                            return (
-                              <Label
-                                key={role}
-                                htmlFor={`role-${role}`}
-                                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-                                  selectedRole === role
-                                    ? `${theme.border} ${theme.bg}`
-                                    : 'border-border hover:border-muted-foreground/30'
-                                }`}
-                              >
-                                <RadioGroupItem value={role} id={`role-${role}`} className="sr-only" />
-                                <div className={`p-2 rounded-lg ${theme.bg}`}>
-                                  <Icon className={`h-5 w-5 ${theme.accent}`} />
-                                </div>
-                                <span className="text-xs font-medium">{theme.label}</span>
-                              </Label>
-                            );
-                          })}
+                    {/* Show invite loading state */}
+                    {inviteToken && inviteLoading && (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    )}
+
+                    {/* Show invite error */}
+                    {inviteToken && inviteError && !inviteLoading && (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground mb-4">Please contact your manager for a new invitation.</p>
+                        <Button variant="outline" onClick={() => navigate('/auth')}>
+                          Go to Sign In
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Normal signup or valid invite signup */}
+                    {(!inviteToken || inviteDetails) && !inviteLoading && !inviteError && (
+                      <>
+                        {/* Role selection - hidden when coming from invite */}
+                        {!inviteToken && (
+                          <div className="space-y-3">
+                            <Label>I am a...</Label>
+                            <RadioGroup
+                              value={selectedRole}
+                              onValueChange={(v) => setSelectedRole(v as any)}
+                            >
+                              <div className="grid grid-cols-3 gap-3">
+                                {(['candidate', 'recruiter', 'account_manager'] as const).map((role) => {
+                                  const theme = roleThemes[role];
+                                  const Icon = theme.icon;
+                                  return (
+                                    <Label
+                                      key={role}
+                                      htmlFor={`role-${role}`}
+                                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                                        selectedRole === role
+                                          ? `${theme.border} ${theme.bg}`
+                                          : 'border-border hover:border-muted-foreground/30'
+                                      }`}
+                                    >
+                                      <RadioGroupItem value={role} id={`role-${role}`} className="sr-only" />
+                                      <div className={`p-2 rounded-lg ${theme.bg}`}>
+                                        <Icon className={`h-5 w-5 ${theme.accent}`} />
+                                      </div>
+                                      <span className="text-xs font-medium">{theme.label}</span>
+                                    </Label>
+                                  );
+                                })}
+                              </div>
+                            </RadioGroup>
+                          </div>
+                        )}
+
+                        {/* Invite badge */}
+                        {inviteToken && inviteDetails && (
+                          <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
+                            <Briefcase className="h-5 w-5 text-violet-500" />
+                            <span className="text-sm font-medium">Joining as Recruiter</span>
+                          </div>
+                        )}
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-name">Full Name</Label>
+                          <Input
+                            id="signup-name"
+                            placeholder="John Doe"
+                            value={signUpData.fullName}
+                            onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
+                            className="h-12"
+                            required
+                            maxLength={100}
+                          />
                         </div>
-                      </RadioGroup>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name">Full Name</Label>
-                      <Input
-                        id="signup-name"
-                        placeholder="John Doe"
-                        value={signUpData.fullName}
-                        onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
-                        className="h-12"
-                        required
-                        maxLength={100}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email">Email</Label>
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={signUpData.email}
-                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                        className="h-12"
-                        required
-                        maxLength={255}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password">Password</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={signUpData.password}
-                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        className="h-12"
-                        required
-                        minLength={8}
-                        maxLength={72}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Must be at least 8 characters
-                      </p>
-                    </div>
-                    
-                    {selectedRole === 'candidate' && (
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-invite">Invite Code (optional)</Label>
-                        <Input
-                          id="signup-invite"
-                          placeholder="Enter invite code"
-                          value={signUpData.inviteCode}
-                          onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value.toUpperCase() })}
-                          className="h-12"
-                          maxLength={20}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Get this code from a recruiter to join their organization
-                        </p>
-                      </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-email">Email</Label>
+                          <Input
+                            id="signup-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={signUpData.email}
+                            onChange={(e) => {
+                              // Don't allow editing email if it came from invite
+                              if (inviteDetails) return;
+                              setSignUpData({ ...signUpData, email: e.target.value });
+                            }}
+                            className={`h-12 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
+                            required
+                            maxLength={255}
+                            readOnly={!!inviteDetails}
+                          />
+                          {inviteDetails && (
+                            <p className="text-xs text-muted-foreground">
+                              Email is set from your invitation
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-password">
+                            {inviteDetails ? 'Create Password' : 'Password'}
+                          </Label>
+                          <Input
+                            id="signup-password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={signUpData.password}
+                            onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                            className="h-12"
+                            required
+                            minLength={8}
+                            maxLength={72}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Must be at least 8 characters
+                          </p>
+                        </div>
+                        
+                        {selectedRole === 'candidate' && !inviteToken && (
+                          <div className="space-y-2">
+                            <Label htmlFor="signup-invite">Invite Code (optional)</Label>
+                            <Input
+                              id="signup-invite"
+                              placeholder="Enter invite code"
+                              value={signUpData.inviteCode}
+                              onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value.toUpperCase() })}
+                              className="h-12"
+                              maxLength={20}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Get this code from a recruiter to join their organization
+                            </p>
+                          </div>
+                        )}
+                        
+                        {selectedRole !== 'candidate' && !inviteToken && (
+                          <div className="space-y-2">
+                            <Label htmlFor="signup-org">Organization Name</Label>
+                            <Input
+                              id="signup-org"
+                              placeholder="Acme Corp"
+                              value={signUpData.organizationName}
+                              onChange={(e) => setSignUpData({ ...signUpData, organizationName: e.target.value })}
+                              className="h-12"
+                              required
+                              maxLength={100}
+                            />
+                          </div>
+                        )}
+                        
+                        <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
+                          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {inviteDetails ? 'Complete Setup' : 'Create Account'}
+                        </Button>
+                      </>
                     )}
-                    
-                    {selectedRole !== 'candidate' && (
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-org">Organization Name</Label>
-                        <Input
-                          id="signup-org"
-                          placeholder="Acme Corp"
-                          value={signUpData.organizationName}
-                          onChange={(e) => setSignUpData({ ...signUpData, organizationName: e.target.value })}
-                          className="h-12"
-                          required
-                          maxLength={100}
-                        />
-                      </div>
-                    )}
-                    
-                    <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
-                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Create Account
-                    </Button>
                   </CardContent>
                 </form>
               </TabsContent>
