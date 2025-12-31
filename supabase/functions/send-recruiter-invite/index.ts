@@ -86,9 +86,22 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build the invite URL
-    // IMPORTANT: Do not rely on the request Origin header here, because invites may be sent from
-    // editor/preview hosts (which then redirect through an auth bridge). Use a stable app URL.
-    const publicAppUrl = Deno.env.get("PUBLIC_APP_URL") || "https://preview--talmatch.lovable.app";
+    // Prefer an explicit PUBLIC_APP_URL, otherwise infer from the request origin.
+    // Never emit Lovable editor/preview gate domains into emails.
+    const envAppUrl = Deno.env.get("PUBLIC_APP_URL");
+    const origin = req.headers.get("origin") || "";
+
+    const isLovableGateHost = (url: string) =>
+      /lovable\.dev|lovableproject\.com|id-preview--/i.test(url);
+
+    const inferredAppUrl = origin && !isLovableGateHost(origin)
+      ? origin
+      : "https://talmatch.lovable.app";
+
+    const publicAppUrl = envAppUrl && !isLovableGateHost(envAppUrl)
+      ? envAppUrl
+      : inferredAppUrl;
+
     const inviteUrl = `${publicAppUrl}/auth?invite=${inviteToken}`;
 
     // Send the email
@@ -115,11 +128,15 @@ const handler = async (req: Request): Promise<Response> => {
             <h2>You're Invited! 🎉</h2>
             <p>${fullName ? `Hi ${fullName},` : 'Hi,'}</p>
             <p>You've been invited to join <strong>${organizationName}</strong> as a Recruiter on TalentMatch.</p>
-            <p>Click the button below to accept the invitation and set up your account:</p>
-            <p style="text-align: center; margin: 32px 0;">
-              <a href="${inviteUrl}" class="button">Accept Invitation</a>
-            </p>
-            <p style="font-size: 14px; color: #6b7280;">This invitation expires in 7 days.</p>
+             <p>Click the button below to accept the invitation and set up your account:</p>
+             <p style="text-align: center; margin: 32px 0;">
+               <a href="${inviteUrl}" class="button">Accept Invitation</a>
+             </p>
+             <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">
+               Or copy and paste this link into your browser:<br />
+               <a href="${inviteUrl}" style="color: #6366f1; word-break: break-all;">${inviteUrl}</a>
+             </p>
+             <p style="font-size: 14px; color: #6b7280;">This invitation expires in 7 days.</p>
           </div>
           <div class="footer">
             <p>If you didn't expect this invitation, you can safely ignore this email.</p>
