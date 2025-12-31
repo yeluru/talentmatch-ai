@@ -86,8 +86,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build the invite URL
-    const baseUrl = req.headers.get("origin") || "https://preview--talmatch.lovable.app";
-    const inviteUrl = `${baseUrl}/auth?invite=${inviteToken}`;
+    // IMPORTANT: Do not rely on the request Origin header here, because invites may be sent from
+    // editor/preview hosts (which then redirect through an auth bridge). Use a stable app URL.
+    const publicAppUrl = Deno.env.get("PUBLIC_APP_URL") || "https://preview--talmatch.lovable.app";
+    const inviteUrl = `${publicAppUrl}/auth?invite=${inviteToken}`;
 
     // Send the email
     const emailHtml = `
