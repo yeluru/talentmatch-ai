@@ -33,6 +33,8 @@ import AIAnalysis from "./pages/candidate/AIAnalysis";
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
 import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
 import CreateJob from "./pages/recruiter/CreateJob";
+import EditJob from "./pages/recruiter/EditJob";
+import JobApplicants from "./pages/recruiter/JobApplicants";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import AIMatching from "./pages/recruiter/AIMatching";
 import TalentSearch from "./pages/recruiter/TalentSearch";
@@ -155,6 +157,22 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["recruiter"]}>
                         <CreateJob />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/jobs/:id/edit"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <EditJob />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/jobs/:id/applicants"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <JobApplicants />
                       </ProtectedRoute>
                     }
                   />
