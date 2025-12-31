@@ -48,3 +48,6 @@ verify_jwt = false
 
 [functions.bulk-import-candidates]
 verify_jwt = false
+
+[functions.notify-application]
+verify_jwt = false
