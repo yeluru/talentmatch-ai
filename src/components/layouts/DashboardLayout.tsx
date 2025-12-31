@@ -81,6 +81,7 @@ const managerNavItems = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Analytics', href: '/manager/analytics', icon: BarChart3 },
   { title: 'Team', href: '/manager/team', icon: Users },
+  { title: 'Candidates', href: '/manager/candidates', icon: Users },
   { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
 ];
