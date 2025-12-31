@@ -876,6 +876,7 @@ export type Database = {
           client_id: string | null
           closes_at: string | null
           created_at: string
+          created_by: string | null
           description: string
           experience_level: string | null
           id: string
@@ -901,6 +902,7 @@ export type Database = {
           client_id?: string | null
           closes_at?: string | null
           created_at?: string
+          created_by?: string | null
           description: string
           experience_level?: string | null
           id?: string
@@ -926,6 +928,7 @@ export type Database = {
           client_id?: string | null
           closes_at?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string
           experience_level?: string | null
           id?: string
@@ -1166,6 +1169,53 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string | null
+          id: string
+          invite_token: string
+          invited_by: string
+          organization_id: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          full_name?: string | null
+          id?: string
+          invite_token: string
+          invited_by: string
+          organization_id: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string | null
+          id?: string
+          invite_token?: string
+          invited_by?: string
+          organization_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_invites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resumes: {
         Row: {
           ats_score: number | null
@@ -1382,6 +1432,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_recruiter_invite: {
+        Args: { _invite_token: string }
+        Returns: string
+      }
       assign_user_role: {
         Args: {
           _organization_id?: string
@@ -1402,6 +1456,10 @@ export type Database = {
       recruiter_can_access_candidate: {
         Args: { _candidate_id: string }
         Returns: boolean
+      }
+      remove_recruiter_from_org: {
+        Args: { _user_id: string }
+        Returns: undefined
       }
       use_invite_code: { Args: { invite_code: string }; Returns: string }
     }
