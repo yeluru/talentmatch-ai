@@ -33,7 +33,6 @@ import {
   Search,
   PlusCircle,
   BarChart3,
-  Bell,
   Sparkles,
   Building2,
   ChevronDown,
@@ -46,6 +45,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 
 
 interface DashboardLayoutProps {
@@ -220,10 +220,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </Button>
                 
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-accent" />
-                </Button>
+                <NotificationsDropdown />
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

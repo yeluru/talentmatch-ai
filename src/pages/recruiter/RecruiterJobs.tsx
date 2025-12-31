@@ -31,7 +31,8 @@ import {
   Loader2,
   Briefcase,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Pencil
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -269,7 +270,14 @@ export default function RecruiterJobs() {
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem asChild>
-                            <Link to={`/recruiter/candidates?job=${job.id}`}>
+                            <Link to={`/recruiter/jobs/${job.id}/edit`}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit Job
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link to={`/recruiter/jobs/${job.id}/applicants`}>
+                              <Users className="h-4 w-4 mr-2" />
                               View Applicants
                             </Link>
                           </DropdownMenuItem>
