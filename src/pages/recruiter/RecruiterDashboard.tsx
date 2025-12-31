@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DashboardAnalytics } from '@/components/recruiter/DashboardAnalytics';
 
 interface RecruiterStats {
   openJobs: number;
@@ -209,6 +210,9 @@ export default function RecruiterDashboard() {
           <StatCard title="Total Applications" value={stats.totalApplications.toString()} icon={Users} />
           <StatCard title="Candidates in Org" value={stats.totalCandidates.toString()} icon={Users} />
         </div>
+
+        {/* Analytics Charts */}
+        <DashboardAnalytics />
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Invite Codes */}

@@ -38,6 +38,7 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
+import { ApplicantDetailSheet } from '@/components/recruiter/ApplicantDetailSheet';
 
 const statusColors: Record<string, string> = {
   applied: 'bg-blue-500/10 text-blue-500',
@@ -54,6 +55,8 @@ export default function JobApplicants() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const { data: job, isLoading: jobLoading } = useQuery({
     queryKey: ['job', jobId],
@@ -103,11 +106,36 @@ export default function JobApplicants() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ applicationId, status }: { applicationId: string; status: string }) => {
+      // Get application details for notification
+      const { data: app } = await supabase
+        .from('applications')
+        .select('candidate_id, job_id, status')
+        .eq('id', applicationId)
+        .single();
+
       const { error } = await supabase
         .from('applications')
         .update({ status })
         .eq('id', applicationId);
       if (error) throw error;
+
+      // Trigger notification
+      if (app) {
+        try {
+          await supabase.functions.invoke('notify-application', {
+            body: {
+              type: 'status_change',
+              applicationId,
+              candidateId: app.candidate_id,
+              jobId: app.job_id,
+              oldStatus: app.status,
+              newStatus: status,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to send notification:', notifyError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applicants', jobId] });
@@ -117,6 +145,11 @@ export default function JobApplicants() {
       toast.error('Failed to update status');
     },
   });
+
+  const handleOpenDetail = (applicationId: string) => {
+    setSelectedApplicationId(applicationId);
+    setDetailSheetOpen(true);
+  };
 
   const filteredApplications = applications?.filter(app => {
     const matchesSearch = !searchQuery || 
@@ -196,7 +229,11 @@ export default function JobApplicants() {
         ) : (
           <div className="space-y-3">
             {filteredApplications.map((application) => (
-              <Card key={application.id} className="hover:border-primary/30 transition-colors">
+              <Card 
+                key={application.id} 
+                className="hover:border-primary/30 transition-colors cursor-pointer"
+                onClick={() => handleOpenDetail(application.id)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12 shrink-0">
@@ -248,12 +285,12 @@ export default function JobApplicants() {
                     </div>
                     
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                         {application.resumes && (
                           <DropdownMenuItem asChild>
                             <a 
@@ -302,6 +339,12 @@ export default function JobApplicants() {
             ))}
           </div>
         )}
+
+        <ApplicantDetailSheet
+          applicationId={selectedApplicationId}
+          open={detailSheetOpen}
+          onOpenChange={setDetailSheetOpen}
+        />
       </div>
     </DashboardLayout>
   );
