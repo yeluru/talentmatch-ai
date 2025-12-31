@@ -51,6 +51,7 @@ import ManagerTeam from "./pages/manager/ManagerTeam";
 import ManagerJobs from "./pages/manager/ManagerJobs";
 import ManagerOrganization from "./pages/manager/ManagerOrganization";
 import ManagerAnalytics from "./pages/manager/ManagerAnalytics";
+import ManagerCandidates from "./pages/manager/ManagerCandidates";
 
 const queryClient = new QueryClient();
 
@@ -281,6 +282,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <ManagerJobs />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/candidates"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        <ManagerCandidates />
                       </ProtectedRoute>
                     }
                   />
