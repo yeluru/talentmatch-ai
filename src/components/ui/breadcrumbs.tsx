@@ -1,25 +1,21 @@
 import { Fragment } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface BreadcrumbItem {
   label: string;
   href?: string;
 }
 
-// Route label mappings
+// Route label mappings - covers all routes
 const routeLabels: Record<string, string> = {
   // Candidate routes
-  'candidate': 'Dashboard',
   'profile': 'My Profile',
   'resumes': 'My Resumes',
   'ai-analysis': 'AI Resume Check',
-  'jobs': 'Jobs',
   'applications': 'My Applications',
   
   // Recruiter routes
-  'recruiter': 'Dashboard',
   'talent-sourcing': 'Talent Sourcing',
   'talent-pool': 'Talent Pool',
   'talent-search': 'Talent Search',
@@ -27,21 +23,21 @@ const routeLabels: Record<string, string> = {
   'shortlists': 'Shortlists',
   'outreach': 'Outreach',
   'insights': 'Insights',
-  'new': 'Post New Job',
+  'new': 'Create New',
   'candidates': 'Candidates',
   'ai-matching': 'AI Matching',
   'edit': 'Edit',
   'applicants': 'Applicants',
+  'jobs': 'Jobs',
   
   // Manager routes
-  'manager': 'Dashboard',
   'analytics': 'Analytics',
   'team': 'Team',
   'organization': 'Organization',
 };
 
 // Home paths for each role
-const homeRoutes: Record<string, { label: string; href: string }> = {
+const roleConfig: Record<string, { label: string; href: string }> = {
   candidate: { label: 'Candidate', href: '/candidate' },
   recruiter: { label: 'Recruiter', href: '/recruiter' },
   manager: { label: 'Manager', href: '/manager' },
@@ -49,7 +45,6 @@ const homeRoutes: Record<string, { label: string; href: string }> = {
 
 export function Breadcrumbs() {
   const location = useLocation();
-  const params = useParams();
   
   // Parse the current path
   const pathSegments = location.pathname.split('/').filter(Boolean);
@@ -60,75 +55,87 @@ export function Breadcrumbs() {
   
   // Determine the role/home from first segment
   const roleKey = pathSegments[0];
-  const home = homeRoutes[roleKey];
+  const role = roleConfig[roleKey];
   
-  if (!home) {
+  if (!role) {
+    return null;
+  }
+  
+  // If we're on the dashboard (just /candidate, /recruiter, /manager), don't show breadcrumbs
+  if (pathSegments.length === 1) {
     return null;
   }
   
   // Build breadcrumb items
-  const breadcrumbs: BreadcrumbItem[] = [
-    { label: home.label, href: home.href }
-  ];
-  
+  const breadcrumbs: BreadcrumbItem[] = [];
   let currentPath = '';
   
   pathSegments.forEach((segment, index) => {
     currentPath += `/${segment}`;
     
-    // Skip the first segment (role) as it's already added as home
-    if (index === 0) return;
+    // First segment is the role - show as home
+    if (index === 0) {
+      breadcrumbs.push({
+        label: role.label,
+        href: role.href,
+      });
+      return;
+    }
     
     // Check if this is a dynamic segment (UUID or other ID)
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
-    const isId = isUuid || /^\d+$/.test(segment);
+    const isNumericId = /^\d+$/.test(segment);
+    const isId = isUuid || isNumericId;
     
+    // Get the label
+    let label: string;
     if (isId) {
-      // For IDs, we'll use a generic label or try to get context from URL
-      // The actual name will be populated by the page component if needed
-      breadcrumbs.push({
-        label: 'Details',
-        href: currentPath,
-      });
+      // For IDs, use a contextual label based on previous segment
+      const prevSegment = pathSegments[index - 1];
+      if (prevSegment === 'jobs') {
+        label = 'Job Details';
+      } else if (prevSegment === 'shortlists') {
+        label = 'Shortlist';
+      } else if (prevSegment === 'candidates') {
+        label = 'Candidate';
+      } else {
+        label = 'Details';
+      }
     } else {
-      const label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
-      
-      // Don't add link for last item
-      const isLast = index === pathSegments.length - 1;
-      
-      breadcrumbs.push({
-        label,
-        href: isLast ? undefined : currentPath,
-      });
+      label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
     }
+    
+    // Last item doesn't get a link
+    const isLast = index === pathSegments.length - 1;
+    
+    breadcrumbs.push({
+      label,
+      href: isLast ? undefined : currentPath,
+    });
   });
   
-  // Don't show breadcrumbs if we're just on the home page
-  if (breadcrumbs.length <= 1) {
-    return null;
-  }
-  
   return (
-    <nav className="flex items-center gap-1 text-sm" aria-label="Breadcrumb">
+    <nav className="flex items-center gap-1.5 text-sm overflow-x-auto" aria-label="Breadcrumb">
       <Link 
-        to={home.href}
-        className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+        to={role.href}
+        className="flex items-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        aria-label="Home"
       >
         <Home className="h-4 w-4" />
       </Link>
       
-      {breadcrumbs.map((item, index) => (
+      {breadcrumbs.slice(1).map((item, index) => (
         <Fragment key={index}>
-          <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
           {item.href ? (
             <Link
               to={item.href}
-              className="text-muted-foreground hover:text-foreground transition-colors max-w-[150px] truncate"
+              className="text-muted-foreground hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-[150px]"
             >
               {item.label}
             </Link>
           ) : (
-            <span className="font-medium text-foreground max-w-[200px] truncate">
+            <span className="font-medium text-foreground truncate max-w-[120px] sm:max-w-[200px]">
               {item.label}
             </span>
           )}
