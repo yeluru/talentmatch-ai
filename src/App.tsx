@@ -28,6 +28,7 @@ import JobSearch from "./pages/candidate/JobSearch";
 import JobDetails from "./pages/candidate/JobDetails";
 import MyApplications from "./pages/candidate/MyApplications";
 import AIAnalysis from "./pages/candidate/AIAnalysis";
+import JobAlerts from "./pages/candidate/JobAlerts";
 
 // Recruiter Pages
 import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
@@ -61,6 +62,8 @@ import Notifications from "./pages/Notifications";
 import CandidatePipeline from "./pages/recruiter/CandidatePipeline";
 import EmailTemplates from "./pages/recruiter/EmailTemplates";
 import InterviewSchedule from "./pages/recruiter/InterviewSchedule";
+
+const queryClient = new QueryClient();
 
 const App = () => (
   <HelmetProvider>
@@ -133,6 +136,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
                         <MyApplications />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/candidate/job-alerts"
+                    element={
+                      <ProtectedRoute allowedRoles={["candidate"]}>
+                        <JobAlerts />
                       </ProtectedRoute>
                     }
                   />
