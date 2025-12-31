@@ -46,6 +46,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 
 
 interface DashboardLayoutProps {
@@ -208,6 +209,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex h-full items-center justify-between px-4 lg:px-6">
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="lg:hidden" />
+                <Breadcrumbs />
               </div>
               
               <div className="flex items-center gap-3">
