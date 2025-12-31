@@ -89,6 +89,8 @@ TalentMatch AI is a comprehensive recruitment solution designed to streamline th
 - 🤖 **AI Analysis** - Get AI-powered feedback on your resume
 - 📊 **Application Tracking** - Monitor application status in real-time
 - 👤 **Profile Management** - Comprehensive profile with skills, experience, education
+- 🔔 **Job Alerts** - Get notified when matching jobs are posted
+- 💬 **Rejection Feedback** - Understand why applications weren't selected
 
 ### Recruiter Features
 - 👥 **Talent Pool** - Centralized candidate database with filtering
@@ -98,12 +100,17 @@ TalentMatch AI is a comprehensive recruitment solution designed to streamline th
 - 🔎 **Talent Search** - Advanced search with multiple criteria
 - 🤖 **AI Agents** - Automated recruiting assistants
 - 📈 **Talent Insights** - Data-driven hiring analytics
+- 📅 **Interview Scheduling** - Calendar-based interview management
+- ✉️ **Email Templates** - Reusable email templates
+- 📊 **Pipeline View** - Kanban-style candidate tracking
 
 ### Account Manager Features
 - 📊 **Analytics Dashboard** - Organization-wide metrics
 - 👥 **Team Management** - Manage recruiters and permissions
 - 🏢 **Organization Settings** - Configure company profile
 - 📋 **Job Oversight** - Monitor all job postings
+- 🏭 **Client Management** - Manage client companies and requirements
+- 📜 **Audit Logs** - Track all system activity and changes
 
 ## Tech Stack
 
