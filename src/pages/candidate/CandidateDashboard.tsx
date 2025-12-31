@@ -114,6 +114,7 @@ export default function CandidateDashboard() {
                 change={profileCompleteness < 50 ? "Complete your profile" : profileCompleteness < 80 ? "Add more details" : "Looking great!"}
                 changeType={profileCompleteness >= 80 ? "positive" : undefined}
                 icon={TrendingUp}
+                href="/candidate/profile"
               />
               <StatCard
                 title="Applications"
@@ -121,6 +122,7 @@ export default function CandidateDashboard() {
                 change={recentApps > 0 ? `+${recentApps} this week` : "Start applying!"}
                 changeType={recentApps > 0 ? "positive" : undefined}
                 icon={Briefcase}
+                href="/candidate/applications"
               />
               <StatCard
                 title="Resumes Uploaded"
@@ -128,6 +130,7 @@ export default function CandidateDashboard() {
                 change={resumes?.length ? "Ready to apply" : "Upload your resume"}
                 changeType={resumes?.length ? "positive" : undefined}
                 icon={FileText}
+                href="/candidate/resumes"
               />
               <StatCard
                 title="AI Match Score"
@@ -135,6 +138,7 @@ export default function CandidateDashboard() {
                 change={matchScore ? (matchScore >= 80 ? "Excellent fit" : matchScore >= 60 ? "Good match" : "Room to improve") : "Run an analysis"}
                 changeType={matchScore && matchScore >= 70 ? "positive" : undefined}
                 icon={Sparkles}
+                href="/candidate/ai-analysis"
               />
             </div>
 
