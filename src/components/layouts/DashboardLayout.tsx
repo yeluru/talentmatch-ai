@@ -59,6 +59,7 @@ const candidateNavItems = [
   { title: 'My Resumes', href: '/candidate/resumes', icon: FileText },
   { title: 'AI Resume Check', href: '/candidate/ai-analysis', icon: Sparkles },
   { title: 'Find Jobs', href: '/candidate/jobs', icon: Search },
+  { title: 'Job Alerts', href: '/candidate/job-alerts', icon: Mail },
   { title: 'My Applications', href: '/candidate/applications', icon: Briefcase },
 ];
 
@@ -69,7 +70,10 @@ const recruiterNavItems = [
   { title: 'Talent Search', href: '/recruiter/talent-search', icon: Search },
   { title: 'AI Agents', href: '/recruiter/agents', icon: Bot },
   { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
+  { title: 'Pipeline', href: '/recruiter/pipeline', icon: ListChecks },
   { title: 'Outreach', href: '/recruiter/outreach', icon: Mail },
+  { title: 'Email Templates', href: '/recruiter/email-templates', icon: Mail },
+  { title: 'Interviews', href: '/recruiter/interviews', icon: Briefcase },
   { title: 'Insights', href: '/recruiter/insights', icon: BarChart3 },
   { title: 'Post a Job', href: '/recruiter/jobs/new', icon: PlusCircle },
   { title: 'My Jobs', href: '/recruiter/jobs', icon: Briefcase },
