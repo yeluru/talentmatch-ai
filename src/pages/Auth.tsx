@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -82,37 +82,79 @@ const roleThemes = {
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, currentRole } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  
+
+  const inviteToken = searchParams.get('invite');
+  const nextPath = searchParams.get('next');
+
   // Get role from URL or default to candidate
   const roleFromUrl = searchParams.get('role') as 'candidate' | 'recruiter' | 'account_manager' | null;
   const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager'>(
     roleFromUrl && roleThemes[roleFromUrl] ? roleFromUrl : 'candidate'
   );
   const [authView, setAuthView] = useState<AuthView>('main');
-  
+
   const [signInData, setSignInData] = useState({ email: '', password: '' });
-  const [signUpData, setSignUpData] = useState({ 
-    email: '', 
-    password: '', 
-    fullName: '', 
+  const [signUpData, setSignUpData] = useState({
+    email: '',
+    password: '',
+    fullName: '',
     organizationName: '',
     inviteCode: ''
   });
   const [resetEmail, setResetEmail] = useState('');
+
+  // If this page is opened from a recruiter invite, force recruiter UI context.
+  useEffect(() => {
+    if (inviteToken) {
+      setSelectedRole('recruiter');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inviteToken]);
+
+  const acceptRecruiterInviteIfPresent = async () => {
+    if (!inviteToken) return { accepted: false };
+
+    const { error } = await supabase.rpc('accept_recruiter_invite', {
+      _invite_token: inviteToken,
+    });
+
+    if (error) {
+      toast.error(error.message || 'Failed to accept invite');
+      return { accepted: false };
+    }
+
+    // Trigger role re-hydration in AuthProvider via auth event.
+    await supabase.auth.refreshSession();
+
+    return { accepted: true };
+  };
+
+  // If the user is already signed in and opens an invite link, accept and redirect immediately.
+  useEffect(() => {
+    if (!user || !inviteToken) return;
+
+    (async () => {
+      const { accepted } = await acceptRecruiterInviteIfPresent();
+      if (accepted) {
+        navigate(nextPath || '/recruiter', { replace: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, inviteToken]);
 
   const currentTheme = roleThemes[selectedRole];
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       signInSchema.parse(signInData);
-      
+
       const { error, role } = await signIn(signInData.email, signInData.password);
-      
+
       if (error) {
         if (error.message.includes('Invalid login')) {
           toast.error('Invalid email or password');
@@ -120,11 +162,20 @@ export default function AuthPage() {
           toast.error(error.message || 'Failed to sign in');
         }
       } else {
+        // If arriving from a recruiter invite, accept it before redirecting.
+        const { accepted } = await acceptRecruiterInviteIfPresent();
+
         toast.success('Welcome back!');
-        const redirectPath = role === 'candidate' 
-          ? '/candidate' 
-          : role === 'recruiter' 
-          ? '/recruiter' 
+
+        if (accepted) {
+          navigate(nextPath || '/recruiter');
+          return;
+        }
+
+        const redirectPath = role === 'candidate'
+          ? '/candidate'
+          : role === 'recruiter'
+          ? '/recruiter'
           : '/manager';
         navigate(redirectPath);
       }
@@ -139,10 +190,10 @@ export default function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       signUpSchema.parse(signUpData);
-      
+
       const { error } = await signUp(
         signUpData.email,
         signUpData.password,
@@ -151,7 +202,7 @@ export default function AuthPage() {
         selectedRole !== 'candidate' ? signUpData.organizationName : undefined,
         selectedRole === 'candidate' ? signUpData.inviteCode : undefined
       );
-      
+
       if (error) {
         if (error.message.includes('already registered')) {
           toast.error('An account with this email already exists. Please sign in instead.');
@@ -159,7 +210,16 @@ export default function AuthPage() {
           toast.error(error.message || 'Failed to create account');
         }
       } else {
+        // If this signup was initiated via recruiter invite, accept it and route to recruiter.
+        const { accepted } = await acceptRecruiterInviteIfPresent();
+
         toast.success('Account created successfully!');
+
+        if (accepted) {
+          navigate(nextPath || '/recruiter');
+          return;
+        }
+
         const redirectPath = selectedRole === 'candidate' ? '/candidate' : selectedRole === 'recruiter' ? '/recruiter' : '/manager';
         navigate(redirectPath);
       }
@@ -426,18 +486,24 @@ export default function AuthPage() {
                   <CardContent className="space-y-4">
                     <div className="space-y-3">
                       <Label>I am a...</Label>
-                      <RadioGroup value={selectedRole} onValueChange={(v) => setSelectedRole(v as any)}>
+                      <RadioGroup
+                        value={selectedRole}
+                        onValueChange={(v) => {
+                          if (inviteToken) return;
+                          setSelectedRole(v as any);
+                        }}
+                      >
                         <div className="grid grid-cols-3 gap-3">
                           {(['candidate', 'recruiter', 'account_manager'] as const).map((role) => {
                             const theme = roleThemes[role];
                             const Icon = theme.icon;
                             return (
-                              <Label 
+                              <Label
                                 key={role}
-                                htmlFor={`role-${role}`} 
+                                htmlFor={`role-${role}`}
                                 className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-                                  selectedRole === role 
-                                    ? `${theme.border} ${theme.bg}` 
+                                  selectedRole === role
+                                    ? `${theme.border} ${theme.bg}`
                                     : 'border-border hover:border-muted-foreground/30'
                                 }`}
                               >
