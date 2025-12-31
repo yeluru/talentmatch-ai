@@ -186,6 +186,36 @@ export type Database = {
           },
         ]
       }
+      application_status_history: {
+        Row: {
+          application_id: string
+          changed_by: string
+          created_at: string
+          id: string
+          new_status: string
+          notes: string | null
+          old_status: string | null
+        }
+        Insert: {
+          application_id: string
+          changed_by: string
+          created_at?: string
+          id?: string
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          application_id?: string
+          changed_by?: string
+          created_at?: string
+          id?: string
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           ai_match_details: Json | null
@@ -252,6 +282,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       campaign_recipients: {
         Row: {
@@ -416,6 +482,7 @@ export type Database = {
           is_open_to_remote: boolean | null
           linkedin_url: string | null
           location: string | null
+          onboarding_completed: boolean | null
           organization_id: string | null
           phone: string | null
           profile_completeness: number | null
@@ -443,6 +510,7 @@ export type Database = {
           is_open_to_remote?: boolean | null
           linkedin_url?: string | null
           location?: string | null
+          onboarding_completed?: boolean | null
           organization_id?: string | null
           phone?: string | null
           profile_completeness?: number | null
@@ -470,6 +538,7 @@ export type Database = {
           is_open_to_remote?: boolean | null
           linkedin_url?: string | null
           location?: string | null
+          onboarding_completed?: boolean | null
           organization_id?: string | null
           phone?: string | null
           profile_completeness?: number | null
@@ -606,6 +675,138 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_templates: {
+        Row: {
+          body: string
+          category: string | null
+          created_at: string
+          created_by: string
+          id: string
+          is_default: boolean | null
+          name: string
+          organization_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          organization_id: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          organization_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      interview_schedules: {
+        Row: {
+          application_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          interview_type: string
+          interviewer_id: string
+          location: string | null
+          meeting_link: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          interview_type?: string
+          interviewer_id: string
+          location?: string | null
+          meeting_link?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          interview_type?: string
+          interviewer_id?: string
+          location?: string | null
+          meeting_link?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      job_alerts: {
+        Row: {
+          created_at: string
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          job_types: string[] | null
+          keywords: string[] | null
+          last_sent_at: string | null
+          locations: string[] | null
+          name: string
+          salary_max: number | null
+          salary_min: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_types?: string[] | null
+          keywords?: string[] | null
+          last_sent_at?: string | null
+          locations?: string[] | null
+          name: string
+          salary_max?: number | null
+          salary_min?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_types?: string[] | null
+          keywords?: string[] | null
+          last_sent_at?: string | null
+          locations?: string[] | null
+          name?: string
+          salary_max?: number | null
+          salary_min?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       jobs: {
         Row: {
@@ -1061,6 +1262,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          application_updates: boolean | null
+          created_at: string
+          email_notifications: boolean | null
+          id: string
+          job_alert_frequency: string | null
+          language: string | null
+          marketing_emails: boolean | null
+          push_notifications: boolean | null
+          theme: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_updates?: boolean | null
+          created_at?: string
+          email_notifications?: boolean | null
+          id?: string
+          job_alert_frequency?: string | null
+          language?: string | null
+          marketing_emails?: boolean | null
+          push_notifications?: boolean | null
+          theme?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_updates?: boolean | null
+          created_at?: string
+          email_notifications?: boolean | null
+          id?: string
+          job_alert_frequency?: string | null
+          language?: string | null
+          marketing_emails?: boolean | null
+          push_notifications?: boolean | null
+          theme?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

@@ -53,7 +53,14 @@ import ManagerOrganization from "./pages/manager/ManagerOrganization";
 import ManagerAnalytics from "./pages/manager/ManagerAnalytics";
 import ManagerCandidates from "./pages/manager/ManagerCandidates";
 
-const queryClient = new QueryClient();
+// Shared Pages
+import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
+
+// Additional Recruiter Pages
+import CandidatePipeline from "./pages/recruiter/CandidatePipeline";
+import EmailTemplates from "./pages/recruiter/EmailTemplates";
+import InterviewSchedule from "./pages/recruiter/InterviewSchedule";
 
 const App = () => (
   <HelmetProvider>
@@ -69,6 +76,8 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/notifications" element={<Notifications />} />
 
                   {/* Public Landing Pages */}
                   <Route path="/candidates" element={<CandidatesLanding />} />
@@ -248,6 +257,30 @@ const App = () => (
                         <RouteErrorBoundary title="Shortlists failed to load">
                           <Shortlists />
                         </RouteErrorBoundary>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/pipeline"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <CandidatePipeline />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/email-templates"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <EmailTemplates />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/interviews"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <InterviewSchedule />
                       </ProtectedRoute>
                     }
                   />
