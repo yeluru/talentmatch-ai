@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface StatCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface StatCardProps {
   icon?: LucideIcon;
   iconColor?: string;
   className?: string;
+  href?: string;
 }
 
 export function StatCard({
@@ -20,12 +22,10 @@ export function StatCard({
   icon: Icon,
   iconColor = 'text-accent',
   className,
+  href,
 }: StatCardProps) {
-  return (
-    <div className={cn(
-      "relative overflow-hidden rounded-xl border bg-card p-6 card-interactive",
-      className
-    )}>
+  const content = (
+    <>
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
@@ -53,6 +53,26 @@ export function StatCard({
       
       {/* Decorative gradient */}
       <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-accent/5 blur-2xl" />
+    </>
+  );
+
+  const cardClasses = cn(
+    "relative overflow-hidden rounded-xl border bg-card p-6 card-interactive",
+    href && "cursor-pointer hover:border-accent/50 transition-colors",
+    className
+  );
+
+  if (href) {
+    return (
+      <Link to={href} className={cardClasses}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={cardClasses}>
+      {content}
     </div>
   );
 }

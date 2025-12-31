@@ -206,9 +206,9 @@ export default function RecruiterDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} />
-          <StatCard title="Total Applications" value={stats.totalApplications.toString()} icon={Users} />
-          <StatCard title="Candidates in Org" value={stats.totalCandidates.toString()} icon={Users} />
+          <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} href="/recruiter/jobs" />
+          <StatCard title="Total Applications" value={stats.totalApplications.toString()} icon={Users} href="/recruiter/candidates" />
+          <StatCard title="Candidates in Org" value={stats.totalCandidates.toString()} icon={Users} href="/recruiter/talent-pool" />
         </div>
 
         {/* Analytics Charts */}
