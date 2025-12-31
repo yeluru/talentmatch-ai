@@ -51,3 +51,9 @@ verify_jwt = false
 
 [functions.notify-application]
 verify_jwt = false
+
+[functions.send-recruiter-invite]
+verify_jwt = false
+
+[functions.create-recruiter-account]
+verify_jwt = false
