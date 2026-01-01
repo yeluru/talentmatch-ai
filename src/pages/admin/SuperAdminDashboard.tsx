@@ -88,8 +88,10 @@ export default function SuperAdminDashboard() {
     last_sign_in_at: string | null;
     full_name?: string;
     roles?: string[];
+    profile_exists?: boolean;
   } | null>(null);
   const [lookupNotFound, setLookupNotFound] = useState(false);
+  const [repairingProfile, setRepairingProfile] = useState(false);
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -240,26 +242,50 @@ export default function SuperAdminDashboard() {
 
       const fullName = (found.user_metadata as any)?.full_name as string | undefined;
 
-      const { data: rolesRows } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', found.id);
+      const [{ data: rolesRows }, { data: profileRow }] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', found.id),
+        supabase.from('profiles').select('id, full_name').eq('user_id', found.id).maybeSingle(),
+      ]);
 
-      const roles = (rolesRows ?? []).map(r => r.role as string);
+      const roles = (rolesRows ?? []).map((r) => r.role as string);
+      const profile_exists = !!profileRow;
 
       setLookupResult({
         id: found.id,
         email: found.email,
         created_at: found.created_at,
         last_sign_in_at: found.last_sign_in_at,
-        full_name: fullName,
+        full_name: profileRow?.full_name || fullName,
         roles,
+        profile_exists,
       });
     } catch (err: any) {
       console.error('Lookup user error:', err);
       toast.error(err?.message || 'Failed to find user');
     } finally {
       setLookupLoading(false);
+    }
+  };
+
+  const handleRepairProfile = async () => {
+    if (!lookupResult?.id) return;
+
+    setRepairingProfile(true);
+    try {
+      const { error } = await supabase.functions.invoke('super-admin-upsert-profile', {
+        body: { userId: lookupResult.id },
+      });
+
+      if (error) throw error;
+
+      toast.success('Profile repaired');
+      setLookupResult((prev) => (prev ? { ...prev, profile_exists: true } : prev));
+      fetchDashboardData();
+    } catch (err: any) {
+      console.error('Repair profile error:', err);
+      toast.error(err?.message || 'Failed to repair profile');
+    } finally {
+      setRepairingProfile(false);
     }
   };
 
@@ -418,8 +444,22 @@ export default function SuperAdminDashboard() {
                           <p className="font-medium text-foreground">{lookupResult.full_name || 'User'}</p>
                           <p className="text-sm text-muted-foreground">{lookupResult.email}</p>
                           <p className="mt-1 text-xs text-muted-foreground">User ID: {lookupResult.id}</p>
+                          {lookupResult.profile_exists === false && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              This account exists in authentication, but is missing a profile row — that’s why it won’t appear in the table below.
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
+                          {lookupResult.profile_exists === false && (
+                            <Button
+                              variant="outline"
+                              onClick={handleRepairProfile}
+                              disabled={repairingProfile}
+                            >
+                              {repairingProfile ? 'Repairing…' : 'Create profile'}
+                            </Button>
+                          )}
                           <Button
                             variant="destructive"
                             onClick={() =>
