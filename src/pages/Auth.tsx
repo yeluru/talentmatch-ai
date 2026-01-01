@@ -104,6 +104,8 @@ export default function AuthPage() {
   );
   const [authView, setAuthView] = useState<AuthView>('main');
 
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>(inviteToken ? 'signup' : 'signin');
+
   const [signInData, setSignInData] = useState({ email: '', password: '' });
   const [signUpData, setSignUpData] = useState({
     email: '',
@@ -261,7 +263,8 @@ export default function AuthPage() {
 
       if (error) {
         if (error.message.includes('already registered')) {
-          toast.error('An account with this email already exists. Please sign in instead.');
+          toast.error('An account with this email already exists. Please sign in to continue.');
+          setActiveTab('signin');
         } else {
           toast.error(error.message || 'Failed to create account');
         }
@@ -479,7 +482,7 @@ export default function AuthPage() {
           </div>
 
           <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
-            <Tabs defaultValue={inviteToken ? "signup" : "signin"}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'signup')}>
               <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50">
                 <TabsTrigger value="signin" className="data-[state=active]:bg-background">Sign In</TabsTrigger>
                 <TabsTrigger value="signup" className="data-[state=active]:bg-background">Sign Up</TabsTrigger>

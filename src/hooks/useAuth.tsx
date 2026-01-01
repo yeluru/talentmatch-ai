@@ -187,18 +187,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Create user role using secure RPC function
-      console.log('Creating user role:', role, 'with org:', newOrganizationId);
-      const { error: roleError } = await supabase.rpc('assign_user_role', {
-        _user_id: authData.user.id,
-        _role: role,
-        _organization_id: newOrganizationId,
-      });
+      // NOTE: recruiter invite signups should NOT self-assign roles here.
+      // The role gets granted when the invite is accepted.
+      const isInviteRecruiterSignup = role === 'recruiter' && !organizationName;
 
-      if (roleError) {
-        console.error('Role creation error:', roleError);
-        throw new Error(`Failed to create user role: ${roleError.message}`);
+      if (!isInviteRecruiterSignup) {
+        console.log('Creating user role:', role, 'with org:', newOrganizationId);
+        const { error: roleError } = await supabase.rpc('assign_user_role', {
+          _user_id: authData.user.id,
+          _role: role,
+          _organization_id: newOrganizationId,
+        });
+
+        if (roleError) {
+          console.error('Role creation error:', roleError);
+          throw new Error(`Failed to create user role: ${roleError.message}`);
+        }
       }
-
       // Ensure a public profile row exists (used across the app for display names)
       const { data: existingProfile, error: existingProfileError } = await supabase
         .from('profiles')
