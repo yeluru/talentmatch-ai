@@ -196,16 +196,18 @@ export default function SuperAdminDashboard() {
 
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
-    
+
     setIsDeleting(true);
     try {
-      const { data, error } = await supabase.rpc('archive_and_delete_user', {
-        _target_user_id: userToDelete.user_id,
-        _reason: deleteReason || 'Deleted by super admin'
+      const { data, error } = await supabase.functions.invoke('super-admin-delete-user', {
+        body: {
+          targetUserId: userToDelete.user_id,
+          reason: deleteReason || 'Deleted by super admin',
+        },
       });
 
       if (error) throw error;
-      
+
       toast.success(`User ${userToDelete.email} has been deleted and archived`);
       setDeleteDialogOpen(false);
       setUserToDelete(null);
