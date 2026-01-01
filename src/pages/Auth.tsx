@@ -49,7 +49,17 @@ const resetSchema = z.object({
   email: z.string().trim().email('Invalid email address'),
 });
 
-type AuthView = 'main' | 'forgot-password' | 'reset-sent';
+const updatePasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters').max(72),
+    confirmPassword: z.string().min(8).max(72),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+type AuthView = 'main' | 'forgot-password' | 'reset-sent' | 'update-password';
 
 // Role theme configurations
 const roleThemes = {
@@ -115,6 +125,8 @@ export default function AuthPage() {
     inviteCode: ''
   });
   const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   // Fetch invite details when invite token is present
   useEffect(() => {
@@ -154,6 +166,17 @@ export default function AuthPage() {
 
     fetchInviteDetails();
   }, [inviteToken]);
+
+  // If user comes back from a password recovery link, show the "set new password" view.
+  useEffect(() => {
+    const isRecovery =
+      searchParams.get('reset') === 'true' ||
+      (typeof window !== 'undefined' && window.location.hash.includes('type=recovery'));
+
+    if (isRecovery) {
+      setAuthView('update-password');
+    }
+  }, [searchParams]);
 
   const acceptRecruiterInviteIfPresent = async () => {
     if (!inviteToken) return { accepted: false };
@@ -263,8 +286,29 @@ export default function AuthPage() {
 
       if (error) {
         if (error.message.includes('already registered')) {
-          toast.error('An account with this email already exists. Please sign in to continue.');
-          setActiveTab('signin');
+          // This is common when the invitee previously started signup (or was partially created).
+          // In invite flows, the fastest path is password recovery so they can sign in and claim the invite.
+          if (inviteToken) {
+            const redirectTo = new URL(`${window.location.origin}/auth`);
+            redirectTo.searchParams.set('reset', 'true');
+            redirectTo.searchParams.set('invite', inviteToken);
+            if (nextPath) redirectTo.searchParams.set('next', nextPath);
+
+            const { error: resetErr } = await supabase.auth.resetPasswordForEmail(signUpData.email, {
+              redirectTo: redirectTo.toString(),
+            });
+
+            if (resetErr) {
+              toast.error('This email already has an account. Please sign in (or use “Forgot password”).');
+            } else {
+              toast.success('Account already exists — we sent you a password reset link to continue.');
+              setAuthView('reset-sent');
+              setResetEmail(signUpData.email);
+            }
+          } else {
+            toast.error('An account with this email already exists. Please sign in to continue.');
+            setActiveTab('signin');
+          }
         } else {
           toast.error(error.message || 'Failed to create account');
         }
@@ -297,8 +341,13 @@ export default function AuthPage() {
     try {
       resetSchema.parse({ email: resetEmail });
       
+      const redirectTo = new URL(`${window.location.origin}/auth`);
+      redirectTo.searchParams.set('reset', 'true');
+      if (inviteToken) redirectTo.searchParams.set('invite', inviteToken);
+      if (nextPath) redirectTo.searchParams.set('next', nextPath);
+
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: redirectTo.toString(),
       });
       
       if (error) {
@@ -315,6 +364,126 @@ export default function AuthPage() {
   };
 
   const currentGradient = currentTheme.gradient;
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      updatePasswordSchema.parse({ password: newPassword, confirmPassword: confirmNewPassword });
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message || 'Failed to update password');
+        return;
+      }
+
+      // If this was opened via an invite recovery link, claim it now.
+      const { accepted } = await acceptRecruiterInviteIfPresent();
+
+      toast.success('Password updated successfully');
+
+      if (accepted) {
+        navigate(nextPath || '/recruiter', { replace: true });
+        return;
+      }
+
+      navigate('/', { replace: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toast.error(err.errors[0].message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Update Password View (password recovery)
+  if (authView === 'update-password') {
+    return (
+      <div className="min-h-screen relative overflow-hidden bg-background">
+        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px'
+          }}
+        />
+        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+          <SEOHead title="Set New Password" description="Set a new password for your TalentMatch AI account" noIndex />
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+                <Logo />
+              </Link>
+            </div>
+
+            <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
+              <CardHeader>
+                <CardTitle className="text-2xl font-display">Set a new password</CardTitle>
+                <CardDescription>
+                  {inviteToken ? 'Set your password to continue and join the team.' : 'Set a new password for your account.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">New password</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="h-12"
+                      minLength={8}
+                      maxLength={72}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-new-password">Confirm new password</Label>
+                    <Input
+                      id="confirm-new-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="h-12"
+                      minLength={8}
+                      maxLength={72}
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Update password
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setAuthView('main');
+                      setActiveTab('signin');
+                    }}
+                  >
+                    Back to sign in
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Forgot Password View
   if (authView === 'forgot-password') {
