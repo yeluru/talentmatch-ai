@@ -1,8 +1,16 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Menu, X, Moon, Sun } from 'lucide-react';
+import { Menu, X, Moon, Sun, LogOut, LayoutDashboard } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // Custom wordmark logo component
 function Logo({ className }: { className?: string }) {
@@ -24,7 +32,8 @@ function Logo({ className }: { className?: string }) {
 }
 
 export function Navbar() {
-  const { user, currentRole } = useAuth();
+  const navigate = useNavigate();
+  const { user, currentRole, profile, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -98,10 +107,43 @@ export function Navbar() {
             >
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
+
             {user ? (
-              <Button asChild size="sm">
-                <Link to={getDashboardLink()}>Go to Dashboard</Link>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={profile?.avatar_url || ''} />
+                      <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                        {(profile?.full_name || profile?.email || 'U').slice(0, 1).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="max-w-[10rem] truncate">
+                      {profile?.full_name || profile?.email || 'Account'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={() => navigate(getDashboardLink())}
+                    className="gap-2"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Go to dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await signOut();
+                      navigate('/');
+                    }}
+                    className="gap-2 text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
@@ -147,11 +189,25 @@ export function Navbar() {
               </button>
               <hr className="my-2 border-border" />
               {user ? (
-                <Button asChild className="w-full">
-                  <Link to={getDashboardLink()} onClick={() => setIsMobileMenuOpen(false)}>
-                    Go to Dashboard
-                  </Link>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button asChild className="w-full" variant="outline">
+                    <Link to={getDashboardLink()} onClick={() => setIsMobileMenuOpen(false)}>
+                      Go to Dashboard
+                    </Link>
+                  </Button>
+                  <Button
+                    className="w-full"
+                    variant="destructive"
+                    onClick={async () => {
+                      setIsMobileMenuOpen(false);
+                      await signOut();
+                      navigate('/');
+                    }}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </Button>
+                </div>
               ) : (
                 <div className="flex flex-col gap-2">
                   <Button variant="outline" asChild className="w-full">
