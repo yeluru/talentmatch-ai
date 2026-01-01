@@ -120,30 +120,26 @@ export default function AuthPage() {
 
     const fetchInviteDetails = async () => {
       try {
-        // Use service role via edge function to fetch invite details
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-invite-details`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ inviteToken }),
+        const { data, error } = await supabase.functions.invoke('get-invite-details', {
+          body: { inviteToken },
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.email && data.fullName) {
-            setInviteDetails({
-              email: data.email,
-              fullName: data.fullName,
-              organizationName: data.organizationName || '',
-            });
-            setSignUpData(prev => ({
-              ...prev,
-              email: data.email,
-              fullName: data.fullName,
-            }));
-          }
+        if (error) {
+          return;
         }
-      } catch (error) {
-        console.error('Failed to fetch invite details:', error);
+
+        if (data?.email && data?.fullName) {
+          setInviteDetails({
+            email: data.email,
+            fullName: data.fullName,
+            organizationName: data.organizationName || '',
+          });
+          setSignUpData((prev) => ({
+            ...prev,
+            email: data.email,
+            fullName: data.fullName,
+          }));
+        }
       } finally {
         setInviteLoading(false);
       }
