@@ -56,6 +56,9 @@ import ManagerCandidates from "./pages/manager/ManagerCandidates";
 import ClientManagement from "./pages/manager/ClientManagement";
 import AuditLogs from "./pages/manager/AuditLogs";
 
+// Super Admin Pages
+import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
+
 // Shared Pages
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
@@ -360,6 +363,16 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <AuditLogs />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Super Admin Routes */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute allowedRoles={["super_admin"]}>
+                        <SuperAdminDashboard />
                       </ProtectedRoute>
                     }
                   />

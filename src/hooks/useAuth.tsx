@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'candidate' | 'recruiter' | 'account_manager';
+type AppRole = 'candidate' | 'recruiter' | 'account_manager' | 'super_admin';
 
 interface UserProfile {
   id: string;
@@ -30,6 +30,7 @@ interface AuthContextType {
   currentRole: AppRole | null;
   organizationId: string | null;
   isLoading: boolean;
+  isSuperAdmin: boolean;
   signUp: (email: string, password: string, fullName: string, role: AppRole, organizationName?: string, inviteCode?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; role?: AppRole }>;
   signOut: () => Promise<void>;
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentRole, setCurrentRole] = useState<AppRole | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -64,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRoles([]);
           setCurrentRole(null);
           setOrganizationId(null);
+          setIsSuperAdmin(false);
           setIsLoading(false);
         }
       }
@@ -102,19 +105,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }));
         setRoles(userRoles);
 
+        // Check if user is super admin
+        const hasSuperAdmin = userRoles.some(r => r.role === 'super_admin');
+        setIsSuperAdmin(hasSuperAdmin);
+
         const orgId = userRoles.find(r => r.organization_id)?.organization_id || null;
         setOrganizationId(orgId);
 
-        const savedRole = localStorage.getItem('currentRole') as AppRole;
-        if (savedRole && userRoles.find(r => r.role === savedRole)) {
-          setCurrentRole(savedRole);
+        // For super admins, prioritize super_admin role
+        if (hasSuperAdmin) {
+          setCurrentRole('super_admin');
         } else {
-          setCurrentRole(userRoles[0].role);
+          const savedRole = localStorage.getItem('currentRole') as AppRole;
+          if (savedRole && userRoles.find(r => r.role === savedRole)) {
+            setCurrentRole(savedRole);
+          } else {
+            setCurrentRole(userRoles[0].role);
+          }
         }
       } else {
         setRoles([]);
         setCurrentRole(null);
         setOrganizationId(null);
+        setIsSuperAdmin(false);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -278,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles([]);
     setCurrentRole(null);
     setOrganizationId(null);
+    setIsSuperAdmin(false);
     localStorage.removeItem('currentRole');
   };
 
@@ -297,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentRole,
       organizationId,
       isLoading,
+      isSuperAdmin,
       signUp,
       signIn,
       signOut,
