@@ -289,6 +289,54 @@ export type Database = {
           },
         ]
       }
+      archived_users: {
+        Row: {
+          applications_data: Json | null
+          archive_reason: string | null
+          archived_at: string
+          archived_by: string
+          candidate_profile_data: Json | null
+          email: string
+          full_name: string | null
+          id: string
+          original_user_id: string
+          profile_data: Json | null
+          resumes_data: Json | null
+          roles_data: Json | null
+          user_data: Json
+        }
+        Insert: {
+          applications_data?: Json | null
+          archive_reason?: string | null
+          archived_at?: string
+          archived_by: string
+          candidate_profile_data?: Json | null
+          email: string
+          full_name?: string | null
+          id?: string
+          original_user_id: string
+          profile_data?: Json | null
+          resumes_data?: Json | null
+          roles_data?: Json | null
+          user_data?: Json
+        }
+        Update: {
+          applications_data?: Json | null
+          archive_reason?: string | null
+          archived_at?: string
+          archived_by?: string
+          candidate_profile_data?: Json | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          original_user_id?: string
+          profile_data?: Json | null
+          resumes_data?: Json | null
+          roles_data?: Json | null
+          user_data?: Json
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -1471,6 +1519,10 @@ export type Database = {
       accept_recruiter_invite: {
         Args: { _invite_token: string }
         Returns: string
+      }
+      archive_and_delete_user: {
+        Args: { _reason?: string; _target_user_id: string }
+        Returns: boolean
       }
       assign_user_role: {
         Args: {

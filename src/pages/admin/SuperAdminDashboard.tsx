@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Table, 
   TableBody, 
@@ -18,8 +20,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Shield, 
   Users, 
@@ -29,7 +42,9 @@ import {
   MoreVertical,
   Ban,
   CheckCircle,
-  LogOut
+  LogOut,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
@@ -62,6 +77,12 @@ export default function SuperAdminDashboard() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -159,6 +180,41 @@ export default function SuperAdminDashboard() {
     } catch (error) {
       console.error('Error unsuspending user:', error);
       toast.error('Failed to unsuspend user');
+    }
+  };
+
+  const openDeleteDialog = (user: UserWithRoles) => {
+    // Prevent deleting super admins
+    if (user.roles.includes('super_admin')) {
+      toast.error('Cannot delete a super admin account');
+      return;
+    }
+    setUserToDelete(user);
+    setDeleteReason('');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.rpc('archive_and_delete_user', {
+        _target_user_id: userToDelete.user_id,
+        _reason: deleteReason || 'Deleted by super admin'
+      });
+
+      if (error) throw error;
+      
+      toast.success(`User ${userToDelete.email} has been deleted and archived`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -348,6 +404,18 @@ export default function SuperAdminDashboard() {
                                     Suspend User
                                   </DropdownMenuItem>
                                 )}
+                                {!user.roles.includes('super_admin') && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                      onClick={() => openDeleteDialog(user)}
+                                      className="text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete User
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -360,6 +428,50 @@ export default function SuperAdminDashboard() {
             </CardContent>
           </Card>
         </main>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Delete User Permanently
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3">
+                <p>
+                  You are about to permanently delete <strong>{userToDelete?.full_name}</strong> ({userToDelete?.email}).
+                </p>
+                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
+                  <p className="font-medium text-destructive mb-1">⚠️ This action cannot be undone!</p>
+                  <p className="text-muted-foreground">
+                    All user data including profile, applications, resumes, and related records will be archived and then removed from the platform.
+                  </p>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="delete-reason">Reason for deletion (optional)</Label>
+                  <Textarea
+                    id="delete-reason"
+                    placeholder="Enter reason for deleting this user..."
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    className="resize-none"
+                    rows={2}
+                  />
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteUser}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete User'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </>
   );
