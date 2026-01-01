@@ -42,7 +42,7 @@ interface RecentApplication {
 }
 
 export default function ManagerDashboard() {
-  const { organizationId, currentRole } = useAuth();
+  const { organizationId, currentRole, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState<OrgStats>({ openJobs: 0, totalRecruiters: 0, totalCandidates: 0, totalApplications: 0 });
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -51,10 +51,16 @@ export default function ManagerDashboard() {
   const [isCreatingCode, setIsCreatingCode] = useState(false);
 
   useEffect(() => {
+    // Wait for auth to finish loading before deciding on data fetch
+    if (authLoading) return;
+    
     if (organizationId) {
       fetchOrgData();
+    } else {
+      // No org ID available after auth loaded - stop loading state
+      setIsLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, authLoading]);
 
   const fetchOrgData = async () => {
     if (!organizationId) return;
