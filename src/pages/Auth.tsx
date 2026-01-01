@@ -139,6 +139,11 @@ export default function AuthPage() {
             email: data.email,
             fullName: data.fullName,
           }));
+          // Also pre-fill sign-in email for existing users
+          setSignInData((prev) => ({
+            ...prev,
+            email: data.email,
+          }));
         }
       } finally {
         setInviteLoading(false);
@@ -481,10 +486,23 @@ export default function AuthPage() {
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn}>
                   <CardHeader>
-                    <CardTitle className="text-2xl font-display">Welcome back</CardTitle>
-                    <CardDescription>Sign in to your account</CardDescription>
+                    <CardTitle className="text-2xl font-display">
+                      {inviteDetails ? 'Welcome back' : 'Welcome back'}
+                    </CardTitle>
+                    <CardDescription>
+                      {inviteDetails 
+                        ? `Sign in to join ${inviteDetails.organizationName || 'the team'}` 
+                        : 'Sign in to your account'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Invite badge for sign-in */}
+                    {inviteDetails && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
+                        <Briefcase className="h-5 w-5 text-violet-500" />
+                        <span className="text-sm font-medium">Joining {inviteDetails.organizationName} as Recruiter</span>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="signin-email">Email</Label>
                       <Input
@@ -493,7 +511,9 @@ export default function AuthPage() {
                         placeholder="you@example.com"
                         value={signInData.email}
                         onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                        className="h-12"
+                        className={`h-12 ${inviteDetails ? 'bg-muted/50' : ''}`}
+                        readOnly={!!inviteDetails}
+                        disabled={!!inviteDetails}
                         required
                       />
                     </div>

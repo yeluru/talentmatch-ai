@@ -1427,6 +1427,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_suspensions: {
+        Row: {
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          lifted_at: string | null
+          lifted_by: string | null
+          reason: string | null
+          suspended_at: string
+          suspended_by: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          lifted_at?: string | null
+          lifted_by?: string | null
+          reason?: string | null
+          suspended_at?: string
+          suspended_by: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          lifted_at?: string | null
+          lifted_by?: string | null
+          reason?: string | null
+          suspended_at?: string
+          suspended_by?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1453,6 +1489,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       recruiter_can_access_candidate: {
         Args: { _candidate_id: string }
         Returns: boolean
@@ -1464,7 +1501,7 @@ export type Database = {
       use_invite_code: { Args: { invite_code: string }; Returns: string }
     }
     Enums: {
-      app_role: "candidate" | "recruiter" | "account_manager"
+      app_role: "candidate" | "recruiter" | "account_manager" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1592,7 +1629,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["candidate", "recruiter", "account_manager"],
+      app_role: ["candidate", "recruiter", "account_manager", "super_admin"],
     },
   },
 } as const
