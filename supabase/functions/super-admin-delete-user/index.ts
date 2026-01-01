@@ -19,7 +19,12 @@ function isUuid(v: string) {
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Helpful request tracing (no PII beyond ids/emails already in our DB)
+  const requestId = crypto.randomUUID();
+
   try {
+    console.log(`[super-admin-delete-user] start requestId=${requestId}`);
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -45,6 +50,10 @@ serve(async (req: Request) => {
 
     const targetUserId = body.targetUserId;
     const reason = body.reason?.trim() || "Deleted by super admin";
+
+    console.log(
+      `[super-admin-delete-user] requestId=${requestId} requester=${requester.id} target=${targetUserId}`,
+    );
 
     // Verify requester is super admin
     const { data: superAdminRole } = await supabase
@@ -80,6 +89,7 @@ serve(async (req: Request) => {
     );
 
     if (getUserError || !targetAuthUser?.user) {
+      console.log(`[super-admin-delete-user] requestId=${requestId} target not found`);
       return new Response(JSON.stringify({ error: "Target user not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -177,15 +187,36 @@ serve(async (req: Request) => {
     const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(targetUserId);
     if (deleteAuthError) throw deleteAuthError;
 
+    // Verify deletion actually took effect (prevents "looks deleted" but auth user remains)
+    const { data: verifyUser } = await supabase.auth.admin.getUserById(targetUserId);
+    if (verifyUser?.user) {
+      console.error(
+        `[super-admin-delete-user] requestId=${requestId} deleteUser returned success but user still exists target=${targetUserId}`,
+      );
+      return new Response(
+        JSON.stringify({
+          error:
+            "Deletion did not fully complete (auth account still exists). Please try again or contact support.",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
+    }
+
+    console.log(`[super-admin-delete-user] success requestId=${requestId} target=${targetUserId}`);
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in super-admin-delete-user:", error);
+    console.error(`[super-admin-delete-user] error requestId=${requestId}:`, error);
     return new Response(JSON.stringify({ error: error.message ?? "Unknown error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 });
+
