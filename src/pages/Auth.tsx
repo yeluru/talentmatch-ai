@@ -218,7 +218,9 @@ export default function AuthPage() {
           return;
         }
 
-        const redirectPath = role === 'candidate'
+        const redirectPath = role === 'super_admin'
+          ? '/admin'
+          : role === 'candidate'
           ? '/candidate'
           : role === 'recruiter'
           ? '/recruiter'

@@ -4,11 +4,11 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('candidate' | 'recruiter' | 'account_manager')[];
+  allowedRoles?: ('candidate' | 'recruiter' | 'account_manager' | 'super_admin')[];
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, currentRole, isLoading } = useAuth();
+  const { user, currentRole, isLoading, isSuperAdmin } = useAuth();
   const location = useLocation();
 
   // Initial auth/role hydration
@@ -28,7 +28,14 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && currentRole && !allowedRoles.includes(currentRole)) {
-    const redirectPath = currentRole === 'candidate' 
+    // Super admins can access their dashboard
+    if (isSuperAdmin && allowedRoles.includes('super_admin')) {
+      return <>{children}</>;
+    }
+    
+    const redirectPath = currentRole === 'super_admin'
+      ? '/admin'
+      : currentRole === 'candidate' 
       ? '/candidate' 
       : currentRole === 'recruiter' 
       ? '/recruiter' 

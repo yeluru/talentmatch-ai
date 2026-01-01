@@ -140,9 +140,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     navigate('/');
   };
 
-  const handleRoleSwitch = (role: 'candidate' | 'recruiter' | 'account_manager') => {
+  const handleRoleSwitch = (role: 'candidate' | 'recruiter' | 'account_manager' | 'super_admin') => {
     switchRole(role);
-    if (role === 'candidate') navigate('/candidate');
+    if (role === 'super_admin') navigate('/admin');
+    else if (role === 'candidate') navigate('/candidate');
     else if (role === 'recruiter') navigate('/recruiter');
     else navigate('/manager');
   };
@@ -270,6 +271,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                             {r.role === 'candidate' && 'Candidate'}
                             {r.role === 'recruiter' && 'Recruiter'}
                             {r.role === 'account_manager' && 'Account Manager'}
+                            {r.role === 'super_admin' && 'Super Admin'}
                           </DropdownMenuItem>
                         ))}
                         <DropdownMenuSeparator />
