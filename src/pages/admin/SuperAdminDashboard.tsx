@@ -77,7 +77,20 @@ export default function SuperAdminDashboard() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  
+
+  // Find user (auth) state
+  const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<{
+    id: string;
+    email: string;
+    created_at: string;
+    last_sign_in_at: string | null;
+    full_name?: string;
+    roles?: string[];
+  } | null>(null);
+  const [lookupNotFound, setLookupNotFound] = useState(false);
+
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
@@ -194,12 +207,68 @@ export default function SuperAdminDashboard() {
     setDeleteDialogOpen(true);
   };
 
+  const handleLookupUser = async () => {
+    const email = lookupEmail.trim();
+    if (!email) return;
+
+    setLookupLoading(true);
+    setLookupNotFound(false);
+    setLookupResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('super-admin-find-user', {
+        body: { email },
+      });
+
+      if (error) throw error;
+
+      const found = data?.user as
+        | {
+            id: string;
+            email: string;
+            created_at: string;
+            last_sign_in_at: string | null;
+            user_metadata: Record<string, unknown>;
+          }
+        | null
+        | undefined;
+
+      if (!found) {
+        setLookupNotFound(true);
+        return;
+      }
+
+      const fullName = (found.user_metadata as any)?.full_name as string | undefined;
+
+      const { data: rolesRows } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', found.id);
+
+      const roles = (rolesRows ?? []).map(r => r.role as string);
+
+      setLookupResult({
+        id: found.id,
+        email: found.email,
+        created_at: found.created_at,
+        last_sign_in_at: found.last_sign_in_at,
+        full_name: fullName,
+        roles,
+      });
+    } catch (err: any) {
+      console.error('Lookup user error:', err);
+      toast.error(err?.message || 'Failed to find user');
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
     setIsDeleting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('super-admin-delete-user', {
+      const { error } = await supabase.functions.invoke('super-admin-delete-user', {
         body: {
           targetUserId: userToDelete.user_id,
           reason: deleteReason || 'Deleted by super admin',
@@ -316,15 +385,82 @@ export default function SuperAdminDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+              <div className="space-y-4 mb-6">
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <p className="text-sm font-medium text-foreground">Find user by email (including accounts missing a profile)</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    If signup says the account exists but it doesn’t show in the table below, search here.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Input
+                      placeholder="email@example.com"
+                      value={lookupEmail}
+                      onChange={(e) => setLookupEmail(e.target.value)}
+                      className="sm:max-w-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleLookupUser}
+                      disabled={lookupLoading || !lookupEmail.trim()}
+                    >
+                      {lookupLoading ? 'Searching…' : 'Search'}
+                    </Button>
+                  </div>
+
+                  {lookupNotFound && (
+                    <p className="mt-3 text-sm text-muted-foreground">No account found for that email.</p>
+                  )}
+
+                  {lookupResult && (
+                    <div className="mt-4 rounded-md border bg-card p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">{lookupResult.full_name || 'User'}</p>
+                          <p className="text-sm text-muted-foreground">{lookupResult.email}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">User ID: {lookupResult.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="destructive"
+                            onClick={() =>
+                              openDeleteDialog({
+                                user_id: lookupResult.id,
+                                email: lookupResult.email,
+                                full_name: lookupResult.full_name || lookupResult.email,
+                                created_at: lookupResult.created_at,
+                                roles: lookupResult.roles || [],
+                                is_suspended: false,
+                              })
+                            }
+                          >
+                            Delete user
+                          </Button>
+                        </div>
+                      </div>
+
+                      {!!lookupResult.roles?.length && (
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          {lookupResult.roles.map((role) => (
+                            <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-xs">
+                              {role.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
               </div>
 
