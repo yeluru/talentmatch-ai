@@ -93,10 +93,14 @@ export default function AuthPage() {
   const inviteToken = searchParams.get('invite');
   const nextPath = searchParams.get('next');
 
+  // Invite details (pre-filled for recruiter invite flow)
+  const [inviteDetails, setInviteDetails] = useState<{ email: string; fullName: string; organizationName: string } | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(!!inviteToken);
+
   // Get role from URL or default to candidate
   const roleFromUrl = searchParams.get('role') as 'candidate' | 'recruiter' | 'account_manager' | null;
   const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager'>(
-    roleFromUrl && roleThemes[roleFromUrl] ? roleFromUrl : 'candidate'
+    inviteToken ? 'recruiter' : (roleFromUrl && roleThemes[roleFromUrl] ? roleFromUrl : 'candidate')
   );
   const [authView, setAuthView] = useState<AuthView>('main');
 
@@ -110,11 +114,42 @@ export default function AuthPage() {
   });
   const [resetEmail, setResetEmail] = useState('');
 
+  // Fetch invite details when invite token is present
   useEffect(() => {
-    if (inviteToken) {
-      setSelectedRole('recruiter');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!inviteToken) return;
+
+    const fetchInviteDetails = async () => {
+      try {
+        // Use service role via edge function to fetch invite details
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-invite-details`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inviteToken }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.email && data.fullName) {
+            setInviteDetails({
+              email: data.email,
+              fullName: data.fullName,
+              organizationName: data.organizationName || '',
+            });
+            setSignUpData(prev => ({
+              ...prev,
+              email: data.email,
+              fullName: data.fullName,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch invite details:', error);
+      } finally {
+        setInviteLoading(false);
+      }
+    };
+
+    fetchInviteDetails();
   }, [inviteToken]);
 
   const acceptRecruiterInviteIfPresent = async () => {
@@ -500,8 +535,12 @@ export default function AuthPage() {
                   <CardHeader>
                     {inviteToken ? (
                       <>
-                        <CardTitle className="text-2xl font-display">You're invited</CardTitle>
-                        <CardDescription>Create an account (or sign in) to accept your recruiter invitation.</CardDescription>
+                        <CardTitle className="text-2xl font-display">
+                          {inviteDetails?.organizationName 
+                            ? `Join ${inviteDetails.organizationName}` 
+                            : "You're invited"}
+                        </CardTitle>
+                        <CardDescription>Create your password to complete your account setup.</CardDescription>
                       </>
                     ) : (
                       <>
@@ -511,6 +550,11 @@ export default function AuthPage() {
                     )}
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {inviteLoading && (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    )}
                     {/* Role selection - hidden when coming from recruiter invite */}
                     {!inviteToken && (
                       <div className="space-y-3">
@@ -558,9 +602,11 @@ export default function AuthPage() {
                         placeholder="John Doe"
                         value={signUpData.fullName}
                         onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
-                        className="h-12"
+                        className={`h-12 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
                         required
                         maxLength={100}
+                        readOnly={!!inviteDetails}
+                        disabled={!!inviteDetails}
                       />
                     </div>
 
@@ -572,9 +618,11 @@ export default function AuthPage() {
                         placeholder="you@example.com"
                         value={signUpData.email}
                         onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                        className="h-12"
+                        className={`h-12 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
                         required
                         maxLength={255}
+                        readOnly={!!inviteDetails}
+                        disabled={!!inviteDetails}
                       />
                     </div>
 
@@ -590,6 +638,7 @@ export default function AuthPage() {
                         required
                         minLength={8}
                         maxLength={72}
+                        autoFocus={!!inviteDetails}
                       />
                       <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
                     </div>
