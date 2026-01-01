@@ -57,3 +57,6 @@ verify_jwt = false
 
 [functions.create-recruiter-account]
 verify_jwt = false
+
+[functions.get-invite-details]
+verify_jwt = false
