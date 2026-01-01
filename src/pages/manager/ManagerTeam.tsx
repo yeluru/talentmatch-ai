@@ -360,12 +360,13 @@ export default function ManagerTeam() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="invite-name">Full Name (Optional)</Label>
+                    <Label htmlFor="invite-name">Full Name *</Label>
                     <Input
                       id="invite-name"
                       placeholder="John Doe"
                       value={inviteName}
                       onChange={(e) => setInviteName(e.target.value)}
+                      required
                     />
                   </div>
                 </div>
@@ -373,7 +374,7 @@ export default function ManagerTeam() {
                   <Button variant="outline" onClick={() => setIsInviteOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail}>
+                  <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail || !inviteName}>
                     {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Send Invitation
                   </Button>
