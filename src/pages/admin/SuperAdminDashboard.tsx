@@ -99,6 +99,10 @@ export default function SuperAdminDashboard() {
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Bulk delete state
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -315,6 +319,36 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleBulkDeleteUsers = async () => {
+    setIsBulkDeleting(true);
+    try {
+      // Get all non-super admin user IDs
+      const nonSuperAdminUsers = users.filter(u => !u.roles.includes('super_admin'));
+      const userIds = nonSuperAdminUsers.map(u => u.user_id);
+      
+      if (userIds.length === 0) {
+        toast.info('No non-super admin users to delete');
+        setBulkDeleteDialogOpen(false);
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('bulk-delete-users', {
+        body: { userIds },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Successfully deleted ${userIds.length} users`);
+      setBulkDeleteDialogOpen(false);
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error bulk deleting users:', error);
+      toast.error(error.message || 'Failed to bulk delete users');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate('/auth');
@@ -404,11 +438,21 @@ export default function SuperAdminDashboard() {
 
           {/* User Management */}
           <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>
-                View and manage all platform users
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>
+                  View and manage all platform users
+                </CardDescription>
+              </div>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setBulkDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Bulk Delete All
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4 mb-6">
@@ -646,6 +690,39 @@ export default function SuperAdminDashboard() {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 {isDeleting ? 'Deleting...' : 'Delete User'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk Delete Confirmation Dialog */}
+        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Bulk Delete All Non-Super Admin Users
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3">
+                <p>
+                  You are about to permanently delete <strong>{users.filter(u => !u.roles.includes('super_admin')).length}</strong> users.
+                </p>
+                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
+                  <p className="font-medium text-destructive mb-1">⚠️ This action cannot be undone!</p>
+                  <p className="text-muted-foreground">
+                    All user data including profiles, applications, resumes, and related records will be permanently removed. Super admin accounts will be preserved.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDeleteUsers}
+                disabled={isBulkDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isBulkDeleting ? 'Deleting...' : 'Delete All Users'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
