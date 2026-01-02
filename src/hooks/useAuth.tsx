@@ -167,6 +167,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user returned');
 
+      // Always create/ensure a public profile row ASAP.
+      // This prevents “auth user exists but doesn’t show in Super Admin” orphan states
+      // when later steps (org/role/candidate profile) fail.
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedName = fullName.trim();
+      const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(
+        normalizedName.toLowerCase()
+      );
+
+      const { data: existingProfile, error: existingProfileError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('user_id', authData.user.id)
+        .maybeSingle();
+
+      if (existingProfileError) {
+        console.error('Profile lookup error:', existingProfileError);
+        throw new Error(`Failed to look up profile: ${existingProfileError.message}`);
+      }
+
+      if (!existingProfile) {
+        const { error: profileInsertError } = await supabase.from('profiles').insert({
+          user_id: authData.user.id,
+          email: normalizedEmail,
+          full_name: normalizedName,
+        });
+        if (profileInsertError) {
+          console.error('Profile insert error:', profileInsertError);
+          throw new Error(`Failed to create profile: ${profileInsertError.message}`);
+        }
+      } else if (!existingProfile.full_name || isPlaceholderName) {
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({ full_name: normalizedName, email: normalizedEmail })
+          .eq('id', existingProfile.id);
+        if (profileUpdateError) {
+          console.error('Profile update error:', profileUpdateError);
+          throw new Error(`Failed to update profile: ${profileUpdateError.message}`);
+        }
+      }
+
       let newOrganizationId: string | null = null;
 
       // For recruiters/managers, create new org first
@@ -202,43 +243,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (roleError) {
           console.error('Role creation error:', roleError);
           throw new Error(`Failed to create user role: ${roleError.message}`);
-        }
-      }
-      // Ensure a public profile row exists (used across the app for display names)
-      const { data: existingProfile, error: existingProfileError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('user_id', authData.user.id)
-        .maybeSingle();
-
-      if (existingProfileError) {
-        console.error('Profile lookup error:', existingProfileError);
-        throw new Error(`Failed to look up profile: ${existingProfileError.message}`);
-      }
-
-      const normalizedName = fullName.trim();
-      const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(
-        normalizedName.toLowerCase()
-      );
-
-      if (!existingProfile) {
-        const { error: profileInsertError } = await supabase.from('profiles').insert({
-          user_id: authData.user.id,
-          email,
-          full_name: normalizedName,
-        });
-        if (profileInsertError) {
-          console.error('Profile insert error:', profileInsertError);
-          throw new Error(`Failed to create profile: ${profileInsertError.message}`);
-        }
-      } else if (!existingProfile.full_name || isPlaceholderName) {
-        const { error: profileUpdateError } = await supabase
-          .from('profiles')
-          .update({ full_name: normalizedName, email })
-          .eq('id', existingProfile.id);
-        if (profileUpdateError) {
-          console.error('Profile update error:', profileUpdateError);
-          throw new Error(`Failed to update profile: ${profileUpdateError.message}`);
         }
       }
 
