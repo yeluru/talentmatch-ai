@@ -9,6 +9,8 @@ import { Briefcase, Users, TrendingUp, Clock, Copy, Plus, Loader2, Key } from 'l
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface OrgStats {
   openJobs: number;
@@ -238,10 +240,19 @@ export default function ManagerDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Account Manager Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Organization overview and team performance</p>
-        </div>
+        <PageHeader
+          title={
+            <>
+              Account Manager <span className="text-accent">Dashboard</span>
+            </>
+          }
+          description="Organization overview, team activity, and the latest pipeline signals."
+          actions={
+            <Button variant="outline" asChild>
+              <Link to="/manager/team">View team</Link>
+            </Button>
+          }
+        />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} href="/manager/jobs" />
@@ -252,7 +263,7 @@ export default function ManagerDashboard() {
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Invite Codes Section */}
-          <Card>
+          <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -300,7 +311,7 @@ export default function ManagerDashboard() {
           </Card>
 
           {/* Team Members */}
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle>Team Members</CardTitle>
               <CardDescription>Recruiters and managers in your organization</CardDescription>
@@ -329,7 +340,7 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Recent Applications */}
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle>Recent Applications</CardTitle>
             <CardDescription>Latest candidate applications across all jobs</CardDescription>

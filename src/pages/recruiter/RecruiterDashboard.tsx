@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { DashboardAnalytics } from '@/components/recruiter/DashboardAnalytics';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface RecruiterStats {
   openJobs: number;
@@ -193,17 +194,21 @@ export default function RecruiterDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold">Recruiter Dashboard</h1>
-            <p className="text-muted-foreground mt-1">Manage your jobs and candidates</p>
-          </div>
-          <Button asChild>
-            <Link to="/recruiter/jobs/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> Post a Job
-            </Link>
-          </Button>
-        </div>
+        <PageHeader
+          title={
+            <>
+              Recruiter <span className="text-accent">Dashboard</span>
+            </>
+          }
+          description="Post jobs, track applicants, and prioritize the best-fit candidates—fast."
+          actions={
+            <Button asChild className="btn-glow">
+              <Link to="/recruiter/jobs/new">
+                <PlusCircle className="mr-2 h-4 w-4" /> Post a Job
+              </Link>
+            </Button>
+          }
+        />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} href="/recruiter/jobs" />
@@ -212,11 +217,22 @@ export default function RecruiterDashboard() {
         </div>
 
         {/* Analytics Charts */}
-        <DashboardAnalytics />
+        <div className="card-elevated p-4 md:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Pipeline snapshot</h2>
+              <p className="text-sm text-muted-foreground">Quick health check across your current workload.</p>
+            </div>
+            <Badge variant="secondary" className="bg-accent/10 text-accent">
+              Live
+            </Badge>
+          </div>
+          <DashboardAnalytics />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Invite Codes */}
-          <Card>
+          <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -257,7 +273,7 @@ export default function RecruiterDashboard() {
           </Card>
 
           {/* AI Matching */}
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />

@@ -317,7 +317,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
 
-          <main className="flex-1 min-w-0 p-4 lg:p-6">
+          <main className="flex-1 min-w-0 p-4 lg:p-6 bg-[var(--gradient-subtle)]">
             {children ?? (
               import.meta.env.DEV ? (
                 <Card>

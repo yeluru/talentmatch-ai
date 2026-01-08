@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Briefcase, Sparkles, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default function CandidateDashboard() {
   const { user, profile } = useAuth();
@@ -92,14 +93,21 @@ export default function CandidateDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">
-            Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}!
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Here's your job search overview
-          </p>
-        </div>
+        <PageHeader
+          title={
+            <>
+              Welcome back, <span className="text-accent">{profile?.full_name?.split(' ')[0] || 'there'}</span>
+            </>
+          }
+          description="Your job search overview—applications, resume readiness, and AI feedback in one place."
+          actions={
+            <Button asChild className="btn-glow">
+              <Link to="/candidate/jobs">
+                Find jobs <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          }
+        />
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -143,7 +151,7 @@ export default function CandidateDashboard() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
+              <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-accent" />
@@ -162,7 +170,7 @@ export default function CandidateDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle>Find Your Next Role</CardTitle>
                 </CardHeader>
@@ -180,7 +188,7 @@ export default function CandidateDashboard() {
             </div>
 
             {!resumes?.length && (
-              <Card className="border-dashed border-2">
+              <Card className="border-dashed border-2 card-elevated">
                 <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                   <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="font-semibold text-lg mb-2">Upload Your Resume</h3>
