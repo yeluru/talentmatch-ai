@@ -47,6 +47,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 interface DashboardLayoutProps {
@@ -92,6 +93,10 @@ const managerNavItems = [
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
 ];
 
+const orgAdminNavItems = [
+  { title: 'Dashboard', href: '/org-admin', icon: Home },
+];
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, currentRole, roles, signOut, switchRole } = useAuth();
   const location = useLocation();
@@ -117,32 +122,46 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [isDark]);
 
-  const navItems = currentRole === 'candidate' 
-    ? candidateNavItems 
-    : currentRole === 'recruiter' 
-    ? recruiterNavItems 
-    : managerNavItems;
+  const navItems =
+    currentRole === 'candidate'
+      ? candidateNavItems
+      : currentRole === 'recruiter'
+        ? recruiterNavItems
+        : currentRole === 'org_admin'
+          ? orgAdminNavItems
+          : managerNavItems;
 
-  const roleLabel = currentRole === 'candidate' 
-    ? 'Candidate' 
-    : currentRole === 'recruiter' 
-    ? 'Recruiter' 
-    : 'Account Manager';
+  const roleLabel =
+    currentRole === 'candidate'
+      ? 'Candidate'
+      : currentRole === 'recruiter'
+        ? 'Recruiter'
+        : currentRole === 'org_admin'
+          ? 'Org Admin'
+          : currentRole === 'super_admin'
+            ? 'Super Admin'
+            : 'Account Manager';
 
-  const roleColor = currentRole === 'candidate'
-    ? 'bg-candidate/10 text-candidate'
-    : currentRole === 'recruiter'
-    ? 'bg-recruiter/10 text-recruiter'
-    : 'bg-manager/10 text-manager';
+  const roleColor =
+    currentRole === 'candidate'
+      ? 'bg-candidate/10 text-candidate'
+      : currentRole === 'recruiter'
+        ? 'bg-recruiter/10 text-recruiter'
+        : currentRole === 'org_admin'
+          ? 'bg-accent/10 text-accent'
+          : currentRole === 'super_admin'
+            ? 'bg-destructive/10 text-destructive'
+            : 'bg-manager/10 text-manager';
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
 
-  const handleRoleSwitch = (role: 'candidate' | 'recruiter' | 'account_manager' | 'super_admin') => {
+  const handleRoleSwitch = (role: 'candidate' | 'recruiter' | 'account_manager' | 'org_admin' | 'super_admin') => {
     switchRole(role);
     if (role === 'super_admin') navigate('/admin');
+    else if (role === 'org_admin') navigate('/org-admin');
     else if (role === 'candidate') navigate('/candidate');
     else if (role === 'recruiter') navigate('/recruiter');
     else navigate('/manager');
@@ -299,7 +318,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
 
           <main className="flex-1 min-w-0 p-4 lg:p-6">
-            {children}
+            {children ?? (
+              import.meta.env.DEV ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Route rendered no content</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      This route returned <code className="font-mono">null</code>. Check the debug banner (bottom-left) for role/orgId,
+                      and check the browser console for errors.
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Path: <code className="font-mono">{location.pathname}</code>
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : null
+            )}
           </main>
         </div>
       </div>

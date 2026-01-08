@@ -22,8 +22,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify caller identity via anon key + JWT (RLS applies)
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser();
+    if (userErr || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Use service role for notification fan-out + cross-user inserts.
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: NotificationPayload = await req.json();
@@ -39,6 +62,28 @@ const handler = async (req: Request): Promise<Response> => {
     if (jobError) {
       console.error("Error fetching job:", jobError);
       throw jobError;
+    }
+
+    // Authorization: Only recruiters/account managers in the job's org can trigger notifications.
+    const { data: callerRole, error: callerRoleErr } = await supabase
+      .from("user_roles")
+      .select("role, organization_id")
+      .eq("user_id", user.id)
+      .in("role", ["recruiter", "account_manager", "org_admin"])
+      .maybeSingle();
+
+    if (callerRoleErr || !callerRole) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    if (callerRole.organization_id !== job.organization_id) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     // Get candidate profile

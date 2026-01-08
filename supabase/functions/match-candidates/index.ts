@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,11 +41,6 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const { jobDescription, jobTitle, requiredSkills, candidates } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     const systemPrompt = `You are an expert AI recruiter for MatchTalent AI. 
 Your job is to analyze candidates and score how well they match a job posting.
@@ -67,17 +63,10 @@ Be objective and focus on actual qualifications.`;
 - Summary: ${c.summary || 'Not provided'}`
     ).join('\n\n');
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze these candidates for the following job:
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Analyze these candidates for the following job:
 
 JOB TITLE: ${jobTitle}
 REQUIRED SKILLS: ${requiredSkills?.join(', ') || 'Not specified'}
@@ -88,42 +77,46 @@ CANDIDATES:
 ${candidatesSummary}
 
 Score and rank each candidate.` }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "rank_candidates",
-              description: "Return ranked candidate matches",
-              parameters: {
-                type: "object",
-                properties: {
-                  rankings: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        candidate_id: { type: "string" },
-                        match_score: { type: "number" },
-                        matching_points: { type: "array", items: { type: "string" } },
-                        concerns: { type: "array", items: { type: "string" } },
-                        recommendation: { 
-                          type: "string",
-                          enum: ["strong_match", "good_match", "partial_match", "weak_match"]
-                        }
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "rank_candidates",
+            description: "Return ranked candidate matches",
+            parameters: {
+              type: "object",
+              properties: {
+                rankings: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      candidate_id: { type: "string" },
+                      match_score: { type: "number" },
+                      matching_points: { type: "array", items: { type: "string" } },
+                      concerns: { type: "array", items: { type: "string" } },
+                      recommendation: {
+                        type: "string",
+                        enum: ["strong_match", "good_match", "partial_match", "weak_match"],
                       },
-                      required: ["candidate_id", "match_score", "matching_points", "recommendation"]
-                    }
-                  }
+                    },
+                    required: [
+                      "candidate_id",
+                      "match_score",
+                      "matching_points",
+                      "recommendation",
+                    ],
+                  },
                 },
-                required: ["rankings"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "rank_candidates" } }
-      }),
+              },
+              required: ["rankings"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "rank_candidates" } },
     });
 
     if (!response.ok) {

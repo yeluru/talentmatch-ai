@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,14 +58,9 @@ serve(async (req) => {
 
     const { query, limit = 10 } = await req.json();
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!FIRECRAWL_API_KEY) {
       throw new Error("FIRECRAWL_API_KEY is not configured. Please connect Firecrawl in settings.");
-    }
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     console.log("Searching for profiles with query:", query);
@@ -113,60 +109,55 @@ serve(async (req) => {
       if (!result.markdown || result.markdown.length < 100) continue;
 
       try {
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: `You are extracting professional profile information from LinkedIn page content. 
-Extract the key details accurately. If a field is not found, leave it as null.`
-              },
-              {
-                role: "user",
-                content: `Extract profile information from this LinkedIn page content:
+        const { res: aiResponse } = await callChatCompletions({
+          messages: [
+            {
+              role: "system",
+              content: `You are extracting professional profile information from LinkedIn page content.
+Extract the key details accurately. If a field is not found, leave it as null.`,
+            },
+            {
+              role: "user",
+              content: `Extract profile information from this LinkedIn page content:
 
 URL: ${result.url}
 Title: ${result.title}
 
 Content:
-${result.markdown.substring(0, 15000)}`
-              }
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "extract_profile",
-                  description: "Extract structured profile data from LinkedIn content",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      full_name: { type: "string", description: "Person's full name" },
-                      headline: { type: "string", description: "Professional headline/title" },
-                      current_company: { type: "string", description: "Current employer" },
-                      location: { type: "string", description: "Geographic location" },
-                      skills: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "List of skills mentioned"
-                      },
-                      experience_years: { type: "number", description: "Estimated years of experience" },
-                      summary: { type: "string", description: "Brief professional summary" }
+${result.markdown.substring(0, 15000)}`,
+            },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "extract_profile",
+                description: "Extract structured profile data from LinkedIn content",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    full_name: { type: "string", description: "Person's full name" },
+                    headline: { type: "string", description: "Professional headline/title" },
+                    current_company: { type: "string", description: "Current employer" },
+                    location: { type: "string", description: "Geographic location" },
+                    skills: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "List of skills mentioned",
                     },
-                    required: ["full_name"],
-                    additionalProperties: false
-                  }
-                }
-              }
-            ],
-            tool_choice: { type: "function", function: { name: "extract_profile" } }
-          }),
+                    experience_years: {
+                      type: "number",
+                      description: "Estimated years of experience",
+                    },
+                    summary: { type: "string", description: "Brief professional summary" },
+                  },
+                  required: ["full_name"],
+                  additionalProperties: false,
+                },
+              },
+            },
+          ],
+          tool_choice: { type: "function", function: { name: "extract_profile" } },
         });
 
         if (aiResponse.ok) {

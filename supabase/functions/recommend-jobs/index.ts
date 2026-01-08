@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,11 +41,6 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const { candidateProfile, jobs } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     const systemPrompt = `You are an expert AI career advisor for MatchTalent AI.
 Your job is to analyze a candidate's profile and rank job opportunities by fit.
@@ -70,17 +66,10 @@ Provide honest, helpful recommendations.`;
 - Description: ${j.description?.substring(0, 200)}...`
     ).join('\n\n');
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Rank these jobs for the following candidate:
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Rank these jobs for the following candidate:
 
 CANDIDATE PROFILE:
 - Title: ${candidateProfile.current_title || 'Not specified'}
@@ -94,42 +83,46 @@ AVAILABLE JOBS:
 ${jobsSummary}
 
 Rank each job by fit for this candidate.` }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "rank_jobs",
-              description: "Return ranked job recommendations",
-              parameters: {
-                type: "object",
-                properties: {
-                  recommendations: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        job_id: { type: "string" },
-                        match_score: { type: "number" },
-                        why_good_fit: { type: "array", items: { type: "string" } },
-                        considerations: { type: "array", items: { type: "string" } },
-                        recommendation_level: { 
-                          type: "string",
-                          enum: ["highly_recommended", "recommended", "consider", "not_ideal"]
-                        }
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "rank_jobs",
+            description: "Return ranked job recommendations",
+            parameters: {
+              type: "object",
+              properties: {
+                recommendations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      job_id: { type: "string" },
+                      match_score: { type: "number" },
+                      why_good_fit: { type: "array", items: { type: "string" } },
+                      considerations: { type: "array", items: { type: "string" } },
+                      recommendation_level: {
+                        type: "string",
+                        enum: [
+                          "highly_recommended",
+                          "recommended",
+                          "consider",
+                          "not_ideal",
+                        ],
                       },
-                      required: ["job_id", "match_score", "why_good_fit", "recommendation_level"]
-                    }
-                  }
+                    },
+                    required: ["job_id", "match_score", "why_good_fit", "recommendation_level"],
+                  },
                 },
-                required: ["recommendations"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "rank_jobs" } }
-      }),
+              },
+              required: ["recommendations"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "rank_jobs" } },
     });
 
     if (!response.ok) {

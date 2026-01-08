@@ -32,13 +32,19 @@ function Logo() {
   );
 }
 
-const signUpSchema = z.object({
-  email: z.string().trim().email('Invalid email address').max(255),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(72),
-  fullName: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
-  organizationName: z.string().trim().max(100).optional(),
-  inviteCode: z.string().max(20).optional(),
-});
+const signUpSchema = z
+  .object({
+    email: z.string().trim().email('Invalid email address').max(255),
+    password: z.string().min(8, 'Password must be at least 8 characters').max(72),
+    confirmPassword: z.string().min(8).max(72),
+    fullName: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
+    organizationName: z.string().trim().max(100).optional(),
+    inviteCode: z.string().max(20).optional(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
 
 const signInSchema = z.object({
   email: z.string().trim().email('Invalid email address'),
@@ -87,6 +93,14 @@ const roleThemes = {
     label: 'Manager',
     icon: Building2,
   },
+  org_admin: {
+    gradient: 'from-red-500/20 via-orange-500/10 to-rose-500/20',
+    accent: 'text-red-500',
+    border: 'border-red-500/30',
+    bg: 'bg-red-500/10',
+    label: 'Org Admin',
+    icon: Building2,
+  },
 };
 
 // Invite flow
@@ -97,20 +111,24 @@ const roleThemes = {
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, user, currentRole } = useAuth();
+  const { signIn, signUp, signOut, user, currentRole } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const inviteToken = searchParams.get('invite');
   const nextPath = searchParams.get('next');
+  const pendingInviteToken =
+    typeof window !== 'undefined' ? window.localStorage.getItem('pendingInviteToken') : null;
+  const effectiveInviteToken = inviteToken || pendingInviteToken;
 
   // Invite details (pre-filled for recruiter invite flow)
-  const [inviteDetails, setInviteDetails] = useState<{ email: string; fullName: string; organizationName: string } | null>(null);
-  const [inviteLoading, setInviteLoading] = useState(!!inviteToken);
+  const [inviteDetails, setInviteDetails] = useState<{ email: string; fullName: string; organizationName: string; role: 'recruiter' | 'account_manager' | 'org_admin' } | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(!!effectiveInviteToken);
+  const [otpExpired, setOtpExpired] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
-  // Get role from URL or default to candidate
-  const roleFromUrl = searchParams.get('role') as 'candidate' | 'recruiter' | 'account_manager' | null;
-  const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager'>(
-    inviteToken ? 'recruiter' : (roleFromUrl && roleThemes[roleFromUrl] ? roleFromUrl : 'candidate')
+  // Only candidates can self-sign up. Staff roles are invite-only.
+  const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager' | 'org_admin'>(
+    inviteToken ? 'recruiter' : 'candidate'
   );
   const [authView, setAuthView] = useState<AuthView>('main');
 
@@ -120,6 +138,7 @@ export default function AuthPage() {
   const [signUpData, setSignUpData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     fullName: '',
     organizationName: '',
     inviteCode: ''
@@ -130,12 +149,17 @@ export default function AuthPage() {
 
   // Fetch invite details when invite token is present
   useEffect(() => {
-    if (!inviteToken) return;
+    if (!effectiveInviteToken) return;
 
     const fetchInviteDetails = async () => {
       try {
+        // Persist invite token across email confirmation flows (which redirect away from /auth?invite=...).
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('pendingInviteToken', effectiveInviteToken);
+        }
+
         const { data, error } = await supabase.functions.invoke('get-invite-details', {
-          body: { inviteToken },
+          body: { inviteToken: effectiveInviteToken },
         });
 
         if (error) {
@@ -143,16 +167,29 @@ export default function AuthPage() {
         }
 
         if (data?.email && data?.fullName) {
+          // If someone is already signed in (often platform admin) and opens an invite link,
+          // sign them out so they can complete setup with the invited email.
+          const currentEmail = user?.email?.toLowerCase().trim();
+          const invitedEmail = String(data.email).toLowerCase().trim();
+          if (currentEmail && invitedEmail && currentEmail !== invitedEmail) {
+            toast.message('Switching accounts', {
+              description: `You’re signed in as ${user?.email}. This invite is for ${data.email}. Signing you out so you can complete setup.`,
+            });
+            await signOut();
+          }
+
           setInviteDetails({
             email: data.email,
             fullName: data.fullName,
             organizationName: data.organizationName || '',
+            role: (data.role as any) || 'recruiter',
           });
           setSignUpData((prev) => ({
             ...prev,
             email: data.email,
             fullName: data.fullName,
           }));
+          setSelectedRole(((data.role as any) || 'recruiter') as any);
           // Also pre-fill sign-in email for existing users
           setSignInData((prev) => ({
             ...prev,
@@ -165,7 +202,7 @@ export default function AuthPage() {
     };
 
     fetchInviteDetails();
-  }, [inviteToken]);
+  }, [effectiveInviteToken, signOut, user?.email]);
 
   // If user comes back from a password recovery link, show the "set new password" view.
   useEffect(() => {
@@ -178,12 +215,89 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
-  const acceptRecruiterInviteIfPresent = async () => {
-    if (!inviteToken) return { accepted: false };
+  // If a Supabase email verification link is clicked after it expires, Supabase redirects back with:
+  // #error=access_denied&error_code=otp_expired...
+  // This is NOT the invite token expiring. It's the email verification OTP expiring.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash || '';
+    if (hash.includes('error_code=otp_expired')) {
+      setOtpExpired(true);
+      toast.error('Email verification link expired. Please resend and try again.');
+    }
+  }, []);
 
-    const { data, error } = await supabase.rpc('accept_recruiter_invite', {
-      _invite_token: inviteToken,
-    });
+  const clearUrlHash = () => {
+    if (typeof window === 'undefined') return;
+    if (!window.location.hash) return;
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  };
+
+  const resendConfirmationEmail = async () => {
+    const email = inviteDetails?.email || signUpData.email;
+    if (!email) return;
+
+    setResendingConfirmation(true);
+    try {
+      const redirectTo = (() => {
+        const url = new URL(`${window.location.origin}/auth`);
+        if (effectiveInviteToken) url.searchParams.set('invite', effectiveInviteToken);
+        if (nextPath) url.searchParams.set('next', nextPath);
+        return url.toString();
+      })();
+
+      // Supabase JS v2 supports auth.resend for signup confirmation
+      const { error } = await (supabase.auth as any).resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: redirectTo },
+      });
+      if (error) throw error;
+
+      toast.success('Verification email re-sent. Check your inbox (Mailpit locally).');
+      setOtpExpired(false);
+      clearUrlHash();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to resend verification email');
+    } finally {
+      setResendingConfirmation(false);
+    }
+  };
+
+  const loadInviteDetails = async (token: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-invite-details', {
+        body: { inviteToken: token },
+      });
+      if (error) return null;
+      if (!data?.email || !data?.fullName) return null;
+      return {
+        email: data.email as string,
+        fullName: data.fullName as string,
+        organizationName: (data.organizationName as string) || '',
+        role: (data.role as any) as 'recruiter' | 'account_manager' | 'org_admin',
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const acceptRecruiterInviteIfPresent = async () => {
+    const token = effectiveInviteToken;
+    if (!token) return { accepted: false };
+
+    const details = inviteDetails || (await loadInviteDetails(token));
+    if (!details?.role) return { accepted: false };
+
+    const role = details.role || 'recruiter';
+    const rpcName =
+      role === 'org_admin'
+        ? 'accept_org_admin_invite'
+        : role === 'account_manager'
+          ? 'accept_manager_invite'
+          : 'accept_recruiter_invite';
+
+    const { data, error } = await supabase.rpc(rpcName as any, { _invite_token: token } as any);
 
     // The RPC returns NULL when the invite is invalid/expired/already used.
     if (error) {
@@ -199,21 +313,33 @@ export default function AuthPage() {
     // Trigger role re-hydration in AuthProvider via auth event.
     await supabase.auth.refreshSession();
 
+    // Clear pending invite after successful claim
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('pendingInviteToken');
+    }
+
     return { accepted: true };
   };
 
   // If the user is already signed in and opens an invite link, accept and redirect immediately.
   useEffect(() => {
-    if (!user || !inviteToken) return;
+    if (!user || !effectiveInviteToken) return;
 
     (async () => {
       const { accepted } = await acceptRecruiterInviteIfPresent();
       if (accepted) {
-        navigate(nextPath || '/recruiter', { replace: true });
+        const role = inviteDetails?.role || 'recruiter';
+        const dest =
+          role === 'org_admin'
+            ? '/org-admin'
+            : role === 'account_manager'
+              ? '/manager'
+              : '/recruiter';
+        navigate(nextPath || dest, { replace: true });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, inviteToken]);
+  }, [user, effectiveInviteToken]);
 
   const currentTheme = roleThemes[selectedRole];
 
@@ -239,12 +365,29 @@ export default function AuthPage() {
         toast.success('Welcome back!');
 
         if (accepted) {
-          navigate(nextPath || '/recruiter');
+          const role = inviteDetails?.role || 'recruiter';
+          const dest =
+            role === 'org_admin'
+              ? '/org-admin'
+              : role === 'account_manager'
+                ? '/manager'
+                : '/recruiter';
+          navigate(nextPath || dest);
+          return;
+        }
+
+        if (!role) {
+          toast.error(
+            "Your account is active, but no role has been assigned yet. Please contact your administrator.",
+          );
+          // Stay on the auth page instead of redirecting to a random area.
           return;
         }
 
         const redirectPath = role === 'super_admin'
           ? '/admin'
+          : role === 'org_admin'
+          ? '/org-admin'
           : role === 'candidate'
           ? '/candidate'
           : role === 'recruiter'
@@ -267,21 +410,27 @@ export default function AuthPage() {
     try {
       const isInviteFlow = !!inviteToken;
 
-      signUpSchema.parse({
-        ...signUpData,
-        // Organization name is not required when joining via an invite link
-        organizationName: isInviteFlow ? undefined : signUpData.organizationName,
-      });
+      signUpSchema.parse(signUpData);
 
-      // For invite signups, we create the user and then claim the invite via RPC.
+      const inviteRedirectTo =
+        isInviteFlow && inviteToken
+          ? (() => {
+              const url = new URL(`${window.location.origin}/auth`);
+              url.searchParams.set('invite', inviteToken);
+              if (nextPath) url.searchParams.set('next', nextPath);
+              return url.toString();
+            })()
+          : undefined;
+
+      // For invite signups, create the user and then claim the invite via RPC after sign-in.
       const { error } = await signUp(
         signUpData.email,
         signUpData.password,
         signUpData.fullName,
-        isInviteFlow ? 'recruiter' : selectedRole,
-        // Don't create an org for invite signups
-        !isInviteFlow && selectedRole !== 'candidate' ? signUpData.organizationName : undefined,
-        selectedRole === 'candidate' ? signUpData.inviteCode : undefined
+        isInviteFlow ? (inviteDetails?.role || 'recruiter') : 'candidate',
+        undefined,
+        undefined,
+        inviteRedirectTo
       );
 
       if (error) {
@@ -313,18 +462,34 @@ export default function AuthPage() {
           toast.error(error.message || 'Failed to create account');
         }
       } else {
+        // If auth email confirmations are enabled, signUp may not create a session yet.
+        // In that case, tell the user to confirm email (Mailpit locally) before signing in.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast.success('Check your email to confirm your account, then sign in.');
+          setActiveTab('signin');
+          setIsLoading(false);
+          return;
+        }
+
         // If this signup was initiated via recruiter invite, accept it and route to recruiter.
         const { accepted } = await acceptRecruiterInviteIfPresent();
 
         toast.success(inviteToken ? 'Welcome to the team!' : 'Account created successfully!');
 
         if (accepted) {
-          navigate(nextPath || '/recruiter');
+          const role = inviteDetails?.role || 'recruiter';
+          const dest =
+            role === 'org_admin'
+              ? '/org-admin'
+              : role === 'account_manager'
+                ? '/manager'
+                : '/recruiter';
+          navigate(nextPath || dest);
           return;
         }
 
-        const redirectPath = selectedRole === 'candidate' ? '/candidate' : selectedRole === 'recruiter' ? '/recruiter' : '/manager';
-        navigate(redirectPath);
+        navigate('/candidate');
       }
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -670,6 +835,31 @@ export default function AuthPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {otpExpired && (
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                        <p className="font-medium text-destructive">Email verification link expired</p>
+                        <p className="mt-1 text-muted-foreground">
+                          Your invite link is still valid, but the email verification step timed out. Resend the verification email and try again.
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={resendConfirmationEmail}
+                            disabled={resendingConfirmation || !(inviteDetails?.email || signUpData.email)}
+                          >
+                            {resendingConfirmation ? 'Resending…' : 'Resend verification email'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => { clearUrlHash(); setOtpExpired(false); }}
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {/* Invite badge for sign-in */}
                     {inviteDetails && (
                       <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
@@ -745,43 +935,20 @@ export default function AuthPage() {
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
                       </div>
                     )}
-                    {/* Role selection - hidden when coming from recruiter invite */}
-                    {!inviteToken && (
-                      <div className="space-y-3">
-                        <Label>I am a...</Label>
-                        <RadioGroup value={selectedRole} onValueChange={(v) => setSelectedRole(v as any)}>
-                          <div className="grid grid-cols-3 gap-3">
-                            {(['candidate', 'recruiter', 'account_manager'] as const).map((role) => {
-                              const theme = roleThemes[role];
-                              const Icon = theme.icon;
-                              return (
-                                <Label
-                                  key={role}
-                                  htmlFor={`role-${role}`}
-                                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
-                                    selectedRole === role
-                                      ? `${theme.border} ${theme.bg}`
-                                      : 'border-border hover:border-muted-foreground/30'
-                                  }`}
-                                >
-                                  <RadioGroupItem value={role} id={`role-${role}`} className="sr-only" />
-                                  <div className={`p-2 rounded-lg ${theme.bg}`}>
-                                    <Icon className={`h-5 w-5 ${theme.accent}`} />
-                                  </div>
-                                  <span className="text-xs font-medium">{theme.label}</span>
-                                </Label>
-                              );
-                            })}
-                          </div>
-                        </RadioGroup>
-                      </div>
-                    )}
+                    {/* Candidate is the only self-signup role; staff roles use invite links */}
 
                     {/* Invite badge */}
                     {inviteToken && (
                       <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
                         <Briefcase className="h-5 w-5 text-violet-500" />
-                        <span className="text-sm font-medium">Joining as Recruiter</span>
+                        <span className="text-sm font-medium">
+                          Joining {inviteDetails?.organizationName || 'the organization'} as{' '}
+                          {inviteDetails?.role === 'org_admin'
+                            ? 'Org Admin'
+                            : inviteDetails?.role === 'account_manager'
+                              ? 'Manager'
+                              : 'Recruiter'}
+                        </span>
                       </div>
                     )}
 
@@ -830,42 +997,25 @@ export default function AuthPage() {
                         maxLength={72}
                         autoFocus={!!inviteDetails}
                       />
-                      <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
                     </div>
 
-                    {selectedRole === 'candidate' && !inviteToken && (
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-invite">Invite Code (optional)</Label>
-                        <Input
-                          id="signup-invite"
-                          placeholder="Enter invite code"
-                          value={signUpData.inviteCode}
-                          onChange={(e) =>
-                            setSignUpData({ ...signUpData, inviteCode: e.target.value.toUpperCase() })
-                          }
-                          className="h-12"
-                          maxLength={20}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Get this code from a recruiter to join their organization
-                        </p>
-                      </div>
-                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={signUpData.confirmPassword}
+                        onChange={(e) =>
+                          setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                        className="h-12"
+                        required
+                        minLength={8}
+                        maxLength={72}
+                      />
+                    </div>
 
-                    {selectedRole !== 'candidate' && !inviteToken && (
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-org">Organization Name</Label>
-                        <Input
-                          id="signup-org"
-                          placeholder="Acme Corp"
-                          value={signUpData.organizationName}
-                          onChange={(e) => setSignUpData({ ...signUpData, organizationName: e.target.value })}
-                          className="h-12"
-                          required
-                          maxLength={100}
-                        />
-                      </div>
-                    )}
+                    {/* Staff org creation removed for SaaS: invite-only staff roles */}
 
                     <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
                       {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

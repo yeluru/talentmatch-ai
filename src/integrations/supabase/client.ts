@@ -2,8 +2,33 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const ENV_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const ENV_SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+
+// Local development safety-net:
+// If you accidentally have cloud env vars set while running on localhost, force local Supabase.
+// This prevents “I reset local DB but app still shows old users” confusion.
+const LOCAL_SUPABASE_URL = 'http://127.0.0.1:54321';
+const LOCAL_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+
+const isBrowser = typeof window !== "undefined";
+const isLocalHost =
+  isBrowser &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
+
+// ALWAYS force local Supabase when running on localhost (even for production builds / vite preview).
+// This prevents accidental cloud usage during local testing.
+const SUPABASE_URL = isLocalHost ? LOCAL_SUPABASE_URL : ENV_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = isLocalHost
+  ? LOCAL_SUPABASE_PUBLISHABLE_KEY
+  : ENV_SUPABASE_PUBLISHABLE_KEY;
+
+if (isBrowser) {
+  // Helpful for debugging in DevTools console
+  (window as any).__SUPABASE_URL__ = SUPABASE_URL;
+  if (isLocalHost) console.info("[supabase] using url:", SUPABASE_URL);
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

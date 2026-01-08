@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -58,10 +58,13 @@ import AuditLogs from "./pages/manager/AuditLogs";
 
 // Super Admin Pages
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
+import OrgAdminDashboard from "./pages/orgAdmin/OrgAdminDashboard";
 
 // Shared Pages
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 // Additional Recruiter Pages
 import CandidatePipeline from "./pages/recruiter/CandidatePipeline";
@@ -86,6 +89,8 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/terms" element={<Terms />} />
+                  <Route path="/privacy" element={<Privacy />} />
 
                   {/* Public Landing Pages */}
                   <Route path="/candidates" element={<CandidatesLanding />} />
@@ -306,7 +311,9 @@ const App = () => (
                     path="/manager"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ManagerDashboard />
+                        <RouteErrorBoundary title="Manager dashboard failed to load">
+                          <ManagerDashboard />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -314,7 +321,9 @@ const App = () => (
                     path="/manager/analytics"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ManagerAnalytics />
+                        <RouteErrorBoundary title="Manager analytics failed to load">
+                          <ManagerAnalytics />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -322,7 +331,9 @@ const App = () => (
                     path="/manager/team"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ManagerTeam />
+                        <RouteErrorBoundary title="Manager team failed to load">
+                          <ManagerTeam />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -330,7 +341,9 @@ const App = () => (
                     path="/manager/jobs"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ManagerJobs />
+                        <RouteErrorBoundary title="Manager jobs failed to load">
+                          <ManagerJobs />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -338,7 +351,9 @@ const App = () => (
                     path="/manager/candidates"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ManagerCandidates />
+                        <RouteErrorBoundary title="Manager candidates failed to load">
+                          <ManagerCandidates />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -346,7 +361,9 @@ const App = () => (
                     path="/manager/organization"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ManagerOrganization />
+                        <RouteErrorBoundary title="Manager organization failed to load">
+                          <ManagerOrganization />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -354,7 +371,9 @@ const App = () => (
                     path="/manager/clients"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <ClientManagement />
+                        <RouteErrorBoundary title="Manager clients failed to load">
+                          <ClientManagement />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -362,7 +381,9 @@ const App = () => (
                     path="/manager/audit-logs"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <AuditLogs />
+                        <RouteErrorBoundary title="Manager audit logs failed to load">
+                          <AuditLogs />
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
@@ -373,6 +394,32 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["super_admin"]}>
                         <SuperAdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Org Admin Routes (tenant) */}
+                  <Route
+                    path="/org-admin"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        <OrgAdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/org-admin/users"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        <Navigate to="/org-admin?tab=users" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/org-admin/audit-logs"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        <Navigate to="/org-admin?tab=audit_logs" replace />
                       </ProtectedRoute>
                     }
                   />

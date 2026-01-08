@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('candidate' | 'recruiter' | 'account_manager' | 'super_admin')[];
+  allowedRoles?: ('candidate' | 'recruiter' | 'account_manager' | 'org_admin' | 'super_admin')[];
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
@@ -63,6 +63,8 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     
     const redirectPath = currentRole === 'super_admin'
       ? '/admin'
+      : currentRole === 'org_admin'
+      ? '/org-admin'
       : currentRole === 'candidate' 
       ? '/candidate' 
       : currentRole === 'recruiter' 

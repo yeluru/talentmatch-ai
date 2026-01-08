@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,11 +41,6 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const { candidates, jobContext } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     console.log("Generating insights for", candidates?.length || 0, "candidates");
 
@@ -68,19 +64,13 @@ ${candidateSummaries}
 
 Generate insights that would help a recruiter understand the talent market.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [{
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
           type: "function",
           function: {
             name: "generate_insights",
@@ -88,7 +78,10 @@ Generate insights that would help a recruiter understand the talent market.`;
             parameters: {
               type: "object",
               properties: {
-                summary: { type: "string", description: "Executive summary of the talent pool" },
+                summary: {
+                  type: "string",
+                  description: "Executive summary of the talent pool",
+                },
                 total_candidates: { type: "number" },
                 skills_distribution: {
                   type: "array",
@@ -97,9 +90,9 @@ Generate insights that would help a recruiter understand the talent market.`;
                     properties: {
                       skill: { type: "string" },
                       count: { type: "number" },
-                      percentage: { type: "number" }
-                    }
-                  }
+                      percentage: { type: "number" },
+                    },
+                  },
                 },
                 experience_distribution: {
                   type: "array",
@@ -108,9 +101,9 @@ Generate insights that would help a recruiter understand the talent market.`;
                     properties: {
                       range: { type: "string" },
                       count: { type: "number" },
-                      percentage: { type: "number" }
-                    }
-                  }
+                      percentage: { type: "number" },
+                    },
+                  },
                 },
                 top_companies: {
                   type: "array",
@@ -118,21 +111,26 @@ Generate insights that would help a recruiter understand the talent market.`;
                     type: "object",
                     properties: {
                       company: { type: "string" },
-                      count: { type: "number" }
-                    }
-                  }
+                      count: { type: "number" },
+                    },
+                  },
                 },
                 recommendations: {
                   type: "array",
-                  items: { type: "string" }
-                }
+                  items: { type: "string" },
+                },
               },
-              required: ["summary", "total_candidates", "skills_distribution", "experience_distribution"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "generate_insights" } }
-      }),
+              required: [
+                "summary",
+                "total_candidates",
+                "skills_distribution",
+                "experience_distribution",
+              ],
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "generate_insights" } },
     });
 
     if (!response.ok) {

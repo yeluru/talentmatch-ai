@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,11 +41,6 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const { candidate, job, recruiterName, companyName, tone } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     console.log("Generating email for candidate:", candidate?.name);
 
@@ -72,19 +68,13 @@ Job Opportunity:
 
 From: ${recruiterName || 'Our Team'}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [{
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
           type: "function",
           function: {
             name: "generate_email",
@@ -94,18 +84,18 @@ From: ${recruiterName || 'Our Team'}`;
               properties: {
                 subject: { type: "string", description: "Email subject line" },
                 body: { type: "string", description: "Email body content" },
-                personalization_notes: { 
-                  type: "array", 
+                personalization_notes: {
+                  type: "array",
                   items: { type: "string" },
-                  description: "What was personalized in this email" 
-                }
+                  description: "What was personalized in this email",
+                },
               },
-              required: ["subject", "body"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "generate_email" } }
-      }),
+              required: ["subject", "body"],
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "generate_email" } },
     });
 
     if (!response.ok) {

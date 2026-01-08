@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'candidate' | 'recruiter' | 'account_manager' | 'super_admin';
+type AppRole = 'candidate' | 'recruiter' | 'account_manager' | 'org_admin' | 'super_admin';
 
 interface UserProfile {
   id: string;
@@ -31,7 +31,15 @@ interface AuthContextType {
   organizationId: string | null;
   isLoading: boolean;
   isSuperAdmin: boolean;
-  signUp: (email: string, password: string, fullName: string, role: AppRole, organizationName?: string, inviteCode?: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role: AppRole,
+    organizationName?: string,
+    inviteCode?: string,
+    emailRedirectToOverride?: string,
+  ) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; role?: AppRole }>;
   signOut: () => Promise<void>;
   switchRole: (role: AppRole) => void;
@@ -112,9 +120,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const orgId = userRoles.find(r => r.organization_id)?.organization_id || null;
         setOrganizationId(orgId);
 
-        // For super admins, prioritize super_admin role
+        // For super admins, prioritize super_admin role.
+        // For tenant org admins, prioritize org_admin role.
+        const hasOrgAdmin = userRoles.some(r => r.role === 'org_admin');
         if (hasSuperAdmin) {
           setCurrentRole('super_admin');
+        } else if (hasOrgAdmin) {
+          setCurrentRole('org_admin');
         } else {
           const savedRole = localStorage.getItem('currentRole') as AppRole;
           if (savedRole && userRoles.find(r => r.role === savedRole)) {
@@ -136,9 +148,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: AppRole, organizationName?: string, inviteCode?: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    role: AppRole,
+    organizationName?: string,
+    inviteCode?: string,
+    emailRedirectToOverride?: string,
+  ) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = emailRedirectToOverride || `${window.location.origin}/`;
+      const isInviteStaffSignup =
+        role !== 'candidate' && (!organizationName || organizationName.trim().length === 0);
       
       // If candidate with invite code, validate it first
       let candidateOrgId: string | null = null;
@@ -159,7 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            full_name: fullName
+            full_name: fullName,
+            intended_role: role,
           }
         }
       });
@@ -167,51 +190,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('No user returned');
 
-      // Always create/ensure a public profile row ASAP.
-      // This prevents “auth user exists but doesn’t show in Super Admin” orphan states
-      // when later steps (org/role/candidate profile) fail.
-      const normalizedEmail = email.trim().toLowerCase();
-      const normalizedName = fullName.trim();
-      const isPlaceholderName = ['candidate', 'recruiter', 'account_manager', 'unknown'].includes(
-        normalizedName.toLowerCase()
-      );
-
-      const { data: existingProfile, error: existingProfileError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('user_id', authData.user.id)
-        .maybeSingle();
-
-      if (existingProfileError) {
-        console.error('Profile lookup error:', existingProfileError);
-        throw new Error(`Failed to look up profile: ${existingProfileError.message}`);
-      }
-
-      if (!existingProfile) {
-        const { error: profileInsertError } = await supabase.from('profiles').insert({
-          user_id: authData.user.id,
-          email: normalizedEmail,
-          full_name: normalizedName,
-        });
-        if (profileInsertError) {
-          console.error('Profile insert error:', profileInsertError);
-          throw new Error(`Failed to create profile: ${profileInsertError.message}`);
-        }
-      } else if (!existingProfile.full_name || isPlaceholderName) {
-        const { error: profileUpdateError } = await supabase
-          .from('profiles')
-          .update({ full_name: normalizedName, email: normalizedEmail })
-          .eq('id', existingProfile.id);
-        if (profileUpdateError) {
-          console.error('Profile update error:', profileUpdateError);
-          throw new Error(`Failed to update profile: ${profileUpdateError.message}`);
-        }
-      }
+      // IMPORTANT:
+      // When auth email confirmations are enabled, signUp may return NO session.
+      // In that case, client-side inserts into RLS-protected tables (profiles/candidate_profiles/user_roles)
+      // will fail because auth.uid() is null. We rely on the database trigger `handle_new_user()`
+      // to create the `profiles` row on auth.users insert.
 
       let newOrganizationId: string | null = null;
 
-      // For recruiters/managers, create new org first
-      if (role !== 'candidate' && organizationName) {
+      // For org creation (only allowed for non-invite signups).
+      // In our SaaS flow, staff accounts are normally invite-only; org creation is handled by platform/ops.
+      if (!isInviteStaffSignup && role !== 'candidate' && organizationName) {
         console.log('Creating organization:', organizationName);
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
@@ -227,12 +216,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         newOrganizationId = orgData.id;
       }
 
-      // Create user role using secure RPC function
-      // NOTE: recruiter invite signups should NOT self-assign roles here.
-      // The role gets granted when the invite is accepted.
-      const isInviteRecruiterSignup = role === 'recruiter' && !organizationName;
+      // If we don't have a session yet (e.g. email confirmation required), defer role/profile creation
+      // until the user actually signs in.
+      if (!authData.session) {
+        return { error: null };
+      }
 
-      if (!isInviteRecruiterSignup) {
+      // Create user role using secure RPC function.
+      // NOTE: invite signups should NOT self-assign roles here; the role is granted when the invite is accepted.
+      if (!isInviteStaffSignup) {
+        // Safety: if this user was bootstrapped as a platform admin (e.g. via allowlist trigger),
+        // do NOT also assign candidate role / create candidate profile.
+        if (role === 'candidate') {
+          const { data: isBootstrappedSuperAdmin } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', authData.user.id)
+            .eq('role', 'super_admin')
+            .maybeSingle();
+
+          if (isBootstrappedSuperAdmin) {
+            return { error: null };
+          }
+        }
+
         console.log('Creating user role:', role, 'with org:', newOrganizationId);
         const { error: roleError } = await supabase.rpc('assign_user_role', {
           _user_id: authData.user.id,
@@ -284,6 +291,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (rolesData && rolesData.length > 0) {
           return { error: null, role: rolesData[0].role as AppRole };
+        }
+
+        // If the user has no roles, attempt platform-admin bootstrap (allowlist-based).
+        // This prevents the "no role assigned" dead-end when a platform admin was created in Studio
+        // but the trigger didn't run (or allowlist was added after the user existed).
+        try {
+          await supabase.functions.invoke('bootstrap-platform-admin', { body: {} });
+          const { data: rolesAfter } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id);
+
+          if (rolesAfter && rolesAfter.length > 0) {
+            return { error: null, role: rolesAfter[0].role as AppRole };
+          }
+        } catch {
+          // ignore; fall through to candidate bootstrap logic below
+        }
+
+        // Bootstrap candidate role ONLY when we have a clear signal this is a candidate account:
+        // - New candidate signup sets user_metadata.intended_role = 'candidate'
+        // - Or we already have a candidate_profiles row (legacy accounts)
+        //
+        // Never default unknown/no-role users to candidate (platform/staff accounts are invite/manual).
+        const intended = (data.user.user_metadata as any)?.intended_role as AppRole | undefined;
+
+        const { data: existingCandidate } = await supabase
+          .from('candidate_profiles')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        const shouldBootstrapCandidate = intended === 'candidate' || !!existingCandidate;
+
+        if (shouldBootstrapCandidate) {
+          const { error: roleError } = await supabase.rpc('assign_user_role', {
+            _user_id: data.user.id,
+            _role: 'candidate',
+            _organization_id: null,
+          });
+          if (roleError) throw roleError;
+
+          if (!existingCandidate) {
+            const { error: candErr } = await supabase.from('candidate_profiles').insert({
+              user_id: data.user.id,
+              organization_id: null,
+            });
+            if (candErr) throw candErr;
+          }
+
+          return { error: null, role: 'candidate' as AppRole };
         }
       }
       

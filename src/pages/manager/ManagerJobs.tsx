@@ -17,15 +17,15 @@ interface Job {
 }
 
 export default function ManagerJobs() {
-  const { organizationId } = useAuth();
+  const { organizationId, isLoading: authLoading } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (organizationId) {
-      fetchJobs();
-    }
-  }, [organizationId]);
+    if (authLoading) return;
+    if (organizationId) fetchJobs();
+    else setIsLoading(false);
+  }, [organizationId, authLoading]);
 
   const fetchJobs = async () => {
     if (!organizationId) return;
@@ -71,6 +71,24 @@ export default function ManagerJobs() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!organizationId) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization not assigned</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Your account manager role is active, but it isn’t linked to an organization yet. Ask a platform admin to re-invite you or
+              reassign you to a tenant.
+            </p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

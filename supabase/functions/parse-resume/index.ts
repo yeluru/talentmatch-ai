@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,11 +83,6 @@ serve(async (req) => {
 
     const body = await req.json();
     const { fileBase64, fileName, fileType, resumeText } = body;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     // Input validation
     const validatedFileName = sanitizeString(fileName, 255);
@@ -250,111 +246,106 @@ ${textContent.substring(0, 30000)}
 
 IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''}" shown above were extracted via regex. If they look valid, USE THEM in your response.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "parse_resume",
-              description: "Extract structured information from a resume and calculate ATS score",
-              parameters: {
-                type: "object",
-                properties: {
-                  full_name: { 
-                    type: "string", 
-                    description: "The candidate's full name" 
-                  },
-                  email: { 
-                    type: "string", 
-                    description: "The candidate's email address" 
-                  },
-                  phone: { 
-                    type: "string", 
-                    description: "The candidate's phone number" 
-                  },
-                  location: { 
-                    type: "string", 
-                    description: "The candidate's location/city" 
-                  },
-                  current_title: { 
-                    type: "string", 
-                    description: "Current or most recent job title - this is the target role for ATS scoring" 
-                  },
-                  current_company: { 
-                    type: "string", 
-                    description: "Current or most recent company" 
-                  },
-                  years_of_experience: { 
-                    type: "number", 
-                    description: "Estimated total years of experience" 
-                  },
-                  skills: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "List of skills found in the resume" 
-                  },
-                  education: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        institution: { type: "string" },
-                        degree: { type: "string" },
-                        field_of_study: { type: "string" },
-                        year: { type: "string" }
-                      }
-                    },
-                    description: "Education history"
-                  },
-                  experience: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        company: { type: "string" },
-                        title: { type: "string" },
-                        duration: { type: "string" },
-                        description: { type: "string" }
-                      }
-                    },
-                    description: "Work experience history"
-                  },
-                  summary: {
-                    type: "string",
-                    description: "Brief professional summary or headline"
-                  },
-                  linkedin_url: {
-                    type: "string",
-                    description: "LinkedIn profile URL if found"
-                  },
-                  ats_score: {
-                    type: "number",
-                    description: "ATS compatibility score from 0-100 based on how well the resume is optimized for the target role"
-                  },
-                  ats_feedback: {
-                    type: "string",
-                    description: "Brief feedback on resume quality and what could be improved"
-                  }
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "parse_resume",
+            description:
+              "Extract structured information from a resume and calculate ATS score",
+            parameters: {
+              type: "object",
+              properties: {
+                full_name: {
+                  type: "string",
+                  description: "The candidate's full name",
                 },
-                required: ["full_name", "skills", "ats_score"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "parse_resume" } }
-      }),
+                email: {
+                  type: "string",
+                  description: "The candidate's email address",
+                },
+                phone: {
+                  type: "string",
+                  description: "The candidate's phone number",
+                },
+                location: {
+                  type: "string",
+                  description: "The candidate's location/city",
+                },
+                current_title: {
+                  type: "string",
+                  description:
+                    "Current or most recent job title - this is the target role for ATS scoring",
+                },
+                current_company: {
+                  type: "string",
+                  description: "Current or most recent company",
+                },
+                years_of_experience: {
+                  type: "number",
+                  description: "Estimated total years of experience",
+                },
+                skills: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "List of skills found in the resume",
+                },
+                education: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      institution: { type: "string" },
+                      degree: { type: "string" },
+                      field_of_study: { type: "string" },
+                      year: { type: "string" },
+                    },
+                  },
+                  description: "Education history",
+                },
+                experience: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      company: { type: "string" },
+                      title: { type: "string" },
+                      duration: { type: "string" },
+                      description: { type: "string" },
+                    },
+                  },
+                  description: "Work experience history",
+                },
+                summary: {
+                  type: "string",
+                  description: "Brief professional summary or headline",
+                },
+                linkedin_url: {
+                  type: "string",
+                  description: "LinkedIn profile URL if found",
+                },
+                ats_score: {
+                  type: "number",
+                  description:
+                    "ATS compatibility score from 0-100 based on how well the resume is optimized for the target role",
+                },
+                ats_feedback: {
+                  type: "string",
+                  description: "Brief feedback on resume quality and what could be improved",
+                },
+              },
+              required: ["full_name", "skills", "ats_score"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "parse_resume" } },
     });
 
     if (!response.ok) {

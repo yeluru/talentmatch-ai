@@ -9,6 +9,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function getRequestIp(req: Request): string | null {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]?.trim() || null;
+  return req.headers.get("x-real-ip");
+}
+
 interface InviteRequest {
   email: string;
   fullName?: string;
@@ -17,6 +23,9 @@ interface InviteRequest {
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
+  if (!RESEND_API_KEY) {
+    return { skipped: true };
+  }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -66,11 +75,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, fullName, organizationId, organizationName }: InviteRequest = await req.json();
 
+    // Verify inviter is allowed (org_admin or account_manager) and org matches
+    const { data: inviterRole } = await supabase
+      .from("user_roles")
+      .select("role, organization_id")
+      .eq("user_id", user.id)
+      .in("role", ["account_manager", "org_admin"])
+      .maybeSingle();
+
+    if (!inviterRole) {
+      throw new Error("Only org admins or account managers can invite recruiters");
+    }
+
+    if (inviterRole.organization_id !== organizationId) {
+      throw new Error("Organization mismatch");
+    }
+
     // Generate a unique invite token
     const inviteToken = crypto.randomUUID();
 
     // Create the invite in the database
-    const { error: insertError } = await supabase
+    const { data: inviteRow, error: insertError } = await supabase
       .from("recruiter_invites")
       .insert({
         email,
@@ -78,7 +103,9 @@ const handler = async (req: Request): Promise<Response> => {
         organization_id: organizationId,
         invited_by: user.id,
         invite_token: inviteToken,
-      });
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       console.error("Insert error:", insertError);
@@ -96,13 +123,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     const inferredAppUrl = origin && !isLovableGateHost(origin)
       ? origin
-      : "https://talmatch.lovable.app";
+      : "http://localhost:8080";
 
     const publicAppUrl = envAppUrl && !isLovableGateHost(envAppUrl)
       ? envAppUrl
       : inferredAppUrl;
 
     const inviteUrl = `${publicAppUrl}/auth?invite=${inviteToken}`;
+
+    // Write audit log (service role bypasses RLS)
+    try {
+      await supabase.from("audit_logs").insert({
+        organization_id: organizationId,
+        user_id: user.id,
+        action: "invite_recruiter",
+        entity_type: "recruiter_invite",
+        entity_id: inviteRow?.id ?? null,
+        details: {
+          invite_email: email,
+          invite_full_name: fullName || null,
+        },
+        ip_address: getRequestIp(req),
+      });
+    } catch (e) {
+      console.error("[audit_logs] failed to write recruiter invite log:", e);
+    }
 
     // Send the email
     const emailHtml = `
@@ -155,7 +200,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify({ success: true, inviteToken }), {
+    return new Response(JSON.stringify({
+      success: true,
+      inviteToken,
+      inviteUrl,
+      emailDelivery: RESEND_API_KEY ? "resend" : "skipped",
+      emailResult: emailResponse,
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

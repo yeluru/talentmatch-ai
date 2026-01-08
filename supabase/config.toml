@@ -9,15 +9,15 @@ max_rows = 1000
 
 [auth]
 enabled = true
-site_url = "http://localhost:5173"
-additional_redirect_urls = ["https://localhost:5173"]
+site_url = "http://localhost:8080"
+additional_redirect_urls = ["http://localhost:8080", "https://localhost:8080"]
 jwt_expiry = 3600
 enable_signup = true
 
 [auth.email]
 enable_signup = true
 double_confirm_changes = false
-enable_confirmations = false
+enable_confirmations = true
 
 [functions.analyze-resume]
 verify_jwt = false
@@ -50,13 +50,22 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notify-application]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-recruiter-invite]
-verify_jwt = false
-
-[functions.create-recruiter-account]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-invite-details]
 verify_jwt = false
+
+[functions.send-manager-invite]
+verify_jwt = true
+
+[functions.send-org-admin-invite]
+verify_jwt = true
+
+[functions.bootstrap-platform-admin]
+verify_jwt = true
+
+[functions.send-org-admin-invite-existing]
+verify_jwt = true

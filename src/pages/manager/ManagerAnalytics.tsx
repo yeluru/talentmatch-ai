@@ -15,7 +15,7 @@ interface AnalyticsData {
 }
 
 export default function ManagerAnalytics() {
-  const { organizationId } = useAuth();
+  const { organizationId, isLoading: authLoading } = useAuth();
   const [data, setData] = useState<AnalyticsData>({
     totalJobs: 0,
     publishedJobs: 0,
@@ -26,10 +26,10 @@ export default function ManagerAnalytics() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (organizationId) {
-      fetchAnalytics();
-    }
-  }, [organizationId]);
+    if (authLoading) return;
+    if (organizationId) fetchAnalytics();
+    else setIsLoading(false);
+  }, [organizationId, authLoading]);
 
   const fetchAnalytics = async () => {
     if (!organizationId) return;
@@ -89,6 +89,24 @@ export default function ManagerAnalytics() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!organizationId) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization not assigned</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Your account manager role is active, but it isn’t linked to an organization yet. Please ask a platform admin to re-invite
+              you or reassign you to a tenant.
+            </p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

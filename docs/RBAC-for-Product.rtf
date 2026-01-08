@@ -1,0 +1,146 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}}
+\fs36\b TalentMatch AI \u8212? Roles \u38? Permissions (Product-Friendly)\b0\par
+\fs22\par
+\b Purpose\b0\par
+This document explains who can do what in TalentMatch AI in plain language.\par
+It covers platform-level administration (internal team) and customer-level administration (each organization).\par
+\par
+\b Read this first (context)\b0\par
+\bullet  This is a multi-tenant SaaS product: many customer organizations share the same app, but must never see each other\u8217?s data.\par
+\bullet  Roles exist to prevent accidental access and to ensure the right people can do the right actions.\par
+\bullet  We separate internal administration (platform) from customer administration (organization) on purpose.\par
+\par
+\b Key Concepts\b0\par
+\bullet  Platform = internal admin view across all customers.\par
+\bullet  Organization = a customer/tenant (a company using the product).\par
+\bullet  Invite-only = the user cannot sign up themselves; they must receive an invite link.\par
+\bullet  Public candidate = a candidate not tied to any organization.\par
+\par
+\b Roles\b0\par
+1) Platform Admin (internal)\par
+2) Org Admin (Customer \u8220?Org Super Admin\u8221?)\par
+3) Account Manager (Customer manager)\par
+4) Recruiter (Customer recruiter)\par
+5) Candidate (Job seeker)\par
+\par
+\b Role definitions (plain English)\b0\par
+\b 1) Platform Admin (internal)\b0\par
+Who they are: your internal operations/support user.\par
+Why they exist: to onboard customers (create organizations) and manage the Org Admin for each customer.\par
+Important boundary: they can view the platform for support, but are read-only for customer data in the app UI.\par
+\par
+\b 2) Org Admin (Customer \u8220?Org Super Admin\u8221?)\b0\par
+Who they are: the highest-privilege admin user inside a customer organization.\par
+Why they exist: to manage that customer\u8217?s team access (managers/recruiters) and oversee their org\u8217?s candidates.\par
+Important boundary: they can only see and manage their own organization, never other orgs.\par
+\par
+\b 3) Account Manager (Customer manager)\b0\par
+Who they are: a customer admin user who manages day-to-day operations.\par
+Why they exist: to delegate user management (especially recruiters) without requiring Org Admin for everything.\par
+Important boundary: they can\u8217?t manage Org Admins and can\u8217?t act outside their org.\par
+\par
+\b 4) Recruiter (Customer recruiter)\b0\par
+Who they are: the user doing recruiting work (jobs, applicants, outreach, etc.).\par
+Why they exist: to run hiring workflows, not to manage accounts/roles.\par
+Important boundary: they can\u8217?t manage user access; they only operate within their org.\par
+\par
+\b 5) Candidate (Job seeker)\b0\par
+Who they are: the job seeker using the product.\par
+Why they exist: they are the end-user of candidate features (profile, resume, applications).\par
+Important boundary: they can only see/manage their own information.\par
+\par
+\b High-level rules\b0\par
+\bullet  Only Candidates can self-sign up in the app.\par
+\bullet  Org Admin, Account Manager, and Recruiter are invite-only.\par
+\bullet  Org Admins can manage only their own organization\u8217?s users and candidates.\par
+\bullet  Platform Admin can see everything but should only change Org Admins; other data is read-only from the platform UI.\par
+\par
+\b Why these rules exist (quick explanation)\b0\par
+\bullet  Candidate signup is open because candidates are the \u8220?public\u8221? side of the product.\par
+\bullet  Staff roles are invite-only to prevent unauthorized people becoming recruiters/managers/admins.\par
+\bullet  Org boundaries protect customer privacy: one customer must never see another customer\u8217?s users or candidates.\par
+\bullet  Platform Admin is limited so internal tools can support onboarding without becoming a \u8220?super user editor\u8221? for customer data.\par
+\par
+\fs28\b One-page Permission Matrix (Role \u215? Resource \u215? CRUD)\b0\fs22\par
+Legend: C = Create, R = Read/View, U = Update/Edit, D = Delete/Remove\par
+\par
+\trowd\trgaph108\trleft0
+\cellx1500\cellx2800\cellx4300\cellx5800\cellx7200\cellx8600\cellx10000
+\intbl\b Role\b0\cell
+\intbl\b Scope\b0\cell
+\intbl\b Invite/Create\b0\cell
+\intbl\b Revoke/Remove\b0\cell
+\intbl\b View Users\b0\cell
+\intbl\b Manage Candidates\b0\cell
+\intbl\b Notes\b0\cell
+\row
+
+\trowd\trgaph108\trleft0
+\cellx1500\cellx2800\cellx4300\cellx5800\cellx7200\cellx8600\cellx10000
+\intbl Platform Admin\cell
+\intbl All orgs\cell
+\intbl C (Org Admins only; create org + invite)\cell
+\intbl U (revoke Org Admin role)\cell
+\intbl R (all, read-only)\cell
+\intbl R (all, read-only)\cell
+\intbl Platform UI read-only except Org Admin lifecycle\cell
+\row
+
+\trowd\trgaph108\trleft0
+\cellx1500\cellx2800\cellx4300\cellx5800\cellx7200\cellx8600\cellx10000
+\intbl Org Admin\cell
+\intbl Own org only\cell
+\intbl C (Account Managers, Recruiters)\cell
+\intbl D (remove managers/recruiters from org)\cell
+\intbl R (all users in org)\cell
+\intbl R/U (notes/status + link/unlink to org)\cell
+\intbl Cannot see other orgs; no permanent deletes\cell
+\row
+
+\trowd\trgaph108\trleft0
+\cellx1500\cellx2800\cellx4300\cellx5800\cellx7200\cellx8600\cellx10000
+\intbl Account Manager\cell
+\intbl Own org only\cell
+\intbl C (Recruiters)\cell
+\intbl D (remove recruiters from org)\cell
+\intbl R (org team roster as needed)\cell
+\intbl R (org candidates as allowed)\cell
+\intbl No Org Admin management\cell
+\row
+
+\trowd\trgaph108\trleft0
+\cellx1500\cellx2800\cellx4300\cellx5800\cellx7200\cellx8600\cellx10000
+\intbl Recruiter\cell
+\intbl Own org only\cell
+\intbl (none)\cell
+\intbl (none)\cell
+\intbl R (hiring-related users as needed)\cell
+\intbl R/U (candidate review within org rules)\cell
+\intbl No user/role management\cell
+\row
+
+\trowd\trgaph108\trleft0
+\cellx1500\cellx2800\cellx4300\cellx5800\cellx7200\cellx8600\cellx10000
+\intbl Candidate\cell
+\intbl Self (public or org-linked)\cell
+\intbl C (self sign-up)\cell
+\intbl (none)\cell
+\intbl R (self only)\cell
+\intbl R/U (own profile/resume)\cell
+\intbl Public candidates are not visible to tenants by default\cell
+\row
+
+\par
+\b Candidate: Public vs Org-linked\b0\par
+\bullet  Public candidate: not tied to any org; only the candidate (and Platform Admin read-only) can see them.\par
+\bullet  Org-linked candidate: tied to one org; Org Admin / Account Managers / Recruiters can see them per org access rules.\par
+\par
+\b Invite chains (how users are created)\b0\par
+\bullet  Platform Admin \u8594? invites Org Admin (creates organization + sends invite link)\par
+\bullet  Org Admin \u8594? invites Account Manager (sends invite link)\par
+\bullet  Org Admin and/or Account Manager \u8594? invites Recruiter (sends invite link)\par
+\bullet  Candidate \u8594? self-signup (email confirmation may be required)\par
+}
+
+

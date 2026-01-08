@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, UserPlus, Mail, KeyRound, Trash2, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Mail, Trash2, Clock, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -48,6 +47,7 @@ interface PendingInvite {
   status: string;
   created_at: string;
   expires_at: string;
+  invite_token: string;
 }
 
 export default function ManagerTeam() {
@@ -59,17 +59,15 @@ export default function ManagerTeam() {
   
   // Dialog states
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastRecruiterInviteUrl, setLastRecruiterInviteUrl] = useState<string | null>(null);
   
   // Invite form
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
-  
-  // Create account form
-  const [createEmail, setCreateEmail] = useState('');
-  const [createName, setCreateName] = useState('');
-  const [createPassword, setCreatePassword] = useState('');
+
+  const buildInviteUrl = (token: string) =>
+    `${window.location.origin}/auth?invite=${token}`;
 
   useEffect(() => {
     // When auth is hydrated but the org isn't available, don't spin forever.
@@ -141,92 +139,44 @@ export default function ManagerTeam() {
     }
   };
 
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCreatePassword(password);
-  };
-
   const handleSendInvite = async () => {
     if (!inviteEmail || !organizationId) return;
     
     setIsSubmitting(true);
+    setLastRecruiterInviteUrl(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-recruiter-invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('send-recruiter-invite', {
+        body: {
           email: inviteEmail,
           fullName: inviteName || undefined,
           organizationId,
           organizationName,
-        }),
+        },
       });
 
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to send invite');
+      if (error) throw error;
+      const inviteUrl = (data as any)?.inviteUrl as string | undefined;
+      if (inviteUrl) {
+        setLastRecruiterInviteUrl(inviteUrl);
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+          toast.success('Recruiter invite created (link copied to clipboard)');
+        } catch {
+          toast.success('Recruiter invite created');
+        }
+      } else {
+        toast.success(`Invitation created for ${inviteEmail}`);
       }
-
-      toast.success(`Invitation sent to ${inviteEmail}`);
       setIsInviteOpen(false);
       setInviteEmail('');
       setInviteName('');
       fetchTeamData();
     } catch (error: any) {
       console.error('Error sending invite:', error);
-      toast.error(error.message || 'Failed to send invitation');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCreateAccount = async () => {
-    if (!createEmail || !createName || !createPassword || !organizationId) return;
-    
-    setIsSubmitting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-recruiter-account`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          email: createEmail,
-          fullName: createName,
-          tempPassword: createPassword,
-          organizationId,
-          organizationName,
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create account');
-      }
-
-      toast.success(`Account created for ${createEmail}`);
-      setIsCreateOpen(false);
-      setCreateEmail('');
-      setCreateName('');
-      setCreatePassword('');
-      fetchTeamData();
-    } catch (error: any) {
-      console.error('Error creating account:', error);
-      toast.error(error.message || 'Failed to create account');
+      const msg = error?.message || 'Failed to send invitation';
+      toast.error(msg.includes('Unauthorized')
+        ? 'Unauthorized. Please refresh and try again. If it persists, ensure you are signed in as an Account Manager.'
+        : msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -262,6 +212,42 @@ export default function ManagerTeam() {
     } catch (error: any) {
       console.error('Error cancelling invite:', error);
       toast.error('Failed to cancel invitation');
+    }
+  };
+
+  const handleReInvite = async (invite: PendingInvite) => {
+    if (!organizationId) return;
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-recruiter-invite', {
+        body: {
+          email: invite.email,
+          fullName: invite.full_name || undefined,
+          organizationId,
+          organizationName,
+        },
+      });
+      if (error) throw error;
+
+      await supabase.from('recruiter_invites').delete().eq('id', invite.id);
+
+      const inviteUrl = (data as any)?.inviteUrl as string | undefined;
+      if (inviteUrl) {
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+          toast.success('Re-invited (new link copied)');
+        } catch {
+          toast.success('Re-invited');
+        }
+      } else {
+        toast.success('Re-invited');
+      }
+
+      fetchTeamData();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to re-invite');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -315,26 +301,13 @@ export default function ManagerTeam() {
             <p className="text-muted-foreground mt-1">Manage recruiters in your organization</p>
           </div>
           
-          <Dialog open={isInviteOpen || isCreateOpen} onOpenChange={(open) => {
-            if (!open) {
-              setIsInviteOpen(false);
-              setIsCreateOpen(false);
-            }
-          }}>
-            <div className="flex gap-2">
-              <DialogTrigger asChild>
-                <Button onClick={() => setIsInviteOpen(true)} variant="outline">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Invite
-                </Button>
-              </DialogTrigger>
-              <DialogTrigger asChild>
-                <Button onClick={() => { setIsCreateOpen(true); generatePassword(); }}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Create Account
-                </Button>
-              </DialogTrigger>
-            </div>
+          <Dialog open={isInviteOpen} onOpenChange={(open) => !open && setIsInviteOpen(false)}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setIsInviteOpen(true)} variant="outline">
+                <Mail className="h-4 w-4 mr-2" />
+                Invite Recruiter
+              </Button>
+            </DialogTrigger>
             
             {/* Send Invite Dialog */}
             {isInviteOpen && (
@@ -369,6 +342,33 @@ export default function ManagerTeam() {
                       required
                     />
                   </div>
+                  {lastRecruiterInviteUrl && (
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <p className="text-xs text-muted-foreground">Invite link (local email may be skipped)</p>
+                      <p className="mt-1 break-all text-sm font-medium">{lastRecruiterInviteUrl}</p>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(lastRecruiterInviteUrl);
+                            toast.success("Copied invite link");
+                          }}
+                        >
+                          Copy
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(lastRecruiterInviteUrl, "_blank")}
+                        >
+                          Open
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsInviteOpen(false)}>
@@ -377,71 +377,6 @@ export default function ManagerTeam() {
                   <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail || !inviteName}>
                     {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Send Invitation
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            )}
-            
-            {/* Create Account Dialog */}
-            {isCreateOpen && (
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <KeyRound className="h-5 w-5" />
-                    Create Recruiter Account
-                  </DialogTitle>
-                  <DialogDescription>
-                    Create an account directly. The recruiter will receive login credentials via email.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="create-email">Email Address *</Label>
-                    <Input
-                      id="create-email"
-                      type="email"
-                      placeholder="recruiter@example.com"
-                      value={createEmail}
-                      onChange={(e) => setCreateEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-name">Full Name *</Label>
-                    <Input
-                      id="create-name"
-                      placeholder="John Doe"
-                      value={createName}
-                      onChange={(e) => setCreateName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-password">Temporary Password *</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="create-password"
-                        value={createPassword}
-                        onChange={(e) => setCreatePassword(e.target.value)}
-                        className="font-mono"
-                      />
-                      <Button type="button" variant="outline" onClick={generatePassword}>
-                        Generate
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      The recruiter will be prompted to change this password on first login.
-                    </p>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleCreateAccount} 
-                    disabled={isSubmitting || !createEmail || !createName || !createPassword}
-                  >
-                    {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Create Account
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -466,12 +401,40 @@ export default function ManagerTeam() {
                     <div>
                       <p className="font-medium">{invite.full_name || invite.email}</p>
                       {invite.full_name && <p className="text-sm text-muted-foreground">{invite.email}</p>}
+                      <p className="mt-1 text-xs text-muted-foreground break-all">
+                        Invite link: {buildInviteUrl(invite.invite_token)}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Expires {new Date(invite.expires_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="border-amber-500 text-amber-600">Pending</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(buildInviteUrl(invite.invite_token));
+                          toast.success("Copied invite link");
+                        }}
+                      >
+                        Copy link
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(buildInviteUrl(invite.invite_token), "_blank")}
+                      >
+                        Open
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleReInvite(invite)}
+                        disabled={isSubmitting}
+                      >
+                        Re-invite
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon"

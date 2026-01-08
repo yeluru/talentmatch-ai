@@ -23,6 +23,8 @@ export default function Index() {
     if (!user) return '/auth';
     if (currentRole === 'candidate') return '/candidate';
     if (currentRole === 'recruiter') return '/recruiter';
+    if (currentRole === 'org_admin') return '/org-admin';
+    if (currentRole === 'super_admin') return '/admin';
     return '/manager';
   };
 
@@ -180,7 +182,7 @@ export default function Index() {
               </div>
             </Link>
 
-            {/* Managers */}
+            {/* Account Managers */}
             <Link to="/managers" className="group">
               <div className="bg-card border rounded-lg p-6 h-full hover:border-manager/50 hover:shadow-sm transition-all">
                 <div className="h-12 w-12 rounded-lg bg-manager/10 flex items-center justify-center mb-4">

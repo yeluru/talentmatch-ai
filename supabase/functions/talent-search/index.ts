@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,11 +41,6 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const { searchQuery, candidates } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     console.log("Talent search query:", searchQuery);
     console.log("Candidates to analyze:", candidates?.length || 0);
@@ -78,19 +74,13 @@ ${candidateSummaries}
 
 Analyze each candidate and return a ranked list of matches.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [{
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
           type: "function",
           function: {
             name: "rank_candidates",
@@ -105,8 +95,8 @@ Analyze each candidate and return a ranked list of matches.`;
                     location: { type: "string" },
                     experience_level: { type: "string" },
                     skills: { type: "array", items: { type: "string" } },
-                    industry: { type: "string" }
-                  }
+                    industry: { type: "string" },
+                  },
                 },
                 matches: {
                   type: "array",
@@ -117,18 +107,18 @@ Analyze each candidate and return a ranked list of matches.`;
                       match_score: { type: "number" },
                       match_reason: { type: "string" },
                       matched_criteria: { type: "array", items: { type: "string" } },
-                      missing_criteria: { type: "array", items: { type: "string" } }
+                      missing_criteria: { type: "array", items: { type: "string" } },
                     },
-                    required: ["candidate_index", "match_score", "match_reason"]
-                  }
-                }
+                    required: ["candidate_index", "match_score", "match_reason"],
+                  },
+                },
               },
-              required: ["parsed_query", "matches"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "rank_candidates" } }
-      }),
+              required: ["parsed_query", "matches"],
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "rank_candidates" } },
     });
 
     if (!response.ok) {

@@ -31,18 +31,45 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch invite details using service role (bypasses RLS)
-    const { data: invite, error } = await supabase
-      .from("recruiter_invites")
-      .select("email, full_name, status, expires_at, organization_id")
-      .eq("invite_token", inviteToken)
-      .single();
+    // We support 3 invite types:
+    // - org_admin_invites -> role: org_admin (tenant org super admin)
+    // - manager_invites   -> role: account_manager
+    // - recruiter_invites -> role: recruiter
 
-    if (error || !invite) {
+    const findInvite = async (
+      table: "org_admin_invites" | "manager_invites" | "recruiter_invites",
+    ) => {
+      const { data, error } = await supabase
+        .from(table)
+        .select("email, full_name, status, expires_at, organization_id")
+        .eq("invite_token", inviteToken)
+        .maybeSingle();
+      return { invite: data, error };
+    };
+
+    const orgAdminRes = await findInvite("org_admin_invites");
+    const managerRes = orgAdminRes.invite ? null : await findInvite("manager_invites");
+    const recruiterRes = orgAdminRes.invite || managerRes?.invite
+      ? null
+      : await findInvite("recruiter_invites");
+
+    const invite =
+      orgAdminRes.invite ||
+      managerRes?.invite ||
+      recruiterRes?.invite;
+
+    if (!invite) {
       return new Response(
         JSON.stringify({ error: "Invite not found" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
+
+    const inviteRole = orgAdminRes.invite
+      ? "org_admin"
+      : managerRes?.invite
+        ? "account_manager"
+        : "recruiter";
 
     // Check if invite is still valid
     if (invite.status !== "pending") {
@@ -75,14 +102,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        email: invite.email,
-        fullName: invite.full_name || "",
+        email: (invite as any).email,
+        fullName: (invite as any).full_name || "",
         organizationName,
+        role: inviteRole,
       }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      },
     );
   } catch (error: any) {
     console.error("Error in get-invite-details function:", error);

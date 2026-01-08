@@ -1553,7 +1553,7 @@ export type Database = {
       use_invite_code: { Args: { invite_code: string }; Returns: string }
     }
     Enums: {
-      app_role: "candidate" | "recruiter" | "account_manager" | "super_admin"
+      app_role: "candidate" | "recruiter" | "account_manager" | "org_admin" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1681,7 +1681,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["candidate", "recruiter", "account_manager", "super_admin"],
+      app_role: ["candidate", "recruiter", "account_manager", "org_admin", "super_admin"],
     },
   },
 } as const

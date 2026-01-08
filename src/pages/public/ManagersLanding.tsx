@@ -76,7 +76,7 @@ export default function ManagersLanding() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title="For Hiring Managers | TalentMatch"
+        title="For Account Managers | TalentMatch"
         description="Get complete visibility into your hiring operations with analytics, team management, and performance insights. Make data-driven recruitment decisions."
         keywords="hiring manager, recruitment analytics, team management, hiring metrics, HR dashboard"
       />
@@ -95,7 +95,7 @@ export default function ManagersLanding() {
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-manager/10 text-manager mb-6">
                 <Sparkles className="h-4 w-4" />
-                <span className="text-sm font-medium">For Hiring Leaders</span>
+                <span className="text-sm font-medium">For Account Managers</span>
               </div>
               
               <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-[1.1]">

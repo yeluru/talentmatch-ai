@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,15 +60,7 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
-      return new Response(
-        JSON.stringify({ error: "AI service not configured. Please contact support." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // AI provider is resolved by callChatCompletions (OPENAI_API_KEY preferred, LOVABLE_API_KEY fallback)
 
     if (!candidates || candidates.length === 0) {
       console.log("No candidates provided to evaluate");
@@ -109,19 +102,13 @@ ${JSON.stringify(searchCriteria, null, 2)}`;
        Summary: ${c.summary || 'N/A'}`
     ).join('\n\n');
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Evaluate these candidates:\n\n${candidateSummaries}` }
-        ],
-        tools: [{
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Evaluate these candidates:\n\n${candidateSummaries}` },
+      ],
+      tools: [
+        {
           type: "function",
           function: {
             name: "recommend_candidates",
@@ -137,21 +124,21 @@ ${JSON.stringify(searchCriteria, null, 2)}`;
                       candidate_id: { type: "string" },
                       match_score: { type: "number" },
                       recommendation_reason: { type: "string" },
-                      is_high_priority: { type: "boolean" }
+                      is_high_priority: { type: "boolean" },
                     },
-                    required: ["candidate_id", "match_score", "recommendation_reason"]
-                  }
+                    required: ["candidate_id", "match_score", "recommendation_reason"],
+                  },
                 },
                 summary: { type: "string" },
                 total_evaluated: { type: "number" },
-                top_matches_count: { type: "number" }
+                top_matches_count: { type: "number" },
               },
-              required: ["recommendations", "summary", "total_evaluated"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "recommend_candidates" } }
-      }),
+              required: ["recommendations", "summary", "total_evaluated"],
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "recommend_candidates" } },
     });
 
     if (!response.ok) {

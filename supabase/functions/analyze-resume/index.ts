@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { callChatCompletions } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,11 +50,6 @@ serve(async (req) => {
     console.log("Authenticated user:", user.id);
 
     const body = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     // Input validation
     const resumeText = sanitizeString(body.resumeText, MAX_RESUME_TEXT_LENGTH);
@@ -123,69 +119,69 @@ ${resumeText}
 
 Provide a detailed analysis with an overall ATS score, identified skills, key strengths, areas for improvement, and recommendations.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "analyze_resume",
-              description: "Return structured resume analysis results",
-              parameters: {
-                type: "object",
-                properties: {
-                  match_score: { 
-                    type: "number", 
-                    description: "Overall match/ATS score from 0-100" 
-                  },
-                  matched_skills: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "Skills found in the resume that match the job or are valuable" 
-                  },
-                  missing_skills: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "Skills not found that would strengthen the candidate" 
-                  },
-                  key_strengths: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Key strengths identified in the resume"
-                  },
-                  areas_for_improvement: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Areas that need improvement"
-                  },
-                  recommendations: { 
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "Specific actionable recommendations" 
-                  },
-                  summary: {
-                    type: "string",
-                    description: "Brief overall summary of the analysis"
-                  }
+    const { res: response } = await callChatCompletions({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "analyze_resume",
+            description: "Return structured resume analysis results",
+            parameters: {
+              type: "object",
+              properties: {
+                match_score: {
+                  type: "number",
+                  description: "Overall match/ATS score from 0-100",
                 },
-                required: ["match_score", "matched_skills", "missing_skills", "recommendations", "summary"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "analyze_resume" } }
-      }),
+                matched_skills: {
+                  type: "array",
+                  items: { type: "string" },
+                  description:
+                    "Skills found in the resume that match the job or are valuable",
+                },
+                missing_skills: {
+                  type: "array",
+                  items: { type: "string" },
+                  description:
+                    "Skills not found that would strengthen the candidate",
+                },
+                key_strengths: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Key strengths identified in the resume",
+                },
+                areas_for_improvement: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Areas that need improvement",
+                },
+                recommendations: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Specific actionable recommendations",
+                },
+                summary: {
+                  type: "string",
+                  description: "Brief overall summary of the analysis",
+                },
+              },
+              required: [
+                "match_score",
+                "matched_skills",
+                "missing_skills",
+                "recommendations",
+                "summary",
+              ],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "analyze_resume" } },
     });
 
     if (!response.ok) {

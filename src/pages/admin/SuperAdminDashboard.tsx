@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { 
   Table, 
   TableBody, 
@@ -17,12 +16,13 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { 
   Shield, 
@@ -39,12 +40,8 @@ import {
   Building2, 
   Briefcase, 
   Search,
-  MoreVertical,
-  Ban,
   CheckCircle,
   LogOut,
-  Trash2,
-  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
@@ -55,7 +52,7 @@ interface UserWithRoles {
   full_name: string;
   created_at: string;
   roles: string[];
-  is_suspended: boolean;
+  tenant_label?: string;
 }
 
 interface PlatformStats {
@@ -63,6 +60,40 @@ interface PlatformStats {
   totalOrganizations: number;
   totalJobs: number;
   totalApplications: number;
+}
+
+interface AuditLogRow {
+  id: string;
+  created_at: string;
+  organization_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  ip_address: string | null;
+  details: unknown;
+  user_name?: string;
+  org_name?: string;
+}
+
+interface OrgAdminInviteRow {
+  id: string;
+  created_at: string;
+  organization_id: string;
+  email: string;
+  full_name: string | null;
+  status: string;
+  expires_at: string;
+  invite_token: string;
+  org_name?: string;
+}
+
+interface TenantRow {
+  organization_id: string;
+  organization_name: string;
+  created_at?: string;
+  org_admin_users: Array<{ user_id: string; email: string; full_name: string }>;
+  pending_org_admin_invites: Array<OrgAdminInviteRow>;
 }
 
 export default function SuperAdminDashboard() {
@@ -78,34 +109,57 @@ export default function SuperAdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Find user (auth) state
-  const [lookupEmail, setLookupEmail] = useState('');
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupResult, setLookupResult] = useState<{
-    id: string;
-    email: string;
-    created_at: string;
-    last_sign_in_at: string | null;
-    full_name?: string;
-    roles?: string[];
-    profile_exists?: boolean;
-  } | null>(null);
-  const [lookupNotFound, setLookupNotFound] = useState(false);
-  const [repairingProfile, setRepairingProfile] = useState(false);
+  // Global audit logs (read-only)
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditHasMore, setAuditHasMore] = useState(false);
+  const [auditCursor, setAuditCursor] = useState<string | null>(null);
+  const [auditExpanded, setAuditExpanded] = useState(false);
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditSearchDebounced, setAuditSearchDebounced] = useState('');
 
-  // Delete dialog state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
-  const [deleteReason, setDeleteReason] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [tenantsLoading, setTenantsLoading] = useState(false);
 
-  // Bulk delete state
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  // Invite / Re-invite Org Admin for existing tenant
+  const [tenantInviteDialogOpen, setTenantInviteDialogOpen] = useState(false);
+  const [tenantInviteTarget, setTenantInviteTarget] = useState<TenantRow | null>(null);
+  const [tenantInviteEmail, setTenantInviteEmail] = useState('');
+  const [tenantInviteFullName, setTenantInviteFullName] = useState('');
+  const [tenantInviteSubmitting, setTenantInviteSubmitting] = useState(false);
+
+  // Tenant creation (Org + Org Admin invite)
+  const [tenantOrgName, setTenantOrgName] = useState('');
+  const [tenantAdminName, setTenantAdminName] = useState('');
+  const [tenantAdminEmail, setTenantAdminEmail] = useState('');
+  const [tenantCreateLoading, setTenantCreateLoading] = useState(false);
+  const [tenantInviteUrl, setTenantInviteUrl] = useState<string | null>(null);
+
+  // Revoke org admin dialog state
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [userToRevoke, setUserToRevoke] = useState<UserWithRoles | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchAuditLogs();
+    fetchTenants();
   }, []);
+
+  // Debounce audit search to avoid hammering PostgREST
+  useEffect(() => {
+    const t = setTimeout(() => setAuditSearchDebounced(auditSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [auditSearch]);
+
+  // When search changes, reset pagination + reload
+  useEffect(() => {
+    // Reset to default behavior when clearing search
+    setAuditExpanded(false);
+    setAuditCursor(null);
+    fetchAuditLogs(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auditSearchDebounced]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -137,27 +191,80 @@ export default function SuperAdminDashboard() {
       // Fetch roles for all users
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role');
+        .select('user_id, role, organization_id');
 
       if (rolesError) throw rolesError;
 
-      // Fetch suspensions
-      const { data: suspensionsData } = await supabase
-        .from('user_suspensions')
-        .select('user_id')
-        .is('lifted_at', null);
+      const roleRows = (rolesData ?? []) as Array<{ user_id: string; role: string; organization_id: string | null }>;
+      const orgIdsFromRoles = [
+        ...new Set(roleRows.map((r) => r.organization_id).filter(Boolean) as string[]),
+      ];
 
-      const suspendedUserIds = new Set(suspensionsData?.map(s => s.user_id) || []);
+      const { data: orgsByRoleOrg } = orgIdsFromRoles.length
+        ? await supabase.from('organizations').select('id, name').in('id', orgIdsFromRoles)
+        : { data: [] as Array<{ id: string; name: string }> };
+
+      const orgNameById: Record<string, string> = {};
+      (orgsByRoleOrg ?? []).forEach((o: any) => {
+        orgNameById[o.id] = o.name;
+      });
+
+      // For candidates, org membership may be tracked via candidate_profiles.organization_id (not user_roles)
+      const userIds = (profilesData || []).map((p) => p.user_id);
+      const { data: candidateOrgLinks } = userIds.length
+        ? await supabase
+            .from('candidate_profiles')
+            .select('user_id, organization_id')
+            .in('user_id', userIds)
+        : { data: [] as Array<{ user_id: string; organization_id: string | null }> };
+
+      const candidateOrgByUserId: Record<string, string> = {};
+      const orgIdsFromCandidates = [
+        ...new Set((candidateOrgLinks ?? []).map((c: any) => c.organization_id).filter(Boolean) as string[]),
+      ].filter((id) => !orgNameById[id]);
+
+      if (orgIdsFromCandidates.length) {
+        const { data: orgsByCandidateOrg } = await supabase
+          .from('organizations')
+          .select('id, name')
+          .in('id', orgIdsFromCandidates);
+        (orgsByCandidateOrg ?? []).forEach((o: any) => {
+          orgNameById[o.id] = o.name;
+        });
+      }
+
+      (candidateOrgLinks ?? []).forEach((c: any) => {
+        if (c.user_id && c.organization_id) candidateOrgByUserId[c.user_id] = c.organization_id;
+      });
 
       // Combine data
-      const usersWithRoles: UserWithRoles[] = (profilesData || []).map(profile => ({
-        user_id: profile.user_id,
-        email: profile.email,
-        full_name: profile.full_name,
-        created_at: profile.created_at,
-        roles: rolesData?.filter(r => r.user_id === profile.user_id).map(r => r.role) || [],
-        is_suspended: suspendedUserIds.has(profile.user_id)
-      }));
+      const usersWithRoles: UserWithRoles[] = (profilesData || []).map(profile => {
+        const userRoleRows = roleRows.filter((r) => r.user_id === profile.user_id);
+        const roles = userRoleRows.map((r) => r.role);
+
+        const isPlatform = roles.includes('super_admin');
+
+        // Prefer org from user_roles (staff accounts), else candidate_profiles org link, else Public
+        const roleOrgId =
+          userRoleRows.find((r) => !!r.organization_id)?.organization_id ||
+          candidateOrgByUserId[profile.user_id] ||
+          null;
+
+        const tenant_label = isPlatform
+          ? 'Platform'
+          : roleOrgId
+            ? (orgNameById[roleOrgId] || roleOrgId)
+            : 'Public';
+
+        return ({
+          user_id: profile.user_id,
+          email: profile.email,
+          full_name: profile.full_name,
+          created_at: profile.created_at,
+          roles,
+          tenant_label,
+        });
+      });
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -168,190 +275,282 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const handleSuspendUser = async (userId: string) => {
-    try {
-      const { error } = await supabase.from('user_suspensions').insert({
-        user_id: userId,
-        reason: 'Suspended by super admin',
-        suspended_by: profile?.user_id
-      });
+  const auditCutoffIso = useMemo(
+    () => new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    [],
+  );
 
-      if (error) throw error;
-      toast.success('User suspended');
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Error suspending user:', error);
-      toast.error('Failed to suspend user');
-    }
+  const buildAuditSearchOr = (q: string) => {
+    const pattern = `%${q}%`;
+    // Note: this queries the *entire* audit log history when search is non-empty.
+    return [
+      `action.ilike.${pattern}`,
+      `entity_type.ilike.${pattern}`,
+      `org_name.ilike.${pattern}`,
+      `user_full_name.ilike.${pattern}`,
+      `user_email.ilike.${pattern}`,
+      `ip_address.ilike.${pattern}`,
+      `details_text.ilike.${pattern}`,
+    ].join(',');
   };
 
-  const handleUnsuspendUser = async (userId: string) => {
+  const fetchAuditLogs = async (reset: boolean = false) => {
+    const PAGE_SIZE = 100;
+    setAuditLoading(true);
     try {
-      const { error } = await supabase
-        .from('user_suspensions')
-        .update({ lifted_at: new Date().toISOString(), lifted_by: profile?.user_id })
-        .eq('user_id', userId)
-        .is('lifted_at', null);
+      const q = auditSearchDebounced;
 
-      if (error) throw error;
-      toast.success('User unsuspended');
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Error unsuspending user:', error);
-      toast.error('Failed to unsuspend user');
-    }
-  };
+      // Use enriched view so we can search across org/user fields.
+      const sb: any = supabase as any;
+      let query = sb
+        .from('audit_logs_enriched')
+        .select('id, created_at, organization_id, user_id, action, entity_type, entity_id, ip_address, details, org_name, user_full_name, user_email')
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE);
 
-  const openDeleteDialog = (user: UserWithRoles) => {
-    // Prevent deleting super admins
-    if (user.roles.includes('super_admin')) {
-      toast.error('Cannot delete a super admin account');
-      return;
-    }
-    setUserToDelete(user);
-    setDeleteReason('');
-    setDeleteDialogOpen(true);
-  };
-
-  const handleLookupUser = async () => {
-    const email = lookupEmail.trim();
-    if (!email) return;
-
-    setLookupLoading(true);
-    setLookupNotFound(false);
-    setLookupResult(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('super-admin-find-user', {
-        body: { email },
-      });
-
-      if (error) throw error;
-
-      const found = data?.user as
-        | {
-            id: string;
-            email: string;
-            created_at: string;
-            last_sign_in_at: string | null;
-            user_metadata: Record<string, unknown>;
-          }
-        | null
-        | undefined;
-
-      if (!found) {
-        setLookupNotFound(true);
-        return;
+      if (!q) {
+        // Default mode: show only last 4 hours unless the user has clicked "Load more".
+        if (!auditExpanded) {
+          query = query.gte('created_at', auditCutoffIso);
+        }
+      } else {
+        query = query.or(buildAuditSearchOr(q));
       }
 
-      const fullName = (found.user_metadata as any)?.full_name as string | undefined;
-
-      const [{ data: rolesRows }, { data: profileRow }] = await Promise.all([
-        supabase.from('user_roles').select('role').eq('user_id', found.id),
-        supabase.from('profiles').select('id, full_name').eq('user_id', found.id).maybeSingle(),
-      ]);
-
-      const roles = (rolesRows ?? []).map((r) => r.role as string);
-      const profile_exists = !!profileRow;
-
-      setLookupResult({
-        id: found.id,
-        email: found.email,
-        created_at: found.created_at,
-        last_sign_in_at: found.last_sign_in_at,
-        full_name: profileRow?.full_name || fullName,
-        roles,
-        profile_exists,
-      });
-    } catch (err: any) {
-      console.error('Lookup user error:', err);
-      toast.error(err?.message || 'Failed to find user');
-    } finally {
-      setLookupLoading(false);
-    }
-  };
-
-  const handleRepairProfile = async () => {
-    if (!lookupResult?.id) return;
-
-    setRepairingProfile(true);
-    try {
-      const { error } = await supabase.functions.invoke('super-admin-upsert-profile', {
-        body: { userId: lookupResult.id },
-      });
-
-      if (error) throw error;
-
-      toast.success('Profile repaired');
-      setLookupResult((prev) => (prev ? { ...prev, profile_exists: true } : prev));
-      fetchDashboardData();
-    } catch (err: any) {
-      console.error('Repair profile error:', err);
-      toast.error(err?.message || 'Failed to repair profile');
-    } finally {
-      setRepairingProfile(false);
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
-
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase.functions.invoke('super-admin-delete-user', {
-        body: {
-          targetUserId: userToDelete.user_id,
-          reason: deleteReason || 'Deleted by super admin',
-        },
-      });
-
-      if (error) throw error;
-
-      toast.success(`User ${userToDelete.email} has been deleted and archived`);
-      setDeleteDialogOpen(false);
-      setUserToDelete(null);
-      fetchDashboardData();
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
-      toast.error(error.message || 'Failed to delete user');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleBulkDeleteUsers = async () => {
-    setIsBulkDeleting(true);
-    try {
-      // Get all non-super admin user IDs
-      const nonSuperAdminUsers = users.filter(u => !u.roles.includes('super_admin'));
-      const userIds = nonSuperAdminUsers.map(u => u.user_id);
-      
-      if (userIds.length === 0) {
-        toast.info('No non-super admin users to delete');
-        setBulkDeleteDialogOpen(false);
-        return;
+      const cursor = reset ? null : auditCursor;
+      if (cursor) {
+        query = query.lt('created_at', cursor);
       }
 
-      const { error } = await supabase.functions.invoke('bulk-delete-users', {
-        body: { userIds },
-      });
-
+      const { data, error } = await query;
       if (error) throw error;
 
-      toast.success(`Successfully deleted ${userIds.length} users`);
-      setBulkDeleteDialogOpen(false);
-      fetchDashboardData();
-    } catch (error: any) {
-      console.error('Error bulk deleting users:', error);
-      toast.error(error.message || 'Failed to bulk delete users');
+      const rows = (data ?? []) as any[];
+      const normalized: AuditLogRow[] = rows.map((r) => ({
+        id: r.id,
+        created_at: r.created_at,
+        organization_id: r.organization_id,
+        user_id: r.user_id,
+        action: r.action,
+        entity_type: r.entity_type,
+        entity_id: r.entity_id,
+        ip_address: r.ip_address,
+        details: r.details,
+        org_name: r.org_name || undefined,
+        user_name: r.user_full_name || r.user_email || undefined,
+      }));
+
+      const nextLogs = reset ? normalized : [...auditLogs, ...normalized];
+      setAuditLogs(nextLogs);
+
+      const last = normalized[normalized.length - 1];
+      setAuditCursor(last?.created_at || null);
+      setAuditHasMore(normalized.length === PAGE_SIZE);
+    } catch (err: any) {
+      console.error('Audit log fetch error:', err);
     } finally {
-      setIsBulkDeleting(false);
+      setAuditLoading(false);
+    }
+  };
+
+  const fetchTenants = async () => {
+    setTenantsLoading(true);
+    try {
+      const { data: orgs, error: orgErr } = await supabase
+        .from('organizations')
+        .select('id, name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (orgErr) throw orgErr;
+
+      const orgIds = (orgs ?? []).map((o: any) => o.id) as string[];
+
+      // Pending org admin invites per org (show invite link until accepted)
+      const { data: invites, error: invitesErr } = orgIds.length
+        ? await supabase
+            .from('org_admin_invites')
+            .select('id, created_at, organization_id, email, full_name, status, expires_at, invite_token')
+            .in('organization_id', orgIds)
+            .order('created_at', { ascending: false })
+        : { data: [] as any[], error: null };
+
+      if (invitesErr) throw invitesErr;
+
+      const pendingInvites = (invites ?? []).filter((i: any) => i.status === 'pending') as any[];
+
+      // Org admin users (actual accepted accounts)
+      const { data: orgAdminRoles, error: rolesErr } = orgIds.length
+        ? await supabase
+            .from('user_roles')
+            .select('user_id, organization_id, role')
+            .in('organization_id', orgIds)
+            .eq('role', 'org_admin')
+        : { data: [] as any[], error: null };
+
+      if (rolesErr) throw rolesErr;
+
+      const adminUserIds = [...new Set((orgAdminRoles ?? []).map((r: any) => r.user_id).filter(Boolean))] as string[];
+      const { data: adminProfiles, error: profilesErr } = adminUserIds.length
+        ? await supabase
+            .from('profiles')
+            .select('user_id, email, full_name')
+            .in('user_id', adminUserIds)
+        : { data: [] as any[], error: null };
+
+      if (profilesErr) throw profilesErr;
+
+      const profileMap: Record<string, { email: string; full_name: string }> = {};
+      (adminProfiles ?? []).forEach((p: any) => {
+        profileMap[p.user_id] = { email: p.email, full_name: p.full_name };
+      });
+
+      const tenantsRows: TenantRow[] = (orgs ?? []).map((o: any) => {
+        const org_admin_users = (orgAdminRoles ?? [])
+          .filter((r: any) => r.organization_id === o.id)
+          .map((r: any) => ({
+            user_id: r.user_id,
+            email: profileMap[r.user_id]?.email || '',
+            full_name: profileMap[r.user_id]?.full_name || 'Org Admin',
+          }))
+          .filter((u: any) => u.user_id);
+
+        const pending_org_admin_invites = pendingInvites
+          .filter((i: any) => i.organization_id === o.id)
+          .map((i: any) => ({
+            ...i,
+            org_name: o.name,
+          })) as OrgAdminInviteRow[];
+
+        return {
+          organization_id: o.id,
+          organization_name: o.name,
+          created_at: o.created_at,
+          org_admin_users,
+          pending_org_admin_invites,
+        };
+      });
+
+      setTenants(tenantsRows);
+    } catch (e: any) {
+      console.error('Tenant fetch error:', e);
+    } finally {
+      setTenantsLoading(false);
+    }
+  };
+
+  const openRevokeDialog = (user: UserWithRoles) => {
+    if (!user.roles.includes('org_admin')) return;
+    setUserToRevoke(user);
+    setRevokeDialogOpen(true);
+  };
+
+  const handleRevokeOrgAdmin = async () => {
+    if (!userToRevoke) return;
+    setIsRevoking(true);
+    try {
+      const { error } = await supabase.rpc('revoke_org_admin' as any, { _user_id: userToRevoke.user_id } as any);
+      if (error) throw error;
+      toast.success(`Revoked Org Admin access for ${userToRevoke.email}`);
+      setRevokeDialogOpen(false);
+      setUserToRevoke(null);
+      fetchDashboardData();
+    } catch (err: any) {
+      console.error('Revoke org admin error:', err);
+      toast.error(err?.message || 'Failed to revoke org admin');
+    } finally {
+      setIsRevoking(false);
     }
   };
 
   const handleLogout = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleCreateTenantAndInviteOrgAdmin = async () => {
+    const organizationName = tenantOrgName.trim();
+    const email = tenantAdminEmail.trim();
+    const fullName = tenantAdminName.trim();
+    if (!organizationName || !email || !fullName) return;
+
+    setTenantCreateLoading(true);
+    setTenantInviteUrl(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-org-admin-invite', {
+        body: { organizationName, email, fullName },
+      });
+      if (error) throw error;
+
+      const inviteUrl = data?.inviteUrl as string | undefined;
+      if (!inviteUrl) throw new Error('Invite created, but invite URL was not returned.');
+
+      setTenantInviteUrl(inviteUrl);
+      toast.success('Tenant created and org admin invite generated');
+      setTenantOrgName('');
+      setTenantAdminName('');
+      setTenantAdminEmail('');
+
+      // Refresh counts
+      fetchDashboardData();
+    } catch (err: any) {
+      console.error('Create tenant error:', err);
+      toast.error(err?.message || 'Failed to create tenant');
+    } finally {
+      setTenantCreateLoading(false);
+    }
+  };
+
+  const openTenantInviteDialog = (tenant: TenantRow, defaults?: { email?: string; fullName?: string }) => {
+    setTenantInviteTarget(tenant);
+    setTenantInviteEmail(defaults?.email || '');
+    setTenantInviteFullName(defaults?.fullName || '');
+    setTenantInviteDialogOpen(true);
+  };
+
+  const handleInviteOrgAdminForExistingTenant = async () => {
+    if (!tenantInviteTarget) return;
+    const email = tenantInviteEmail.trim();
+    const fullName = tenantInviteFullName.trim();
+    if (!email || !fullName) return;
+
+    setTenantInviteSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-org-admin-invite-existing', {
+        body: {
+          organizationId: tenantInviteTarget.organization_id,
+          email,
+          fullName,
+        },
+      });
+      if (error) throw error;
+
+      const inviteUrl = (data as any)?.inviteUrl as string | undefined;
+      toast.success('Org Admin invite generated');
+      if (inviteUrl) {
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+          toast.message('Invite link copied to clipboard');
+        } catch {
+          // ignore
+        }
+      }
+
+      setTenantInviteDialogOpen(false);
+      setTenantInviteTarget(null);
+      setTenantInviteEmail('');
+      setTenantInviteFullName('');
+
+      // Refresh tenant state + audit logs
+      fetchTenants();
+      fetchAuditLogs();
+      fetchDashboardData();
+    } catch (e: any) {
+      console.error('Invite existing org admin error:', e);
+      toast.error(e?.message || 'Failed to invite org admin');
+    } finally {
+      setTenantInviteSubmitting(false);
+    }
   };
 
   const filteredUsers = users.filter(user => 
@@ -436,103 +635,71 @@ export default function SuperAdminDashboard() {
             </Card>
           </div>
 
-          {/* User Management */}
+          {/* Tenant provisioning + Read-only User Management */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>User Management</CardTitle>
                 <CardDescription>
-                  View and manage all platform users
+                  View all platform users (read-only). You can manage Org Admins only.
                 </CardDescription>
               </div>
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={() => setBulkDeleteDialogOpen(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Bulk Delete All
-              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4 mb-6">
                 <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="text-sm font-medium text-foreground">Find user by email (including accounts missing a profile)</p>
+                  <p className="text-sm font-medium text-foreground">Create tenant + invite Org Admin</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    If signup says the account exists but it doesn’t show in the table below, search here.
+                    This creates an organization and generates an invite link for the customer Org Super Admin (org_admin).
+                    In local dev, email sending may be skipped; you can copy the invite link below.
                   </p>
-                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Input
-                      placeholder="email@example.com"
-                      value={lookupEmail}
-                      onChange={(e) => setLookupEmail(e.target.value)}
-                      className="sm:max-w-sm"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={handleLookupUser}
-                      disabled={lookupLoading || !lookupEmail.trim()}
-                    >
-                      {lookupLoading ? 'Searching…' : 'Search'}
-                    </Button>
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Organization name</Label>
+                      <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Org admin full name</Label>
+                      <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Org admin email</Label>
+                      <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" />
+                    </div>
                   </div>
 
-                  {lookupNotFound && (
-                    <p className="mt-3 text-sm text-muted-foreground">No account found for that email.</p>
-                  )}
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <Button
+                      variant="default"
+                      onClick={handleCreateTenantAndInviteOrgAdmin}
+                      disabled={tenantCreateLoading || !tenantOrgName.trim() || !tenantAdminName.trim() || !tenantAdminEmail.trim()}
+                    >
+                      {tenantCreateLoading ? 'Creating…' : 'Create tenant + generate invite'}
+                    </Button>
 
-                  {lookupResult && (
-                    <div className="mt-4 rounded-md border bg-card p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="font-medium text-foreground">{lookupResult.full_name || 'User'}</p>
-                          <p className="text-sm text-muted-foreground">{lookupResult.email}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">User ID: {lookupResult.id}</p>
-                          {lookupResult.profile_exists === false && (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              This account exists in authentication, but is missing a profile row — that’s why it won’t appear in the table below.
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {lookupResult.profile_exists === false && (
-                            <Button
-                              variant="outline"
-                              onClick={handleRepairProfile}
-                              disabled={repairingProfile}
-                            >
-                              {repairingProfile ? 'Repairing…' : 'Create profile'}
-                            </Button>
-                          )}
+                    {tenantInviteUrl && (
+                      <div className="flex-1 rounded-md border bg-card p-3">
+                        <p className="text-xs text-muted-foreground">Invite link</p>
+                        <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
+                        <div className="mt-2 flex gap-2">
                           <Button
-                            variant="destructive"
-                            onClick={() =>
-                              openDeleteDialog({
-                                user_id: lookupResult.id,
-                                email: lookupResult.email,
-                                full_name: lookupResult.full_name || lookupResult.email,
-                                created_at: lookupResult.created_at,
-                                roles: lookupResult.roles || [],
-                                is_suspended: false,
-                              })
-                            }
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(tenantInviteUrl);
+                              toast.success('Copied invite link');
+                            }}
                           >
-                            Delete user
+                            Copy
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
+                            Open
                           </Button>
                         </div>
                       </div>
-
-                      {!!lookupResult.roles?.length && (
-                        <div className="mt-3 flex flex-wrap gap-1">
-                          {lookupResult.roles.map((role) => (
-                            <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-xs">
-                              {role.replace('_', ' ')}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -553,10 +720,10 @@ export default function SuperAdminDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>User</TableHead>
+                      <TableHead>Tenant</TableHead>
                       <TableHead>Roles</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead>Joined</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[160px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -582,6 +749,11 @@ export default function SuperAdminDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {user.tenant_label || '—'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {user.roles.map((role) => (
                                 <Badge 
@@ -594,52 +766,17 @@ export default function SuperAdminDashboard() {
                               ))}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            {user.is_suspended ? (
-                              <Badge variant="destructive">Suspended</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>
-                            )}
-                          </TableCell>
                           <TableCell className="text-muted-foreground">
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {user.is_suspended ? (
-                                  <DropdownMenuItem onClick={() => handleUnsuspendUser(user.user_id)}>
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Unsuspend User
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleSuspendUser(user.user_id)}
-                                    className="text-destructive"
-                                  >
-                                    <Ban className="h-4 w-4 mr-2" />
-                                    Suspend User
-                                  </DropdownMenuItem>
-                                )}
-                                {!user.roles.includes('super_admin') && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem 
-                                      onClick={() => openDeleteDialog(user)}
-                                      className="text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete User
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            {user.roles.includes('org_admin') ? (
+                              <Button variant="destructive" size="sm" onClick={() => openRevokeDialog(user)}>
+                                Revoke Org Admin
+                              </Button>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Read-only</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))
@@ -649,80 +786,323 @@ export default function SuperAdminDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Tenants (orgs) + Org Admin status */}
+          <Card className="mt-8">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Tenants</CardTitle>
+                <CardDescription>
+                  Each tenant is an organization. Pending Org Admin invites show here until accepted.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
+                {tenantsLoading ? 'Refreshing…' : 'Refresh'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Organization</TableHead>
+                      <TableHead>Org Admin</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[340px]">Invite / Reactivate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tenantsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          Loading tenants...
+                        </TableCell>
+                      </TableRow>
+                    ) : tenants.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          No tenants found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      tenants.map((t) => {
+                        const pending = t.pending_org_admin_invites[0]; // show newest pending invite
+                        const inviteUrl = pending ? `${window.location.origin}/auth?invite=${pending.invite_token}` : null;
+                        const hasAdmin = t.org_admin_users.length > 0;
+                        const status = hasAdmin ? 'Active' : pending ? 'Invited' : 'No org admin';
+
+                        return (
+                          <TableRow key={t.organization_id}>
+                            <TableCell>
+                              <div className="space-y-0.5">
+                                <p className="font-medium">{t.organization_name}</p>
+                                <p className="text-xs text-muted-foreground">{t.organization_id}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {hasAdmin ? (
+                                <div className="space-y-1">
+                                  {t.org_admin_users.map((u) => (
+                                    <div key={u.user_id}>
+                                      <p className="font-medium">{u.full_name}</p>
+                                      <p className="text-sm text-muted-foreground">{u.email}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : pending ? (
+                                <div>
+                                  <p className="font-medium">{pending.full_name || pending.email}</p>
+                                  <p className="text-sm text-muted-foreground">{pending.email}</p>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-2">
+                                {inviteUrl ? (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        await navigator.clipboard.writeText(inviteUrl);
+                                        toast.success('Copied invite link');
+                                      }}
+                                    >
+                                      Copy
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => window.open(inviteUrl, '_blank')}>
+                                      Open
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        openTenantInviteDialog(t, {
+                                          email: pending?.email,
+                                          fullName: pending?.full_name || '',
+                                        })
+                                      }
+                                    >
+                                      Re-invite
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openTenantInviteDialog(t)}
+                                  >
+                                    {hasAdmin ? 'Invite another org admin' : 'Invite org admin'}
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Invite / Re-invite Org Admin dialog */}
+          <Dialog open={tenantInviteDialogOpen} onOpenChange={setTenantInviteDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite Org Admin</DialogTitle>
+                <DialogDescription>
+                  Generate an invite link for an existing tenant. Any previous pending invites for this tenant will be expired.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>Organization</Label>
+                  <Input value={tenantInviteTarget?.organization_name || ''} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Org admin full name</Label>
+                  <Input value={tenantInviteFullName} onChange={(e) => setTenantInviteFullName(e.target.value)} placeholder="Uma Mokkarala" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Org admin email</Label>
+                  <Input value={tenantInviteEmail} onChange={(e) => setTenantInviteEmail(e.target.value)} placeholder="admin@acme.com" />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setTenantInviteDialogOpen(false)} disabled={tenantInviteSubmitting}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleInviteOrgAdminForExistingTenant}
+                  disabled={tenantInviteSubmitting || !tenantInviteEmail.trim() || !tenantInviteFullName.trim() || !tenantInviteTarget}
+                >
+                  {tenantInviteSubmitting ? 'Generating…' : 'Generate invite'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Global Audit Logs (read-only) */}
+          <Card className="mt-8">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Audit Logs (platform-wide)</CardTitle>
+                <CardDescription>
+                  Default view shows the last 4 hours. Use search to query the full history, or load older logs in pages of 100.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={auditSearch}
+                  onChange={(e) => setAuditSearch(e.target.value)}
+                  placeholder="Search audit logs…"
+                  className="w-[260px]"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setAuditCursor(null);
+                    setAuditExpanded(false);
+                    fetchAuditLogs(true);
+                  }}
+                  disabled={auditLoading}
+                >
+                  {auditLoading ? 'Refreshing…' : 'Refresh'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Org</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>IP</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          Loading audit logs...
+                        </TableCell>
+                      </TableRow>
+                    ) : auditLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No audit logs found (or access not granted yet).
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      auditLogs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <p className="font-medium">{log.org_name || 'Unknown org'}</p>
+                              <p className="text-xs text-muted-foreground">{log.organization_id}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <p className="font-medium">{log.user_name || 'Unknown user'}</p>
+                              <p className="text-xs text-muted-foreground">{log.user_id}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {log.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {log.ip_address || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  {!auditSearchDebounced && !auditExpanded ? (
+                    <span>Showing last 4 hours</span>
+                  ) : auditSearchDebounced ? (
+                    <span>Search mode (full history)</span>
+                  ) : (
+                    <span>Showing full history (paged)</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {!auditSearchDebounced && !auditExpanded && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setAuditExpanded(true);
+                        // load older than current cursor (older than the last row we have)
+                        fetchAuditLogs(false);
+                      }}
+                      disabled={auditLoading || !auditHasMore}
+                    >
+                      Load older logs (100)
+                    </Button>
+                  )}
+                  {(auditSearchDebounced || auditExpanded) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fetchAuditLogs(false)}
+                      disabled={auditLoading || !auditHasMore}
+                    >
+                      Load more (100)
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </main>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        {/* Revoke Org Admin Confirmation Dialog */}
+        <AlertDialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                Delete User Permanently
-              </AlertDialogTitle>
-              <AlertDialogDescription className="space-y-3">
-                <p>
-                  You are about to permanently delete <strong>{userToDelete?.full_name}</strong> ({userToDelete?.email}).
-                </p>
-                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
-                  <p className="font-medium text-destructive mb-1">⚠️ This action cannot be undone!</p>
-                  <p className="text-muted-foreground">
-                    All user data including profile, applications, resumes, and related records will be archived and then removed from the platform.
-                  </p>
-                </div>
-                <div className="space-y-2 pt-2">
-                  <Label htmlFor="delete-reason">Reason for deletion (optional)</Label>
-                  <Textarea
-                    id="delete-reason"
-                    placeholder="Enter reason for deleting this user..."
-                    value={deleteReason}
-                    onChange={(e) => setDeleteReason(e.target.value)}
-                    className="resize-none"
-                    rows={2}
-                  />
-                </div>
+              <AlertDialogTitle>Revoke Org Admin Access</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove Org Admin privileges for <strong>{userToRevoke?.email}</strong>.
+                They will lose access to the org admin console.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isRevoking}>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleDeleteUser}
-                disabled={isDeleting}
+                onClick={handleRevokeOrgAdmin}
+                disabled={isRevoking}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isDeleting ? 'Deleting...' : 'Delete User'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Bulk Delete Confirmation Dialog */}
-        <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-5 w-5" />
-                Bulk Delete All Non-Super Admin Users
-              </AlertDialogTitle>
-              <AlertDialogDescription className="space-y-3">
-                <p>
-                  You are about to permanently delete <strong>{users.filter(u => !u.roles.includes('super_admin')).length}</strong> users.
-                </p>
-                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
-                  <p className="font-medium text-destructive mb-1">⚠️ This action cannot be undone!</p>
-                  <p className="text-muted-foreground">
-                    All user data including profiles, applications, resumes, and related records will be permanently removed. Super admin accounts will be preserved.
-                  </p>
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleBulkDeleteUsers}
-                disabled={isBulkDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isBulkDeleting ? 'Deleting...' : 'Delete All Users'}
+                {isRevoking ? 'Revoking…' : 'Revoke'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

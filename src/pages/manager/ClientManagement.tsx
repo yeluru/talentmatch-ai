@@ -33,7 +33,7 @@ interface Client {
 }
 
 export default function ClientManagement() {
-  const { user, organizationId } = useAuth();
+  const { user, organizationId, isLoading: authLoading } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,10 +51,10 @@ export default function ClientManagement() {
   });
 
   useEffect(() => {
-    if (organizationId) {
-      fetchClients();
-    }
-  }, [organizationId]);
+    if (authLoading) return;
+    if (organizationId) fetchClients();
+    else setIsLoading(false);
+  }, [organizationId, authLoading]);
 
   const fetchClients = async () => {
     try {
@@ -202,6 +202,24 @@ export default function ClientManagement() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!organizationId) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization not assigned</CardTitle>
+            <CardDescription>You need to be linked to a tenant to manage clients.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Ask a platform admin to re-invite you or reassign your account manager role to a tenant organization.
+            </p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

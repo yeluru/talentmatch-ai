@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Supabase local artifacts (do not commit)
+supabase/.branches/
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

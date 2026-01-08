@@ -20,7 +20,7 @@ interface Organization {
 }
 
 export default function ManagerOrganization() {
-  const { organizationId } = useAuth();
+  const { organizationId, isLoading: authLoading } = useAuth();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,10 +33,10 @@ export default function ManagerOrganization() {
   });
 
   useEffect(() => {
-    if (organizationId) {
-      fetchOrganization();
-    }
-  }, [organizationId]);
+    if (authLoading) return;
+    if (organizationId) fetchOrganization();
+    else setIsLoading(false);
+  }, [organizationId, authLoading]);
 
   const fetchOrganization = async () => {
     if (!organizationId) return;
@@ -98,6 +98,24 @@ export default function ManagerOrganization() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!organizationId) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization not assigned</CardTitle>
+            <CardDescription>You need to be linked to a tenant to manage organization settings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Ask a platform admin to re-invite you or reassign your account manager role to a tenant organization.
+            </p>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }

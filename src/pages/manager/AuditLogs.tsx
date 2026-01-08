@@ -46,7 +46,7 @@ const actionColors: Record<string, 'default' | 'secondary' | 'destructive' | 'ou
 };
 
 export default function AuditLogs() {
-  const { organizationId } = useAuth();
+  const { organizationId, isLoading: authLoading } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,10 +56,10 @@ export default function AuditLogs() {
   const pageSize = 50;
 
   useEffect(() => {
-    if (organizationId) {
-      fetchLogs();
-    }
-  }, [organizationId, page, actionFilter, entityFilter]);
+    if (authLoading) return;
+    if (organizationId) fetchLogs();
+    else setIsLoading(false);
+  }, [organizationId, authLoading, page, actionFilter, entityFilter]);
 
   const fetchLogs = async () => {
     setIsLoading(true);
@@ -125,6 +125,24 @@ export default function AuditLogs() {
     if (lowerAction.includes('update') || lowerAction.includes('edit')) return 'secondary';
     return 'outline';
   };
+
+  if (!authLoading && !organizationId) {
+    return (
+      <DashboardLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization not assigned</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Tenant audit logs are only available when your account manager role is linked to an organization.
+              Ask a platform admin to re-invite you or reassign you to a tenant.
+            </p>
+          </CardContent>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   if (isLoading && logs.length === 0) {
     return (

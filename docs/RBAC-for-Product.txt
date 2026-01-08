@@ -1,0 +1,170 @@
+TalentMatch AI — Roles & Permissions (Product-Friendly)
+
+Purpose
+This document explains who can do what in TalentMatch AI in plain language.
+It covers platform-level administration (internal team) and customer-level administration (each organization).
+
+Read this first (context)
+- This is a multi-tenant SaaS product: many customer organizations share the same app, but must never see each other’s data.
+- “Roles” exist to prevent accidental access and to make sure the right people can do the right actions.
+- We separate internal administration (platform) from customer administration (organization) on purpose.
+
+Key Concepts (non-technical)
+- “Platform” = internal admin view across all customers.
+- “Organization” = a customer/tenant (a company using the product).
+- “Users” = candidates, recruiters, managers, and org admins.
+- “Invite-only” = the user cannot sign up themselves; they must receive an invite link.
+- “Public candidate” = a candidate who is not tied to any organization (they can exist independently).
+
+Roles
+1) Platform Admin (internal)
+2) Org Admin (Customer “Org Super Admin”)
+3) Account Manager (Customer manager)
+4) Recruiter (Customer recruiter)
+5) Candidate (Job seeker)
+
+High-level rules
+- Only Candidates can self-sign up in the app.
+- Org Admin, Account Manager, and Recruiter are invite-only.
+- Org Admins can manage only their own organization’s users and candidates.
+- Platform Admin can see everything but should only “change” Org Admins; other data is read-only from the platform UI.
+
+What each role can do
+
+1) Platform Admin (internal)
+Can do (write actions)
+- Create a new customer organization.
+- Invite an Org Admin for that organization.
+- Revoke Org Admin access (remove the Org Admin role from a user).
+
+Can see (read-only)
+- All organizations and all users across the platform.
+- High-level dashboards and lists (for support and monitoring).
+
+Cannot do (from the platform UI)
+- Suspend or delete users (handled directly via Supabase Studio / controlled ops).
+- Modify customer hiring data (jobs, applications, candidates) via platform UI.
+
+2) Org Admin (Customer “Org Super Admin”)
+Scope: only their organization.
+
+Can do (write actions within their org)
+- Invite and remove Account Managers.
+- Invite and remove Recruiters (recommended so org admin isn’t blocked if no account manager is available).
+- View all users in their organization.
+- View tenant audit logs (org-scoped) for troubleshooting and compliance.
+- Manage candidates in their organization:
+  - View candidates linked to their org
+  - Add internal notes/statuses (product-defined)
+  - Link/unlink candidates to their org (recommended)
+
+Cannot do
+- View other organizations’ users/candidates.
+- Delete candidate accounts permanently (recommended to keep deletions platform-only).
+
+3) Account Manager (Customer manager)
+Scope: only their organization.
+
+Can do
+- Invite and remove Recruiters within their org.
+- View recruiters and org-level hiring activity as allowed by product.
+
+Cannot do
+- Manage Org Admins.
+- See or manage other organizations.
+
+4) Recruiter (Customer recruiter)
+Scope: only their organization.
+
+Can do
+- Run hiring workflows (jobs, applications, candidate review) within their org permissions.
+
+Cannot do
+- Manage roles/users.
+- Access other organizations.
+
+5) Candidate (Job seeker)
+Scope: self.
+
+Can do
+- Sign up and manage their own profile/resume and applications.
+- May be “public” (not tied to any org) or linked to an org if invited/associated.
+
+Cannot do
+- Manage other users.
+- Access other candidates’ data.
+
+Candidate “public vs org-linked” model
+- Public candidate: not tied to any organization by default.
+  - Only the candidate (and Platform Admin read-only) can see them.
+- Org-linked candidate: tied to one organization.
+  - Org Admin / Account Managers / Recruiters can see them according to the org’s access rules.
+
+Invite chains (how users are created)
+- Platform Admin → invites Org Admin (creates organization + sends invite link).
+- Org Admin → invites Account Manager (sends invite link).
+- Org Admin and/or Account Manager → invites Recruiter (sends invite link).
+- Candidate → self-signup (email confirmation may be required).
+
+Recommended safety boundaries (for PM alignment)
+- Keep Platform Admin mostly read-only; only allow Org Admin lifecycle actions.
+- Keep destructive actions (delete/suspend) out of the app UI; handle via controlled ops/Studio.
+- Org Admin can manage users inside their org but cannot affect other tenants.
+
+One-page permission matrix (Role × Resource × CRUD)
+Legend: C = Create, R = Read/View, U = Update/Edit, D = Delete/Remove
+Notes:
+- “Own org only” means the role can only act inside their organization.
+- “Read-only” means they can view but not change.
+
+Resource areas:
+A) Organizations (customer tenants)
+B) Org Admins (customer tenant admins)
+C) Account Managers
+D) Recruiters
+E) Candidates (profiles/resumes/applications visibility is always scoped)
+F) Hiring workflows (jobs, applications, shortlists, etc.)
+
+Role: Platform Admin (UltraHire internal)
+- A) Organizations: C, R (all orgs), U (optional), D (no)
+- B) Org Admins: C (invite), R (all), U (revoke role), D (no)
+- C) Account Managers: R (all) only
+- D) Recruiters: R (all) only
+- E) Candidates: R (all) only
+- F) Hiring workflows: R (all) only
+
+Role: Org Admin (Customer “Org Super Admin”) — Own org only
+- A) Organizations: R, U (own org settings)
+- B) Org Admins: R (own org org-admins) only (no self-escalation tools)
+- C) Account Managers: C (invite), R, U (role/permissions within org), D (remove from org)
+- D) Recruiters: C (invite), R, U (within org), D (remove from org)
+- E) Candidates: C (link into org / import if supported), R, U (notes/status/linkage), D (no permanent deletes)
+- F) Hiring workflows: R (all within org), U (optional, product-defined)
+
+Role: Account Manager — Own org only
+- A) Organizations: R (own org)
+- B) Org Admins: none
+- C) Account Managers: none
+- D) Recruiters: C (invite), R, U (within org), D (remove from org)
+- E) Candidates: R (within org) (U optional, product-defined)
+- F) Hiring workflows: R/U (within org, product-defined)
+
+Role: Recruiter — Own org only
+- A) Organizations: R (own org)
+- B) Org Admins: none
+- C) Account Managers: none
+- D) Recruiters: R (team roster, optional)
+- E) Candidates: R (candidates visible to them per workflow rules), U (recruiter notes/status, product-defined)
+- F) Hiring workflows: C, R, U (jobs/applications within org), D (optional, product-defined)
+
+Role: Candidate
+- A) Organizations: R (only if linked / invited / applied; product-defined)
+- B) Org Admins: none
+- C) Account Managers: none
+- D) Recruiters: none
+- E) Candidates: C (self signup), R/U (own profile/resume), D (account deletion handled via support/ops)
+- F) Hiring workflows: C (applications), R/U (own applications), D (optional, product-defined)
+
+End of document.
+
+

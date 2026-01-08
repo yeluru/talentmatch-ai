@@ -147,7 +147,7 @@ TalentMatch AI is a comprehensive recruitment solution designed to streamline th
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** (v18.0.0 or higher) - [Download](https://nodejs.org/)
+- **Node.js** (v18.18.0+; v20+ recommended) - [Download](https://nodejs.org/)
 - **npm** (v9.0.0 or higher) - Comes with Node.js
 - **Git** - [Download](https://git-scm.com/)
 - **Supabase CLI** (for database setup) - [Install Guide](https://supabase.com/docs/guides/cli)
@@ -186,188 +186,106 @@ npm install -g supabase
 
 ## Getting Started
 
-You have two options for setting up the backend:
+This repo supports **Supabase local for development** and **Supabase cloud for production**.
 
-### Option A: Use Existing Supabase Project (Quickest)
+### Local development (recommended)
 
-Use the pre-configured Supabase project (database already set up):
+#### 1) Prereqs
+- Node.js **v18.18+** (v20+ recommended)
+- Docker Desktop
+- Supabase CLI
 
-#### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yeluru/talentmatch-ai.git
-cd talentmatch-ai
-```
-
-#### 2. Install Dependencies
+#### 2) Install dependencies
 
 ```bash
 npm install
 ```
 
-#### 3. Set Up Environment Variables
-
-Create a `.env` file in the project root:
+#### 3) Start Supabase local (DB + Auth + Studio + Mailpit)
 
 ```bash
-touch .env
+supabase start
 ```
 
-Add the following environment variables:
+Useful URLs (local defaults):
+- Supabase API: `http://127.0.0.1:54321`
+- Supabase Studio: `http://127.0.0.1:54323`
+- Mailpit (local email inbox): `http://127.0.0.1:8025`
 
-```env
-VITE_SUPABASE_URL=https://rnwyflevkpamxhxkhkww.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJud3lmbGV2a3BhbXhoeGtoa3d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2ODc5ODAsImV4cCI6MjA4MjI2Mzk4MH0.zXASSo0trZxl8wTFD7DykquOFYbQ0OPXisX-XkhB9bY
-VITE_SUPABASE_PROJECT_ID=rnwyflevkpamxhxkhkww
+#### 4) Serve Edge Functions locally
+
+```bash
+supabase functions serve
 ```
 
-#### 4. Start the Development Server
+#### 5) Run the frontend
 
 ```bash
 npm run dev
 ```
 
-The application will be available at `http://localhost:8080`
-
----
-
-### Option B: Create Your Own Supabase Project (Full Independence)
-
-Set up your own Supabase project with fresh database:
-
-#### 1. Clone the Repository
+App runs at `http://localhost:8080`.
+#### Applying DB changes locally (without wiping data)
+When you add new migration files under `supabase/migrations/`, apply them to your local DB with:
 
 ```bash
-git clone https://github.com/yeluru/talentmatch-ai.git
-cd talentmatch-ai
+supabase migration up
 ```
 
-#### 2. Install Dependencies
+Use `supabase db reset` only when you want a clean slate (it deletes local data).
+
+
+> Note: when running on localhost, the frontend is intentionally “pinned” to local Supabase to prevent accidental cloud usage.
+
+### Production (Supabase cloud + Render frontend)
+
+High-level: create a Supabase project, push migrations, deploy functions, then deploy the frontend to Render.
+
+#### 1) Create Supabase cloud project
+- Create a project in Supabase Cloud
+- In Supabase Dashboard:
+  - **Auth → URL Configuration**: set Site URL + Redirect URLs to your Render URL (once known)
+  - **Auth → Providers → Email**: keep **email confirmations enabled**
+  - Configure SMTP (recommended) so confirmation emails are reliable in production
+
+#### 2) Push database migrations
 
 ```bash
-npm install
-```
-
-#### 3. Create a Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and create an account
-2. Click "New Project"
-3. Fill in project details:
-   - **Name**: TalentMatch AI (or your preferred name)
-   - **Database Password**: Create a strong password (save this!)
-   - **Region**: Choose closest to your users
-4. Wait for project to be created (~2 minutes)
-
-#### 4. Get Your Supabase Credentials
-
-From your Supabase dashboard:
-1. Go to **Settings** → **API**
-2. Copy the following values:
-   - **Project URL** (e.g., `https://xxxxxxxxxxxx.supabase.co`)
-   - **anon public** key (starts with `eyJ...`)
-   - **Project Reference ID** (the `xxxxxxxxxxxx` part from URL)
-
-#### 5. Set Up Environment Variables
-
-Create a `.env` file:
-
-```bash
-touch .env
-```
-
-Add your credentials:
-
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key_here
-VITE_SUPABASE_PROJECT_ID=YOUR_PROJECT_ID
-```
-
-#### 6. Link Supabase CLI to Your Project
-
-```bash
-# Login to Supabase
 supabase login
-
-# Link to your project (you'll need your project reference ID)
-supabase link --project-ref YOUR_PROJECT_ID
-```
-
-#### 7. Run Database Migrations
-
-Apply all database migrations to set up tables, RLS policies, and functions:
-
-```bash
+supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-This command will:
-- Create all required tables (22 migrations)
-- Set up Row Level Security policies
-- Create database functions and triggers
-- Configure storage buckets
-
-#### 8. Deploy Edge Functions
-
-Deploy all serverless functions:
+#### 3) Deploy Edge Functions + secrets
 
 ```bash
 supabase functions deploy
+supabase secrets set OPENAI_API_KEY=...
+supabase secrets set RESEND_API_KEY=...        # production email sender
+supabase secrets set PUBLIC_APP_URL=...        # your Render URL
 ```
 
-Or deploy specific functions:
+#### 4) Deploy frontend to Render (Static Site)
+- Build command: `npm ci && npm run build`
+- Publish directory: `dist`
+- Add environment variables in Render:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - `VITE_SUPABASE_PROJECT_ID`
+  - (any other `VITE_*` variables your UI needs)
 
-```bash
-supabase functions deploy analyze-resume
-supabase functions deploy match-candidates
-supabase functions deploy generate-email
-supabase functions deploy generate-insights
-supabase functions deploy parse-resume
-supabase functions deploy recommend-jobs
-supabase functions deploy talent-search
-supabase functions deploy linkedin-search
-supabase functions deploy bulk-import-candidates
-supabase functions deploy run-agent
-```
+Also configure Render SPA routing (rewrite all paths to `/index.html`).
 
-#### 9. Set Up Edge Function Secrets
+#### Platform Admin bootstrap (production + local)
+Platform Admin is the internal role `super_admin`.
 
-Some edge functions require API keys. Set them via CLI:
+To designate **any email** as a Platform Admin without hardcoding:
+1. In Supabase Studio, add a row to `public.platform_admin_allowlist` with the admin email.
+2. Create that user in **Authentication** (or have them sign up if appropriate).
+3. On user creation, the `handle_new_user()` trigger will automatically assign `super_admin`.
 
-```bash
-# Required for AI features
-supabase secrets set LOVABLE_API_KEY=your_lovable_api_key
-
-# Optional - for LinkedIn search feature
-supabase secrets set FIRECRAWL_API_KEY=your_firecrawl_key
-```
-
-#### 10. Create Storage Bucket
-
-The resume upload feature requires a storage bucket:
-
-```bash
-# Via Supabase Dashboard:
-# 1. Go to Storage → New Bucket
-# 2. Name: "resumes"
-# 3. Set as Public bucket
-# 4. Create bucket
-```
-
-Or via SQL (run in SQL Editor):
-
-```sql
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('resumes', 'resumes', true);
-```
-
-#### 11. Start the Development Server
-
-```bash
-npm run dev
-```
-
----
+If a user already exists and has no role, the app will attempt a safe bootstrap on sign-in via the
+`bootstrap-platform-admin` edge function (allowlist-based).
 
 ## Database Migrations
 
@@ -500,26 +418,31 @@ supabase migration list
 
 ## User Roles
 
-The platform supports three distinct user roles:
+The platform supports **five** roles (see `docs/RBAC-for-Product.txt` for the product-friendly breakdown):
 
-### 1. Candidate (`candidate`)
+### 1. Candidate (`candidate`) — **only role that can self-sign up**
 - Can search and apply for jobs
 - Manage personal profile and resumes
 - Track application status
 - Access AI-powered career analysis
 
-### 2. Recruiter (`recruiter`)
+### 2. Recruiter (`recruiter`) — invite-only
 - Manage talent pool for their organization
 - Create and manage job postings
 - Run AI matching and outreach campaigns
 - Create candidate shortlists
 - Access talent insights
 
-### 3. Account Manager (`account_manager`)
-- Full organizational oversight
-- Manage team members
-- Access analytics dashboard
-- Configure organization settings
+### 3. Account Manager (`account_manager`) — invite-only
+- Invites/removes recruiters in their org
+- Org-level oversight
+
+### 4. Org Admin (`org_admin`) — invite-only
+- Manages account managers + recruiters inside their organization
+- Can link/unlink candidates to the org + add internal notes/status
+
+### 5. Platform Admin (`super_admin`) — internal ops
+- Read-only across the platform **except** Org Admin lifecycle (invite/revoke) and tenant provisioning tools.
 
 ## Database Schema
 
@@ -562,7 +485,7 @@ All tables are protected with Row Level Security policies:
 ### Authentication
 
 - Email/password authentication via Supabase Auth
-- Auto-confirm enabled for development
+- Email confirmations are enabled (local uses Mailpit; prod should use SMTP like Resend)
 - Password reset flow implemented
 - Secure session management
 
@@ -580,15 +503,15 @@ All tables are protected with Row Level Security policies:
 **Sign Up as Candidate:**
 1. Go to `/auth`
 2. Click "Sign Up" tab
-3. Fill in details with role "Candidate"
-4. Submit and verify redirect to candidate dashboard
+3. Fill in details
+4. Confirm email (Mailpit locally), then sign in
+5. Verify redirect to candidate dashboard
 
-**Sign Up as Recruiter:**
-1. Go to `/auth`
-2. Click "Sign Up" tab
-3. Fill in details with role "Recruiter"
-4. Enter organization name
-5. Submit and verify redirect to recruiter dashboard
+**Staff onboarding (invite-only):**
+- Platform Admin invites Org Admin (tenant provisioning)
+- Org Admin invites Manager
+- Org Admin / Account Manager invites Recruiter
+- Invited user uses invite link → signs up → confirms email → signs in → invite is claimed and dashboard opens
 
 **Password Reset:**
 1. Go to `/auth`

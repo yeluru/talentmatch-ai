@@ -67,13 +67,15 @@ export function Navbar() {
     if (!user) return '/auth';
     if (currentRole === 'candidate') return '/candidate';
     if (currentRole === 'recruiter') return '/recruiter';
+    if (currentRole === 'org_admin') return '/org-admin';
+    if (currentRole === 'super_admin') return '/admin';
     return '/manager';
   };
 
   const navLinks = [
     { label: 'For Candidates', href: '/candidates' },
     { label: 'For Recruiters', href: '/recruiters' },
-    { label: 'For Managers', href: '/managers' },
+    { label: 'For Account Managers', href: '/managers' },
   ];
 
   return (
