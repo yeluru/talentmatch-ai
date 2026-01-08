@@ -188,6 +188,35 @@ npm install -g supabase
 
 This repo supports **Supabase local for development** and **Supabase cloud for production**.
 
+### Quickstart (fresh laptop)
+
+```bash
+git clone https://github.com/yeluru/talentmatch-ai.git
+cd talentmatch-ai
+
+npm install
+
+# Optional (mainly for production/cloud; local dev forces local Supabase when on localhost)
+cp env.example .env
+
+# Start Supabase (DB + Auth + Studio + Mailpit)
+supabase start
+
+# First-time local DB setup (applies migrations)
+supabase db reset
+
+# Serve edge functions locally (in a second terminal)
+supabase functions serve
+
+# Run frontend (in a third terminal)
+npm run dev
+```
+
+Then open:
+- App: `http://localhost:8080`
+- Supabase Studio: `http://127.0.0.1:54323`
+- Mailpit (local email inbox): run `supabase status` and open the **Mailpit** URL it prints
+
 ### Local development (recommended)
 
 #### 1) Prereqs
@@ -205,12 +234,13 @@ npm install
 
 ```bash
 supabase start
+supabase db reset
 ```
 
 Useful URLs (local defaults):
 - Supabase API: `http://127.0.0.1:54321`
 - Supabase Studio: `http://127.0.0.1:54323`
-- Mailpit (local email inbox): `http://127.0.0.1:8025`
+- Mailpit (local email inbox): run `supabase status` and open the **Mailpit** URL it prints
 
 #### 4) Serve Edge Functions locally
 
@@ -232,7 +262,7 @@ When you add new migration files under `supabase/migrations/`, apply them to you
 supabase migration up
 ```
 
-Use `supabase db reset` only when you want a clean slate (it deletes local data).
+Use `supabase db reset` when you want a clean slate (it deletes local data). For a brand-new laptop/DB, `db reset` is the simplest way to apply all migrations.
 
 
 > Note: when running on localhost, the frontend is intentionally “pinned” to local Supabase to prevent accidental cloud usage.
@@ -355,6 +385,19 @@ supabase migration list
 
 ## Environment Variables
 
+### Frontend env (`.env`)
+This repo uses Vite env vars. **Never commit `.env`** (it is ignored).
+
+- **Local dev**: when running on `localhost`, the app forces local Supabase (`http://127.0.0.1:54321`) regardless of env vars.
+- **Production / non-localhost previews**: copy `env.example` to `.env` and fill:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - `VITE_SUPABASE_PROJECT_ID`
+
+```bash
+cp env.example .env
+```
+
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `VITE_SUPABASE_URL` | Supabase project URL | Yes |
@@ -408,7 +451,8 @@ supabase migration list
 │   │   ├── run-agent/
 │   │   └── talent-search/
 │   └── migrations/          # Database migrations
-├── .env                     # Environment variables (create this)
+├── env.example              # Environment variables template (copy to .env)
+├── .env                     # Environment variables (DO NOT COMMIT)
 ├── index.html               # HTML entry point
 ├── package.json             # Dependencies and scripts
 ├── tailwind.config.ts       # Tailwind configuration
@@ -692,6 +736,7 @@ aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 | `supabase login` | Authenticate with Supabase |
 | `supabase link --project-ref ID` | Link to existing project |
 | `supabase db push` | Apply all migrations |
+| `supabase migration up` | Apply new migrations to local DB (non-destructive) |
 | `supabase db diff` | Show schema differences |
 | `supabase migration list` | List all migrations |
 | `supabase functions deploy` | Deploy all edge functions |
@@ -720,9 +765,14 @@ aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 ### Common Issues
 
 **"Cannot connect to database"**
-- Verify `.env` file exists with correct values
-- Check Supabase project is active
-- Ensure you're using the correct project URL
+- If using **Supabase cloud**: verify `.env` has correct `VITE_SUPABASE_*` values
+- If using **local**: run `supabase status` and ensure local services are running
+
+**"Cannot find project ref. Have you run supabase link?"**
+- This happens when you run cloud commands (like `supabase db push`) without linking.
+- For local development you usually **do not** need `supabase link`. Use:
+  - `supabase start`
+  - `supabase db reset` (first-time) or `supabase migration up` (new migrations)
 
 **"Unauthorized" errors**
 - Clear browser storage and re-login
