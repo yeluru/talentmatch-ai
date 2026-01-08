@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { StatCard } from '@/components/ui/stat-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PageShell } from '@/components/ui/page-shell';
+import { Toolbar } from '@/components/ui/toolbar';
 import { 
   Table, 
   TableBody, 
@@ -368,7 +372,7 @@ export default function SuperAdminDashboard() {
 
       // Pending org admin invites per org (show invite link until accepted)
       const { data: invites, error: invitesErr } = orgIds.length
-        ? await supabase
+        ? await (supabase as any)
             .from('org_admin_invites')
             .select('id, created_at, organization_id, email, full_name, status, expires_at, invite_token')
             .in('organization_id', orgIds)
@@ -576,14 +580,14 @@ export default function SuperAdminDashboard() {
       />
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="border-b bg-card">
+        <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-lg">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-destructive/10">
                 <Shield className="h-6 w-6 text-destructive" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Super Admin</h1>
+                <h1 className="text-xl font-bold">Platform Admin</h1>
                 <p className="text-sm text-muted-foreground">{profile?.email}</p>
               </div>
             </div>
@@ -595,48 +599,39 @@ export default function SuperAdminDashboard() {
         </header>
 
         <main className="container mx-auto px-4 py-8">
+          <PageShell>
+            <PageHeader
+              title={
+                <>
+                  Platform <span className="text-accent">Console</span>
+                </>
+              }
+              description="Create tenants, manage Org Admin lifecycle, and audit activity across the platform."
+              actions={
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    fetchDashboardData();
+                    fetchTenants();
+                    fetchAuditLogs(true);
+                  }}
+                  disabled={isLoading || tenantsLoading || auditLoading}
+                >
+                  {isLoading || tenantsLoading || auditLoading ? 'Refreshing…' : 'Refresh all'}
+                </Button>
+              }
+            />
+
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Organizations</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalOrganizations}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Jobs Posted</CardTitle>
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalJobs}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Applications</CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalApplications}</div>
-              </CardContent>
-            </Card>
-          </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard title="Total users" value={stats.totalUsers} icon={Users} />
+              <StatCard title="Organizations" value={stats.totalOrganizations} icon={Building2} />
+              <StatCard title="Jobs posted" value={stats.totalJobs} icon={Briefcase} />
+              <StatCard title="Applications" value={stats.totalApplications} icon={CheckCircle} />
+            </div>
 
           {/* Tenant provisioning + Read-only User Management */}
-          <Card>
+            <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>User Management</CardTitle>
@@ -788,18 +783,24 @@ export default function SuperAdminDashboard() {
           </Card>
 
           {/* Tenants (orgs) + Org Admin status */}
-          <Card className="mt-8">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Tenants</CardTitle>
-                <CardDescription>
-                  Each tenant is an organization. Pending Org Admin invites show here until accepted.
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
-                {tenantsLoading ? 'Refreshing…' : 'Refresh'}
-              </Button>
-            </CardHeader>
+            <Card className="card-elevated">
+              <CardHeader>
+                <Toolbar
+                  left={
+                    <div>
+                      <CardTitle>Tenants</CardTitle>
+                      <CardDescription>
+                        Each tenant is an organization. Pending Org Admin invites show here until accepted.
+                      </CardDescription>
+                    </div>
+                  }
+                  right={
+                    <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
+                      {tenantsLoading ? 'Refreshing…' : 'Refresh'}
+                    </Button>
+                  }
+                />
+              </CardHeader>
             <CardContent>
               <div className="rounded-md border">
                 <Table>
@@ -954,35 +955,41 @@ export default function SuperAdminDashboard() {
           </Dialog>
 
           {/* Global Audit Logs (read-only) */}
-          <Card className="mt-8">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Audit Logs (platform-wide)</CardTitle>
-                <CardDescription>
-                  Default view shows the last 4 hours. Use search to query the full history, or load older logs in pages of 100.
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={auditSearch}
-                  onChange={(e) => setAuditSearch(e.target.value)}
-                  placeholder="Search audit logs…"
-                  className="w-[260px]"
+            <Card className="card-elevated">
+              <CardHeader>
+                <Toolbar
+                  left={
+                    <div>
+                      <CardTitle>Audit Logs (platform-wide)</CardTitle>
+                      <CardDescription>
+                        Default view shows the last 4 hours. Use search to query the full history, or load older logs in pages of 100.
+                      </CardDescription>
+                    </div>
+                  }
+                  right={
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={auditSearch}
+                        onChange={(e) => setAuditSearch(e.target.value)}
+                        placeholder="Search audit logs…"
+                        className="w-[260px]"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAuditCursor(null);
+                          setAuditExpanded(false);
+                          fetchAuditLogs(true);
+                        }}
+                        disabled={auditLoading}
+                      >
+                        {auditLoading ? 'Refreshing…' : 'Refresh'}
+                      </Button>
+                    </div>
+                  }
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setAuditCursor(null);
-                    setAuditExpanded(false);
-                    fetchAuditLogs(true);
-                  }}
-                  disabled={auditLoading}
-                >
-                  {auditLoading ? 'Refreshing…' : 'Refresh'}
-                </Button>
-              </div>
-            </CardHeader>
+              </CardHeader>
             <CardContent>
               <div className="rounded-md border">
                 <Table>
@@ -1083,6 +1090,7 @@ export default function SuperAdminDashboard() {
               </div>
             </CardContent>
           </Card>
+          </PageShell>
         </main>
 
         {/* Revoke Org Admin Confirmation Dialog */}
