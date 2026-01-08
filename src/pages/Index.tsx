@@ -6,6 +6,7 @@ import {
   Briefcase, 
   BarChart3, 
   CheckCircle2,
+  Sparkles,
   FileText,
   Search,
   Clock,
