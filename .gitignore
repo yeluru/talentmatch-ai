@@ -16,6 +16,10 @@ dist-ssr
 .env
 .env.*
 
+# Playwright (diagram rendering helper)
+playwright-report/
+test-results/
+
 # Supabase local artifacts (do not commit)
 supabase/.branches/
 supabase/.temp/
