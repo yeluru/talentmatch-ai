@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wand2, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function CreateJob() {
@@ -27,15 +28,21 @@ export default function CreateJob() {
   
   const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
 
+  const [mode, setMode] = useState<'paste' | 'manual'>('paste');
+  const [jdText, setJdText] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const [lastExtractSource, setLastExtractSource] = useState<'llm' | 'heuristic' | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     location: '',
+    work_mode: 'unknown',
     is_remote: false,
     job_type: 'full_time',
     experience_level: 'mid',
-    salary_min: '',
-    salary_max: '',
+    visibility: 'private',
+    // We repurpose this as recruiter-only notes / leftover raw metadata.
     requirements: '',
     responsibilities: '',
     required_skills: [] as string[],
@@ -45,6 +52,8 @@ export default function CreateJob() {
   const [newSkill, setNewSkill] = useState('');
   const [newNiceSkill, setNewNiceSkill] = useState('');
 
+  const canExtract = useMemo(() => jdText.trim().length >= 40, [jdText]);
+
   const createJob = useMutation({
     mutationFn: async (status: 'draft' | 'published') => {
       if (!user || !organizationId) throw new Error('Not authorized');
@@ -53,11 +62,11 @@ export default function CreateJob() {
         title: formData.title,
         description: formData.description,
         location: formData.location || null,
+        work_mode: formData.work_mode || 'unknown',
         is_remote: formData.is_remote,
         job_type: formData.job_type,
         experience_level: formData.experience_level,
-        salary_min: formData.salary_min ? parseInt(formData.salary_min) : null,
-        salary_max: formData.salary_max ? parseInt(formData.salary_max) : null,
+        visibility: formData.visibility,
         requirements: formData.requirements || null,
         responsibilities: formData.responsibilities || null,
         required_skills: formData.required_skills,
@@ -107,6 +116,107 @@ export default function CreateJob() {
 
   const isValid = formData.title.trim() && formData.description.trim();
 
+  const dbWorkMode = (jobType: any): 'onsite' | 'hybrid' | 'remote' | 'unknown' => {
+    switch (jobType) {
+      case 'Onsite': return 'onsite';
+      case 'Hybrid': return 'hybrid';
+      case 'Remote': return 'remote';
+      default: return 'unknown';
+    }
+  };
+
+  const dbExperienceLevel = (lvl: any): string => {
+    switch (lvl) {
+      case 'Entry': return 'entry';
+      case 'Mid': return 'mid';
+      case 'Senior': return 'senior';
+      case 'Lead': return 'lead';
+      case 'Principal/Architect': return 'principal_architect';
+      case 'Manager': return 'manager';
+      case 'Director': return 'director';
+      default: return 'unknown';
+    }
+  };
+
+  const formatLocation = (loc: any): string => {
+    if (!loc) return '';
+    const parts: string[] = [];
+    if (loc.site) parts.push(String(loc.site));
+    const cityState = [loc.city, loc.state].filter(Boolean).join(', ');
+    if (cityState) parts.push(cityState);
+    if (loc.country) parts.push(String(loc.country));
+    return parts.join(' • ');
+  };
+
+  const handleExtractFromJd = async () => {
+    if (!canExtract) {
+      toast.error('Paste a longer job description (at least a couple of sentences).');
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-job-description', {
+        body: { text: jdText },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const parsed = data?.parsed as any;
+      if (!parsed) throw new Error('No parsed data returned');
+
+      // Merge: never wipe what the recruiter already typed.
+      setFormData((prev) => ({
+        ...prev,
+        // Clean, public-facing JD
+        description: prev.description || parsed.jd || '',
+
+        // Fill title if empty.
+        title: prev.title || parsed.title || '',
+
+        // Location: keep user edits; fill from parsed location object.
+        location: prev.location || formatLocation(parsed.location) || '',
+
+        // Work mode: store in new jobs.work_mode column and derive is_remote.
+        work_mode: prev.work_mode !== 'unknown' ? prev.work_mode : dbWorkMode(parsed.job_type),
+        is_remote:
+          prev.work_mode !== 'unknown'
+            ? (prev.work_mode === 'remote' || prev.work_mode === 'hybrid')
+            : (dbWorkMode(parsed.job_type) === 'remote' || dbWorkMode(parsed.job_type) === 'hybrid'),
+
+        // Experience level (expanded enum)
+        experience_level:
+          prev.experience_level !== 'mid' && prev.experience_level !== 'unknown'
+            ? prev.experience_level
+            : dbExperienceLevel(parsed.experience_level),
+
+        // Skills: map structured buckets into our two lists
+        required_skills: prev.required_skills.length
+          ? prev.required_skills
+          : (parsed?.skills?.core || []),
+        nice_to_have_skills: prev.nice_to_have_skills.length
+          ? prev.nice_to_have_skills
+          : [
+              ...(parsed?.skills?.secondary || []),
+              ...(parsed?.skills?.methods_tools || []),
+              ...(parsed?.skills?.certs || []),
+            ],
+
+        // Vendor/private meta only in JD Notes (internal). Avoid generic extraction/debug notes.
+        requirements: prev.requirements || parsed.internal_notes || '',
+      }));
+
+      setLastExtractSource(data?.source === 'llm' ? 'llm' : 'heuristic');
+      setMode('manual');
+      toast.success(data?.source === 'llm' ? 'Fields extracted' : 'Basic fields extracted (fallback)');
+    } catch (err: any) {
+      console.error('JD extraction failed', err);
+      toast.error(err?.message ? `Failed to extract: ${err.message}` : 'Failed to extract fields');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto space-y-6">
@@ -122,7 +232,78 @@ export default function CreateJob() {
           </div>
         </div>
 
-        <Card>
+        <Card className="card-elevated">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-accent" />
+              Create a job (fast)
+            </CardTitle>
+            <CardDescription>
+              Paste the JD blurb and we’ll auto-fill, or switch to manual entry.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="paste">Paste & Auto‑Fill</TabsTrigger>
+                <TabsTrigger value="manual">Manual</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="paste" className="space-y-4 pt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="jdText">Paste job blurb / JD</Label>
+                  <Textarea
+                    id="jdText"
+                    placeholder="Paste the job description you received in email/text…"
+                    rows={10}
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We’ll try to extract title, location, remote, job type, experience, salary (if present), and skills. You can edit everything after.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    onClick={handleExtractFromJd}
+                    disabled={extracting || !canExtract}
+                    className="btn-glow"
+                  >
+                    {extracting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Extracting…
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-4 w-4 mr-2" />
+                        Extract fields
+                      </>
+                    )}
+                  </Button>
+
+                  {lastExtractSource && (
+                    <Badge variant="secondary" className="w-fit">
+                      Last extract: {lastExtractSource === 'llm' ? 'LLM' : 'Fallback'}
+                    </Badge>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="manual" className="pt-3">
+                <p className="text-sm text-muted-foreground">
+                  Tip: you can paste a JD first, extract fields, then fine-tune below.
+                </p>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {mode === 'manual' ? (
+        <>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
             <CardDescription>Essential details about the position</CardDescription>
@@ -159,14 +340,48 @@ export default function CreateJob() {
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 />
               </div>
-              <div className="flex items-center space-x-2 pt-8">
-                <Switch
-                  id="remote"
-                  checked={formData.is_remote}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_remote: checked })}
-                />
-                <Label htmlFor="remote">Remote friendly</Label>
+              <div className="space-y-2">
+                <Label htmlFor="work_mode">Work mode</Label>
+                <Select
+                  value={formData.work_mode}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      work_mode: value,
+                      is_remote: value === 'remote' || value === 'hybrid',
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unknown">Unknown</SelectItem>
+                    <SelectItem value="onsite">Onsite</SelectItem>
+                    <SelectItem value="hybrid">Hybrid</SelectItem>
+                    <SelectItem value="remote">Remote</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="visibility">Job visibility</Label>
+              <Select
+                value={formData.visibility}
+                onValueChange={(value) => setFormData({ ...formData, visibility: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">Private (tenant-only)</SelectItem>
+                  <SelectItem value="public">Public (marketplace)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Private jobs are visible only to candidates linked to your organization. Public jobs are visible to all registered candidates.
+              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -201,66 +416,40 @@ export default function CreateJob() {
                     <SelectItem value="mid">Mid Level</SelectItem>
                     <SelectItem value="senior">Senior</SelectItem>
                     <SelectItem value="lead">Lead / Manager</SelectItem>
+                    <SelectItem value="principal_architect">Principal / Architect</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="director">Director</SelectItem>
                     <SelectItem value="executive">Executive</SelectItem>
+                    <SelectItem value="unknown">Unknown</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="salary_min">Salary Range (Min)</Label>
-                <Input
-                  id="salary_min"
-                  type="number"
-                  placeholder="e.g., 100000"
-                  value={formData.salary_min}
-                  onChange={(e) => setFormData({ ...formData, salary_min: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="salary_max">Salary Range (Max)</Label>
-                <Input
-                  id="salary_max"
-                  type="number"
-                  placeholder="e.g., 150000"
-                  value={formData.salary_max}
-                  onChange={(e) => setFormData({ ...formData, salary_max: e.target.value })}
-                />
-              </div>
-            </div>
+            {/* Salary removed (contracting-first product) */}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
-            <CardTitle>Requirements & Responsibilities</CardTitle>
+            <CardTitle>JD Notes (internal)</CardTitle>
+            <CardDescription>
+              Anything we didn’t map into fields—rate, deadlines, job codes, client notes, etc. Not intended for the public job post.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="requirements">Requirements</Label>
-              <Textarea
-                id="requirements"
-                placeholder="List the requirements for this position..."
-                rows={4}
-                value={formData.requirements}
-                onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="responsibilities">Responsibilities</Label>
-              <Textarea
-                id="responsibilities"
-                placeholder="Describe day-to-day responsibilities..."
-                rows={4}
-                value={formData.responsibilities}
-                onChange={(e) => setFormData({ ...formData, responsibilities: e.target.value })}
-              />
-            </div>
+          <CardContent className="space-y-2">
+            <Label htmlFor="internal_notes">Notes</Label>
+            <Textarea
+              id="internal_notes"
+              placeholder="Paste any leftover details here (rate, hybrid schedule, deadline, internal IDs)…"
+              rows={6}
+              value={formData.requirements}
+              onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+            />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle>Skills</CardTitle>
           </CardHeader>
@@ -316,6 +505,8 @@ export default function CreateJob() {
             </div>
           </CardContent>
         </Card>
+        </>
+        ) : null}
 
         <div className="flex justify-end gap-3">
           <Button

@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, currentRole, isLoading, isSuperAdmin } = useAuth();
+  const { user, currentRole, isLoading, isSuperAdmin, profile, signOut } = useAuth();
   const location = useLocation();
 
   // Initial auth/role hydration
@@ -53,6 +53,37 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Soft-disable: suspended users cannot access the app (reversible by platform admin).
+  if ((profile as any)?.is_suspended) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="max-w-md rounded-lg border bg-card p-6 text-center">
+          <h1 className="text-lg font-semibold text-foreground">Account suspended</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your account has been suspended. Please contact support if you believe this is a mistake.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              className="inline-flex items-center justify-center rounded-md border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              onClick={async () => {
+                await signOut();
+                window.location.href = '/auth';
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (allowedRoles && currentRole && !allowedRoles.includes(currentRole)) {

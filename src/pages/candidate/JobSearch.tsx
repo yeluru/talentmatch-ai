@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Search, MapPin, DollarSign, Briefcase, Clock, Building2, Sparkles } from 'lucide-react';
+import { Loader2, Search, MapPin, Briefcase, Clock, Building2, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
@@ -25,8 +25,6 @@ interface Job {
   is_remote: boolean | null;
   job_type: string | null;
   experience_level: string | null;
-  salary_min: number | null;
-  salary_max: number | null;
   required_skills: string[] | null;
   posted_at: string | null;
   organization_id: string;
@@ -96,13 +94,6 @@ export default function JobSearch() {
     return matchesSearch && matchesLocation && matchesRemote && matchesExperience && matchesJobType;
   });
 
-  const formatSalary = (min: number | null, max: number | null) => {
-    if (!min && !max) return 'Salary not disclosed';
-    if (min && max) return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
-    if (min) return `From $${min.toLocaleString()}`;
-    return `Up to $${max!.toLocaleString()}`;
-  };
-
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -159,8 +150,8 @@ export default function JobSearch() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="full-time">Full-time</SelectItem>
-              <SelectItem value="part-time">Part-time</SelectItem>
+              <SelectItem value="full_time">Full-time</SelectItem>
+              <SelectItem value="part_time">Part-time</SelectItem>
               <SelectItem value="contract">Contract</SelectItem>
               <SelectItem value="internship">Internship</SelectItem>
             </SelectContent>
@@ -190,7 +181,7 @@ export default function JobSearch() {
               <Briefcase className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
               <p className="text-muted-foreground text-center">
-                Try adjusting your search filters
+                If you’re expecting jobs from a specific recruiting company, ask them for an invite code (to unlock tenant-private jobs). Otherwise, browse marketplace jobs (public jobs) posted by employers.
               </p>
             </CardContent>
           </Card>
@@ -258,9 +249,6 @@ export default function JobSearch() {
                     </div>
                     <div className="flex flex-col items-end gap-2 lg:min-w-48">
                       <div className="text-right">
-                        <p className="font-semibold text-primary">
-                          {formatSalary(job.salary_min, job.salary_max)}
-                        </p>
                         {job.posted_at && (
                           <p className="text-sm text-muted-foreground">
                             <Clock className="inline mr-1 h-3 w-3" />

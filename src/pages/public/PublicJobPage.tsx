@@ -25,8 +25,6 @@ interface Job {
   is_remote: boolean | null;
   job_type: string | null;
   experience_level: string | null;
-  salary_min: number | null;
-  salary_max: number | null;
   required_skills: string[] | null;
   nice_to_have_skills: string[] | null;
   posted_at: string | null;
@@ -95,6 +93,7 @@ export default function PublicJobPage() {
         `)
         .eq('id', jobId)
         .eq('status', 'published')
+        .eq('visibility', 'public')
         .maybeSingle();
 
       if (jobError) throw jobError;
@@ -230,22 +229,32 @@ export default function PublicJobPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Create candidate role using the secure RPC function
+        // Create candidate role using the secure RPC function (global role; org links are stored separately)
         await supabase.rpc('assign_user_role', {
           _user_id: authData.user.id,
           _role: 'candidate',
-          _organization_id: job?.organization?.id || null
+          _organization_id: null
         });
 
         // Create candidate profile
         const { data: cpData } = await supabase.from('candidate_profiles').insert({
           user_id: authData.user.id,
-          organization_id: job?.organization?.id,
           current_title: parsedData?.current_title,
           current_company: parsedData?.current_company,
           years_of_experience: parsedData?.years_of_experience,
           headline: parsedData?.summary
         }).select('id').single();
+
+        // Link candidate ↔ org for this application (so the candidate can see org ties)
+        if (cpData?.id && job?.organization?.id) {
+          await supabase.from('candidate_org_links').upsert({
+            candidate_id: cpData.id,
+            organization_id: job.organization.id,
+            link_type: 'application',
+            status: 'active',
+            created_by: authData.user.id,
+          } as any);
+        }
 
         if (cpData && resumeFile) {
           // Upload resume to storage
@@ -255,13 +264,11 @@ export default function PublicJobPage() {
             .upload(filePath, resumeFile);
 
           if (!uploadError) {
-            const { data: urlData } = supabase.storage.from('resumes').getPublicUrl(filePath);
-            
             // Create resume record
             const { data: resumeData } = await supabase.from('resumes').insert({
               candidate_id: cpData.id,
               file_name: resumeFile.name,
-              file_url: urlData.publicUrl,
+              file_url: `resumes/${filePath}`,
               file_type: resumeFile.type,
               is_primary: true
             }).select('id').single();
@@ -288,13 +295,6 @@ export default function PublicJobPage() {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const formatSalary = (min: number | null, max: number | null) => {
-    if (!min && !max) return 'Salary not disclosed';
-    if (min && max) return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
-    if (min) return `From $${min.toLocaleString()}`;
-    return `Up to $${max!.toLocaleString()}`;
   };
 
   if (isLoading) {
@@ -355,14 +355,18 @@ export default function PublicJobPage() {
                       {job.location}
                     </Badge>
                   )}
-                  {job.is_remote && <Badge variant="secondary">Remote</Badge>}
+                  {(job as any).work_mode && (job as any).work_mode !== 'unknown' ? (
+                    <Badge variant="secondary" className="capitalize">
+                      {(job as any).work_mode}
+                    </Badge>
+                  ) : job.is_remote ? (
+                    <Badge variant="secondary">Remote</Badge>
+                  ) : null}
                   {job.job_type && <Badge variant="outline" className="capitalize">{job.job_type}</Badge>}
                   {job.experience_level && <Badge variant="outline" className="capitalize">{job.experience_level}</Badge>}
                 </div>
 
-                <p className="text-lg font-semibold text-primary">
-                  {formatSalary(job.salary_min, job.salary_max)}
-                </p>
+                {/* Salary removed (contracting-first product) */}
               </CardContent>
             </Card>
 
@@ -375,27 +379,8 @@ export default function PublicJobPage() {
               </CardContent>
             </Card>
 
-            {job.responsibilities && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Responsibilities</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap text-muted-foreground">{job.responsibilities}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {job.requirements && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Requirements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap text-muted-foreground">{job.requirements}</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* NOTE: responsibilities/requirements can contain internal recruiter notes in our current model.
+                We intentionally do NOT render them on the public job page. */}
 
             {(job.required_skills?.length || job.nice_to_have_skills?.length) && (
               <Card>
@@ -466,7 +451,7 @@ export default function PublicJobPage() {
                       <input
                         type="file"
                         id="resume-upload"
-                        accept=".pdf,.doc,.docx,.txt"
+                        accept=".pdf,.docx,.txt"
                         onChange={handleFileUpload}
                         className="hidden"
                       />

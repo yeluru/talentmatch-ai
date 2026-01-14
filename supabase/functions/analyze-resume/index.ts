@@ -16,6 +16,185 @@ function sanitizeString(value: string | null | undefined, maxLength: number): st
   return String(value).trim().slice(0, maxLength).replace(/[<>]/g, '');
 }
 
+function normForMatch(s: string) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeJdForKeywordExtraction(jd: string) {
+  // Many users paste JDs as one long paragraph with "•" bullets and inline headings.
+  // Normalize into line-like chunks so deterministic extraction works reliably.
+  let t = String(jd || "");
+  t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  // Turn inline bullets into their own lines
+  t = t.replace(/[•\u2022]/g, "\n• ");
+  // Put common headings on their own line
+  t = t.replace(
+    /\b(Key Responsibilities|Responsibilities|Required Qualifications|Preferred Qualifications|Qualifications|Requirements|Soft Skills)\s*:\s*/gi,
+    "\n$1:\n",
+  );
+  // Avoid huge single lines
+  t = t.replace(/\. +/g, ".\n");
+  // Collapse excessive newlines
+  t = t.replace(/\n{3,}/g, "\n\n");
+  return t;
+}
+
+function extractJdKeywordsDeterministic(jd: string) {
+  const text = normalizeJdForKeywordExtraction(String(jd || ""));
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  // We want *true* ATS terms (tools, acronyms, certs, short requirement phrases),
+  // not long sentences that artificially inflate the denominator.
+  const candidates: string[] = [];
+
+  // 1) Pull explicit parenthetical acronyms: "Lightning Web Components (LWC)" -> both phrases.
+  const paren = [...text.matchAll(/([A-Za-z][A-Za-z0-9 &\/.-]{2,80})\s*\(\s*([A-Z0-9]{2,10})\s*\)/g)];
+  for (const m of paren) {
+    const full = String(m[1] || "").trim();
+    const abbr = String(m[2] || "").trim();
+    if (full) candidates.push(full);
+    if (abbr) candidates.push(abbr);
+  }
+
+  // 2) Pull token-like ATS terms from the JD: acronyms, slash terms, tech-ish tokens.
+  // Examples: CI/CD, SOQL/SOSL, REST/SOAP, Salesforce DX, OAuth, WebSphere, Informatica.
+  const tokenTerms = [
+    ...text.matchAll(/\b[A-Z]{2,}(?:\/[A-Z]{2,})+\b/g), // SOQL/SOSL, REST/SOAP
+    ...text.matchAll(/\b[A-Z]{2,}\/[A-Z]{2,}\b/g), // CI/CD
+  ].map((m) => String((m as any)[0] || "").trim());
+  candidates.push(...tokenTerms);
+
+  // 3) From bullet-like requirement lines, keep short, meaningful fragments.
+  const hotHeadings = /(REQUIREMENTS|QUALIFICATIONS|RESPONSIBILITIES|CERTIFICATIONS|SOFT SKILLS)/i;
+  let inHot = false;
+  for (const l0 of lines) {
+    if (hotHeadings.test(l0)) {
+      inHot = true;
+      continue;
+    }
+    const isBullet = /^[•\-\*]/.test(l0);
+    if (!inHot && !isBullet) continue;
+    const l = l0.replace(/^[•\-\*]+\s*/, "").trim();
+    if (!l) continue;
+
+    // Split and keep fragments <= 6 words (to avoid long sentences).
+    for (const part of l.split(/[,;]|•|\band\b|\bor\b/gi)) {
+      const s = part.trim().replace(/\s+/g, " ");
+      if (!s) continue;
+      const words = s.split(" ").filter(Boolean);
+      if (words.length > 6) continue;
+      if (s.length < 2 || s.length > 70) continue;
+      candidates.push(s);
+    }
+  }
+
+  // 4) Filter out boilerplate / low-signal soft sentences that distort the score.
+  const badStarts = [
+    "ability to",
+    "excellent",
+    "strong",
+    "be flexible",
+    "adapt to",
+    "you pride yourself",
+    "you",
+    "proficiency",
+    "familiarity",
+    "highly preferred",
+    "additional job",
+    "additional job responsibilities",
+    "leverage",
+    "assure",
+    "conducts",
+    "some",
+    "seeking",
+    "qualifications",
+    "responsibilities",
+    "requirements",
+  ];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of candidates) {
+    const cleaned = String(raw || "")
+      .replace(/^[•\-\*]+\s*/, "")
+      .replace(/[.]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) continue;
+    const lower = cleaned.toLowerCase();
+    if (badStarts.some((p) => lower.startsWith(p))) continue;
+    // Avoid generic single words that don't help a checklist
+    if (lower.length < 3) continue;
+    if (["experience", "skills", "requirements", "qualifications", "responsibilities"].includes(lower)) continue;
+    const key = normForMatch(cleaned);
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cleaned);
+  }
+
+  // Cap the denominator so coverage isn't artificially diluted by a huge term list.
+  return out.slice(0, 60);
+}
+
+function keywordCoverageScore(resumeText: string, jdText: string) {
+  const resume = normForMatch(resumeText);
+  const kws = extractJdKeywordsDeterministic(jdText);
+  const matched: string[] = [];
+  const missing: string[] = [];
+
+  const variants = (k: string) => {
+    const base = normForMatch(k);
+    if (!base) return [];
+    const vs = new Set<string>([base]);
+    // Handle slash terms (soql/sosl)
+    if (k.includes("/")) {
+      for (const part of k.split("/")) {
+        const p = normForMatch(part);
+        if (p) vs.add(p);
+      }
+    }
+    // Common formatting variants
+    vs.add(base.replace(/\s+/g, "")); // Visualforce vs visual force
+    vs.add(base.replace(/\s+/g, " ")); // normalize spaces
+    // Common aliases for ATS terms
+    if (base === "visualforce") vs.add("visual force");
+    if (base === "ci cd" || base === "ci/cd") {
+      vs.add("ci cd");
+      vs.add("ci/cd");
+    }
+    if (base === "salesforce dx") vs.add("sfdx");
+    if (base === "lightning web components") vs.add("lwc");
+    if (base === "soql") vs.add("soql");
+    if (base === "sosl") vs.add("sosl");
+    if (base === "soql sosl") {
+      vs.add("soql");
+      vs.add("sosl");
+    }
+    return [...vs].filter(Boolean);
+  };
+
+  const has = (k: string) => {
+    for (const v of variants(k)) {
+      if (resume.includes(v)) return true;
+    }
+    return false;
+  };
+
+  for (const k of kws) {
+    if (has(k)) matched.push(k);
+    else missing.push(k);
+  }
+
+  const total = kws.length || 1;
+  const score = Math.round((matched.length / total) * 100);
+  return { score: Math.min(100, Math.max(0, score)), total, matched_count: matched.length, matched, missing };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,45 +241,33 @@ serve(async (req) => {
       });
     }
 
-const systemPrompt = `You are an ACCURATE and FAIR AI resume analyst for MatchTalent AI.
+const systemPrompt = `You are an ACCURATE and FAIR resume-to-JD matcher for MatchTalent AI.
+
+IMPORTANT: In this product, "match_score" is an ATS-style keyword alignment score (shortlisting likelihood),
+NOT a hiring-qualification score. The goal is to measure how well the resume text matches the JD text for ATS scanning.
 
 CRITICAL MATCHING RULES:
-1. Match based on SPECIFIC SKILLS AND EXPERIENCE required, not general career level
-2. A senior leadership role does NOT automatically qualify for a hands-on technical role requiring different skills
-3. Required certifications and specific platform experience (ServiceNow, Salesforce, SAP, etc.) MUST be present for high scores
-4. Years of experience in UNRELATED technologies don't transfer to specialized platforms
+1) Be role-aware: evaluate the JD at the level it is written (IC vs Manager vs Director).
+2) matched_skills: only include skills/phrases explicitly present in the resume (or directly evidenced by explicit experience).
+3) missing_skills: include JD requirements that are not evidenced in the resume.
+4) Do NOT heavily penalize match_score for hard requirements like "10+ years" or specific certifications.
+   - Those must still appear in missing_skills and recommendations (risk items),
+   - but match_score should primarily reflect literal keyword coverage and responsibility overlap.
 
-SCORING GUIDELINES:
-- 0-25%: Complete skill mismatch (e.g., Engineering Director vs ServiceNow Developer with no ServiceNow experience)
-- 26-45%: Same industry but different specialization, minimal skill overlap
-- 46-60%: Some transferable skills, but missing core required technologies/certifications
-- 61-75%: Has many required skills but missing key requirements or certifications
-- 76-85%: Strong match, has most required skills including core technologies
-- 86-95%: Excellent match, meets nearly all requirements
-- 96-100%: Perfect match
+SCORING MODEL (0-100) — ATS keyword alignment (compute explicitly):
+- 70 points: Literal keyword/phrase coverage (exact JD terms appearing anywhere in the resume; Skills/Summary/Experience all count)
+- 20 points: Responsibility overlap (duties, domains, systems worked on)
+- 10 points: Evidence quality (specificity, projects, measurable outcomes, clarity of sections)
 
-WHAT TO CHECK:
-1. Does the resume have the SPECIFIC technologies listed in requirements? (e.g., ServiceNow, JavaScript, specific APIs)
-2. Does the resume show hands-on experience or just management of teams using these technologies?
-3. Are required certifications present?
-4. Is the experience at the right level? (IC role needs IC experience, not just leadership)
-5. Are the years of experience in the RELEVANT technology, not just total years?
+GUIDANCE:
+- If most JD keywords are present in the resume (even if framed as exposure/upskilling), match_score can be 80–95.
+- Reserve scores below 60 for resumes missing a large portion of JD keywords and responsibilities.
 
-IMPORTANT DISTINCTIONS:
-- Managing engineers who use ServiceNow ≠ Being a ServiceNow Developer
-- General JavaScript experience ≠ ServiceNow scripting experience
-- Leading distributed systems teams ≠ Configuring GRC modules
-- Enterprise architecture ≠ Platform-specific development
-
-Your analysis must include:
-1. An ACCURATE match score based on actual skill overlap with job requirements
-2. List of matched skills - only those explicitly found and relevant
-3. List of critical missing skills - especially certifications and required platform experience
-4. Key strengths the candidate brings
-5. Honest assessment of gaps
-6. Recommendations - including whether this role is a good fit at all
-
-Be fair but accurate. Don't inflate scores based on seniority when the role requires different skills.`;
+Output must be strict and evidence-based:
+- matched_skills: only what’s truly present
+- missing_skills: JD items not evidenced (include years/certs here)
+- recommendations: concrete, actionable, role-appropriate
+`;
 
     const userPrompt = jobDescription 
       ? `Analyze this resume against the job description:
@@ -124,6 +291,7 @@ Provide a detailed analysis with an overall ATS score, identified skills, key st
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
+      temperature: 0,
       tools: [
         {
           type: "function",
@@ -256,7 +424,31 @@ Provide a detailed analysis with an overall ATS score, identified skills, key st
       analysis.match_score = Math.min(100, Math.max(0, Math.round(analysis.match_score)));
     }
 
-    return new Response(JSON.stringify({ analysis }), {
+    // Deterministic sanity score: JD keyword coverage (ATS-style). This prevents "mysterious" constant scores.
+    // We combine it with the model's score for a more stable and explainable result.
+    let diagnostics: any = null;
+    if (jobDescription) {
+      const kw = keywordCoverageScore(resumeText, jobDescription);
+      const modelScore = analysis.match_score;
+      const combined = Math.round(modelScore * 0.4 + kw.score * 0.6);
+      analysis.match_score = Math.min(100, Math.max(0, combined));
+      diagnostics = {
+        scoring: {
+          model_score: modelScore,
+          keyword_coverage_score: kw.score,
+          combined_score: analysis.match_score,
+          weights: { model: 0.4, keyword_coverage: 0.6 },
+        },
+        keyword_coverage: {
+          total: kw.total,
+          matched_count: kw.matched_count,
+          matched: kw.matched.slice(0, 60),
+          missing: kw.missing.slice(0, 60),
+        },
+      };
+    }
+
+    return new Response(JSON.stringify({ analysis, diagnostics }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {

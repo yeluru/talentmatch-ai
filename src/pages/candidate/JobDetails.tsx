@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, MapPin, DollarSign, Briefcase, Clock, Building2, ArrowLeft, Send, CheckCircle } from 'lucide-react';
+import { Loader2, MapPin, Briefcase, Clock, Building2, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Job {
@@ -24,8 +24,6 @@ interface Job {
   is_remote: boolean | null;
   job_type: string | null;
   experience_level: string | null;
-  salary_min: number | null;
-  salary_max: number | null;
   required_skills: string[] | null;
   nice_to_have_skills: string[] | null;
   posted_at: string | null;
@@ -77,28 +75,32 @@ export default function JobDetails() {
       // Fetch candidate profile and resumes
       const { data: cpData, error: cpError } = await supabase
         .from('candidate_profiles')
-        .select('id')
+        .select('id, updated_at')
         .eq('user_id', user!.id)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
       if (cpError) throw cpError;
-      setCandidateId(cpData.id);
+      const cp = (cpData || [])[0] as any;
+      if (!cp?.id) throw new Error('Candidate profile not found');
+      setCandidateId(cp.id);
 
       // Check if already applied
-      const { data: applicationData } = await supabase
+      const { data: applicationRows } = await supabase
         .from('applications')
         .select('id')
         .eq('job_id', id)
-        .eq('candidate_id', cpData.id)
-        .maybeSingle();
+        .eq('candidate_id', cp.id)
+        .order('applied_at', { ascending: false })
+        .limit(1);
 
-      setHasApplied(!!applicationData);
+      setHasApplied(Boolean((applicationRows || [])[0]?.id));
 
       // Fetch resumes
       const { data: resumesData } = await supabase
         .from('resumes')
         .select('id, file_name, is_primary')
-        .eq('candidate_id', cpData.id);
+        .eq('candidate_id', cp.id);
 
       setResumes(resumesData || []);
       const primaryResume = resumesData?.find(r => r.is_primary);
@@ -142,13 +144,6 @@ export default function JobDetails() {
     } finally {
       setIsApplying(false);
     }
-  };
-
-  const formatSalary = (min: number | null, max: number | null) => {
-    if (!min && !max) return 'Salary not disclosed';
-    if (min && max) return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
-    if (min) return `From $${min.toLocaleString()}`;
-    return `Up to $${max!.toLocaleString()}`;
   };
 
   if (isLoading) {
@@ -205,7 +200,13 @@ export default function JobDetails() {
                           {job.location}
                         </Badge>
                       )}
-                      {job.is_remote && <Badge variant="secondary">Remote</Badge>}
+                      {(job as any).work_mode && (job as any).work_mode !== 'unknown' ? (
+                        <Badge variant="secondary" className="capitalize">
+                          {(job as any).work_mode}
+                        </Badge>
+                      ) : job.is_remote ? (
+                        <Badge variant="secondary">Remote</Badge>
+                      ) : null}
                       {job.job_type && (
                         <Badge variant="outline" className="capitalize">
                           {job.job_type}
@@ -232,27 +233,7 @@ export default function JobDetails() {
               </CardContent>
             </Card>
 
-            {job.responsibilities && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Responsibilities</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap text-muted-foreground">{job.responsibilities}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {job.requirements && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Requirements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap text-muted-foreground">{job.requirements}</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* NOTE: responsibilities/requirements may contain internal recruiter notes; do not render in candidate view. */}
 
             {/* Skills */}
             {(job.required_skills?.length || job.nice_to_have_skills?.length) && (
@@ -290,12 +271,7 @@ export default function JobDetails() {
           <div className="space-y-6">
             <Card>
               <CardContent className="pt-6 space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Salary Range</p>
-                  <p className="font-semibold text-lg text-primary">
-                    {formatSalary(job.salary_min, job.salary_max)}
-                  </p>
-                </div>
+                {/* Salary removed (contracting-first product) */}
                 {job.posted_at && (
                   <div>
                     <p className="text-sm text-muted-foreground">Posted</p>

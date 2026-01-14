@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, Briefcase, Sparkles, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/page-header';
+import { useEffect, useMemo } from 'react';
 
 export default function CandidateDashboard() {
   const { user, profile } = useAuth();
@@ -17,13 +18,15 @@ export default function CandidateDashboard() {
     queryKey: ['candidate-profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
+      // Defensive: avoid single() coercion errors if duplicate candidate_profiles exist.
+      const { data: rows, error } = await supabase
         .from('candidate_profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1);
       if (error) return null;
-      return data;
+      return (rows || [])[0] || null;
     },
     enabled: !!user?.id,
   });
@@ -58,6 +61,22 @@ export default function CandidateDashboard() {
     enabled: !!candidateProfile?.id,
   });
 
+  // Fetch skill count
+  const { data: skills, isLoading: skillsLoading } = useQuery({
+    queryKey: ['candidate-skills-count', candidateProfile?.id],
+    queryFn: async () => {
+      if (!candidateProfile?.id) return [];
+      const { data, error } = await supabase
+        .from('candidate_skills')
+        .select('id, skill_type')
+        .eq('candidate_id', candidateProfile.id)
+        .limit(2000);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!candidateProfile?.id,
+  });
+
   // Fetch latest AI analysis
   const { data: latestAnalysis } = useQuery({
     queryKey: ['latest-ai-analysis', candidateProfile?.id],
@@ -65,13 +84,17 @@ export default function CandidateDashboard() {
       if (!candidateProfile?.id) return null;
       const { data, error } = await supabase
         .from('ai_resume_analyses')
-        .select('match_score')
+        .select('match_score, full_analysis, created_at')
         .eq('candidate_id', candidateProfile.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
+        .maybeSingle();
+      if (error) {
+        // Don't break the dashboard; just log and show N/A
+        console.warn('Failed to load latest AI analysis', error);
+        return null;
+      }
+      return data as any;
     },
     enabled: !!candidateProfile?.id,
   });
@@ -85,10 +108,76 @@ export default function CandidateDashboard() {
     return appliedAt > weekAgo;
   }).length || 0;
 
-  const profileCompleteness = candidateProfile?.profile_completeness || 0;
-  const matchScore = latestAnalysis?.match_score;
+  const computedProfileCompleteness = useMemo(() => {
+    if (!candidateProfile) return 0;
 
-  const isLoading = appsLoading || resumesLoading;
+    const techSkillsCount = (skills || []).filter((s: any) => (s.skill_type || 'technical') === 'technical').length;
+    const softSkillsCount = (skills || []).filter((s: any) => (s.skill_type || 'technical') === 'soft').length;
+    const hasResume = (resumes?.length || 0) > 0;
+
+    // Simple, predictable scoring (0..100):
+    // Contact info (30)
+    const contactFields = [
+      candidateProfile.full_name,
+      candidateProfile.phone,
+      candidateProfile.linkedin_url,
+      candidateProfile.github_url,
+    ];
+    const contactFilled = contactFields.filter((v) => String(v || '').trim().length > 0).length;
+    const contactScore = Math.round((contactFilled / contactFields.length) * 30);
+
+    // Core profile (40)
+    const coreFields = [
+      candidateProfile.headline,
+      candidateProfile.summary,
+      candidateProfile.current_title,
+      candidateProfile.current_company,
+    ];
+    const coreFilled = coreFields.filter((v) => String(v || '').trim().length > 0).length;
+    const yearsScore = typeof candidateProfile.years_of_experience === 'number' && candidateProfile.years_of_experience > 0 ? 10 : 0;
+    const coreScore = Math.round((coreFilled / coreFields.length) * 30) + yearsScore; // max 40
+
+    // Skills (20)
+    const skillsScore =
+      techSkillsCount >= 10 ? 20 :
+      techSkillsCount >= 5 ? 15 :
+      techSkillsCount >= 3 ? 10 :
+      techSkillsCount >= 1 ? 5 :
+      softSkillsCount >= 1 ? 5 :
+      0;
+
+    // Resume (10)
+    const resumeScore = hasResume ? 10 : 0;
+
+    return Math.max(0, Math.min(100, contactScore + coreScore + skillsScore + resumeScore));
+  }, [candidateProfile, resumes?.length, skills]);
+
+  const profileCompleteness = computedProfileCompleteness;
+  const coerceNumber = (v: unknown): number | undefined => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && v.trim() && Number.isFinite(Number(v))) return Number(v);
+    return undefined;
+  };
+
+  const matchScore =
+    coerceNumber((latestAnalysis as any)?.match_score) ??
+    coerceNumber((latestAnalysis as any)?.full_analysis?.match_score);
+
+  const isLoading = appsLoading || resumesLoading || skillsLoading;
+
+  // Persist computed score so other parts of the app can use it (best-effort, no UI blocking)
+  useEffect(() => {
+    if (!candidateProfile?.id) return;
+    const current = candidateProfile.profile_completeness ?? 0;
+    if (current === computedProfileCompleteness) return;
+
+    supabase
+      .from('candidate_profiles')
+      .update({ profile_completeness: computedProfileCompleteness })
+      .eq('id', candidateProfile.id)
+      .then(() => void 0)
+      .catch(() => void 0);
+  }, [candidateProfile?.id, candidateProfile?.profile_completeness, computedProfileCompleteness]);
 
   return (
     <DashboardLayout>
@@ -142,9 +231,13 @@ export default function CandidateDashboard() {
               />
               <StatCard
                 title="AI Match Score"
-                value={matchScore ? `${matchScore}%` : "N/A"}
-                change={matchScore ? (matchScore >= 80 ? "Excellent fit" : matchScore >= 60 ? "Good match" : "Room to improve") : "Run an analysis"}
-                changeType={matchScore && matchScore >= 70 ? "positive" : undefined}
+                value={typeof matchScore === 'number' ? `${matchScore}%` : "N/A"}
+                change={
+                  typeof matchScore === 'number'
+                    ? (matchScore >= 80 ? "Excellent fit" : matchScore >= 60 ? "Good match" : "Room to improve")
+                    : "Run an analysis"
+                }
+                changeType={typeof matchScore === 'number' && matchScore >= 70 ? "positive" : undefined}
                 icon={Sparkles}
                 href="/candidate/ai-analysis"
               />

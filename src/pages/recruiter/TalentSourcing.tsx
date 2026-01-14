@@ -162,7 +162,8 @@ export default function TalentSourcing() {
           body: {
             fileBase64: base64,
             fileName: file.name,
-            fileType: file.type
+            // Some browsers may provide empty/unknown MIME types (esp. DOCX). Let the edge function infer via extension.
+            fileType: file.type || 'application/octet-stream'
           }
         });
 
@@ -183,7 +184,7 @@ export default function TalentSourcing() {
         const { error: uploadError } = await supabase.storage
           .from('resumes')
           .upload(uniqueFileName, file, {
-            contentType: file.type,
+            contentType: file.type || 'application/octet-stream',
             upsert: false
           });
 
@@ -191,11 +192,6 @@ export default function TalentSourcing() {
           console.error('Storage upload error:', uploadError);
           throw new Error(`Failed to upload file: ${uploadError.message}`);
         }
-
-        // Get public URL for the uploaded file
-        const { data: urlData } = supabase.storage
-          .from('resumes')
-          .getPublicUrl(uniqueFileName);
 
         // Auto-import the candidate with resume file info
         const { data: importData, error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
@@ -206,8 +202,8 @@ export default function TalentSourcing() {
               ats_score: parsed.ats_score,
               resume_file: {
                 file_name: file.name,
-                file_url: urlData.publicUrl,
-                file_type: file.type,
+                file_url: `resumes/${uniqueFileName}`,
+                file_type: file.type || 'application/octet-stream',
                 content_hash: parsed._fileHash // Pass the pre-computed file hash
               }
             }], 
@@ -337,7 +333,7 @@ export default function TalentSourcing() {
                     type="file"
                     id="resume-upload"
                     multiple
-                    accept=".pdf,.doc,.docx,.txt"
+                    accept=".pdf,.docx,.txt"
                     className="hidden"
                     onChange={handleFileUpload}
                   />

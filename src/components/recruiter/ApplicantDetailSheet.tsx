@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
+import { resumesObjectPath } from '@/lib/storagePaths';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
   Mail,
@@ -186,9 +187,13 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
     if (!application?.resumes?.file_url) return;
     
     try {
+      const objectPath = resumesObjectPath(application.resumes.file_url);
+      if (!objectPath) {
+        throw new Error('Could not resolve resume storage path');
+      }
       const { data, error } = await supabase.storage
         .from('resumes')
-        .createSignedUrl(application.resumes.file_url.replace('resumes/', ''), 60);
+        .createSignedUrl(objectPath, 600, { download: true });
       
       if (error) throw error;
       window.open(data.signedUrl, '_blank');

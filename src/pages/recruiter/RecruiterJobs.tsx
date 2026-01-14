@@ -32,7 +32,10 @@ import {
   Briefcase,
   Copy,
   ExternalLink,
-  Pencil
+  Pencil,
+  XCircle,
+  CheckCircle2,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -105,6 +108,23 @@ export default function RecruiterJobs() {
     },
     onError: () => {
       toast.error('Failed to update job status');
+    },
+  });
+
+  const updateJobVisibility = useMutation({
+    mutationFn: async ({ jobId, visibility }: { jobId: string; visibility: 'private' | 'public' }) => {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ visibility } as any)
+        .eq('id', jobId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs'] });
+      toast.success('Job visibility updated');
+    },
+    onError: () => {
+      toast.error('Failed to update job visibility');
     },
   });
 
@@ -205,6 +225,15 @@ export default function RecruiterJobs() {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold truncate">{job.title}</h3>
                           {getStatusBadge(job.status || 'draft')}
+                          {(job as any).visibility === 'public' ? (
+                            <Badge variant="outline" className="border-violet-500/30 text-violet-600">
+                              Public
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Private
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                           {job.location && (
@@ -234,7 +263,22 @@ export default function RecruiterJobs() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {job.status === 'published' && (
+                          {(job as any).visibility !== 'public' ? (
+                            <DropdownMenuItem
+                              onClick={() => updateJobVisibility.mutate({ jobId: job.id, visibility: 'public' })}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Make Public (marketplace)
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => updateJobVisibility.mutate({ jobId: job.id, visibility: 'private' })}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Make Private (tenant-only)
+                            </DropdownMenuItem>
+                          )}
+                          {job.status === 'published' && (job as any).visibility === 'public' && (
                             <>
                               <DropdownMenuItem onClick={() => copyJobUrl(job)}>
                                 <Copy className="h-4 w-4 mr-2" />
@@ -252,6 +296,7 @@ export default function RecruiterJobs() {
                             <DropdownMenuItem
                               onClick={() => updateJobStatus.mutate({ jobId: job.id, status: 'published' })}
                             >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
                               Publish
                             </DropdownMenuItem>
                           )}
@@ -259,6 +304,7 @@ export default function RecruiterJobs() {
                             <DropdownMenuItem
                               onClick={() => updateJobStatus.mutate({ jobId: job.id, status: 'closed' })}
                             >
+                              <XCircle className="h-4 w-4 mr-2" />
                               Close Job
                             </DropdownMenuItem>
                           )}
@@ -266,6 +312,7 @@ export default function RecruiterJobs() {
                             <DropdownMenuItem
                               onClick={() => updateJobStatus.mutate({ jobId: job.id, status: 'published' })}
                             >
+                              <RotateCcw className="h-4 w-4 mr-2" />
                               Reopen
                             </DropdownMenuItem>
                           )}

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { User, Briefcase, Building2, Loader2, ArrowLeft, Mail, Sparkles } from 'lucide-react';
 import { z } from 'zod';
@@ -141,7 +142,8 @@ export default function AuthPage() {
     confirmPassword: '',
     fullName: '',
     organizationName: '',
-    inviteCode: ''
+    inviteCode: '',
+    marketplaceOptIn: false,
   });
   const [resetEmail, setResetEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -429,7 +431,8 @@ export default function AuthPage() {
         signUpData.fullName,
         isInviteFlow ? (inviteDetails?.role || 'recruiter') : 'candidate',
         undefined,
-        undefined,
+        isInviteFlow ? undefined : (signUpData.inviteCode || undefined),
+        signUpData.marketplaceOptIn,
         inviteRedirectTo
       );
 
@@ -1014,6 +1017,41 @@ export default function AuthPage() {
                         maxLength={72}
                       />
                     </div>
+
+                    {!inviteToken && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="signup-invite-code">Organization invite code (optional)</Label>
+                          <Input
+                            id="signup-invite-code"
+                            placeholder="8-character code"
+                            value={signUpData.inviteCode}
+                            onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value })}
+                            className="h-12"
+                            maxLength={20}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            If you have an invite code from a recruiting company, enter it to see their private jobs.
+                          </p>
+                        </div>
+
+                        <div className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3">
+                          <Checkbox
+                            id="signup-marketplace-opt-in"
+                            checked={signUpData.marketplaceOptIn}
+                            onCheckedChange={(v) => setSignUpData({ ...signUpData, marketplaceOptIn: Boolean(v) })}
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor="signup-marketplace-opt-in" className="cursor-pointer">
+                              Allow employers to discover my profile
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              If enabled, recruiters from other organizations can view your profile (without contact details) and invite you to engage.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {/* Staff org creation removed for SaaS: invite-only staff roles */}
 

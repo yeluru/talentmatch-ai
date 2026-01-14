@@ -15,6 +15,7 @@ interface UserProfile {
   avatar_url?: string;
   bio?: string;
   linkedin_url?: string;
+  is_suspended?: boolean;
 }
 
 interface UserRoleData {
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -63,20 +65,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user) {
-          // Ensure route guards/pages that depend on roles wait for fresh role fetch
-          setIsLoading(true);
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
-        } else {
+        if (!session?.user) {
           setProfile(null);
           setRoles([]);
           setCurrentRole(null);
           setOrganizationId(null);
           setIsSuperAdmin(false);
           setIsLoading(false);
+          return;
         }
+
+        // IMPORTANT:
+        // Supabase emits TOKEN_REFRESHED (and sometimes USER_UPDATED) when the tab regains focus.
+        // If we flip global `isLoading` after the app has already hydrated, ProtectedRoute will
+        // unmount the current page and users will lose in-progress form input.
+        //
+        // Rule:
+        // - Before first hydration: allow blocking load.
+        // - After hydration: always refresh silently (no global loading gate).
+        const isBlockingAllowed = !hasHydrated;
+
+        if (isBlockingAllowed && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+          setIsLoading(true);
+          setTimeout(() => {
+            fetchUserData(session.user.id, { silent: false });
+          }, 0);
+          return;
+        }
+
+        // Everything else (TOKEN_REFRESHED, USER_UPDATED, etc.) should be silent.
+        fetchUserData(session.user.id, { silent: true }).catch(() => {});
       }
     );
 
@@ -85,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         setIsLoading(true);
-        fetchUserData(session.user.id);
+        fetchUserData(session.user.id, { silent: false });
       } else {
         setIsLoading(false);
       }
@@ -94,17 +112,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserData = async (userId: string) => {
-    setIsLoading(true);
+  const fetchUserData = async (userId: string, opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent);
+    // Never re-enable the global loading gate after first hydration.
+    if (!silent && !hasHydrated) setIsLoading(true);
     try {
-      const [profileResult, rolesResult] = await Promise.all([
-        supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
-        supabase.from('user_roles').select('role, organization_id').eq('user_id', userId)
+      // Defensive: avoid maybeSingle() coercion errors if duplicate profiles exist.
+      const [profileRowsResult, rolesResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*, updated_at')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false })
+          .limit(1),
+        supabase.from('user_roles').select('role, organization_id').eq('user_id', userId),
       ]);
 
-      if (profileResult.data) {
-        setProfile(profileResult.data as UserProfile);
-      }
+      const profileRow = (profileRowsResult.data || [])[0];
+      if (profileRow) setProfile(profileRow as UserProfile);
 
       if (rolesResult.data && rolesResult.data.length > 0) {
         const userRoles = rolesResult.data.map(r => ({
@@ -144,7 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
+      if (!hasHydrated) setHasHydrated(true);
     }
   };
 
@@ -155,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: AppRole,
     organizationName?: string,
     inviteCode?: string,
+    marketplaceOptIn?: boolean,
     emailRedirectToOverride?: string,
   ) => {
     try {
@@ -165,8 +192,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If candidate with invite code, validate it first
       let candidateOrgId: string | null = null;
       if (role === 'candidate' && inviteCode) {
-        const { data: orgId, error: codeError } = await supabase.rpc('use_invite_code', { 
-          invite_code: inviteCode 
+        // Validate only (do not consume; consuming requires an authenticated session)
+        const { data: orgId, error: codeError } = await supabase.rpc('validate_invite_code', {
+          invite_code: inviteCode
         });
         
         if (codeError || !orgId) {
@@ -183,6 +211,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             full_name: fullName,
             intended_role: role,
+            marketplace_opt_in: !!marketplaceOptIn,
+            candidate_invite_code: role === 'candidate' ? (inviteCode || null) : null,
           }
         }
       });
@@ -255,14 +285,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // For candidates, create candidate profile
       if (role === 'candidate') {
-        const { error: candidateError } = await supabase.from('candidate_profiles').insert({
-          user_id: authData.user.id,
-          organization_id: candidateOrgId,
-        });
+        const visibilityLevel = marketplaceOptIn ? 'full' : 'anonymous';
+        const { data: cpRow, error: candidateError } = await supabase
+          .from('candidate_profiles')
+          .insert({
+            user_id: authData.user.id,
+            marketplace_opt_in: !!marketplaceOptIn,
+            marketplace_visibility_level: visibilityLevel,
+            full_name: fullName,
+            email,
+          })
+          .select('id')
+          .single();
 
         if (candidateError) {
           console.error('Candidate profile creation error:', candidateError);
           throw new Error(`Failed to create candidate profile: ${candidateError.message}`);
+        }
+
+        // If candidate signed up with an org invite code and we have a session, consume it now
+        // (this increments uses_count and creates candidate_org_links).
+        if (inviteCode) {
+          try {
+            await supabase.rpc('consume_invite_code', { invite_code: inviteCode });
+          } catch (e) {
+            // Soft-fail: the candidate can still use the product; they just won't see private jobs
+            // until they link (org admin) or re-enter the code later.
+            console.warn('Failed to consume invite code', e);
+          }
         }
       }
 
@@ -317,11 +367,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Never default unknown/no-role users to candidate (platform/staff accounts are invite/manual).
         const intended = (data.user.user_metadata as any)?.intended_role as AppRole | undefined;
 
-        const { data: existingCandidate } = await supabase
+        // Defensive: avoid maybeSingle() coercion errors if duplicate candidate_profiles exist.
+        const { data: existingCandidateRows } = await supabase
           .from('candidate_profiles')
-          .select('id')
+          .select('id, updated_at')
           .eq('user_id', data.user.id)
-          .maybeSingle();
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        const existingCandidate = (existingCandidateRows || [])[0] || null;
 
         const shouldBootstrapCandidate = intended === 'candidate' || !!existingCandidate;
 
@@ -334,11 +387,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (roleError) throw roleError;
 
           if (!existingCandidate) {
+            const desiredOptIn = !!(data.user.user_metadata as any)?.marketplace_opt_in;
+            const visibilityLevel = desiredOptIn ? 'full' : 'anonymous';
+            const fullName = (data.user.user_metadata as any)?.full_name || null;
+            const email = (data.user.email as string | undefined) || null;
             const { error: candErr } = await supabase.from('candidate_profiles').insert({
               user_id: data.user.id,
-              organization_id: null,
+              marketplace_opt_in: desiredOptIn,
+              marketplace_visibility_level: visibilityLevel,
+              full_name: fullName,
+              email,
             });
             if (candErr) throw candErr;
+          } else {
+            const desiredOptIn = !!(data.user.user_metadata as any)?.marketplace_opt_in;
+            if (desiredOptIn) {
+              await supabase
+                .from('candidate_profiles')
+                .update({ marketplace_opt_in: true, marketplace_visibility_level: 'full' } as any)
+                .eq('user_id', data.user.id);
+            }
+          }
+
+          // If the user signed up with a candidate invite code but didn't have a session at signup time,
+          // consume it now to link candidate ↔ org.
+          const inviteCode = (data.user.user_metadata as any)?.candidate_invite_code as string | null | undefined;
+          if (inviteCode) {
+            try {
+              await supabase.rpc('consume_invite_code', { invite_code: inviteCode });
+            } catch (e) {
+              console.warn('Failed to consume invite code on sign-in bootstrap', e);
+            }
           }
 
           return { error: null, role: 'candidate' as AppRole };

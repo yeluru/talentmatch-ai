@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface UserWithRoles {
   user_id: string;
@@ -142,6 +143,24 @@ export default function SuperAdminDashboard() {
   // Revoke org admin dialog state
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [userToRevoke, setUserToRevoke] = useState<UserWithRoles | null>(null);
+
+  // Candidate support tools (link/unlink/suspend/marketplace opt-in)
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidateLookupLoading, setCandidateLookupLoading] = useState(false);
+  const [candidateSupport, setCandidateSupport] = useState<{
+    user_id: string;
+    email: string;
+    full_name: string | null;
+    is_suspended: boolean;
+    candidate_profile_id: string | null;
+    marketplace_opt_in: boolean | null;
+    org_links: Array<{ organization_id: string; organization_name: string | null; status: string; link_type: string | null }>;
+  } | null>(null);
+  const [candidateOrgId, setCandidateOrgId] = useState('');
+  const [candidateReason, setCandidateReason] = useState('');
+  const [candidateActionLoading, setCandidateActionLoading] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'users' | 'candidates' | 'audit'>('overview');
   const [isRevoking, setIsRevoking] = useState(false);
 
   useEffect(() => {
@@ -572,6 +591,75 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const lookupCandidateByEmail = async () => {
+    const email = candidateEmail.trim().toLowerCase();
+    if (!email) return;
+    setCandidateLookupLoading(true);
+    try {
+      const { data: prof, error: profErr } = await (supabase as any)
+        .from('profiles')
+        .select('user_id, email, full_name, is_suspended')
+        .eq('email', email)
+        .maybeSingle();
+      if (profErr) throw profErr;
+      if (!prof?.user_id) {
+        setCandidateSupport(null);
+        toast.error('No user found for that email');
+        return;
+      }
+
+      const { data: cp } = await (supabase as any)
+        .from('candidate_profiles')
+        .select('id, marketplace_opt_in')
+        .eq('user_id', prof.user_id)
+        .maybeSingle();
+
+      const cpId = cp?.id || null;
+
+      const { data: links } = cpId
+        ? await (supabase as any)
+            .from('candidate_org_links')
+            .select('organization_id, status, link_type, organizations(name)')
+            .eq('candidate_id', cpId)
+            .order('created_at', { ascending: false })
+        : { data: [] as any[] };
+
+      setCandidateSupport({
+        user_id: prof.user_id,
+        email: prof.email,
+        full_name: prof.full_name || null,
+        is_suspended: !!prof.is_suspended,
+        candidate_profile_id: cpId,
+        marketplace_opt_in: typeof cp?.marketplace_opt_in === 'boolean' ? cp.marketplace_opt_in : null,
+        org_links: (links || []).map((l: any) => ({
+          organization_id: l.organization_id,
+          organization_name: l.organizations?.name || null,
+          status: l.status,
+          link_type: l.link_type || null,
+        })),
+      });
+
+      // UX: if the lookup started from the Overview tab, jump to the full Candidate support tools.
+      // (Keeps the overview card lightweight but still “one-click” to action.)
+      setActiveTab('candidates');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Failed to lookup candidate');
+    } finally {
+      setCandidateLookupLoading(false);
+    }
+  };
+
+  const runCandidateAction = async (fn: () => Promise<void>) => {
+    setCandidateActionLoading(true);
+    try {
+      await fn();
+      await lookupCandidateByEmail();
+    } finally {
+      setCandidateActionLoading(false);
+    }
+  };
+
   return (
     <>
       <SEOHead 
@@ -622,298 +710,676 @@ export default function SuperAdminDashboard() {
               }
             />
 
-          {/* Stats Cards */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <StatCard title="Total users" value={stats.totalUsers} icon={Users} />
-              <StatCard title="Organizations" value={stats.totalOrganizations} icon={Building2} />
-              <StatCard title="Jobs posted" value={stats.totalJobs} icon={Briefcase} />
-              <StatCard title="Applications" value={stats.totalApplications} icon={CheckCircle} />
-            </div>
-
-          {/* Tenant provisioning + Read-only User Management */}
-            <Card className="card-elevated">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  View all platform users (read-only). You can manage Org Admins only.
-                </CardDescription>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <TabsList className="w-full md:w-auto">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="tenants">Tenants</TabsTrigger>
+                  <TabsTrigger value="users">Users</TabsTrigger>
+                  <TabsTrigger value="candidates">Candidate support</TabsTrigger>
+                  <TabsTrigger value="audit">Audit logs</TabsTrigger>
+                </TabsList>
+                <div className="flex items-center justify-between md:justify-end gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    Read-only by default
+                  </Badge>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 mb-6">
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="text-sm font-medium text-foreground">Create tenant + invite Org Admin</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    This creates an organization and generates an invite link for the customer Org Super Admin (org_admin).
-                    In local dev, email sending may be skipped; you can copy the invite link below.
-                  </p>
 
-                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label>Organization name</Label>
-                      <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Org admin full name</Label>
-                      <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Org admin email</Label>
-                      <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" />
-                    </div>
+              <TabsContent value="overview" className="mt-4 space-y-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div
+                    onClick={() => setActiveTab('users')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab('users')}
+                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
+                  >
+                    <StatCard title="Total users" value={stats.totalUsers} icon={Users} className="cursor-pointer hover:border-accent/50 transition-colors" />
                   </div>
+                  <div
+                    onClick={() => setActiveTab('tenants')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab('tenants')}
+                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
+                  >
+                    <StatCard title="Organizations" value={stats.totalOrganizations} icon={Building2} className="cursor-pointer hover:border-accent/50 transition-colors" />
+                  </div>
+                  <StatCard title="Jobs posted" value={stats.totalJobs} icon={Briefcase} />
+                  <StatCard title="Applications" value={stats.totalApplications} icon={CheckCircle} />
+                </div>
 
-                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Button
-                      variant="default"
-                      onClick={handleCreateTenantAndInviteOrgAdmin}
-                      disabled={tenantCreateLoading || !tenantOrgName.trim() || !tenantAdminName.trim() || !tenantAdminEmail.trim()}
-                    >
-                      {tenantCreateLoading ? 'Creating…' : 'Create tenant + generate invite'}
-                    </Button>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle>Create tenant</CardTitle>
+                      <CardDescription>Create an organization and generate an Org Admin invite link.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="space-y-2">
+                          <Label>Organization name</Label>
+                          <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Org admin full name</Label>
+                          <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Org admin email</Label>
+                          <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <Button
+                          variant="default"
+                          onClick={handleCreateTenantAndInviteOrgAdmin}
+                          disabled={tenantCreateLoading || !tenantOrgName.trim() || !tenantAdminName.trim() || !tenantAdminEmail.trim()}
+                        >
+                          {tenantCreateLoading ? 'Creating…' : 'Create tenant + generate invite'}
+                        </Button>
+                        {tenantInviteUrl && (
+                          <div className="flex-1 rounded-md border bg-card p-3">
+                            <p className="text-xs text-muted-foreground">Invite link</p>
+                            <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
+                            <div className="mt-2 flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  await navigator.clipboard.writeText(tenantInviteUrl);
+                                  toast.success('Copied invite link');
+                                }}
+                              >
+                                Copy
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
+                                Open
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                    {tenantInviteUrl && (
-                      <div className="flex-1 rounded-md border bg-card p-3">
-                        <p className="text-xs text-muted-foreground">Invite link</p>
-                        <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
-                        <div className="mt-2 flex gap-2">
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle>Candidate support</CardTitle>
+                      <CardDescription>Lookup by email; link/unlink org; toggle discoverable; suspend.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                        <div className="flex-1 space-y-2">
+                          <Label>Candidate email</Label>
+                          <Input
+                            value={candidateEmail}
+                            onChange={(e) => setCandidateEmail(e.target.value)}
+                            placeholder="candidate@example.com"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={lookupCandidateByEmail}
+                          disabled={candidateLookupLoading || !candidateEmail.trim()}
+                        >
+                          {candidateLookupLoading ? 'Searching…' : 'Find candidate'}
+                        </Button>
+                      </div>
+                      {candidateSupport ? (
+                        <div className="rounded-md border bg-muted/10 p-3 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{candidateSupport.full_name || '—'}</span>
+                            <Badge variant="outline" className="text-xs">{candidateSupport.email}</Badge>
+                            {candidateSupport.is_suspended ? (
+                              <Badge variant="destructive" className="text-xs">Suspended</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Active</Badge>
+                            )}
+                            {candidateSupport.marketplace_opt_in ? (
+                              <Badge variant="outline" className="text-xs">Discoverable</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">Not discoverable</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Tip: use the “Candidate support” tab for full actions (link/unlink/suspend).
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          Search for a candidate to see status and open full tools.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="tenants" className="mt-4 space-y-4">
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <Toolbar
+                      left={
+                        <div>
+                          <CardTitle>Tenants</CardTitle>
+                          <CardDescription>
+                            Each tenant is an organization. Pending Org Admin invites show here until accepted.
+                          </CardDescription>
+                        </div>
+                      }
+                      right={
+                        <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
+                          {tenantsLoading ? 'Refreshing…' : 'Refresh'}
+                        </Button>
+                      }
+                    />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Organization</TableHead>
+                            <TableHead>Org Admin</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="w-[340px]">Invite / Reactivate</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {tenantsLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-8">
+                                Loading tenants...
+                              </TableCell>
+                            </TableRow>
+                          ) : tenants.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                No tenants found.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            tenants.map((t) => {
+                              const pending = t.pending_org_admin_invites[0];
+                              const inviteUrl = pending ? `${window.location.origin}/auth?invite=${pending.invite_token}` : null;
+                              const hasAdmin = t.org_admin_users.length > 0;
+                              const status = hasAdmin ? 'Active' : pending ? 'Invited' : 'No org admin';
+
+                              return (
+                                <TableRow key={t.organization_id}>
+                                  <TableCell>
+                                    <div className="space-y-0.5">
+                                      <p className="font-medium">{t.organization_name}</p>
+                                      <p className="text-xs text-muted-foreground">{t.organization_id}</p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {hasAdmin ? (
+                                      <div className="space-y-1">
+                                        {t.org_admin_users.map((u) => (
+                                          <div key={u.user_id}>
+                                            <p className="font-medium">{u.full_name}</p>
+                                            <p className="text-sm text-muted-foreground">{u.email}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : pending ? (
+                                      <div>
+                                        <p className="font-medium">{pending.full_name || pending.email}</p>
+                                        <p className="text-sm text-muted-foreground">{pending.email}</p>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-xs">
+                                      {status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-2">
+                                      {inviteUrl ? (
+                                        <>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={async () => {
+                                              await navigator.clipboard.writeText(inviteUrl);
+                                              toast.success('Copied invite link');
+                                            }}
+                                          >
+                                            Copy
+                                          </Button>
+                                          <Button variant="outline" size="sm" onClick={() => window.open(inviteUrl, '_blank')}>
+                                            Open
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              openTenantInviteDialog(t, {
+                                                email: pending?.email,
+                                                fullName: pending?.full_name || '',
+                                              })
+                                            }
+                                          >
+                                            Re-invite
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <Button variant="outline" size="sm" onClick={() => openTenantInviteDialog(t)}>
+                                          {hasAdmin ? 'Invite another org admin' : 'Invite org admin'}
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="users" className="mt-4 space-y-4">
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <Toolbar
+                      left={
+                        <div>
+                          <CardTitle>Users</CardTitle>
+                          <CardDescription>Platform-wide directory. Most actions are intentionally read-only.</CardDescription>
+                        </div>
+                      }
+                      right={
+                        <div className="relative flex-1 max-w-sm">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search users..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                      }
+                    />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Tenant</TableHead>
+                            <TableHead>Roles</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead className="w-[160px]">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {isLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-8">
+                                Loading users...
+                              </TableCell>
+                            </TableRow>
+                          ) : filteredUsers.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                No users found
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredUsers.map((user) => (
+                              <TableRow key={user.user_id}>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{user.full_name}</p>
+                                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">
+                                    {user.tenant_label || '—'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {user.roles.map((role) => (
+                                      <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-xs">
+                                        {role.replace('_', ' ')}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {new Date(user.created_at).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  {user.roles.includes('org_admin') ? (
+                                    <Button variant="destructive" size="sm" onClick={() => openRevokeDialog(user)}>
+                                      Revoke Org Admin
+                                    </Button>
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">Read-only</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="candidates" className="mt-4 space-y-4">
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <CardTitle>Candidate support tools</CardTitle>
+                    <CardDescription>
+                      Link/unlink candidates to tenants, toggle marketplace discoverability, and suspend accounts (soft-disable).
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {/* reuse existing candidate support block (moved here visually) */}
+                    <div className="rounded-lg border bg-muted/20 p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                        <div className="flex-1 space-y-2">
+                          <Label>Candidate email</Label>
+                          <Input
+                            value={candidateEmail}
+                            onChange={(e) => setCandidateEmail(e.target.value)}
+                            placeholder="candidate@example.com"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={lookupCandidateByEmail}
+                          disabled={candidateLookupLoading || !candidateEmail.trim()}
+                        >
+                          {candidateLookupLoading ? 'Searching…' : 'Find candidate'}
+                        </Button>
+                      </div>
+
+                      {candidateSupport && (
+                        <div className="mt-4 rounded-md border bg-card p-4 space-y-3">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium">{candidateSupport.full_name || '—'}</span>
+                              <Badge variant="outline" className="text-xs">{candidateSupport.email}</Badge>
+                              {candidateSupport.is_suspended ? (
+                                <Badge variant="destructive" className="text-xs">Suspended</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-xs">Active</Badge>
+                              )}
+                              {candidateSupport.marketplace_opt_in ? (
+                                <Badge variant="outline" className="text-xs">Discoverable</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">Not discoverable</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              user_id: <span className="font-mono">{candidateSupport.user_id}</span>
+                              {candidateSupport.candidate_profile_id ? (
+                                <> · candidate_id: <span className="font-mono">{candidateSupport.candidate_profile_id}</span></>
+                              ) : (
+                                <> · candidate profile: not created yet</>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <div className="space-y-2">
+                              <Label>Organization ID</Label>
+                              <Input value={candidateOrgId} onChange={(e) => setCandidateOrgId(e.target.value)} placeholder="org uuid" />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                              <Label>Reason (audit)</Label>
+                              <Input value={candidateReason} onChange={(e) => setCandidateReason(e.target.value)} placeholder="Why are we making this change?" />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              disabled={candidateActionLoading || !candidateOrgId.trim()}
+                              onClick={() =>
+                                runCandidateAction(async () => {
+                                  const { error } = await (supabase as any).rpc('super_admin_link_candidate_to_org', {
+                                    _candidate_user_id: candidateSupport.user_id,
+                                    _organization_id: candidateOrgId.trim(),
+                                    _reason: candidateReason || null,
+                                  });
+                                  if (error) throw error;
+                                  toast.success('Candidate linked to org');
+                                })
+                              }
+                            >
+                              Link to org
+                            </Button>
+                            <Button
+                              variant="outline"
+                              disabled={candidateActionLoading || !candidateOrgId.trim()}
+                              onClick={() =>
+                                runCandidateAction(async () => {
+                                  const { error } = await (supabase as any).rpc('super_admin_unlink_candidate_from_org', {
+                                    _candidate_user_id: candidateSupport.user_id,
+                                    _organization_id: candidateOrgId.trim(),
+                                    _reason: candidateReason || null,
+                                  });
+                                  if (error) throw error;
+                                  toast.success('Candidate unlinked from org');
+                                })
+                              }
+                            >
+                              Unlink from org
+                            </Button>
+                            <Button
+                              variant={candidateSupport.is_suspended ? 'outline' : 'destructive'}
+                              disabled={candidateActionLoading}
+                              onClick={() =>
+                                runCandidateAction(async () => {
+                                  const { error } = await (supabase as any).rpc('super_admin_set_user_suspended', {
+                                    _user_id: candidateSupport.user_id,
+                                    _is_suspended: !candidateSupport.is_suspended,
+                                    _reason: candidateReason || null,
+                                  });
+                                  if (error) throw error;
+                                  toast.success(candidateSupport.is_suspended ? 'User unsuspended' : 'User suspended');
+                                })
+                              }
+                            >
+                              {candidateSupport.is_suspended ? 'Unsuspend' : 'Suspend'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              disabled={candidateActionLoading}
+                              onClick={() =>
+                                runCandidateAction(async () => {
+                                  const next = !(candidateSupport.marketplace_opt_in === true);
+                                  const { error } = await (supabase as any).rpc('super_admin_set_candidate_marketplace_opt_in', {
+                                    _candidate_user_id: candidateSupport.user_id,
+                                    _opt_in: next,
+                                    _reason: candidateReason || null,
+                                  });
+                                  if (error) throw error;
+                                  toast.success(next ? 'Candidate set discoverable' : 'Candidate set not discoverable');
+                                })
+                              }
+                            >
+                              {candidateSupport.marketplace_opt_in ? 'Disable discoverable' : 'Enable discoverable'}
+                            </Button>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            Current org links:
+                            <ul className="mt-1 list-disc pl-5 space-y-1">
+                              {candidateSupport.org_links.length === 0 ? (
+                                <li>None</li>
+                              ) : (
+                                candidateSupport.org_links.slice(0, 8).map((l) => (
+                                  <li key={`${l.organization_id}:${l.status}`}>
+                                    {l.organization_name || 'Org'} ({l.organization_id}) — {l.status}
+                                    {l.link_type ? ` · ${l.link_type}` : ''}
+                                  </li>
+                                ))
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="audit" className="mt-4 space-y-4">
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <Toolbar
+                      left={
+                        <div>
+                          <CardTitle>Audit Logs (platform-wide)</CardTitle>
+                          <CardDescription>
+                            Default view shows the last 4 hours. Use search to query the full history, or load older logs in pages of 100.
+                          </CardDescription>
+                        </div>
+                      }
+                      right={
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={auditSearch}
+                            onChange={(e) => setAuditSearch(e.target.value)}
+                            placeholder="Search audit logs…"
+                            className="w-[260px]"
+                          />
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={async () => {
-                              await navigator.clipboard.writeText(tenantInviteUrl);
-                              toast.success('Copied invite link');
+                            onClick={() => {
+                              setAuditCursor(null);
+                              setAuditExpanded(false);
+                              fetchAuditLogs(true);
                             }}
+                            disabled={auditLoading}
                           >
-                            Copy
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
-                            Open
+                            {auditLoading ? 'Refreshing…' : 'Refresh'}
                           </Button>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search users..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
+                      }
                     />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Tenant</TableHead>
-                      <TableHead>Roles</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead className="w-[160px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          Loading users...
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredUsers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No users found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredUsers.map((user) => (
-                        <TableRow key={user.user_id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{user.full_name}</p>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {user.tenant_label || '—'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {user.roles.map((role) => (
-                                <Badge 
-                                  key={role} 
-                                  variant={getRoleBadgeVariant(role)}
-                                  className="text-xs"
-                                >
-                                  {role.replace('_', ' ')}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {user.roles.includes('org_admin') ? (
-                              <Button variant="destructive" size="sm" onClick={() => openRevokeDialog(user)}>
-                                Revoke Org Admin
-                              </Button>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Read-only</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Tenants (orgs) + Org Admin status */}
-            <Card className="card-elevated">
-              <CardHeader>
-                <Toolbar
-                  left={
-                    <div>
-                      <CardTitle>Tenants</CardTitle>
-                      <CardDescription>
-                        Each tenant is an organization. Pending Org Admin invites show here until accepted.
-                      </CardDescription>
-                    </div>
-                  }
-                  right={
-                    <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
-                      {tenantsLoading ? 'Refreshing…' : 'Refresh'}
-                    </Button>
-                  }
-                />
-              </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Organization</TableHead>
-                      <TableHead>Org Admin</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[340px]">Invite / Reactivate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tenantsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
-                          Loading tenants...
-                        </TableCell>
-                      </TableRow>
-                    ) : tenants.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          No tenants found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      tenants.map((t) => {
-                        const pending = t.pending_org_admin_invites[0]; // show newest pending invite
-                        const inviteUrl = pending ? `${window.location.origin}/auth?invite=${pending.invite_token}` : null;
-                        const hasAdmin = t.org_admin_users.length > 0;
-                        const status = hasAdmin ? 'Active' : pending ? 'Invited' : 'No org admin';
-
-                        return (
-                          <TableRow key={t.organization_id}>
-                            <TableCell>
-                              <div className="space-y-0.5">
-                                <p className="font-medium">{t.organization_name}</p>
-                                <p className="text-xs text-muted-foreground">{t.organization_id}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {hasAdmin ? (
-                                <div className="space-y-1">
-                                  {t.org_admin_users.map((u) => (
-                                    <div key={u.user_id}>
-                                      <p className="font-medium">{u.full_name}</p>
-                                      <p className="text-sm text-muted-foreground">{u.email}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : pending ? (
-                                <div>
-                                  <p className="font-medium">{pending.full_name || pending.email}</p>
-                                  <p className="text-sm text-muted-foreground">{pending.email}</p>
-                                </div>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-2">
-                                {inviteUrl ? (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={async () => {
-                                        await navigator.clipboard.writeText(inviteUrl);
-                                        toast.success('Copied invite link');
-                                      }}
-                                    >
-                                      Copy
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => window.open(inviteUrl, '_blank')}>
-                                      Open
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        openTenantInviteDialog(t, {
-                                          email: pending?.email,
-                                          fullName: pending?.full_name || '',
-                                        })
-                                      }
-                                    >
-                                      Re-invite
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => openTenantInviteDialog(t)}
-                                  >
-                                    {hasAdmin ? 'Invite another org admin' : 'Invite org admin'}
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Time</TableHead>
+                            <TableHead>Org</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Action</TableHead>
+                            <TableHead>Entity</TableHead>
+                            <TableHead>IP</TableHead>
                           </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {auditLoading ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8">
+                                Loading audit logs...
+                              </TableCell>
+                            </TableRow>
+                          ) : auditLogs.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                No audit logs found (or access not granted yet).
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            auditLogs.map((log) => (
+                              <TableRow key={log.id}>
+                                <TableCell className="text-muted-foreground">
+                                  {new Date(log.created_at).toLocaleString()}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-0.5">
+                                    <p className="font-medium">{log.org_name || 'Unknown org'}</p>
+                                    <p className="text-xs text-muted-foreground">{log.organization_id}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-0.5">
+                                    <p className="font-medium">{log.user_name || 'Unknown user'}</p>
+                                    <p className="text-xs text-muted-foreground">{log.user_id}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">
+                                    {log.action}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {log.ip_address || '-'}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="text-xs text-muted-foreground">
+                        {!auditSearchDebounced && !auditExpanded ? (
+                          <span>Showing last 4 hours</span>
+                        ) : auditSearchDebounced ? (
+                          <span>Search mode (full history)</span>
+                        ) : (
+                          <span>Showing full history (paged)</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        {!auditSearchDebounced && !auditExpanded && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setAuditExpanded(true);
+                              fetchAuditLogs(false);
+                            }}
+                            disabled={auditLoading || !auditHasMore}
+                          >
+                            Load older logs (100)
+                          </Button>
+                        )}
+                        {(auditSearchDebounced || auditExpanded) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchAuditLogs(false)}
+                            disabled={auditLoading || !auditHasMore}
+                          >
+                            Load more (100)
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+          {/* Tenants moved into the Tenants tab */}
 
           {/* Invite / Re-invite Org Admin dialog */}
           <Dialog open={tenantInviteDialogOpen} onOpenChange={setTenantInviteDialogOpen}>
@@ -954,142 +1420,7 @@ export default function SuperAdminDashboard() {
             </DialogContent>
           </Dialog>
 
-          {/* Global Audit Logs (read-only) */}
-            <Card className="card-elevated">
-              <CardHeader>
-                <Toolbar
-                  left={
-                    <div>
-                      <CardTitle>Audit Logs (platform-wide)</CardTitle>
-                      <CardDescription>
-                        Default view shows the last 4 hours. Use search to query the full history, or load older logs in pages of 100.
-                      </CardDescription>
-                    </div>
-                  }
-                  right={
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={auditSearch}
-                        onChange={(e) => setAuditSearch(e.target.value)}
-                        placeholder="Search audit logs…"
-                        className="w-[260px]"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAuditCursor(null);
-                          setAuditExpanded(false);
-                          fetchAuditLogs(true);
-                        }}
-                        disabled={auditLoading}
-                      >
-                        {auditLoading ? 'Refreshing…' : 'Refresh'}
-                      </Button>
-                    </div>
-                  }
-                />
-              </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Org</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Entity</TableHead>
-                      <TableHead>IP</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {auditLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          Loading audit logs...
-                        </TableCell>
-                      </TableRow>
-                    ) : auditLogs.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          No audit logs found (or access not granted yet).
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      auditLogs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(log.created_at).toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-0.5">
-                              <p className="font-medium">{log.org_name || 'Unknown org'}</p>
-                              <p className="text-xs text-muted-foreground">{log.organization_id}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-0.5">
-                              <p className="font-medium">{log.user_name || 'Unknown user'}</p>
-                              <p className="text-xs text-muted-foreground">{log.user_id}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {log.action}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {log.ip_address || '-'}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-xs text-muted-foreground">
-                  {!auditSearchDebounced && !auditExpanded ? (
-                    <span>Showing last 4 hours</span>
-                  ) : auditSearchDebounced ? (
-                    <span>Search mode (full history)</span>
-                  ) : (
-                    <span>Showing full history (paged)</span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {!auditSearchDebounced && !auditExpanded && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setAuditExpanded(true);
-                        // load older than current cursor (older than the last row we have)
-                        fetchAuditLogs(false);
-                      }}
-                      disabled={auditLoading || !auditHasMore}
-                    >
-                      Load older logs (100)
-                    </Button>
-                  )}
-                  {(auditSearchDebounced || auditExpanded) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fetchAuditLogs(false)}
-                      disabled={auditLoading || !auditHasMore}
-                    >
-                      Load more (100)
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Audit logs moved into the Audit logs tab */}
           </PageShell>
         </main>
 

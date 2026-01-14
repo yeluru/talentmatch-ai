@@ -32,11 +32,11 @@ export default function EditJob() {
     title: '',
     description: '',
     location: '',
+    work_mode: 'unknown',
     is_remote: false,
     job_type: 'full_time',
     experience_level: 'mid',
-    salary_min: '',
-    salary_max: '',
+    visibility: 'private',
     requirements: '',
     responsibilities: '',
     required_skills: [] as string[],
@@ -68,11 +68,11 @@ export default function EditJob() {
         title: job.title || '',
         description: job.description || '',
         location: job.location || '',
+        work_mode: (job as any).work_mode || 'unknown',
         is_remote: job.is_remote || false,
         job_type: job.job_type || 'full_time',
         experience_level: job.experience_level || 'mid',
-        salary_min: job.salary_min?.toString() || '',
-        salary_max: job.salary_max?.toString() || '',
+        visibility: (job as any).visibility || 'private',
         requirements: job.requirements || '',
         responsibilities: job.responsibilities || '',
         required_skills: job.required_skills || [],
@@ -92,11 +92,11 @@ export default function EditJob() {
         title: formData.title,
         description: formData.description,
         location: formData.location || null,
+        work_mode: formData.work_mode || 'unknown',
         is_remote: formData.is_remote,
         job_type: formData.job_type,
         experience_level: formData.experience_level,
-        salary_min: formData.salary_min ? parseInt(formData.salary_min) : null,
-        salary_max: formData.salary_max ? parseInt(formData.salary_max) : null,
+        visibility: formData.visibility,
         requirements: formData.requirements || null,
         responsibilities: formData.responsibilities || null,
         required_skills: formData.required_skills,
@@ -216,14 +216,45 @@ export default function EditJob() {
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 />
               </div>
-              <div className="flex items-center space-x-2 pt-8">
-                <Switch
-                  id="remote"
-                  checked={formData.is_remote}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_remote: checked })}
-                />
-                <Label htmlFor="remote">Remote friendly</Label>
+              <div className="space-y-2">
+                <Label htmlFor="work_mode">Work mode</Label>
+                <Select
+                  value={formData.work_mode}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      work_mode: value,
+                      is_remote: value === 'remote' || value === 'hybrid',
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unknown">Unknown</SelectItem>
+                    <SelectItem value="onsite">Onsite</SelectItem>
+                    <SelectItem value="hybrid">Hybrid</SelectItem>
+                    <SelectItem value="remote">Remote</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="visibility">Job visibility</Label>
+              <Select
+                value={formData.visibility}
+                onValueChange={(value) => setFormData({ ...formData, visibility: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">Private (tenant-only)</SelectItem>
+                  <SelectItem value="public">Public (marketplace)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -264,28 +295,7 @@ export default function EditJob() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="salary_min">Salary Range (Min)</Label>
-                <Input
-                  id="salary_min"
-                  type="number"
-                  placeholder="e.g., 100000"
-                  value={formData.salary_min}
-                  onChange={(e) => setFormData({ ...formData, salary_min: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="salary_max">Salary Range (Max)</Label>
-                <Input
-                  id="salary_max"
-                  type="number"
-                  placeholder="e.g., 150000"
-                  value={formData.salary_max}
-                  onChange={(e) => setFormData({ ...formData, salary_max: e.target.value })}
-                />
-              </div>
-            </div>
+            {/* Salary removed (contracting-first product) */}
           </CardContent>
         </Card>
 

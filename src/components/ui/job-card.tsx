@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScoreBadge } from '@/components/ui/score-badge';
-import { MapPin, Clock, DollarSign, Briefcase, Building2 } from 'lucide-react';
+import { MapPin, Clock, Briefcase, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -14,9 +14,8 @@ interface JobCardProps {
     organization?: { name: string; logo_url?: string };
     location?: string;
     job_type?: string;
+    work_mode?: string;
     experience_level?: string;
-    salary_min?: number;
-    salary_max?: number;
     required_skills?: string[];
     posted_at?: string;
     created_at: string;
@@ -42,7 +41,18 @@ const experienceLevelLabels: Record<string, string> = {
   mid: 'Mid Level',
   senior: 'Senior',
   lead: 'Lead',
+  principal_architect: 'Principal / Architect',
+  manager: 'Manager',
+  director: 'Director',
   executive: 'Executive',
+  unknown: 'Unknown',
+};
+
+const workModeLabels: Record<string, string> = {
+  onsite: 'Onsite',
+  hybrid: 'Hybrid',
+  remote: 'Remote',
+  unknown: 'Unknown',
 };
 
 export function JobCard({
@@ -54,11 +64,6 @@ export function JobCard({
   className,
 }: JobCardProps) {
   const postedDate = job.posted_at || job.created_at;
-  const salaryRange = job.salary_min && job.salary_max
-    ? `$${(job.salary_min / 1000).toFixed(0)}k - $${(job.salary_max / 1000).toFixed(0)}k`
-    : job.salary_min
-    ? `From $${(job.salary_min / 1000).toFixed(0)}k`
-    : null;
 
   return (
     <Card className={cn(
@@ -107,16 +112,16 @@ export function JobCard({
               {job.location}
             </span>
           )}
+          {job.work_mode && job.work_mode !== 'unknown' && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              {workModeLabels[job.work_mode] || job.work_mode}
+            </span>
+          )}
           {job.job_type && (
             <span className="flex items-center gap-1">
               <Briefcase className="h-4 w-4" />
               {jobTypeLabels[job.job_type] || job.job_type}
-            </span>
-          )}
-          {salaryRange && (
-            <span className="flex items-center gap-1">
-              <DollarSign className="h-4 w-4" />
-              {salaryRange}
             </span>
           )}
           <span className="flex items-center gap-1">

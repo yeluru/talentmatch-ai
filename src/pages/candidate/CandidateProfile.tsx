@@ -10,17 +10,19 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Plus, X, Save, User, Briefcase, MapPin, DollarSign } from 'lucide-react';
+import { Loader2, Plus, X, Save, User, Briefcase, MapPin } from 'lucide-react';
 
 interface CandidateProfileData {
   id: string;
+  full_name: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
   headline: string | null;
   summary: string | null;
   current_title: string | null;
   current_company: string | null;
   years_of_experience: number | null;
-  desired_salary_min: number | null;
-  desired_salary_max: number | null;
   desired_locations: string[] | null;
   desired_job_types: string[] | null;
   is_open_to_remote: boolean | null;
@@ -30,6 +32,7 @@ interface CandidateProfileData {
 interface Skill {
   id: string;
   skill_name: string;
+  skill_type: string | null;
   proficiency_level: string | null;
   years_of_experience: number | null;
 }
@@ -48,23 +51,32 @@ export default function CandidateProfile() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const onUpdated = () => fetchCandidateData();
+    window.addEventListener('candidate-profile-updated', onUpdated as any);
+    return () => window.removeEventListener('candidate-profile-updated', onUpdated as any);
+  }, [user]);
+
   const fetchCandidateData = async () => {
     try {
       const { data: cpData, error: cpError } = await supabase
         .from('candidate_profiles')
         .select('*')
         .eq('user_id', user!.id)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
       if (cpError) throw cpError;
 
-      if (cpData) {
-        setCandidateProfile(cpData);
+      const cp = (cpData || [])[0] as any;
+      if (cp) {
+        setCandidateProfile(cp);
 
         const { data: skillsData, error: skillsError } = await supabase
           .from('candidate_skills')
           .select('*')
-          .eq('candidate_id', cpData.id);
+          .eq('candidate_id', cp.id);
 
         if (skillsError) throw skillsError;
         setSkills(skillsData || []);
@@ -85,13 +97,15 @@ export default function CandidateProfile() {
       const { error } = await supabase
         .from('candidate_profiles')
         .update({
+          full_name: candidateProfile.full_name,
+          phone: candidateProfile.phone,
+          linkedin_url: candidateProfile.linkedin_url,
+          github_url: candidateProfile.github_url,
           headline: candidateProfile.headline,
           summary: candidateProfile.summary,
           current_title: candidateProfile.current_title,
           current_company: candidateProfile.current_company,
           years_of_experience: candidateProfile.years_of_experience,
-          desired_salary_min: candidateProfile.desired_salary_min,
-          desired_salary_max: candidateProfile.desired_salary_max,
           desired_locations: candidateProfile.desired_locations,
           desired_job_types: candidateProfile.desired_job_types,
           is_open_to_remote: candidateProfile.is_open_to_remote,
@@ -118,6 +132,7 @@ export default function CandidateProfile() {
         .insert({
           candidate_id: candidateProfile.id,
           skill_name: newSkill.trim(),
+          skill_type: 'technical',
         })
         .select()
         .single();
@@ -192,6 +207,59 @@ export default function CandidateProfile() {
             Save Changes
           </Button>
         </div>
+
+        {/* Contact Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Contact Info
+            </CardTitle>
+            <CardDescription>
+              How recruiters can reach you. Keep this accurate.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Name</Label>
+                <Input
+                  id="full_name"
+                  placeholder="Your full name"
+                  value={candidateProfile?.full_name || ''}
+                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, full_name: e.target.value } : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  placeholder="e.g., +1 (555) 123-4567"
+                  value={candidateProfile?.phone || ''}
+                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="linkedin_url">LinkedIn</Label>
+                <Input
+                  id="linkedin_url"
+                  placeholder="https://linkedin.com/in/..."
+                  value={candidateProfile?.linkedin_url || ''}
+                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, linkedin_url: e.target.value } : null)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="github_url">GitHub</Label>
+                <Input
+                  id="github_url"
+                  placeholder="https://github.com/..."
+                  value={candidateProfile?.github_url || ''}
+                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, github_url: e.target.value } : null)}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Basic Info */}
@@ -284,22 +352,42 @@ export default function CandidateProfile() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {skills.map((skill) => (
-                  <Badge key={skill.id} variant="secondary" className="px-3 py-1">
-                    {skill.skill_name}
-                    <button
-                      onClick={() => handleRemoveSkill(skill.id)}
-                      className="ml-2 hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-                {skills.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No skills added yet</p>
-                )}
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {skills.filter((s) => (s.skill_type || 'technical') === 'technical').map((skill) => (
+                    <Badge key={skill.id} variant="secondary" className="px-3 py-1">
+                      {skill.skill_name}
+                      <button
+                        onClick={() => handleRemoveSkill(skill.id)}
+                        className="ml-2 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {skills.filter((s) => (s.skill_type || 'technical') === 'technical').length === 0 && (
+                    <p className="text-sm text-muted-foreground">No technical skills yet</p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {skills.filter((s) => (s.skill_type || 'technical') === 'soft').map((skill) => (
+                    <Badge key={skill.id} variant="outline" className="px-3 py-1">
+                      {skill.skill_name}
+                      <button
+                        onClick={() => handleRemoveSkill(skill.id)}
+                        className="ml-2 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {skills.filter((s) => (s.skill_type || 'technical') === 'soft').length === 0 && (
+                    <p className="text-sm text-muted-foreground">No soft skills yet</p>
+                  )}
+                </div>
               </div>
+              {skills.length === 0 && <p className="text-sm text-muted-foreground">No skills added yet</p>}
             </CardContent>
           </Card>
 
@@ -335,43 +423,6 @@ export default function CandidateProfile() {
             </CardContent>
           </Card>
 
-          {/* Salary */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Salary Expectations
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="salary_min">Minimum Salary (USD)</Label>
-                  <Input
-                    id="salary_min"
-                    type="number"
-                    min="0"
-                    step="5000"
-                    placeholder="80000"
-                    value={candidateProfile?.desired_salary_min || ''}
-                    onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, desired_salary_min: parseInt(e.target.value) || null } : null)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="salary_max">Maximum Salary (USD)</Label>
-                  <Input
-                    id="salary_max"
-                    type="number"
-                    min="0"
-                    step="5000"
-                    placeholder="120000"
-                    value={candidateProfile?.desired_salary_max || ''}
-                    onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, desired_salary_max: parseInt(e.target.value) || null } : null)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </DashboardLayout>

@@ -91,10 +91,12 @@ Status legend:
   - Candidate can select a resume when applying to a job.
 
 ### FR-022 — Job browsing (authenticated candidate)
-- **Status**: **Done**
-- **Description**: Candidates shall be able to browse/search jobs and view job details.
+- **Status**: **Done** (expanded for marketplace visibility rules)
+- **Description**: Candidates shall be able to browse/search jobs and view job details, respecting job visibility rules (private vs public).
 - **Acceptance criteria**:
   - Candidate can list jobs and open a job detail page.
+  - Public jobs are visible to all signed-in candidates.
+  - Private jobs are visible only when the candidate is linked to the job’s organization (invite code or application creates link).
 
 ### FR-023 — Apply to job (authenticated candidate)
 - **Status**: **Done**
@@ -109,6 +111,15 @@ Status legend:
 - **Acceptance criteria**:
   - User can upload a resume, see parsed fields, and proceed to sign up.
   - System creates candidate/profile and application record appropriately.
+  - System links candidate ↔ job’s org on apply (so the candidate can see org ties and private jobs, if applicable).
+
+### FR-027 — Candidate marketplace consent (discoverability opt-in)
+- **Status**: **Done**
+- **Description**: The system shall collect explicit candidate consent to be discoverable by employers outside a specific tenant context.
+- **Acceptance criteria**:
+  - Candidate can opt in during signup.
+  - Recruiters can only view marketplace profiles for opted-in, actively-looking candidates.
+  - Consent can be disabled later (To Be Done: settings UI).
 
 ### FR-025 — Application tracking
 - **Status**: **Done**
@@ -117,11 +128,12 @@ Status legend:
   - Candidate sees list of applications with status and job info.
 
 ### FR-026 — Candidate AI resume/job analysis (“ATS score” style)
-- **Status**: **Partially Done → To Be Done (parsing fidelity)**
+- **Status**: **Done (with deterministic scoring + improved parsing)**
 - **Description**: Candidates shall be able to analyze resume vs job description and receive match score, missing skills, and recommendations.
 - **Acceptance criteria**:
   - Analysis produces a score and actionable feedback.
-  - **To be done**: analysis should use real extracted resume text (not placeholders) and be validated for quality.
+  - Uses real extracted resume text (PDF + DOCX supported; legacy `.doc` not supported).
+  - Score is explainable: deterministic JD keyword coverage blended with model score.
 
 ---
 
@@ -142,9 +154,24 @@ Status legend:
 
 ### FR-032 — Share public job link
 - **Status**: **Done**
-- **Description**: Recruiters shall be able to copy/open a public job URL for a job.
+- **Description**: Recruiters shall be able to copy/open a public job URL for a job **only when the job is public**.
 - **Acceptance criteria**:
-  - Job list provides “copy/open” public URL actions.
+  - Job list provides “copy/open” public URL actions when job visibility is `public`.
+
+### FR-036A — Marketplace profiles browsing (recruiter)
+- **Status**: **Done**
+- **Description**: Recruiters shall be able to browse/search marketplace-discoverable candidate profiles (opt-in only).
+- **Acceptance criteria**:
+  - Recruiter can open a Marketplace Profiles page and search/filter discoverable profiles.
+  - Recruiter can start an engagement to bring a marketplace profile into tenant workflow.
+
+### FR-036B — Recruiter engagement workflow (tenant-scoped)
+- **Status**: **Done** (basic stages + move-forward)
+- **Description**: Recruiters shall be able to track engaged candidates through a tenant-scoped workflow: rate confirmation → RTR → screening → submission → onboarding.
+- **Acceptance criteria**:
+  - Starting engagement creates a tenant link and an engagement record.
+  - Recruiter can advance stages in the engagement pipeline UI.
+  - Engagement data is tenant-isolated.
 
 ### FR-033 — View applicants per job
 - **Status**: **Done**

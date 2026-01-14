@@ -19,8 +19,6 @@ interface JobAlert {
   keywords: string[] | null;
   locations: string[] | null;
   job_types: string[] | null;
-  salary_min: number | null;
-  salary_max: number | null;
   frequency: string | null;
   is_active: boolean | null;
   last_sent_at: string | null;
@@ -37,8 +35,6 @@ export default function JobAlerts() {
     keywords: '',
     locations: '',
     job_types: [] as string[],
-    salary_min: '',
-    salary_max: '',
     frequency: 'daily'
   });
 
@@ -79,8 +75,6 @@ export default function JobAlerts() {
         keywords: formData.keywords ? formData.keywords.split(',').map(k => k.trim()).filter(Boolean) : null,
         locations: formData.locations ? formData.locations.split(',').map(l => l.trim()).filter(Boolean) : null,
         job_types: formData.job_types.length > 0 ? formData.job_types : null,
-        salary_min: formData.salary_min ? parseInt(formData.salary_min) : null,
-        salary_max: formData.salary_max ? parseInt(formData.salary_max) : null,
         frequency: formData.frequency,
         is_active: true
       };
@@ -145,8 +139,6 @@ export default function JobAlerts() {
       keywords: alert.keywords?.join(', ') || '',
       locations: alert.locations?.join(', ') || '',
       job_types: alert.job_types || [],
-      salary_min: alert.salary_min?.toString() || '',
-      salary_max: alert.salary_max?.toString() || '',
       frequency: alert.frequency || 'daily'
     });
     setIsDialogOpen(true);
@@ -159,8 +151,6 @@ export default function JobAlerts() {
       keywords: '',
       locations: '',
       job_types: [],
-      salary_min: '',
-      salary_max: '',
       frequency: 'daily'
     });
   };
@@ -222,28 +212,7 @@ export default function JobAlerts() {
                     onChange={(e) => setFormData({ ...formData, locations: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="salary_min">Min Salary</Label>
-                    <Input
-                      id="salary_min"
-                      type="number"
-                      placeholder="50000"
-                      value={formData.salary_min}
-                      onChange={(e) => setFormData({ ...formData, salary_min: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="salary_max">Max Salary</Label>
-                    <Input
-                      id="salary_max"
-                      type="number"
-                      placeholder="150000"
-                      value={formData.salary_max}
-                      onChange={(e) => setFormData({ ...formData, salary_max: e.target.value })}
-                    />
-                  </div>
-                </div>
+                {/* Salary filters removed (contracting-first product) */}
                 <div className="space-y-2">
                   <Label htmlFor="frequency">Notification Frequency</Label>
                   <Select value={formData.frequency} onValueChange={(v) => setFormData({ ...formData, frequency: v })}>
@@ -302,8 +271,6 @@ export default function JobAlerts() {
                       <p className="text-sm text-muted-foreground mt-2">
                         {alert.frequency === 'instant' ? 'Instant notifications' : 
                          alert.frequency === 'daily' ? 'Daily digest' : 'Weekly digest'}
-                        {alert.salary_min && ` • From $${alert.salary_min.toLocaleString()}`}
-                        {alert.salary_max && ` to $${alert.salary_max.toLocaleString()}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

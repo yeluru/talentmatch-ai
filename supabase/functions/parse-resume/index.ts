@@ -10,10 +10,10 @@ const corsHeaders = {
 // Input validation constants
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 100000; // 100KB of text
+const PARSER_VERSION = "2026-01-12-parse-resume-v2";
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
   'text/plain'
 ];
 
@@ -22,6 +22,12 @@ function validateFileType(fileType: string | null | undefined, fileName: string 
   
   // Check by MIME type
   if (fileType && ALLOWED_FILE_TYPES.includes(fileType)) return true;
+
+  // Common fallback: some clients send application/octet-stream for DOCX/PDF.
+  if (fileType && fileType === 'application/octet-stream' && fileName) {
+    const lowerName = fileName.toLowerCase();
+    if (lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.txt')) return true;
+  }
   
   // Check by extension as fallback
   if (fileName) {
@@ -37,6 +43,47 @@ function validateFileType(fileType: string | null | undefined, fileName: string 
   return false;
 }
 
+function decodeXmlEntities(s: string): string {
+  return String(s || "")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replace(/&#(\d+);/g, (_m, n) => {
+      const code = parseInt(String(n), 10);
+      return Number.isFinite(code) ? String.fromCharCode(code) : "";
+    });
+}
+
+function docxXmlToText(xml: string): string {
+  let t = String(xml || "");
+  // Normalize WordprocessingML structural markers into newlines/tabs before extracting text runs.
+  t = t.replace(/<w:tab\b[^\/]*\/>/gi, "\t");
+  t = t.replace(/<w:br\b[^\/]*\/>/gi, "\n");
+  t = t.replace(/<\/w:p>/gi, "\n");
+
+  // Extract text runs
+  const parts: string[] = [];
+  for (const m of t.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)) {
+    parts.push(m[1] || "");
+  }
+  // Also include field instruction text sometimes used for hyperlinks, etc.
+  for (const m of t.matchAll(/<w:instrText\b[^>]*>([\s\S]*?)<\/w:instrText>/gi)) {
+    parts.push(m[1] || "");
+  }
+  return decodeXmlEntities(parts.join(""));
+}
+
+async function extractDocxText(binaryContent: Uint8Array): Promise<string> {
+  const { unzipSync, strFromU8 } = await import("https://esm.sh/fflate@0.8.2?deno");
+  const files = unzipSync(binaryContent);
+  const docXml = files?.["word/document.xml"];
+  if (!docXml) return "";
+  const xml = strFromU8(docXml);
+  return docxXmlToText(xml);
+}
+
 function validateBase64Size(base64: string): boolean {
   // Base64 encoded data is ~4/3 the size of the original
   const estimatedBytes = (base64.length * 3) / 4;
@@ -46,6 +93,845 @@ function validateBase64Size(base64: string): boolean {
 function sanitizeString(value: string | null | undefined, maxLength: number): string | null {
   if (!value) return null;
   return String(value).trim().slice(0, maxLength).replace(/[<>]/g, '');
+}
+
+function normalizeExtractedText(raw: string): string {
+  // Preserve newlines (critical for bullets/sections), but normalize intra-line whitespace.
+  let t = String(raw || "");
+  t = t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  t = t.replace(/\t/g, " ");
+
+  const lines = t
+    .split("\n")
+    .map((l) => l.replace(/[ \u00A0]{2,}/g, " ").trim())
+    .filter((l, idx, arr) => {
+      // keep blank lines, but avoid huge blank runs
+      if (l.length > 0) return true;
+      const prev = arr[idx - 1];
+      return Boolean(prev && prev.length > 0);
+    });
+
+  t = lines.join("\n");
+  t = t.replace(/\n{3,}/g, "\n\n").trim();
+  // Fix common PDF token splits that break readability and downstream parsing.
+  t = t
+    .replace(/\bH\s*T\s*M\s*L\s*5\b/gi, "HTML5")
+    .replace(/\bH\s*T\s*M\s*L\b/gi, "HTML")
+    .replace(/\bX\s*M\s*L\b/gi, "XML")
+    .replace(/\bJ\s*S\s*O\s*N\b/gi, "JSON")
+    .replace(/\bI\s*T\s*S\s*M\b/gi, "ITSM")
+    .replace(/\bI\s*T\s*O\s*M\b/gi, "ITOM")
+    .replace(/\bI\s*T\s*B\s*M\b/gi, "ITBM")
+    .replace(/\bH\s*R\s*S\s*D\b/gi, "HRSD")
+    .replace(/\bS\s*D\s*L\s*C\b/gi, "SDLC")
+    .replace(/\bR\s*E\s*S\s*T\b/gi, "REST")
+    .replace(/\bS\s*O\s*A\s*P\b/gi, "SOAP");
+  return t.slice(0, MAX_TEXT_LENGTH);
+}
+
+function splitIntoChunksByLines(text: string, maxChars: number) {
+  const lines = String(text || "").split("\n");
+  const chunks: string[] = [];
+  let buf: string[] = [];
+  let size = 0;
+  for (const line of lines) {
+    const add = (buf.length ? 1 : 0) + line.length;
+    if (size + add > maxChars && buf.length) {
+      chunks.push(buf.join("\n").trim());
+      buf = [];
+      size = 0;
+    }
+    buf.push(line);
+    size += add;
+  }
+  if (buf.length) chunks.push(buf.join("\n").trim());
+  return chunks.filter(Boolean);
+}
+
+function normalizeExperienceEntry(e: any) {
+  return {
+    company: sanitizeString(e?.company ?? null, 200),
+    title: sanitizeString(e?.title ?? null, 200),
+    start: sanitizeString(e?.start ?? null, 40),
+    end: sanitizeString(e?.end ?? null, 40),
+    location: sanitizeString(e?.location ?? null, 120),
+    bullets: Array.isArray(e?.bullets) ? e.bullets.map((b: any) => String(b ?? "").replace(/\s*\n\s*/g, " ").trim()).filter(Boolean) : [],
+  };
+}
+
+function expKeyLoose(e: any) {
+  const norm = (s: any) =>
+    String(s ?? "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  return `${norm(e?.company)}|${norm(e?.title)}`;
+}
+
+function mergeExperienceAppendMissing(baseExp: any[], moreExp: any[]) {
+  const out = Array.isArray(baseExp) ? baseExp.map(normalizeExperienceEntry) : [];
+  const more = Array.isArray(moreExp) ? moreExp.map(normalizeExperienceEntry) : [];
+  const seen = new Set(out.map(expKeyLoose));
+
+  for (const e of more) {
+    const k = expKeyLoose(e);
+    if (!k || k === "|") continue;
+    const existing = out.find((oe) => expKeyLoose(oe) === k);
+    if (!existing) {
+      out.push(e);
+      seen.add(k);
+      continue;
+    }
+    // Merge bullets (dedupe by normalized text)
+    const normB = (b: string) => b.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
+    const bSeen = new Set((existing.bullets || []).map((b: string) => normB(b)));
+    for (const b of e.bullets || []) {
+      const nb = normB(b);
+      if (!nb || bSeen.has(nb)) continue;
+      existing.bullets.push(b);
+      bSeen.add(nb);
+    }
+    // Fill missing meta if absent
+    existing.start = existing.start || e.start;
+    existing.end = existing.end || e.end;
+    existing.location = existing.location || e.location;
+  }
+  return out;
+}
+
+async function recoverExperienceChunked(experienceText: string) {
+  const chunks = splitIntoChunksByLines(experienceText, 6500);
+  const recovered: any[] = [];
+  for (const chunk of chunks.slice(0, 10)) {
+    if (!chunk.trim()) continue;
+    const sys = `You extract WORK EXPERIENCE entries from resume text.
+Hard rules:
+- Do NOT fabricate anything.
+- Return ALL roles in this chunk.
+- Preserve bullet meaning; keep metrics and tool names as written.
+- Output strictly via the tool call.`;
+    const user = `Extract experience from this resume chunk:\n\n${chunk}`;
+    const { res } = await callChatCompletions({
+      messages: [
+        { role: "system", content: sys },
+        { role: "user", content: user },
+      ],
+      temperature: 0,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "extract_experience",
+            description: "Extract experience entries from a resume chunk",
+            parameters: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                experience: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      company: { type: ["string", "null"] },
+                      title: { type: ["string", "null"] },
+                      start: { type: ["string", "null"] },
+                      end: { type: ["string", "null"] },
+                      location: { type: ["string", "null"] },
+                      bullets: { type: "array", items: { type: "string" } },
+                    },
+                  },
+                },
+              },
+              required: ["experience"],
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "extract_experience" } },
+    });
+
+    if (!res.ok) continue;
+    const data = await res.json();
+    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) continue;
+    const parsed = JSON.parse(toolCall.function.arguments);
+    if (Array.isArray(parsed?.experience)) recovered.push(...parsed.experience);
+  }
+  return recovered;
+}
+
+function computeExtractionDiagnostics(text: string) {
+  const t = String(text || "");
+  const lines = t.split("\n");
+  const bullets =
+    (t.match(/[•\u2022]\s+/g) || []).length +
+    (t.match(/\n\s*-\s+/g) || []).length +
+    (t.match(/\n\s*\*\s+/g) || []).length;
+  return {
+    extracted_text_length: t.length,
+    extracted_lines: lines.length,
+    extracted_newlines: (t.match(/\n/g) || []).length,
+    bullet_markers: bullets,
+    has_experience: /\bexperience\b/i.test(t) || /\bwork experience\b/i.test(t),
+    has_education: /\beducation\b/i.test(t),
+    has_skills: /\bskills\b/i.test(t) || /\btechnical skills\b/i.test(t),
+  };
+}
+
+function scoreExtractedText(text: string) {
+  const t = String(text || "");
+  const diag = computeExtractionDiagnostics(t);
+  const upper = t.toUpperCase();
+  const sectionHits =
+    (upper.includes("EXPERIENCE") ? 1 : 0) +
+    (upper.includes("WORK EXPERIENCE") ? 1 : 0) +
+    (upper.includes("EDUCATION") ? 1 : 0) +
+    (upper.includes("SKILLS") ? 1 : 0) +
+    (upper.includes("CERTIFICATIONS") ? 1 : 0);
+
+  const month =
+    "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?";
+  const yearRange = (t.match(/\b(19|20)\d{2}\s*(?:[-–—→to]{1,3})\s*(?:present|current|\b(19|20)\d{2}\b)/gi) || []).length;
+  const monthYear = (t.match(new RegExp(`\\b${month}\\s+(19|20)\\d{2}\\b`, "gi")) || []).length;
+  const monthYearRange =
+    (t.match(new RegExp(`\\b${month}\\s+(19|20)\\d{2}\\s*(?:[-–—→to]{1,3})\\s*(?:present|current|${month}\\s+(19|20)\\d{2}|\\b(19|20)\\d{2}\\b)`, "gi")) || []).length;
+  const dateRanges = Math.max(yearRange, monthYearRange, Math.floor(monthYear / 2));
+  const yearMentions = (t.match(/\b(19|20)\d{2}\b/g) || []).length;
+  const eduSignals = (t.match(/\b(university|college|institute|mba|bachelor|master|phd|b\.s\.|m\.s\.|bachelors|masters)\b/gi) || []).length;
+
+  // Weighted score: prefer longer text, more bullets, clear sections, and date ranges.
+  const score =
+    Math.min(45, diag.extracted_text_length / 2200) +
+    Math.min(35, diag.bullet_markers / 6) +
+    Math.min(20, sectionHits * 3) +
+    Math.min(30, dateRanges * 5) +
+    Math.min(10, yearMentions / 8) +
+    Math.min(10, eduSignals / 4);
+
+  return {
+    score,
+    section_hits: sectionHits,
+    date_ranges: dateRanges,
+    year_mentions: yearMentions,
+    edu_signals: eduSignals,
+    ...diag,
+  };
+}
+
+function itemsWithEOLToText(items: any[]): string {
+  // Alternate PDF text reconstruction: preserve PDF.js intrinsic ordering and use hasEOL when present.
+  // This can sometimes outperform coordinate bucketing for certain PDFs.
+  const out: string[] = [];
+  let line = "";
+
+  for (const it of items || []) {
+    const s = typeof it?.str === "string" ? it.str : "";
+    if (!s) continue;
+    const token = s.replace(/[ \u00A0]{2,}/g, " ").trim();
+    if (!token) {
+      if (it?.hasEOL && line.trim()) {
+        out.push(line.trim());
+        line = "";
+      }
+      continue;
+    }
+    if (!line) line = token;
+    else if (/^[,.:;)\]]/.test(token)) line += token;
+    else if (/[([$]$/.test(line)) line += token;
+    else line += " " + token;
+
+    if (it?.hasEOL) {
+      out.push(line.trim());
+      line = "";
+    }
+  }
+  if (line.trim()) out.push(line.trim());
+  return out.join("\n");
+}
+
+function estimateStructureFromText(text: string) {
+  const t = String(text || "");
+  const month =
+    "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?";
+  const yearRange = (t.match(/\b(19|20)\d{2}\s*(?:[-–—→to]{1,3})\s*(?:present|current|\b(19|20)\d{2}\b)/gi) || []).length;
+  const monthYear = (t.match(new RegExp(`\\b${month}\\s+(19|20)\\d{2}\\b`, "gi")) || []).length;
+  const monthYearRange =
+    (t.match(new RegExp(`\\b${month}\\s+(19|20)\\d{2}\\s*(?:[-–—→to]{1,3})\\s*(?:present|current|${month}\\s+(19|20)\\d{2}|\\b(19|20)\\d{2}\\b)`, "gi")) || []).length;
+  const dateRanges = Math.max(yearRange, monthYearRange, Math.floor(monthYear / 2));
+  const eduSignals = (t.match(/\b(university|college|institute|mba|bachelor|master|phd|b\.s\.|m\.s\.|bachelors|masters)\b/gi) || []).length;
+  const hasExperience = /\b(experience|work experience)\b/i.test(t);
+  const hasEducation = /\beducation\b/i.test(t);
+  const bullets =
+    (t.match(/[•\u2022]\s+/g) || []).length +
+    (t.match(/\n\s*-\s+/g) || []).length +
+    (t.match(/\n\s*\*\s+/g) || []).length;
+  return { dateRanges, eduSignals, hasExperience, hasEducation, bullet_markers: bullets, month_year_mentions: monthYear };
+}
+
+function shouldRetryAiParse(parsed: any, sourceText: string) {
+  const pExp = Array.isArray(parsed?.experience) ? parsed.experience : [];
+  const pEdu = Array.isArray(parsed?.education) ? parsed.education : [];
+  const est = estimateStructureFromText(sourceText);
+
+  // If the resume clearly has multiple date ranges and we extracted <2 roles, retry.
+  if (est.dateRanges >= 3 && pExp.length < 2) return { retry: true, reason: `Detected ${est.dateRanges} date-ranges but extracted ${pExp.length} experience entries` };
+  if ((est.hasExperience || est.bullet_markers >= 8 || est.month_year_mentions >= 4) && pExp.length < 2) {
+    return { retry: true, reason: `Resume indicates multiple roles (experience:${est.hasExperience}, bullets:${est.bullet_markers}, month-years:${est.month_year_mentions}) but extracted ${pExp.length} experience entries` };
+  }
+  // If education signals exist and we extracted none/one, retry.
+  if ((est.hasEducation || est.eduSignals >= 2) && pEdu.length < 2) return { retry: true, reason: `Detected education signals but extracted ${pEdu.length} education entries` };
+  return { retry: false as const, reason: null as string | null, est };
+}
+
+function normalizeWrappedUrls(text: string): string {
+  // Some PDF/DOCX text extraction wraps URLs across lines, e.g.
+  // https://www.linkedin.com/in/vad
+  // uguru-bharadwaj/
+  // This stitches obviously-wrapped URLs so regex can capture the full link.
+  let t = String(text || "");
+
+  // Join generic wrapped URLs (protocol present)
+  t = t.replace(/(\bhttps?:\/\/[^\s]+)\s*\n\s*([^\s]+)/g, '$1$2');
+
+  // Join linkedin.com wrapped even when protocol is missing
+  t = t.replace(/(\blinkedin\.com\/in\/[A-Za-z0-9_-]+)\s*\n\s*([A-Za-z0-9_-]+\/?)/gi, '$1$2');
+
+  // If extraction inserted spaces inside URLs (rare), stitch common cases
+  t = t.replace(/(\bhttps?:\/\/[^\s]+)\s+([^\s]+)/g, '$1$2');
+
+  return t;
+}
+
+function stripContactNoise(value: string | null | undefined): string | null {
+  if (!value) return null;
+  let s = String(value);
+
+  // Remove obvious contact artifacts anywhere in the text
+  s = s.replace(/\bhttps?:\/\/\S+\b/gi, " ");
+  s = s.replace(/\bwww\.\S+\b/gi, " ");
+  s = s.replace(/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/gi, " ");
+  s = s.replace(/\b(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}\b/g, " ");
+  // Remove spaced-out CONTACT blocks like "C O N T A C T"
+  s = s.replace(/\bC\s*O\s*N\s*T\s*A\s*C\s*T\b/gi, " ");
+
+  // Remove full lines that are mostly contact-y (common in resume headers)
+  const lines = s
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .filter((l) => {
+      const lower = l.toLowerCase();
+      if (lower.includes("linkedin.com")) return false;
+      if (lower.includes("github.com")) return false;
+      if (lower.includes("portfolio")) return false;
+      if (lower.includes("contact")) return false;
+      if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(l)) return false;
+      if (/(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/.test(l)) return false;
+      if (/https?:\/\/|www\./i.test(l)) return false;
+      return true;
+    });
+
+  s = lines.join("\n");
+  s = s.replace(/\s+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+  s = s.replace(/[ \t]{2,}/g, " ").trim();
+  return s || null;
+}
+
+function isLikelyTitle(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const s = String(value).trim();
+  if (!s) return false;
+  if (s.length > 80) return false;
+  if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(s)) return false;
+  if (/https?:\/\/|www\./i.test(s)) return false;
+  if (/(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/.test(s)) return false;
+  // Titles are not sentences
+  if (/[.!?]/.test(s)) return false;
+  const words = s.split(/\s+/).filter(Boolean);
+  if (words.length > 10) return false;
+  return true;
+}
+
+function isLikelyCompany(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const s = String(value).trim();
+  if (!s) return false;
+  if (s.length > 70) return false;
+  if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(s)) return false;
+  if (/https?:\/\/|www\./i.test(s)) return false;
+  if (/(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/.test(s)) return false;
+  // Companies are usually not sentences
+  if (/[.!?]/.test(s)) return false;
+  // Guard against “to achieve …” / action phrases
+  if (/\bto\s+\w+/i.test(s)) return false;
+  const words = s.split(/\s+/).filter(Boolean);
+  if (words.length > 6) return false;
+  return true;
+}
+
+function cleanSkills(input: unknown): string[] {
+  const raw = Array.isArray(input) ? input : [];
+  const cleaned: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of raw) {
+    let s = String(item ?? "").trim();
+    if (!s) continue;
+    s = s.replace(/^[•\-\*\u2022]+\s*/g, "");
+    s = s.replace(/\s+/g, " ").trim();
+    if (!s) continue;
+
+    const lower = s.toLowerCase();
+    if (lower.includes("linkedin.com") || lower.includes("github.com")) continue;
+    if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(s)) continue;
+    if (/https?:\/\/|www\./i.test(s)) continue;
+    if (/(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/.test(s)) continue;
+    if (lower.startsWith("and ")) continue;
+    if (lower.includes("such as")) continue;
+    if (lower.includes("to achieve") || lower.includes("improved the process")) continue;
+
+    const words = s.split(/\s+/).filter(Boolean);
+    if (words.length > 4) continue;
+    if (s.length > 40) continue;
+
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cleaned.push(s);
+    if (cleaned.length >= 50) break;
+  }
+  return cleaned;
+}
+
+function canonicalizeSkill(raw: string): string {
+  const s = String(raw || "").trim().replace(/\s+/g, " ");
+  const lower = s.toLowerCase();
+  const map: Record<string, string> = {
+    "node js": "Node.js",
+    "nodejs": "Node.js",
+    "react js": "React",
+    "micro services": "Microservices",
+    "microservices": "Microservices",
+    "spring boot": "Spring Boot",
+    "aws": "AWS",
+    "sql": "SQL",
+    "graphql": "GraphQL",
+    "typescript": "TypeScript",
+    "javascript": "JavaScript",
+    "devops": "DevOps",
+    "devops tooling": "DevOps Tooling",
+    "junit": "JUnit",
+    "jmeter": "JMeter",
+    "cucumber": "Cucumber",
+    "selenium": "Selenium",
+    "swiftui": "SwiftUI",
+    "ios": "iOS",
+    "api design": "API Design",
+  };
+  if (map[lower]) return map[lower];
+  // Title-case fallback for 2-3 word skills; keep acronyms as-is
+  if (/^[a-z0-9 .+#-]{2,40}$/i.test(s) && !/[()]/.test(s)) {
+    return s
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => (w.length <= 2 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)))
+      .join(" ");
+  }
+  return s;
+}
+
+function isSoftSkill(s: string): boolean {
+  const v = String(s || "").trim().toLowerCase();
+  if (!v) return false;
+  const soft = new Set([
+    "leadership",
+    "communication",
+    "teamwork",
+    "collaboration",
+    "stakeholder management",
+    "stakeholder",
+    "management",
+    "people management",
+    "mentoring",
+    "coaching",
+    "problem solving",
+    "problem-solving",
+    "critical thinking",
+    "strategic thinking",
+    "technical strategy",
+    "business innovation",
+    "innovation",
+    "presentation",
+    "negotiation",
+    "time management",
+    "project management",
+    "organizational skills",
+    "adaptability",
+  ]);
+  if (soft.has(v)) return true;
+  // soft skills tend to be pure words (no dots/slashes/plus) and 1-3 words
+  if (/[^a-z\s\-]/.test(v)) return false;
+  const words = v.split(/\s+/).filter(Boolean);
+  if (words.length > 4) return false;
+  // Avoid misclassifying "agile/scrum" as soft
+  if (v === "agile" || v === "scrum") return false;
+  return soft.has(v);
+}
+
+function postClassifySkills(technical: string[], soft: string[]) {
+  const techOut: string[] = [];
+  const softOut: string[] = [];
+  const seenTech = new Set<string>();
+  const seenSoft = new Set<string>();
+
+  // seed soft from provided list
+  for (const s of soft) {
+    const key = s.toLowerCase();
+    if (seenSoft.has(key)) continue;
+    seenSoft.add(key);
+    softOut.push(s);
+  }
+
+  for (const s of technical) {
+    if (isSoftSkill(s)) {
+      const key = s.toLowerCase();
+      if (!seenSoft.has(key)) {
+        seenSoft.add(key);
+        softOut.push(s);
+      }
+      continue;
+    }
+    const key = s.toLowerCase();
+    if (seenTech.has(key)) continue;
+    seenTech.add(key);
+    techOut.push(s);
+  }
+
+  return { technical_skills: techOut, soft_skills: softOut };
+}
+
+function normalizeSkillList(items: unknown, limit: number): string[] {
+  const raw = Array.isArray(items) ? items : [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    let s = String(item ?? "").trim();
+    if (!s) continue;
+    s = s.replace(/^[•\-\*\u2022]+\s*/g, "").replace(/\s+/g, " ").trim();
+    if (!s) continue;
+    // reject obvious garbage phrases
+    const lower = s.toLowerCase();
+    if (lower.startsWith("and ")) continue;
+    if (lower.includes("such as")) continue;
+    if (lower.includes("experience in")) continue;
+    if (lower.includes("experience with")) continue;
+    if (lower.includes("to achieve")) continue;
+    if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(s)) continue;
+    if (/https?:\/\/|www\./i.test(s)) continue;
+    if (/(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}/.test(s)) continue;
+
+    // keep skills short-ish (avoid sentences)
+    const words = s.split(/\s+/).filter(Boolean);
+    if (words.length > 4) continue;
+    if (s.length > 50) continue;
+
+    const canon = canonicalizeSkill(s);
+    const key = canon.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(canon);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function buildFallbackSummary(parsed: any): string | null {
+  const title = String(parsed?.current_title ?? "").trim();
+  const company = String(parsed?.current_company ?? "").trim();
+  const years =
+    typeof parsed?.years_of_experience === "number" && Number.isFinite(parsed.years_of_experience)
+      ? Math.max(0, Math.round(parsed.years_of_experience))
+      : null;
+  const skills: string[] = Array.isArray(parsed?.technical_skills) ? parsed.technical_skills : [];
+  const topSkills = skills.map((s) => String(s).trim()).filter(Boolean).slice(0, 6);
+
+  // If we have nothing at all, don't invent.
+  if (!title && !company && !years && topSkills.length === 0) return null;
+
+  const rolePhrase =
+    title && company ? `${title} with experience at ${company}` : title ? title : company ? `professional with experience at ${company}` : "professional";
+
+  const parts: string[] = [];
+  if (years != null) parts.push(`Experienced ${rolePhrase} with ${years}+ years of industry experience.`);
+  else parts.push(`Experienced ${rolePhrase}.`);
+
+  if (topSkills.length) parts.push(`Strong in ${topSkills.join(", ")}.`);
+  parts.push(`Open to roles that leverage these strengths to deliver measurable impact.`);
+
+  return parts.join(" ");
+}
+
+function heuristicParseResume(text: string, fallbackName?: string | null, fallbackEmail?: string | null) {
+  const normalizedForUrls = normalizeWrappedUrls(String(text || ""));
+  const t = normalizedForUrls.replace(/\s+/g, " ").trim();
+
+  const linkedinMatch =
+    t.match(/\bhttps?:\/\/(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?\b/i) ||
+    t.match(/\blinkedin\.com\/in\/[A-Za-z0-9_-]+\/?\b/i);
+  const linkedin_url = linkedinMatch
+    ? (linkedinMatch[0].toLowerCase().startsWith('http') ? linkedinMatch[0] : `https://${linkedinMatch[0]}`).slice(0, 500)
+    : null;
+
+  const githubMatch = t.match(/\bhttps?:\/\/(?:www\.)?github\.com\/[A-Za-z0-9_.-]+/i);
+  const github_url = githubMatch ? githubMatch[0].slice(0, 500) : null;
+
+  const yearsMatches = t.match(/(\d{1,2})\s*\+?\s*years?/gi) || [];
+  const years = yearsMatches
+    .map((m) => parseInt(m.replace(/[^0-9]/g, ""), 10))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => b - a)[0];
+
+  const titleMatch = t.match(
+    /\b(Senior|Lead|Principal|Staff|Junior|Mid[- ]Level)?\s*(Software Engineer|Engineer|Developer|Full Stack Developer|Frontend Developer|Backend Developer|Data Scientist|Data Engineer|ML Engineer|DevOps Engineer|SRE|Product Manager|Project Manager|Business Analyst|QA Engineer|Test Engineer)\b/i,
+  );
+
+  const companyMatch =
+    t.match(/\b(at|@)\s+([A-Z][A-Za-z0-9&.,\- ]{2,60})\b/) ||
+    t.match(/\bCompany[:\s]+([A-Z][A-Za-z0-9&.,\- ]{2,60})\b/i);
+
+  const skillsSection = t.match(/\b(skills|technical skills)\b[:\s]+(.{0,800})/i);
+  const rawSkills =
+    skillsSection?.[2] ||
+    "";
+
+  const skillsFromSection = rawSkills
+    .split(/[,;|•·\u2022]/g)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 2 && s.length <= 40)
+    .slice(0, 30);
+
+  const keywordSkills = [
+    "JavaScript","TypeScript","React","Next.js","Node.js","Express","Python","Java","C#",".NET","Go","Ruby",
+    "PostgreSQL","MySQL","MongoDB","Redis","AWS","Azure","GCP","Docker","Kubernetes","Terraform",
+    "REST","GraphQL","CI/CD","Git","Jenkins","GitHub Actions","Agile","Scrum",
+  ];
+  const skillsFromKeywords = keywordSkills.filter((k) => new RegExp(`\\b${k.replace(/\./g, "\\.")}\\b`, "i").test(t));
+
+  const skillSet = new Map<string, string>();
+  for (const s of [...skillsFromSection, ...skillsFromKeywords]) {
+    const key = s.toLowerCase();
+    if (!skillSet.has(key)) skillSet.set(key, s);
+  }
+
+  const summary = stripContactNoise(t.slice(0, 800)) || null;
+
+  return {
+    full_name: fallbackName || null,
+    email: fallbackEmail || null,
+    phone: null,
+    location: null,
+    current_title: titleMatch ? `${titleMatch[1] ? `${titleMatch[1]} ` : ""}${titleMatch[2]}`.trim() : null,
+    current_company: companyMatch ? (companyMatch[2] || companyMatch[1])?.trim() : null,
+    years_of_experience: typeof years === "number" ? years : null,
+    technical_skills: normalizeSkillList(Array.from(skillSet.values()), 60),
+    soft_skills: [],
+    education: [],
+    experience: [],
+    summary,
+    linkedin_url,
+    github_url,
+    ats_score: 50,
+    ats_feedback: "Heuristic parse (AI not configured). Add an AI key for better extraction.",
+  };
+}
+
+function extractSectionsByHeadings(text: string) {
+  const lines = String(text || "").split("\n");
+  const norm = (s: string) => s.trim().toUpperCase();
+  const headings = [
+    { key: "experience", re: /^(WORK\s+)?EXPERIENCE\b/ },
+    { key: "education", re: /^EDUCATION\b/ },
+    { key: "skills", re: /^(TECHNICAL\s+)?SKILLS\b/ },
+    { key: "certifications", re: /^CERTIFICATIONS?\b/ },
+    { key: "projects", re: /^PROJECTS?\b/ },
+  ] as const;
+
+  const idx: Record<string, number> = {};
+  for (let i = 0; i < lines.length; i++) {
+    const l = norm(lines[i] || "");
+    if (!l) continue;
+    for (const h of headings) {
+      if (idx[h.key] != null) continue;
+      if (h.re.test(l)) {
+        idx[h.key] = i;
+      }
+    }
+  }
+
+  const cut = (start?: number, end?: number) => {
+    if (start == null) return "";
+    const s = Math.max(0, start + 1);
+    const e = end == null ? lines.length : Math.max(s, end);
+    return lines.slice(s, e).join("\n").trim();
+  };
+
+  const nextIndex = (from: number) => {
+    const candidates = Object.values(idx).filter((n) => typeof n === "number" && n > from);
+    return candidates.length ? Math.min(...candidates) : undefined;
+  };
+
+  const exp = cut(idx.experience, idx.experience != null ? nextIndex(idx.experience) : undefined);
+  const edu = cut(idx.education, idx.education != null ? nextIndex(idx.education) : undefined);
+  return { experienceText: exp, educationText: edu, index: idx };
+}
+
+function extractExperienceFromText(text: string) {
+  const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const month =
+    "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\\.?";
+  const dateRe = new RegExp(
+    `\\b(?:${month}\\s+)?(19|20)\\d{2}\\s*(?:[-–—→to]{1,3})\\s*(?:present|current|(?:${month}\\s+)?(19|20)\\d{2}|\\b(19|20)\\d{2}\\b)`,
+    "i",
+  );
+
+  const entries: any[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (!dateRe.test(l)) continue;
+
+    const prev1 = lines[i - 1] || "";
+    const prev2 = lines[i - 2] || "";
+    const header = prev1 || prev2;
+    const header2 = prev1 && prev2 ? prev2 : "";
+
+    // Heuristic: "Title — Company" or "Company — Title" or separate lines.
+    let title: string | null = null;
+    let company: string | null = null;
+    const parts = header.split(/—|–|-|@|\|/).map((x) => x.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      // Prefer title then company if title-ish
+      title = parts[0];
+      company = parts.slice(1).join(" ");
+    } else {
+      // Try using two-line header
+      const p2 = header2.split(/—|–|-|@|\|/).map((x) => x.trim()).filter(Boolean);
+      if (p2.length >= 2) {
+        title = p2[0];
+        company = p2.slice(1).join(" ");
+      } else {
+        // Worst-case: treat header as title and leave company null
+        title = header || null;
+        company = null;
+      }
+    }
+
+    entries.push({
+      company: company || null,
+      title: title || null,
+      start: null,
+      end: null,
+      location: null,
+      bullets: [],
+      _source_line: l,
+    });
+  }
+
+  // De-dupe by title/company
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const e of entries) {
+    const k = `${String(e.title || "").toLowerCase()}|${String(e.company || "").toLowerCase()}|${String(e._source_line || "").toLowerCase()}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(e);
+  }
+  return out;
+}
+
+function extractEducationFromText(text: string) {
+  const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const out: any[] = [];
+  for (const l of lines) {
+    if (/\b(university|college|institute|mba|bachelor|master|phd|b\.s\.|m\.s\.)\b/i.test(l)) {
+      out.push({ school: l, degree: null, field: null, start: null, end: null });
+    }
+  }
+  // De-dupe
+  const seen = new Set<string>();
+  const uniq: any[] = [];
+  for (const e of out) {
+    const k = String(e.school || "").toLowerCase();
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    uniq.push(e);
+  }
+  return uniq;
+}
+
+function mergeIfAiDrops(parsed: any, hints: { exp: any[]; edu: any[] }) {
+  if (!parsed) return parsed;
+  const pExp = Array.isArray(parsed?.experience) ? parsed.experience : [];
+  const pEdu = Array.isArray(parsed?.education) ? parsed.education : [];
+
+  // If AI dropped entries but we have structural hints, merge them in.
+  if (hints.exp.length >= 2 && pExp.length < hints.exp.length) {
+    parsed.experience = [...pExp, ...hints.exp.slice(pExp.length)];
+  }
+  if (hints.edu.length >= 2 && pEdu.length < hints.edu.length) {
+    parsed.education = [...pEdu, ...hints.edu.slice(pEdu.length)];
+  }
+  return parsed;
+}
+
+function pdfItemsToText(items: any[]): string {
+  // Reconstruct readable lines from PDF text items using x/y positions.
+  // This dramatically improves section/bullet extraction vs. naïvely joining with spaces.
+  const rows: Array<{ x: number; y: number; str: string }> = [];
+  for (const it of items || []) {
+    const s = typeof it?.str === "string" ? it.str : "";
+    if (!s || !s.trim()) continue;
+    const tr = Array.isArray(it?.transform) ? it.transform : null;
+    const x = typeof tr?.[4] === "number" ? tr[4] : 0;
+    const y = typeof tr?.[5] === "number" ? tr[5] : 0;
+    rows.push({ x, y, str: s });
+  }
+  if (!rows.length) return "";
+
+  // Bucket by y (rounded) to form lines, then sort lines top->bottom and tokens left->right.
+  const bucket = (y: number) => Math.round(y * 2) / 2; // 0.5pt buckets
+  const byLine = new Map<number, Array<{ x: number; str: string }>>();
+  for (const r of rows) {
+    const k = bucket(r.y);
+    const line = byLine.get(k) || [];
+    line.push({ x: r.x, str: r.str });
+    byLine.set(k, line);
+  }
+
+  const ys = Array.from(byLine.keys()).sort((a, b) => b - a);
+  const lines: string[] = [];
+
+  for (const y of ys) {
+    const toks = (byLine.get(y) || []).sort((a, b) => a.x - b.x).map((t) => t.str);
+    // Join tokens, avoiding adding spaces before punctuation.
+    let out = "";
+    for (const tok of toks) {
+      const t = String(tok || "");
+      if (!t) continue;
+      if (!out) {
+        out = t;
+        continue;
+      }
+      if (/^[,.:;)\]]/.test(t)) out += t;
+      else if (/[([$]$/.test(out)) out += t;
+      else out += " " + t;
+    }
+    const cleaned = out.replace(/[ \u00A0]{2,}/g, " ").trim();
+    if (cleaned) lines.push(cleaned);
+  }
+
+  return lines.join("\n");
 }
 
 serve(async (req) => {
@@ -105,6 +991,7 @@ serve(async (req) => {
     }
 
     let textContent = resumeText ? String(resumeText).slice(0, MAX_TEXT_LENGTH) : null;
+    let extractionMeta: any = {};
 
     // If we received a base64 file, we need to extract text
     if (fileBase64 && !textContent) {
@@ -112,6 +999,17 @@ serve(async (req) => {
 
       // Decode base64 to get file content
       const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
+
+      // NOTE: Legacy .doc files are not reliably parseable in edge runtimes.
+      // Require PDF or DOCX for deterministic extraction.
+      if (validatedFileType === "application/msword" || validatedFileName?.toLowerCase().endsWith(".doc")) {
+        return new Response(
+          JSON.stringify({
+            error: "Legacy .doc files are not supported. Please upload a PDF or DOCX (Word) file.",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
 
       if (validatedFileType === "application/pdf" || validatedFileName?.toLowerCase().endsWith('.pdf')) {
         // PDF text extraction using a serverless PDF.js build that works in Deno/edge runtimes
@@ -125,19 +1023,58 @@ serve(async (req) => {
 
           const pdf = await loadingTask.promise;
 
-          const parts: string[] = [];
+          const partsLayout: string[] = [];
+          const partsEol: string[] = [];
           for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
             const content = await page.getTextContent();
-            const pageText = (content.items || [])
-              .map((it: any) => (typeof it?.str === "string" ? it.str : ""))
-              .filter(Boolean)
-              .join(" ");
-            if (pageText.trim()) parts.push(pageText);
+            const items = (content as any)?.items || [];
+
+            const layout = normalizeExtractedText(pdfItemsToText(items));
+            const eol = normalizeExtractedText(itemsWithEOLToText(items));
+            if (layout.trim()) partsLayout.push(layout);
+            if (eol.trim()) partsEol.push(eol);
           }
 
-          textContent = parts.join("\n\n").replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
-          console.log("PDF extracted text length:", textContent.length);
+          const textLayout = normalizeExtractedText(partsLayout.join("\n\n"));
+          const textEol = normalizeExtractedText(partsEol.join("\n\n"));
+
+          const scoreLayout = scoreExtractedText(textLayout);
+          const scoreEol = scoreExtractedText(textEol);
+
+          // Pick the best extraction, but avoid flapping by requiring a margin.
+          let chosen: "eol" | "layout" = "layout";
+          if (scoreEol.score > scoreLayout.score + 5) chosen = "eol";
+          else if (scoreLayout.score > scoreEol.score + 5) chosen = "layout";
+          else {
+            // Tie-breakers: bullets, then length.
+            const bE = scoreEol.bullet_markers || 0;
+            const bL = scoreLayout.bullet_markers || 0;
+            if (bE > bL) chosen = "eol";
+            else if (bL > bE) chosen = "layout";
+            else chosen = (scoreEol.extracted_text_length || 0) > (scoreLayout.extracted_text_length || 0) ? "eol" : "layout";
+          }
+          textContent = chosen === "eol" ? textEol : textLayout;
+
+          extractionMeta = {
+            pdf_extraction: {
+              chosen,
+              layout: { score: scoreLayout.score, diagnostics: scoreLayout },
+              eol: { score: scoreEol.score, diagnostics: scoreEol },
+            },
+          };
+
+          const diag = computeExtractionDiagnostics(textContent);
+          console.log(
+            "PDF extracted text length:",
+            diag.extracted_text_length,
+            "lines:",
+            diag.extracted_lines,
+            "bullets:",
+            diag.bullet_markers,
+            "chosen:",
+            chosen,
+          );
         } catch (e) {
           console.error("PDF parsing error:", e);
           textContent = "";
@@ -149,21 +1086,26 @@ serve(async (req) => {
       ) {
         // DOCX text extraction
         try {
-          const mammoth = await import("https://esm.sh/mammoth@1.8.0?deno");
-          const result = await (mammoth as any).extractRawText({
-            arrayBuffer: binaryContent.buffer,
-          });
-          textContent = String(result?.value || "").replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
-          console.log("Mammoth extracted text length:", textContent.length);
+          const raw = await extractDocxText(binaryContent);
+          textContent = normalizeExtractedText(raw);
+          const diag = computeExtractionDiagnostics(textContent);
+          console.log(
+            "DOCX extracted text length:",
+            diag.extracted_text_length,
+            "lines:",
+            diag.extracted_lines,
+            "bullets:",
+            diag.bullet_markers,
+          );
         } catch (e) {
           console.error("DOCX extraction failed, falling back to utf-8 decode:", e);
           const decoder = new TextDecoder("utf-8", { fatal: false });
-          textContent = decoder.decode(binaryContent).slice(0, MAX_TEXT_LENGTH);
+          textContent = normalizeExtractedText(decoder.decode(binaryContent));
         }
       } else {
         // For text-based files, just decode as text
         const decoder = new TextDecoder("utf-8");
-        textContent = decoder.decode(binaryContent).slice(0, MAX_TEXT_LENGTH);
+        textContent = normalizeExtractedText(decoder.decode(binaryContent));
       }
     }
 
@@ -175,7 +1117,18 @@ serve(async (req) => {
       textContent = `[Document uploaded: ${validatedFileName}. File type: ${validatedFileType}. Please analyze and extract candidate information from this resume document.]`;
     }
 
-    console.log("Parsing resume, text length:", textContent.length);
+    const extractionDiag = computeExtractionDiagnostics(textContent || "");
+    const sections = extractSectionsByHeadings(textContent || "");
+    const expHints = extractExperienceFromText(sections.experienceText || textContent || "");
+    const eduHints = extractEducationFromText(sections.educationText || textContent || "");
+    console.log(
+      "Parsing resume, text length:",
+      extractionDiag.extracted_text_length,
+      "lines:",
+      extractionDiag.extracted_lines,
+      "bullets:",
+      extractionDiag.bullet_markers,
+    );
 
     // Heuristic extraction for contact details using multiple regex patterns
     // Try multiple email patterns from most specific to general
@@ -203,6 +1156,8 @@ serve(async (req) => {
       /\+1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/g,  // +1-xxx-xxx-xxxx
       /\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/g,  // (xxx) xxx-xxxx
       /\d{3}[-.\s]\d{3}[-.\s]\d{4}/g,  // xxx-xxx-xxxx
+      /\d{3}\.\d{3}\.\d{4}/g,  // xxx.xxx.xxxx
+      /\d{3}\s+\d{3}\s+\d{4}/g, // xxx xxx xxxx
       /\+\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,  // International
     ];
     
@@ -216,18 +1171,70 @@ serve(async (req) => {
       }
     }
     
-    console.log("Regex extracted - Email:", extractedEmail, "Phone:", extractedPhone);
+    // LinkedIn URL extraction (supports with or without protocol).
+    // IMPORTANT: normalizeWrappedUrls() first because extraction can wrap slugs across lines.
+    // Examples: linkedin.com/in/xyz, https://www.linkedin.com/in/xyz
+    const textForUrlExtraction = normalizeWrappedUrls(textContent);
+    const linkedinMatch =
+      textForUrlExtraction.match(/\bhttps?:\/\/(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?\b/i) ||
+      textForUrlExtraction.match(/\blinkedin\.com\/in\/[A-Za-z0-9_-]+\/?\b/i);
+    const extractedLinkedinUrl = linkedinMatch
+      ? (linkedinMatch[0].toLowerCase().startsWith('http') ? linkedinMatch[0] : `https://${linkedinMatch[0]}`)
+          .trim()
+          .slice(0, 500)
+      : undefined;
 
-    const systemPrompt = `You are an expert resume parser and ATS analyst. Extract key information from the resume and evaluate its quality.
+    // Best-effort GitHub URL extraction (helps fill Contact Info)
+    const githubMatch = textForUrlExtraction.match(/\bhttps?:\/\/(?:www\.)?github\.com\/[A-Za-z0-9_.-]+/i);
+    const extractedGithubUrl = githubMatch ? githubMatch[0].trim().slice(0, 500) : undefined;
+
+    console.log(
+      "Regex extracted - Email:",
+      extractedEmail,
+      "Phone:",
+      extractedPhone,
+      "LinkedIn:",
+      extractedLinkedinUrl,
+      "GitHub:",
+      extractedGithubUrl,
+    );
+
+    const systemPrompt = `You are an expert resume parser and ATS analyst.
+
+Primary goal: Extract structured, ATS-friendly resume data from the provided resume text.
+Secondary goal: Provide an ATS score (0-100) for the resume as written (not for a specific job).
+
+Hard rules:
+- Do NOT fabricate facts. Only extract what is present in the resume text.
+- If something is missing (dates, locations, degrees), use null or empty arrays.
+- Avoid dumping header/contact noise into summary.
+- Keep skills as a list of atomic items (no mega-strings that contain many skills).
 
 CRITICAL INSTRUCTIONS FOR CONTACT INFO:
 - For email: Look carefully for patterns like name@gmail.com, name@domain.com. The email is usually near the top of the resume near the name.
 - For phone: Look for phone number patterns like +1 (xxx) xxx-xxxx or xxx-xxx-xxxx. Usually near email.
 - If you see hints provided with regex-detected values, USE THEM - they are reliable.
 
-For skills, extract both technical and soft skills mentioned.
+CRITICAL INSTRUCTIONS FOR EXPERIENCE:
+- Extract the candidate's work history into experience[].
+- For each role, include:
+  - company, title
+  - start/end (year-month if available; otherwise year; otherwise null)
+-  - bullets: Extract ALL bullet points you can find for the role from the resume text (preserve meaning; keep any metrics like "$25M", "50%", scale, team size).
+-    Do NOT arbitrarily cap bullets per role; the product needs to preserve full base-resume detail for reliable 2–3+ page output.
+- Never generate generic bullets not supported by the resume. If you can't find bullets for a role, leave bullets empty.
 
-ATS SCORING CRITERIA (score 0-100):
+CRITICAL INSTRUCTIONS FOR SUMMARY / COMPANY / SKILLS:
+- "summary" must be 3-6 sentences written in your own words, describing the candidate's background, strengths, and target roles.
+- Do NOT copy the resume header/contact block into summary (no email/phone/URLs/LinkedIn, no "local to ... contact ...").
+- "current_company" must be the company name ONLY (no sentences, no achievements text).
+- Return two lists of skills:
+  - technical_skills: ONLY concrete technologies/tools/methods/domains (e.g., React, TypeScript, AWS, Microservices, CI/CD, API Design).
+  - soft_skills: ONLY interpersonal/leadership/communication skills (e.g., Leadership, Communication, Stakeholder management).
+- Do NOT include filler phrases (e.g., "and experience in", "such as ...").
+- Do NOT include duplicates or near-duplicates (React vs React JS).
+
+ATS SCORING CRITERIA (score 0-100) — for a generic ATS:
 - Keyword optimization for their target role (25 points)
 - Clear structure and formatting (20 points)
 - Quantifiable achievements (20 points)
@@ -235,174 +1242,369 @@ ATS SCORING CRITERIA (score 0-100):
 - Contact info completeness (10 points)
 - Professional summary quality (10 points)`;
 
-    const userPrompt = `Parse this resume and extract the candidate's information. Also calculate an ATS score based on how well the resume is optimized for the candidate's target/current role.
+    const userPrompt = `Parse this resume and extract the candidate's information. Also calculate an ATS score based on how well the resume is structured and optimized for ATS screening in general.
 
 IMPORTANT - USE THESE CONTACT DETAILS IF DETECTED:
-- Detected Email: ${extractedEmail ?? "NOT FOUND - search the text carefully"}
-- Detected Phone: ${extractedPhone ?? "NOT FOUND - search the text carefully"}
+- Detected Email: ${extractedEmail ?? ""}
+- Detected Phone: ${extractedPhone ?? ""}
+- Detected LinkedIn: ${extractedLinkedinUrl ?? ""}
+
+STRUCTURE HINTS (do not invent; these come from deterministic scanning of the extracted text):
+- Experience entries detected: ${expHints.length}
+- Education entries detected: ${eduHints.length}
+- Experience hints (titles/companies/dates may be partial): ${JSON.stringify(expHints.slice(0, 12))}
+- Education hints (may be partial): ${JSON.stringify(eduHints.slice(0, 12))}
 
 RESUME CONTENT:
-${textContent.substring(0, 30000)}
+${textContent.substring(0, 80000)}
 
-IMPORTANT: The email "${extractedEmail || ''}" and phone "${extractedPhone || ''}" shown above were extracted via regex. If they look valid, USE THEM in your response.`;
+IMPORTANT:
+- The email "${extractedEmail || ''}" and phone "${extractedPhone || ''}" shown above were extracted via regex. If they look valid, USE THEM in your response.
+- The LinkedIn "${extractedLinkedinUrl || ''}" shown above was extracted via regex. If it looks valid, USE IT in your response.
+- Do NOT include email/phone/URLs inside "summary". Summary must be clean text.
+- Ensure "current_title" and "current_company" are not empty if they exist in the resume.
+`;
 
-    const { res: response } = await callChatCompletions({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "parse_resume",
-            description:
-              "Extract structured information from a resume and calculate ATS score",
-            parameters: {
-              type: "object",
-              properties: {
-                full_name: {
-                  type: "string",
-                  description: "The candidate's full name",
-                },
-                email: {
-                  type: "string",
-                  description: "The candidate's email address",
-                },
-                phone: {
-                  type: "string",
-                  description: "The candidate's phone number",
-                },
-                location: {
-                  type: "string",
-                  description: "The candidate's location/city",
-                },
-                current_title: {
-                  type: "string",
-                  description:
-                    "Current or most recent job title - this is the target role for ATS scoring",
-                },
-                current_company: {
-                  type: "string",
-                  description: "Current or most recent company",
-                },
-                years_of_experience: {
-                  type: "number",
-                  description: "Estimated total years of experience",
-                },
-                skills: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "List of skills found in the resume",
-                },
-                education: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      institution: { type: "string" },
-                      degree: { type: "string" },
-                      field_of_study: { type: "string" },
-                      year: { type: "string" },
+    let parsed: any | null = null;
+    let parseMode: "ai" | "heuristic" = "ai";
+    let parseWarning: string | null = null;
+    let parseRetried = false;
+    let parseRetryReason: string | null = null;
+
+    try {
+      const { res: response } = await callChatCompletions({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "parse_resume",
+              description:
+                "Extract structured information from a resume and calculate ATS score",
+              parameters: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  full_name: { type: "string", description: "The candidate's full name" },
+                  email: { type: "string", description: "The candidate's email address" },
+                  phone: { type: "string", description: "The candidate's phone number" },
+                  location: { type: "string", description: "The candidate's location/city" },
+                  current_title: { type: "string", description: "Current or most recent job title" },
+                  current_company: { type: "string", description: "Current or most recent company" },
+                  years_of_experience: { type: "number", description: "Estimated total years of experience" },
+                  technical_skills: { type: "array", items: { type: "string" }, description: "Technical skills only (tools/tech/methods)" },
+                  soft_skills: { type: "array", items: { type: "string" }, description: "Soft skills only (communication/leadership/etc)" },
+                  education: {
+                    type: "array",
+                    description: "Education entries (can be empty)",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        school: { type: ["string", "null"] },
+                        degree: { type: ["string", "null"] },
+                        field: { type: ["string", "null"] },
+                        start: { type: ["string", "null"], description: "Start year or year-month if available" },
+                        end: { type: ["string", "null"], description: "End/graduation year or year-month if available" },
+                      },
                     },
                   },
-                  description: "Education history",
-                },
-                experience: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      company: { type: "string" },
-                      title: { type: "string" },
-                      duration: { type: "string" },
-                      description: { type: "string" },
+                  experience: {
+                    type: "array",
+                    description: "Work experience entries (can be empty)",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        company: { type: ["string", "null"] },
+                        title: { type: ["string", "null"] },
+                        start: { type: ["string", "null"], description: "Start year or year-month if available" },
+                        end: { type: ["string", "null"], description: "End year or year-month; use null if current" },
+                        location: { type: ["string", "null"] },
+                        bullets: { type: "array", items: { type: "string" }, description: "All bullet points for the role extracted from the resume (do not cap for brevity)" },
+                      },
                     },
                   },
-                  description: "Work experience history",
+                  certifications: { type: "array", items: { type: "string" }, description: "Certifications (can be empty)" },
+                  summary: { type: "string", description: "Brief professional summary or headline" },
+                  linkedin_url: { type: "string", description: "LinkedIn profile URL if found" },
+                  github_url: { type: "string", description: "GitHub profile URL if found" },
+                  ats_score: { type: "number", description: "ATS compatibility score from 0-100" },
+                  ats_feedback: { type: "string", description: "Brief feedback on resume quality" },
                 },
-                summary: {
-                  type: "string",
-                  description: "Brief professional summary or headline",
-                },
-                linkedin_url: {
-                  type: "string",
-                  description: "LinkedIn profile URL if found",
-                },
-                ats_score: {
-                  type: "number",
-                  description:
-                    "ATS compatibility score from 0-100 based on how well the resume is optimized for the target role",
-                },
-                ats_feedback: {
-                  type: "string",
-                  description: "Brief feedback on resume quality and what could be improved",
-                },
+                required: [
+                  "full_name",
+                  "technical_skills",
+                  "soft_skills",
+                  "experience",
+                  "education",
+                  "certifications",
+                  "summary",
+                  "ats_score"
+                ],
               },
-              required: ["full_name", "skills", "ats_score"],
-              additionalProperties: false,
             },
           },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "parse_resume" } },
+        ],
+        tool_choice: { type: "function", function: { name: "parse_resume" } },
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`AI parse failed (${response.status}): ${errorText.slice(0, 300)}`);
     }
 
     const data = await response.json();
     console.log("AI response received");
     
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall) {
-      console.error("No tool call in response:", JSON.stringify(data));
-      throw new Error("No parsed data returned from AI");
+      if (!toolCall) throw new Error("No parsed data returned from AI");
+      parsed = JSON.parse(toolCall.function.arguments);
+      parsed = mergeIfAiDrops(parsed, { exp: expHints, edu: eduHints });
+
+      // Sanity-check completeness; if it looks truncated (common), retry once with stronger constraints.
+      const retryCheck = shouldRetryAiParse(parsed, textContent || "");
+      if (retryCheck.retry) {
+        parseRetried = true;
+        parseRetryReason = retryCheck.reason;
+        console.log("AI parse looked incomplete, retrying:", retryCheck.reason);
+
+        const retrySystem = systemPrompt + `\n\nIMPORTANT RETRY MODE:\nYou previously returned an incomplete extraction.\n- You MUST extract ALL experience roles and ALL education entries present in the resume.\n- You MUST extract ALL bullet points for each role (do not cap bullets per role).\n- If a role has no explicit bullets, include bullets as an empty array rather than omitting the role.\n- Do not invent anything.`;
+
+        const retryUser = userPrompt + `\n\nRETRY FEEDBACK:\nThe previous extraction was incomplete: ${retryCheck.reason}\nReturn a complete extraction now.`;
+
+        const { res: response2 } = await callChatCompletions({
+          messages: [
+            { role: "system", content: retrySystem },
+            { role: "user", content: retryUser },
+          ],
+          temperature: 0,
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "parse_resume",
+                description:
+                  "Extract structured information from a resume and calculate ATS score",
+                parameters: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    full_name: { type: "string", description: "The candidate's full name" },
+                    email: { type: "string", description: "The candidate's email address" },
+                    phone: { type: "string", description: "The candidate's phone number" },
+                    location: { type: "string", description: "The candidate's location/city" },
+                    current_title: { type: "string", description: "Current or most recent job title" },
+                    current_company: { type: "string", description: "Current or most recent company" },
+                    years_of_experience: { type: "number", description: "Estimated total years of experience" },
+                    technical_skills: { type: "array", items: { type: "string" }, description: "Technical skills only (tools/tech/methods)" },
+                    soft_skills: { type: "array", items: { type: "string" }, description: "Soft skills only (communication/leadership/etc)" },
+                    education: {
+                      type: "array",
+                      description: "Education entries (can be empty)",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        properties: {
+                          school: { type: ["string", "null"] },
+                          degree: { type: ["string", "null"] },
+                          field: { type: ["string", "null"] },
+                          start: { type: ["string", "null"], description: "Start year or year-month if available" },
+                          end: { type: ["string", "null"], description: "End/graduation year or year-month if available" },
+                        },
+                      },
+                    },
+                    experience: {
+                      type: "array",
+                      description: "Work experience entries (can be empty)",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        properties: {
+                          company: { type: ["string", "null"] },
+                          title: { type: ["string", "null"] },
+                          start: { type: ["string", "null"], description: "Start year or year-month if available" },
+                          end: { type: ["string", "null"], description: "End year or year-month; use null if current" },
+                          location: { type: ["string", "null"] },
+                          bullets: { type: "array", items: { type: "string" }, description: "All bullet points for the role extracted from the resume (do not cap for brevity)" },
+                        },
+                      },
+                    },
+                    certifications: { type: "array", items: { type: "string" }, description: "Certifications (can be empty)" },
+                    summary: { type: "string", description: "Brief professional summary or headline" },
+                    linkedin_url: { type: "string", description: "LinkedIn profile URL if found" },
+                    github_url: { type: "string", description: "GitHub profile URL if found" },
+                    ats_score: { type: "number", description: "ATS compatibility score from 0-100" },
+                    ats_feedback: { type: "string", description: "Brief feedback on resume quality" },
+                  },
+                  required: [
+                    "full_name",
+                    "technical_skills",
+                    "soft_skills",
+                    "experience",
+                    "education",
+                    "certifications",
+                    "summary",
+                    "ats_score"
+                  ],
+                },
+              },
+            },
+          ],
+          tool_choice: { type: "function", function: { name: "parse_resume" } },
+        });
+
+        if (response2.ok) {
+          const data2 = await response2.json();
+          const toolCall2 = data2.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall2?.function?.arguments) {
+            parsed = JSON.parse(toolCall2.function.arguments);
+            parsed = mergeIfAiDrops(parsed, { exp: expHints, edu: eduHints });
+          }
+        } else {
+          console.warn("Retry parse failed:", await response2.text());
+        }
+      }
+    } catch (e: any) {
+      parseMode = "heuristic";
+      parseWarning = e?.message || "AI unavailable";
+      parsed = heuristicParseResume(
+        textContent || "",
+        (user.user_metadata as any)?.full_name || null,
+        user.email || extractedEmail || null,
+      );
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
-
     // Post-process: fill missing contact fields from regex extraction and sanitize output
+    if (parsed) {
     if (!parsed.email && extractedEmail) parsed.email = extractedEmail;
     if (!parsed.phone && extractedPhone) parsed.phone = extractedPhone;
+    if (!parsed.linkedin_url && extractedLinkedinUrl) parsed.linkedin_url = extractedLinkedinUrl;
+    if (!parsed.github_url && extractedGithubUrl) parsed.github_url = extractedGithubUrl;
+    }
 
-    // Sanitize AI output before returning
+    // Drop common placeholder strings (models sometimes echo "NOT FOUND" from the prompt).
+    const nullIfPlaceholder = (v: any) => {
+      if (v == null) return null;
+      const s = String(v).trim();
+      if (!s) return null;
+      const n = s.toLowerCase();
+      if (n === "n/a" || n === "na") return null;
+      if (n.includes("not found")) return null;
+      if (n === "unknown") return null;
+      return s;
+    };
+    if (parsed) {
+      parsed.full_name = nullIfPlaceholder(parsed.full_name) || parsed.full_name;
+      parsed.email = nullIfPlaceholder(parsed.email);
+      parsed.phone = nullIfPlaceholder(parsed.phone);
+      parsed.location = nullIfPlaceholder(parsed.location);
+      parsed.current_title = nullIfPlaceholder(parsed.current_title);
+      parsed.current_company = nullIfPlaceholder(parsed.current_company);
+      parsed.linkedin_url = nullIfPlaceholder(parsed.linkedin_url);
+      parsed.github_url = nullIfPlaceholder(parsed.github_url);
+      parsed.summary = nullIfPlaceholder(parsed.summary) || parsed.summary;
+    }
+
+    // Clean + sanitize output before returning (avoid polluting candidate profile fields)
     parsed.full_name = sanitizeString(parsed.full_name, 200);
     parsed.email = sanitizeString(parsed.email, 255);
     parsed.phone = sanitizeString(parsed.phone, 30);
     parsed.location = sanitizeString(parsed.location, 200);
-    parsed.current_title = sanitizeString(parsed.current_title, 200);
-    parsed.current_company = sanitizeString(parsed.current_company, 200);
-    parsed.summary = sanitizeString(parsed.summary, 2000);
+    parsed.current_title = sanitizeString(stripContactNoise(parsed.current_title), 200);
+    parsed.current_company = sanitizeString(stripContactNoise(parsed.current_company), 200);
+    parsed.summary = sanitizeString(stripContactNoise(parsed.summary), 2000);
     parsed.linkedin_url = sanitizeString(parsed.linkedin_url, 500);
+    parsed.github_url = sanitizeString(parsed.github_url, 500);
     parsed.ats_feedback = sanitizeString(parsed.ats_feedback, 1000);
     
-    if (Array.isArray(parsed.skills)) {
-      parsed.skills = parsed.skills
-        .slice(0, 50)
-        .map((s: unknown) => sanitizeString(String(s), 100))
-        .filter(Boolean);
+    // Validate title/company shape (drop garbage rather than saving junk)
+    if (!isLikelyTitle(parsed.current_title)) parsed.current_title = null;
+    if (!isLikelyCompany(parsed.current_company)) parsed.current_company = null;
+
+    // Normalize + classify skill lists (auto-move misclassified soft skills)
+    const techNorm = normalizeSkillList(parsed.technical_skills, 80);
+    const softNorm = normalizeSkillList(parsed.soft_skills, 80);
+    const classified = postClassifySkills(techNorm, softNorm);
+    parsed.technical_skills = classified.technical_skills.slice(0, 60);
+    parsed.soft_skills = classified.soft_skills.slice(0, 40);
+
+    // Ensure we always return a usable professional summary (AI sometimes returns header/contact text,
+    // which gets stripped; we don't want the UI to end up with an empty summary).
+    if (!parsed.summary || String(parsed.summary).trim().length < 40) {
+      parsed.summary = buildFallbackSummary(parsed);
     }
 
-    console.log("Parsed resume for:", parsed.full_name, "Email:", parsed.email);
+    // If extraction still looks incomplete (missing roles), run a chunked recovery pass against the Experience section.
+    // This is slower (multiple calls) but dramatically improves reliability for multi-page PDFs.
+    try {
+      const pExpCount = Array.isArray(parsed?.experience) ? parsed.experience.length : 0;
+      const est = estimateStructureFromText(textContent || "");
+      const expectedFromHints = Math.max(expHints.length, 0);
+      // If the resume has many date ranges / month-year mentions but we extracted few roles, it’s almost certainly truncated.
+      const looksShort =
+        (expectedFromHints >= 3 && pExpCount < Math.max(2, Math.floor(expectedFromHints * 0.75))) ||
+        (est.dateRanges >= 4 && pExpCount < 3) ||
+        (est.month_year_mentions >= 6 && pExpCount < 3) ||
+        (est.bullet_markers >= 12 && pExpCount < 3);
+      if (looksShort) {
+        // IMPORTANT: section extraction can miss later pages/roles on some PDFs.
+        // Use the full extracted text if the experience section looks too short.
+        const expSection = sections.experienceText || "";
+        const expSource = expSection.trim().length >= 1200 ? expSection : (textContent || "");
+        const recovered = await recoverExperienceChunked(expSource);
+        if (Array.isArray(recovered) && recovered.length) {
+          parsed.experience = mergeExperienceAppendMissing(parsed.experience || [], recovered);
+        }
+      }
+    } catch (e) {
+      console.warn("Chunked experience recovery failed (non-fatal):", e?.message || e);
+    }
 
-    return new Response(JSON.stringify({ parsed }), {
+    const completeness = estimateStructureFromText(textContent || "");
+    const parsedCounts = {
+      experience_count: Array.isArray(parsed?.experience) ? parsed.experience.length : 0,
+      education_count: Array.isArray(parsed?.education) ? parsed.education.length : 0,
+    };
+
+    console.log(
+      "Parsed resume for:",
+      parsed?.full_name,
+      "Email:",
+      parsed?.email,
+      "mode:",
+      parseMode,
+      "exp:",
+      parsedCounts.experience_count,
+      "edu:",
+      parsedCounts.education_count,
+      parseRetried ? `(retried: ${parseRetryReason})` : ""
+    );
+
+    // Include the chosen extracted text so clients can persist it and use it as a canonical source of truth
+    // for later tailoring (prevents "missing bullets" when structured extraction is imperfect).
+    const extracted_text = textContent || "";
+
+    return new Response(JSON.stringify({
+      parsed,
+      mode: parseMode,
+      warning: parseWarning,
+      extracted_text,
+      diagnostics: {
+        ...extractionDiag,
+        ...extractionMeta,
+        parser_version: PARSER_VERSION,
+        parse_retried: parseRetried,
+        parse_retry_reason: parseRetryReason,
+        estimated_structure: completeness,
+        parsed_counts: parsedCounts,
+        deterministic_hints: { experience_detected: expHints.length, education_detected: eduHints.length },
+      }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {

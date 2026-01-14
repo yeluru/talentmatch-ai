@@ -526,10 +526,9 @@ export type Database = {
           current_title: string | null
           desired_job_types: string[] | null
           desired_locations: string[] | null
-          desired_salary_max: number | null
-          desired_salary_min: number | null
           email: string | null
           full_name: string | null
+          github_url: string | null
           headline: string | null
           id: string
           is_actively_looking: boolean | null
@@ -554,10 +553,9 @@ export type Database = {
           current_title?: string | null
           desired_job_types?: string[] | null
           desired_locations?: string[] | null
-          desired_salary_max?: number | null
-          desired_salary_min?: number | null
           email?: string | null
           full_name?: string | null
+          github_url?: string | null
           headline?: string | null
           id?: string
           is_actively_looking?: boolean | null
@@ -582,10 +580,9 @@ export type Database = {
           current_title?: string | null
           desired_job_types?: string[] | null
           desired_locations?: string[] | null
-          desired_salary_max?: number | null
-          desired_salary_min?: number | null
           email?: string | null
           full_name?: string | null
+          github_url?: string | null
           headline?: string | null
           id?: string
           is_actively_looking?: boolean | null
@@ -881,8 +878,6 @@ export type Database = {
           last_sent_at: string | null
           locations: string[] | null
           name: string
-          salary_max: number | null
-          salary_min: number | null
           updated_at: string
           user_id: string
         }
@@ -896,8 +891,6 @@ export type Database = {
           last_sent_at?: string | null
           locations?: string[] | null
           name: string
-          salary_max?: number | null
-          salary_min?: number | null
           updated_at?: string
           user_id: string
         }
@@ -911,8 +904,6 @@ export type Database = {
           last_sent_at?: string | null
           locations?: string[] | null
           name?: string
-          salary_max?: number | null
-          salary_min?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -938,8 +929,6 @@ export type Database = {
           required_skills: string[] | null
           requirements: string | null
           responsibilities: string | null
-          salary_max: number | null
-          salary_min: number | null
           status: string | null
           title: string
           updated_at: string
@@ -964,8 +953,6 @@ export type Database = {
           required_skills?: string[] | null
           requirements?: string | null
           responsibilities?: string | null
-          salary_max?: number | null
-          salary_min?: number | null
           status?: string | null
           title: string
           updated_at?: string
@@ -990,8 +977,6 @@ export type Database = {
           required_skills?: string[] | null
           requirements?: string | null
           responsibilities?: string | null
-          salary_max?: number | null
-          salary_min?: number | null
           status?: string | null
           title?: string
           updated_at?: string

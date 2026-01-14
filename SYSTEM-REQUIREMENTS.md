@@ -19,6 +19,9 @@ TalentMatch AI is a **multi-tenant recruitment platform** where:
 - **Staff users** (Org Admin, Account Manager, Recruiter) are **invite-only**.
 - Each **tenant** is an **organization**. Tenants must be **hard-isolated** from each other.
 - The platform has an internal **Platform Admin** role for operations/support across tenants.
+- The platform supports an optional **Marketplace** mode:
+  - Organizations can choose to post **public jobs** (discoverable to any signed-in candidate).
+  - Candidates can optionally opt-in to be **marketplace discoverable** (visible to recruiters outside a specific org context).
 
 ---
 
@@ -29,6 +32,7 @@ TalentMatch AI is a **multi-tenant recruitment platform** where:
 - **Invite-only staff onboarding**: staff cannot create accounts via public signup paths.
 - **Auditability**: all meaningful write actions are traceable (who/what/when/where).
 - **Safe internal admin**: platform admin can troubleshoot broadly, but destructive actions are tightly controlled.
+- **Marketplace consent**: cross-tenant discoverability must be opt-in, revocable, and clearly communicated.
 
 ---
 
@@ -64,6 +68,9 @@ TalentMatch AI is a **multi-tenant recruitment platform** where:
 - Candidate signs up via `/auth`.
 - Email confirmation required (product/security).
 - After confirmation + sign-in, candidate lands in candidate experience.
+- Candidate can optionally:
+  - Enter an **organization invite code** (links candidate ↔ org to unlock that org’s private jobs).
+  - Opt-in to be **discoverable by recruiters** (marketplace visibility).
 
 ### 2) Staff onboarding (invite-only)
 Invite link flow is consistent across Org Admin / Account Manager / Recruiter:
@@ -133,6 +140,24 @@ The Org Admin experience is intended to be a **central control panel** for the t
 ### Tenant vs platform audit visibility
 - Platform admin sees **platform-wide** audit logs.
 - Org admin sees **org-only** audit logs and should not see platform admin actor events.
+
+---
+
+## Marketplace model (jobs + candidate discoverability)
+
+### Job visibility
+- **Private (default)**: visible only to:
+  - staff in the tenant, and
+  - candidates explicitly linked to that org (via invite code or by applying to that org’s jobs).
+- **Public**: visible to anyone on the internet only if we deliberately expose it (current behavior: public pages show only public jobs); and visible to **any signed-in candidate**.
+
+### Candidate discoverability
+- Candidates can opt-in during signup to be marketplace discoverable.
+- Recruiters can browse opted-in profiles in **Marketplace Profiles** and start an engagement.
+
+### Recruiter-side terminology
+- **Profiles**: browseable people records (tenant talent pool + marketplace discoverable).
+- **Engagements / Candidates in workflow**: once a recruiter starts an engagement, the candidate is tracked in a tenant-scoped workflow (rate confirmation → RTR → screening → submission → onboarding).
 
 ---
 

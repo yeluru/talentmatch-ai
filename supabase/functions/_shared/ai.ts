@@ -21,6 +21,8 @@ export type ChatCompletionsRequest = {
   messages: ChatMessage[];
   tools?: ToolDef[];
   tool_choice?: ToolChoice;
+  temperature?: number;
+  top_p?: number;
 };
 
 export type ChatCompletionsResponse = {

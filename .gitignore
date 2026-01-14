@@ -19,6 +19,8 @@ dist-ssr
 # Supabase local artifacts (do not commit)
 supabase/.branches/
 supabase/.temp/
+supabase/tmp/
+supabase/tmp/**
 
 # Editor directories and files
 .vscode/*

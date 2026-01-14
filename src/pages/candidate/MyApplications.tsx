@@ -52,11 +52,13 @@ export default function MyApplications() {
     try {
       const { data: cpData } = await supabase
         .from('candidate_profiles')
-        .select('id')
+        .select('id, updated_at')
         .eq('user_id', user!.id)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (!cpData) return;
+      const cp = (cpData || [])[0] as any;
+      if (!cp?.id) return;
 
       const { data, error } = await supabase
         .from('applications')
@@ -73,7 +75,7 @@ export default function MyApplications() {
             organization:organizations(name, logo_url)
           )
         `)
-        .eq('candidate_id', cpData.id)
+        .eq('candidate_id', cp.id)
         .order('applied_at', { ascending: false });
 
       if (error) throw error;

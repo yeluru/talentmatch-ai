@@ -13,12 +13,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Sparkles, CheckCircle, XCircle, AlertTriangle, Lightbulb, FileText, Search, Briefcase } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { resumesObjectPath } from '@/lib/storagePaths';
 
 interface Resume {
   id: string;
   file_name: string;
   file_url: string;
+  file_type?: string;
   is_primary: boolean | null;
+  parsed_content?: any;
 }
 
 interface Job {
@@ -37,10 +41,184 @@ interface AnalysisResult {
   areas_for_improvement?: string[];
   recommendations: string[];
   summary: string;
+  diagnostics?: any;
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  // Chunked conversion to avoid call stack limits on large files
+  const bytes = new Uint8Array(buf);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function buildResumeTextFromParsed(parsed: any): string {
+  const tech = Array.isArray(parsed?.technical_skills) ? parsed.technical_skills : [];
+  const soft = Array.isArray(parsed?.soft_skills) ? parsed.soft_skills : [];
+  const isPlaceholder = (v: unknown) => {
+    const s = String(v ?? '').trim();
+    if (!s) return true;
+    const n = s.toLowerCase();
+    if (n.includes('not found')) return true;
+    if (n === 'n/a' || n === 'na' || n === 'unknown') return true;
+    return false;
+  };
+
+  const lines: string[] = [];
+  if (parsed?.full_name && !isPlaceholder(parsed.full_name)) lines.push(`Name: ${parsed.full_name}`);
+  if (parsed?.email && !isPlaceholder(parsed.email)) lines.push(`Email: ${parsed.email}`);
+  if (parsed?.phone && !isPlaceholder(parsed.phone)) lines.push(`Phone: ${parsed.phone}`);
+  if (parsed?.linkedin_url && !isPlaceholder(parsed.linkedin_url)) lines.push(`LinkedIn: ${parsed.linkedin_url}`);
+  if (parsed?.github_url && !isPlaceholder(parsed.github_url)) lines.push(`GitHub: ${parsed.github_url}`);
+  if (parsed?.location && !isPlaceholder(parsed.location)) lines.push(`Location: ${parsed.location}`);
+  if (parsed?.current_title && !isPlaceholder(parsed.current_title)) lines.push(`Current Title: ${parsed.current_title}`);
+  if (parsed?.current_company && !isPlaceholder(parsed.current_company)) lines.push(`Current Company: ${parsed.current_company}`);
+  if (typeof parsed?.years_of_experience === 'number') lines.push(`Years of Experience: ${parsed.years_of_experience}`);
+
+  if (parsed?.summary) {
+    lines.push('');
+    lines.push('Professional Summary:');
+    lines.push(String(parsed.summary));
+  }
+
+  if (tech.length) {
+    lines.push('');
+    lines.push(`Technical Skills: ${tech.join(', ')}`);
+  }
+  if (soft.length) {
+    lines.push('');
+    lines.push(`Soft Skills: ${soft.join(', ')}`);
+  }
+
+  // Include structured experience/education if present (DETAILED: bullets matter for ATS matching)
+  if (Array.isArray(parsed?.experience) && parsed.experience.length) {
+    lines.push('');
+    lines.push('Experience:');
+    for (const e of parsed.experience) {
+      const company = e?.company || e?.company_name || '';
+      const title = e?.title || e?.job_title || '';
+      const start = e?.start || '';
+      const end = e?.end || '';
+      const loc = e?.location || '';
+      const header = [title, company].filter(Boolean).join(' — ');
+      const meta = [start && end ? `${start} → ${end}` : start || end, loc].filter(Boolean).join(' • ');
+      if (header) lines.push(header);
+      if (meta) lines.push(meta);
+      const bullets = Array.isArray(e?.bullets) ? e.bullets : [];
+      for (const b of bullets) {
+        const s = String(b || '').trim();
+        if (s) lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+  }
+
+  if (Array.isArray(parsed?.education) && parsed.education.length) {
+    lines.push('');
+    lines.push('Education:');
+    for (const ed of parsed.education.slice(0, 10)) {
+      const school = ed?.school || ed?.institution || '';
+      const degree = ed?.degree || '';
+      const field = ed?.field || '';
+      const year = ed?.year || ed?.end || ed?.start || '';
+      const row = [school, degree, field, year].filter(Boolean).join(' • ');
+      if (row) lines.push(`- ${row}`);
+    }
+  }
+
+  if (Array.isArray(parsed?.certifications) && parsed.certifications.length) {
+    lines.push('');
+    lines.push('Certifications:');
+    for (const c of parsed.certifications.slice(0, 30)) {
+      const s = String(c || '').trim();
+      if (s) lines.push(`- ${s}`);
+    }
+  }
+
+  return lines.join('\n').trim();
+}
+
+function buildResumeTextFromResumeDoc(doc: any): string {
+  const c = doc?.contact || {};
+  const tech = Array.isArray(doc?.skills?.technical) ? doc.skills.technical : [];
+  const soft = Array.isArray(doc?.skills?.soft) ? doc.skills.soft : [];
+  const exp = Array.isArray(doc?.experience) ? doc.experience : [];
+  const edu = Array.isArray(doc?.education) ? doc.education : [];
+  const certs = Array.isArray(doc?.certifications) ? doc.certifications : [];
+  const isPlaceholder = (v: unknown) => {
+    const s = String(v ?? '').trim();
+    if (!s) return true;
+    const n = s.toLowerCase();
+    if (n.includes('not found')) return true;
+    if (n === 'n/a' || n === 'na' || n === 'unknown') return true;
+    return false;
+  };
+
+  const lines: string[] = [];
+  if (c.full_name && !isPlaceholder(c.full_name)) lines.push(String(c.full_name));
+  const contactLine = [c.location, c.phone, c.email, c.linkedin_url, c.github_url]
+    .map((v) => String(v ?? '').trim())
+    .filter((v) => v && !isPlaceholder(v))
+    .join(' • ');
+  if (contactLine) lines.push(contactLine);
+
+  if (doc?.summary) {
+    lines.push('');
+    lines.push('SUMMARY');
+    lines.push(String(doc.summary));
+  }
+
+  if (tech.length || soft.length) {
+    lines.push('');
+    lines.push('SKILLS');
+    if (tech.length) lines.push(`Technical: ${tech.join(', ')}`);
+    if (soft.length) lines.push(`Soft: ${soft.join(', ')}`);
+  }
+
+  if (exp.length) {
+    lines.push('');
+    lines.push('EXPERIENCE');
+    for (const e of exp) {
+      const header = [e?.title, e?.company].filter(Boolean).join(' — ');
+      const meta = [e?.start && e?.end ? `${e.start} → ${e.end}` : e?.start || e?.end, e?.location].filter(Boolean).join(' • ');
+      if (header) lines.push(header);
+      if (meta) lines.push(meta);
+      const bullets = Array.isArray(e?.bullets) ? e.bullets : [];
+      for (const b of bullets) {
+        const s = String(b || '').trim();
+        if (s) lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+  }
+
+  if (edu.length) {
+    lines.push('');
+    lines.push('EDUCATION');
+    for (const e of edu.slice(0, 12)) {
+      const row = [e?.school, e?.degree, e?.field, e?.year].filter(Boolean).join(' • ');
+      if (row) lines.push(`- ${row}`);
+    }
+  }
+
+  if (certs.length) {
+    lines.push('');
+    lines.push('CERTIFICATIONS');
+    for (const c of certs.slice(0, 30)) {
+      const s = String(c || '').trim();
+      if (s) lines.push(`- ${s}`);
+    }
+  }
+
+  return lines.join('\n').trim();
 }
 
 export default function AIAnalysis() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [candidateId, setCandidateId] = useState<string | null>(null);
@@ -61,29 +239,109 @@ export default function AIAnalysis() {
 
   const fetchData = async () => {
     await Promise.all([fetchResumes(), fetchJobs()]);
+    // Load the most recent analysis (retain last run)
+    await fetchLatestAnalysis();
     setIsLoading(false);
+  };
+
+  const fetchLatestAnalysis = async () => {
+    try {
+      if (!user?.id) return;
+      // Defensive: avoid maybeSingle() coercion errors if duplicate candidate_profiles exist.
+      const { data: cpRows } = await supabase
+        .from('candidate_profiles')
+        .select('id, updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      const cpId = (cpRows || [])[0]?.id;
+      if (!cpId) return;
+
+      const { data, error } = await supabase
+        .from('ai_resume_analyses')
+        .select('match_score, full_analysis, resume_id, job_id, job_description_text, created_at')
+        .eq('candidate_id', cpId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return;
+
+      // Restore last-used inputs best-effort
+      if (data.resume_id) setSelectedResumeId(data.resume_id);
+      if (data.job_id) {
+        setJobInputMode('existing');
+        setSelectedJobId(data.job_id);
+      }
+      if (data.job_description_text) {
+        // Always restore the exact JD text that was analyzed (even for existing jobs),
+        // so edits are reflected.
+        setJobDescription(data.job_description_text);
+      } else if (data.job_id) {
+        // Fallback: keep stored job description if no saved text (should be rare)
+        const j = jobs.find((x) => x.id === data.job_id);
+        if (j?.description) setJobDescription(j.description);
+      } else {
+        setJobInputMode('custom');
+      }
+
+      const fa = data.full_analysis as any;
+      if (fa && typeof fa === 'object' && typeof fa.match_score === 'number') {
+        setAnalysisResult({
+          match_score: fa.match_score,
+          matched_skills: Array.isArray(fa.matched_skills) ? fa.matched_skills : [],
+          missing_skills: Array.isArray(fa.missing_skills) ? fa.missing_skills : [],
+          key_strengths: Array.isArray(fa.key_strengths) ? fa.key_strengths : undefined,
+          areas_for_improvement: Array.isArray(fa.areas_for_improvement) ? fa.areas_for_improvement : undefined,
+          recommendations: Array.isArray(fa.recommendations) ? fa.recommendations : [],
+          summary: typeof fa.summary === 'string' ? fa.summary : '',
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to load latest analysis', e);
+    }
   };
 
   const fetchResumes = async () => {
     try {
-      const { data: cpData } = await supabase
+      // Defensive: avoid single() coercion errors if duplicate candidate_profiles exist.
+      const { data: cpRows } = await supabase
         .from('candidate_profiles')
-        .select('id')
+        .select('id, updated_at')
         .eq('user_id', user!.id)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (cpData) {
+      const cpData = (cpRows || [])[0];
+      if (cpData?.id) {
         setCandidateId(cpData.id);
 
         const { data: resumesData } = await supabase
           .from('resumes')
-          .select('id, file_name, file_url, is_primary')
+          .select('id, file_name, file_url, file_type, is_primary, parsed_content')
           .eq('candidate_id', cpData.id);
 
-        setResumes(resumesData || []);
-        const primaryResume = resumesData?.find(r => r.is_primary);
-        if (primaryResume) {
-          setSelectedResumeId(primaryResume.id);
+        const list = (resumesData || []) as Resume[];
+        // Prefer Resume Workspace generated resumes for consistency (same resume_doc used for tailoring).
+        const sorted = [...list].sort((a, b) => {
+          const aGen = (a as any)?.parsed_content?.source === 'resume_workspace' ? 1 : 0;
+          const bGen = (b as any)?.parsed_content?.source === 'resume_workspace' ? 1 : 0;
+          if (aGen !== bGen) return bGen - aGen;
+          // Keep primary near the top among same type
+          const aP = a.is_primary ? 1 : 0;
+          const bP = b.is_primary ? 1 : 0;
+          return bP - aP;
+        });
+
+        setResumes(sorted);
+        // Default selection: most recent saved analysis wins; otherwise prefer generated; otherwise primary.
+        if (!selectedResumeId) {
+          const generated = sorted.find((r) => (r as any)?.parsed_content?.source === 'resume_workspace');
+          const primaryResume = sorted.find((r) => r.is_primary);
+          const pick = generated || primaryResume || sorted[0];
+          if (pick?.id) setSelectedResumeId(pick.id);
         }
       }
     } catch (error) {
@@ -138,8 +396,8 @@ export default function AIAnalysis() {
 
   const getEffectiveJobDescription = () => {
     if (jobInputMode === 'existing') {
-      const job = jobs.find(j => j.id === selectedJobId);
-      return job?.description || '';
+      // IMPORTANT: allow editing even when starting from an existing job
+      return jobDescription;
     }
     return jobDescription;
   };
@@ -163,18 +421,84 @@ export default function AIAnalysis() {
     setAnalysisResult(null);
 
     try {
-      // Fetch resume content (for demo, we'll use the filename as content)
-      // In production, you'd parse the actual PDF/DOCX
-      const resumeText = `Resume: ${selectedResume.file_name}
-      
-This is a placeholder for the actual resume content. In production, the resume file would be parsed and its content extracted for analysis.
+      // Prefer resume_workspace generated structured doc when available (ensures consistency with Resume Workspace score).
+      const pc = (selectedResume as any)?.parsed_content;
+      const resumeDoc = pc?.resume_doc;
+      if (pc?.source === 'resume_workspace' && resumeDoc && typeof resumeDoc === 'object') {
+        const resumeText = buildResumeTextFromResumeDoc(resumeDoc);
+        if (!resumeText || resumeText.length < 50) throw new Error('Saved resume_doc produced insufficient text to analyze');
 
-For demonstration purposes, please imagine this contains the candidate's:
-- Work experience
-- Education
-- Skills
-- Projects
-- Certifications`;
+        const { data, error } = await supabase.functions.invoke('analyze-resume', {
+          body: {
+            resumeText,
+            jobDescription: effectiveJD,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.analysis) throw new Error('No analysis returned');
+
+        setAnalysisResult({ ...(data.analysis as any), diagnostics: (data as any)?.diagnostics || null });
+        // Save analysis to database (same as below)
+        if (candidateId) {
+          const { error: insertErr } = await supabase.from('ai_resume_analyses').insert({
+            candidate_id: candidateId,
+            resume_id: selectedResumeId,
+            job_id: jobInputMode === 'existing' ? (selectedJobId || null) : null,
+            job_description_text: effectiveJD,
+            match_score: data.analysis.match_score,
+            matched_skills: data.analysis.matched_skills,
+            missing_skills: data.analysis.missing_skills,
+            recommendations: data.analysis.recommendations,
+            full_analysis: { ...(data.analysis as any), diagnostics: (data as any)?.diagnostics || null },
+          });
+          if (insertErr) {
+            console.error('Failed to save analysis', insertErr);
+            toast.error(`Analysis ran, but couldn’t save history (${insertErr.message})`);
+          } else {
+            await queryClient.invalidateQueries({ queryKey: ['latest-ai-analysis', candidateId] });
+          }
+        }
+
+        toast.success('Analysis complete!');
+        return;
+      }
+
+      // Otherwise, build a real resumeText from parse-resume extraction.
+      const objectPath = resumesObjectPath(selectedResume.file_url);
+      if (!objectPath) throw new Error('Could not resolve resume path');
+
+      const { data: signed, error: signedErr } = await supabase.storage
+        .from('resumes')
+        .createSignedUrl(objectPath, 900);
+      if (signedErr) throw signedErr;
+      if (!signed?.signedUrl) throw new Error('Could not create signed URL');
+
+      const resp = await fetch(signed.signedUrl);
+      if (!resp.ok) throw new Error(`Failed to download resume (${resp.status})`);
+      const buf = await resp.arrayBuffer();
+      const fileBase64 = arrayBufferToBase64(buf);
+
+      const { data: parsedResp, error: parseErr } = await supabase.functions.invoke('parse-resume', {
+        body: {
+          fileBase64,
+          fileName: selectedResume.file_name,
+          fileType: selectedResume.file_type || 'application/octet-stream',
+        },
+      });
+      if (parseErr) throw parseErr;
+      const parsed = (parsedResp as any)?.parsed;
+      if (!parsed) throw new Error('Resume parse failed (no parsed output)');
+
+      const extractedText = String((parsedResp as any)?.extracted_text || '').trim();
+      let resumeText = buildResumeTextFromParsed(parsed);
+      // Reliability fallback: DOCX (and some PDFs) can yield weak structure even when extracted_text is good.
+      if (!resumeText || resumeText.trim().length < 50) {
+        resumeText = extractedText;
+      }
+      if (!resumeText || resumeText.trim().length < 50) {
+        throw new Error('Resume parse produced insufficient text to analyze');
+      }
 
       const { data, error } = await supabase.functions.invoke('analyze-resume', {
         body: {
@@ -187,21 +511,28 @@ For demonstration purposes, please imagine this contains the candidate's:
       if (data?.error) throw new Error(data.error);
       if (!data?.analysis) throw new Error('No analysis returned');
 
-      setAnalysisResult(data.analysis);
+      setAnalysisResult({ ...(data.analysis as any), diagnostics: (data as any)?.diagnostics || null });
 
       // Save analysis to database
       if (candidateId) {
-        await supabase.from('ai_resume_analyses').insert({
+        const { error: insertErr } = await supabase.from('ai_resume_analyses').insert({
           candidate_id: candidateId,
           resume_id: selectedResumeId,
-          job_id: jobInputMode === 'existing' ? selectedJobId : null,
+          job_id: jobInputMode === 'existing' ? (selectedJobId || null) : null,
           job_description_text: effectiveJD,
           match_score: data.analysis.match_score,
           matched_skills: data.analysis.matched_skills,
           missing_skills: data.analysis.missing_skills,
           recommendations: data.analysis.recommendations,
-          full_analysis: data.analysis,
+          full_analysis: { ...(data.analysis as any), diagnostics: (data as any)?.diagnostics || null },
         });
+        if (insertErr) {
+          console.error('Failed to save analysis', insertErr);
+          toast.error(`Analysis ran, but couldn’t save history (${insertErr.message})`);
+        } else {
+          // Refresh dashboard stat card and any other consumers
+          await queryClient.invalidateQueries({ queryKey: ['latest-ai-analysis', candidateId] });
+        }
       }
 
       toast.success('Analysis complete!');
@@ -310,7 +641,12 @@ For demonstration purposes, please imagine this contains the candidate's:
                     <SelectContent>
                       {resumes.map((resume) => (
                         <SelectItem key={resume.id} value={resume.id}>
-                          {resume.file_name} {resume.is_primary && '(Primary)'}
+                          {resume.file_name}{' '}
+                          {(resume as any)?.parsed_content?.source === 'resume_workspace'
+                            ? '(Generated — Resume Workspace)'
+                            : resume.is_primary
+                              ? '(Primary)'
+                              : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -427,62 +763,93 @@ For demonstration purposes, please imagine this contains the candidate's:
                         value={analysisResult.match_score} 
                         className="mt-4 h-2"
                       />
+                      {analysisResult.diagnostics?.scoring && (
+                        <div className="mt-4 text-xs text-muted-foreground space-y-1">
+                          <div>
+                            <span className="font-medium text-foreground">Score breakdown:</span>{' '}
+                            model {analysisResult.diagnostics.scoring.model_score}% · keyword coverage{' '}
+                            {analysisResult.diagnostics.scoring.keyword_coverage_score}% (combined)
+                          </div>
+                          <div>
+                            <span className="font-medium text-foreground">Keyword coverage:</span>{' '}
+                            {analysisResult.diagnostics.keyword_coverage?.matched_count ?? 0}/
+                            {analysisResult.diagnostics.keyword_coverage?.total ?? 0} JD phrases found
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Summary */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Lightbulb className="h-5 w-5 text-accent" />
-                      Summary
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{analysisResult.summary}</p>
-                  </CardContent>
-                </Card>
-
-                {/* Matched Skills */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-success" />
-                      Matched Skills ({analysisResult.matched_skills.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {analysisResult.matched_skills.map((skill, i) => (
-                        <Badge key={i} variant="default" className="bg-success/10 text-success border-success/20">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Missing Skills */}
-                {analysisResult.missing_skills.length > 0 && (
+                {analysisResult.diagnostics?.keyword_coverage?.missing?.length > 0 && (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <XCircle className="h-5 w-5 text-destructive" />
-                        Missing Skills ({analysisResult.missing_skills.length})
-                      </CardTitle>
+                      <CardTitle className="text-base">ATS Keyword Checklist (JD phrases missing)</CardTitle>
+                      <CardDescription>
+                        These phrases are in the JD but were not found verbatim in the resume text used for analysis.
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {analysisResult.missing_skills.map((skill, i) => (
-                          <Badge key={i} variant="outline" className="border-destructive/20 text-destructive">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
+                    <CardContent className="flex flex-wrap gap-2">
+                      {analysisResult.diagnostics.keyword_coverage.missing.slice(0, 30).map((k: string, i: number) => (
+                        <Badge key={i} variant="secondary">
+                          {k}
+                        </Badge>
+                      ))}
                     </CardContent>
                   </Card>
                 )}
+
+                {/* What to do next (single, simplified action panel) */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">What to do next</CardTitle>
+                    <CardDescription>Use this to raise the canonical score and prep for interviews.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {analysisResult.diagnostics?.keyword_coverage?.missing?.length > 0 && (
+                      <div className="text-sm">
+                        <div className="font-medium">1) Add missing JD phrases verbatim</div>
+                        <div className="text-muted-foreground mt-1">
+                          Best place: Skills. Second best: most recent role bullets (only if defensible).
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {analysisResult.diagnostics.keyword_coverage.missing.slice(0, 30).map((k: string, i: number) => (
+                            <Badge key={i} variant="secondary">
+                              {k}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {analysisResult.missing_skills.length > 0 && (
+                      <div className="text-sm">
+                        <div className="font-medium">2) Prep examples for missing skills</div>
+                        <div className="text-muted-foreground mt-1">
+                          If you keep these in the resume with “exposure / collaborated / ramped” framing, expect interview questions.
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {analysisResult.missing_skills.slice(0, 20).map((skill, i) => (
+                            <Badge key={i} variant="outline" className="border-destructive/20 text-destructive">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {analysisResult.recommendations?.length > 0 && (
+                      <div className="text-sm">
+                        <div className="font-medium">3) Apply these edits</div>
+                        <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
+                          {analysisResult.recommendations.slice(0, 8).map((rec, i) => (
+                            <li key={i}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Recommendations */}
                 <Card>

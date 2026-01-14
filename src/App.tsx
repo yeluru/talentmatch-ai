@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -24,6 +24,7 @@ import ManagersLanding from "./pages/public/ManagersLanding";
 import CandidateDashboard from "./pages/candidate/CandidateDashboard";
 import CandidateProfile from "./pages/candidate/CandidateProfile";
 import CandidateResumes from "./pages/candidate/CandidateResumes";
+import ResumeWorkspace from "./pages/candidate/ResumeWorkspace";
 import JobSearch from "./pages/candidate/JobSearch";
 import JobDetails from "./pages/candidate/JobDetails";
 import MyApplications from "./pages/candidate/MyApplications";
@@ -70,8 +71,26 @@ import Privacy from "./pages/Privacy";
 import CandidatePipeline from "./pages/recruiter/CandidatePipeline";
 import EmailTemplates from "./pages/recruiter/EmailTemplates";
 import InterviewSchedule from "./pages/recruiter/InterviewSchedule";
+import MarketplaceProfiles from "./pages/recruiter/MarketplaceProfiles";
+import EngagementPipeline from "./pages/recruiter/EngagementPipeline";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Critical UX: do NOT blow away in-progress form edits by refetching on tab focus.
+      // Users can still manually refresh or navigate to re-trigger fetches.
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      retry: 1,
+    },
+  },
+});
+
+function RecruiterJobIdRedirect() {
+  const { id } = useParams<{ id: string }>();
+  if (!id) return <Navigate to="/recruiter/jobs" replace />;
+  return <Navigate to={`/recruiter/jobs/${id}/edit`} replace />;
+}
 
 const App = () => (
   <HelmetProvider>
@@ -122,6 +141,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
                         <CandidateResumes />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/candidate/resume-workspace"
+                    element={
+                      <ProtectedRoute allowedRoles={["candidate"]}>
+                        <ResumeWorkspace />
                       </ProtectedRoute>
                     }
                   />
@@ -200,6 +227,14 @@ const App = () => (
                     }
                   />
                   <Route
+                    path="/recruiter/jobs/:id"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <RecruiterJobIdRedirect />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/recruiter/jobs/:id/applicants"
                     element={
                       <ProtectedRoute allowedRoles={["recruiter"]}>
@@ -248,6 +283,14 @@ const App = () => (
                     }
                   />
                   <Route
+                    path="/recruiter/marketplace"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <MarketplaceProfiles />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/recruiter/insights"
                     element={
                       <ProtectedRoute allowedRoles={["recruiter"]}>
@@ -286,6 +329,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["recruiter"]}>
                         <CandidatePipeline />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/engagements"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                        <EngagementPipeline />
                       </ProtectedRoute>
                     }
                   />

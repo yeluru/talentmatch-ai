@@ -242,6 +242,19 @@ Useful URLs (local defaults):
 - Supabase Studio: `http://127.0.0.1:54323`
 - Mailpit (local email inbox): run `supabase status` and open the **Mailpit** URL it prints
 
+### Marketplace model (jobs + candidates)
+
+- **Jobs**:
+  - Default: **Private (tenant-only)**.
+  - Optional: **Public** (discoverable to all signed-in candidates).
+  - Public job pages render only **public** jobs.
+- **Candidates**:
+  - Default: not discoverable to other tenants.
+  - Optional: discoverable opt-in during signup (“Allow employers to discover my profile”).
+- **Recruiter-side terminology**:
+  - **Profiles**: browseable people records (tenant pool + opted-in marketplace).
+  - **Engagements**: tenant-scoped workflow stages (rate → RTR → screening → submission → onboarding).
+
 #### 4) Serve Edge Functions locally
 
 ```bash
@@ -566,10 +579,11 @@ All tables are protected with Row Level Security policies:
 ### 2. Candidate Features Testing
 
 - **Profile**: Navigate to Profile page, update information
-- **Resume Upload**: Upload a PDF resume
+- **Resume Upload**: Upload a PDF or DOCX resume (legacy `.doc` is not supported)
 - **Job Search**: Browse available jobs
 - **Apply**: Submit application to a job
-- **AI Analysis**: Check AI-powered resume feedback
+- **AI Analysis**: Check AI-powered resume feedback (keyword coverage + model score)
+- **Resume Workspace**: Tailor resume to a JD, export premium PDF/DOCX
 
 ### 3. Recruiter Features Testing
 
@@ -596,13 +610,14 @@ The platform includes several Supabase Edge Functions:
 
 | Function | Purpose |
 |----------|---------|
-| `analyze-resume` | AI-powered resume analysis |
+| `analyze-resume` | AI-powered resume analysis (deterministic keyword coverage + model score blend) |
 | `bulk-import-candidates` | Batch candidate import |
 | `generate-email` | AI email generation |
 | `generate-insights` | Talent insights generation |
 | `linkedin-search` | LinkedIn profile search |
 | `match-candidates` | AI candidate matching |
-| `parse-resume` | Resume text extraction |
+| `parse-resume` | Resume text extraction (PDF + DOCX supported) |
+| `tailor-resume` | ATS-optimized resume tailoring with content-preservation guarantees + retry-to-target |
 | `recommend-jobs` | Job recommendations |
 | `run-agent` | Execute AI agents |
 | `talent-search` | Advanced talent search |

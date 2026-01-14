@@ -39,8 +39,6 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     desired_locations: [] as string[],
     desired_job_types: [] as string[],
     is_open_to_remote: true,
-    desired_salary_min: '',
-    desired_salary_max: '',
   });
 
   const progress = (currentStep / steps.length) * 100;
@@ -75,8 +73,6 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           desired_locations: formData.desired_locations.length > 0 ? formData.desired_locations : null,
           desired_job_types: formData.desired_job_types.length > 0 ? formData.desired_job_types : null,
           is_open_to_remote: formData.is_open_to_remote,
-          desired_salary_min: formData.desired_salary_min ? parseInt(formData.desired_salary_min) : null,
-          desired_salary_max: formData.desired_salary_max ? parseInt(formData.desired_salary_max) : null,
           onboarding_completed: true,
         })
         .eq('user_id', user!.id);
@@ -272,28 +268,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 />
                 <label htmlFor="remote" className="text-sm cursor-pointer">Open to remote work</label>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="salary_min">Min Salary Expectation</Label>
-                  <Input
-                    id="salary_min"
-                    type="number"
-                    placeholder="80000"
-                    value={formData.desired_salary_min}
-                    onChange={(e) => setFormData({ ...formData, desired_salary_min: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="salary_max">Max Salary Expectation</Label>
-                  <Input
-                    id="salary_max"
-                    type="number"
-                    placeholder="150000"
-                    value={formData.desired_salary_max}
-                    onChange={(e) => setFormData({ ...formData, desired_salary_max: e.target.value })}
-                  />
-                </div>
-              </div>
+              {/* Salary expectations removed (contracting-first product) */}
             </div>
           )}
 

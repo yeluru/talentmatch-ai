@@ -69,3 +69,15 @@ verify_jwt = true
 
 [functions.send-org-admin-invite-existing]
 verify_jwt = true
+
+[functions.parse-job-description]
+verify_jwt = true
+
+[functions.tailor-resume]
+verify_jwt = true
+
+[functions.fetch-linkedin-text]
+verify_jwt = true
+
+[functions.fetch-jd-text]
+verify_jwt = true
