@@ -33,6 +33,7 @@ TalentMatch AI is a **multi-tenant recruitment platform** where:
 - **Auditability**: all meaningful write actions are traceable (who/what/when/where).
 - **Safe internal admin**: platform admin can troubleshoot broadly, but destructive actions are tightly controlled.
 - **Marketplace consent**: cross-tenant discoverability must be opt-in, revocable, and clearly communicated.
+- **Resume integrity**: when tailoring resumes, immutable identity/history fields must never be edited (see “Candidate resume + ATS tooling”).
 
 ---
 
@@ -71,6 +72,46 @@ TalentMatch AI is a **multi-tenant recruitment platform** where:
 - Candidate can optionally:
   - Enter an **organization invite code** (links candidate ↔ org to unlock that org’s private jobs).
   - Opt-in to be **discoverable by recruiters** (marketplace visibility).
+
+---
+
+## Candidate resume + ATS tooling
+
+### Resume uploads (candidate)
+- Candidates can upload resumes as **PDF** or **DOCX**.
+- Legacy **`.doc` is not supported** (unreliable text extraction); users should re-save as DOCX or export to PDF.
+- Uploaded resumes are parsed via `parse-resume` and stored as best-effort structured data + extracted text.
+
+### AI Resume Check (resume vs JD)
+- Candidates can analyze a resume against a JD and receive:
+  - Match score (ATS-style)
+  - Matched / missing JD phrases
+  - Actionable recommendations
+- Scoring must be explainable and stable:
+  - Deterministic **JD keyword coverage** is computed from the JD + resume text
+  - A model score may be used, but the final score is not allowed to be opaque
+
+### Resume Workspace (tailor resume to a JD)
+Resume Workspace produces:
+1) **JD Skill Extraction** (Section 0)
+2) **ATS-optimized resume** (Section 1)
+3) **ATS & Risk report + study plan** (Section 2)
+
+#### Tailoring invariants (hard constraints)
+These fields **must not be modified** during tailoring and must be taken **as-is** from the base resume facts:
+- Name, phone, email, LinkedIn, GitHub, location
+- Education
+- Certifications
+- Employer/company names
+- Job titles
+- Employment dates (and project/role durations)
+
+Allowed modifications:
+- Professional summary
+- Skills section (ATS-aligned, naturally worded)
+- Experience bullets (rewritten for JD alignment, fully defensible)
+
+Section 2 must include a concrete “what to study next” plan for any gaps or omitted JD phrases.
 
 ### 2) Staff onboarding (invite-only)
 Invite link flow is consistent across Org Admin / Account Manager / Recruiter:
