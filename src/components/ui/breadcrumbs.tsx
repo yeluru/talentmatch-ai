@@ -12,7 +12,7 @@ const routeLabels: Record<string, string> = {
   // Candidate routes
   'profile': 'My Profile',
   'resumes': 'My Resumes',
-  'ai-analysis': 'AI Resume Check',
+  'ai-analysis': 'ATS Checkpoint',
   'applications': 'My Applications',
   
   // Recruiter routes

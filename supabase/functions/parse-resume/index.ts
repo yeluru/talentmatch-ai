@@ -10,7 +10,7 @@ const corsHeaders = {
 // Input validation constants
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_TEXT_LENGTH = 100000; // 100KB of text
-const PARSER_VERSION = "2026-01-12-parse-resume-v2";
+const PARSER_VERSION = "2026-01-15-parse-resume-v3-links";
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -82,6 +82,76 @@ async function extractDocxText(binaryContent: Uint8Array): Promise<string> {
   if (!docXml) return "";
   const xml = strFromU8(docXml);
   return docxXmlToText(xml);
+}
+
+function normalizeLikelyUrl(u: string): string {
+  const v = String(u || "").trim();
+  if (!v) return "";
+  const decoded = decodeXmlEntities(v);
+  if (/^https?:\/\//i.test(decoded)) return decoded;
+  // Common in Word rels: "www.linkedin.com/in/..." without scheme
+  if (/^(www\.)?(linkedin\.com|github\.com)\//i.test(decoded)) return `https://${decoded.replace(/^www\./i, "")}`;
+  return decoded;
+}
+
+function extractDocxHyperlinkUrlsFromXml(documentXml: string, relsXml: string | null | undefined): string[] {
+  const rels = String(relsXml || "");
+  const relMap = new Map<string, string>();
+
+  // Map r:id -> Target URL from document.xml.rels
+  for (const m of rels.matchAll(/<Relationship\b[^>]*>/gi)) {
+    const tag = String(m[0] || "");
+    const id = tag.match(/\bId="([^"]+)"/i)?.[1] || "";
+    const target = tag.match(/\bTarget="([^"]+)"/i)?.[1] || "";
+    const type = tag.match(/\bType="([^"]+)"/i)?.[1] || "";
+    const mode = tag.match(/\bTargetMode="([^"]+)"/i)?.[1] || "";
+    if (!id || !target) continue;
+    const isHyperlink = /\/hyperlink\b/i.test(type) || /external/i.test(mode);
+    if (!isHyperlink) continue;
+    relMap.set(id, normalizeLikelyUrl(target));
+  }
+
+  const urls: string[] = [];
+
+  // 1) Hyperlink tags referencing r:id
+  for (const m of String(documentXml || "").matchAll(/<w:hyperlink\b[^>]*\br:id="([^"]+)"[^>]*>/gi)) {
+    const rid = String(m[1] || "").trim();
+    const u = rid ? relMap.get(rid) : null;
+    if (u) urls.push(u);
+  }
+
+  // 2) Field codes sometimes embed hyperlinks: HYPERLINK "https://..."
+  for (const m of String(documentXml || "").matchAll(/HYPERLINK\s+"([^"]+)"/gi)) urls.push(normalizeLikelyUrl(String(m[1] || "")));
+  for (const m of String(documentXml || "").matchAll(/HYPERLINK\s+'([^']+)'/gi)) urls.push(normalizeLikelyUrl(String(m[1] || "")));
+
+  // 3) As a fallback, include any obvious linkedin/github targets found in rels
+  for (const u of relMap.values()) {
+    if (/linkedin\.com/i.test(u) || /github\.com/i.test(u)) urls.push(u);
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const u0 of urls) {
+    const u = normalizeLikelyUrl(u0);
+    if (!u) continue;
+    const key = u.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(u.slice(0, 500));
+  }
+  return out.slice(0, 50);
+}
+
+async function extractDocxTextAndUrls(binaryContent: Uint8Array): Promise<{ text: string; urls: string[] }> {
+  const { unzipSync, strFromU8 } = await import("https://esm.sh/fflate@0.8.2?deno");
+  const files = unzipSync(binaryContent);
+  const docXmlU8 = files?.["word/document.xml"];
+  if (!docXmlU8) return { text: "", urls: [] };
+  const docXml = strFromU8(docXmlU8);
+  const relsU8 = files?.["word/_rels/document.xml.rels"];
+  const relsXml = relsU8 ? strFromU8(relsU8) : "";
+  const urls = extractDocxHyperlinkUrlsFromXml(docXml, relsXml);
+  return { text: docxXmlToText(docXml), urls };
 }
 
 function validateBase64Size(base64: string): boolean {
@@ -992,6 +1062,7 @@ serve(async (req) => {
 
     let textContent = resumeText ? String(resumeText).slice(0, MAX_TEXT_LENGTH) : null;
     let extractionMeta: any = {};
+    let extractedLinkUrls: string[] = [];
 
     // If we received a base64 file, we need to extract text
     if (fileBase64 && !textContent) {
@@ -1025,10 +1096,23 @@ serve(async (req) => {
 
           const partsLayout: string[] = [];
           const partsEol: string[] = [];
+          const linkUrls: string[] = [];
           for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
             const content = await page.getTextContent();
             const items = (content as any)?.items || [];
+
+            // Best-effort link extraction from annotations (captures "LinkedIn" text linked to a URL)
+            try {
+              const ann = await page.getAnnotations?.();
+              const list = Array.isArray(ann) ? ann : [];
+              for (const a of list) {
+                const u = (a as any)?.url || (a as any)?.unsafeUrl || null;
+                if (typeof u === "string" && u.trim()) linkUrls.push(u.trim().slice(0, 500));
+              }
+            } catch (_e) {
+              // ignore annotation extraction errors
+            }
 
             const layout = normalizeExtractedText(pdfItemsToText(items));
             const eol = normalizeExtractedText(itemsWithEOLToText(items));
@@ -1063,6 +1147,19 @@ serve(async (req) => {
               eol: { score: scoreEol.score, diagnostics: scoreEol },
             },
           };
+          // Persist discovered link URLs for downstream contact extraction.
+          if (linkUrls.length) {
+            const m = new Map<string, string>();
+            for (const u0 of linkUrls) {
+              const u = String(u0 || "").trim();
+              if (!u) continue;
+              const key = u.toLowerCase();
+              if (!m.has(key)) m.set(key, u);
+            }
+            const uniq = Array.from(m.values()).slice(0, 50);
+            extractedLinkUrls = uniq;
+            extractionMeta.pdf_links = uniq;
+          }
 
           const diag = computeExtractionDiagnostics(textContent);
           console.log(
@@ -1086,8 +1183,12 @@ serve(async (req) => {
       ) {
         // DOCX text extraction
         try {
-          const raw = await extractDocxText(binaryContent);
-          textContent = normalizeExtractedText(raw);
+          const { text, urls } = await extractDocxTextAndUrls(binaryContent);
+          textContent = normalizeExtractedText(text);
+          if (Array.isArray(urls) && urls.length) {
+            extractedLinkUrls = urls;
+            extractionMeta.docx_links = urls;
+          }
           const diag = computeExtractionDiagnostics(textContent);
           console.log(
             "DOCX extracted text length:",
@@ -1178,7 +1279,7 @@ serve(async (req) => {
     const linkedinMatch =
       textForUrlExtraction.match(/\bhttps?:\/\/(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?\b/i) ||
       textForUrlExtraction.match(/\blinkedin\.com\/in\/[A-Za-z0-9_-]+\/?\b/i);
-    const extractedLinkedinUrl = linkedinMatch
+    let extractedLinkedinUrl = linkedinMatch
       ? (linkedinMatch[0].toLowerCase().startsWith('http') ? linkedinMatch[0] : `https://${linkedinMatch[0]}`)
           .trim()
           .slice(0, 500)
@@ -1186,7 +1287,18 @@ serve(async (req) => {
 
     // Best-effort GitHub URL extraction (helps fill Contact Info)
     const githubMatch = textForUrlExtraction.match(/\bhttps?:\/\/(?:www\.)?github\.com\/[A-Za-z0-9_.-]+/i);
-    const extractedGithubUrl = githubMatch ? githubMatch[0].trim().slice(0, 500) : undefined;
+    let extractedGithubUrl = githubMatch ? githubMatch[0].trim().slice(0, 500) : undefined;
+
+    // If URLs are embedded as hyperlinks (DOCX/PDF), fall back to extracted link URLs.
+    if ((!extractedLinkedinUrl || !extractedGithubUrl) && Array.isArray(extractedLinkUrls) && extractedLinkUrls.length) {
+      const pick = (re: RegExp) => extractedLinkUrls.find((u) => re.test(String(u || ""))) || undefined;
+      if (!extractedLinkedinUrl) {
+        extractedLinkedinUrl =
+          pick(/\blinkedin\.com\/in\/[a-z0-9_-]+\/?/i) ||
+          pick(/\blinkedin\.com\//i);
+      }
+      if (!extractedGithubUrl) extractedGithubUrl = pick(/\bgithub\.com\/[a-z0-9_.-]+/i);
+    }
 
     console.log(
       "Regex extracted - Email:",

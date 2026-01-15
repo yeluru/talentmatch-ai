@@ -9,10 +9,13 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle, XCircle, AlertTriangle, Lightbulb, FileText, Search, Briefcase } from 'lucide-react';
+import { Clipboard, ClipboardCheck, Loader2, Search, Sparkles, Briefcase, ArrowRight, Info } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { resumesObjectPath } from '@/lib/storagePaths';
 
@@ -230,6 +233,8 @@ export default function AIAnalysis() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [missingFilter, setMissingFilter] = useState('');
+  const [copiedAt, setCopiedAt] = useState<number>(0);
 
   useEffect(() => {
     if (user) {
@@ -297,6 +302,7 @@ export default function AIAnalysis() {
           areas_for_improvement: Array.isArray(fa.areas_for_improvement) ? fa.areas_for_improvement : undefined,
           recommendations: Array.isArray(fa.recommendations) ? fa.recommendations : [],
           summary: typeof fa.summary === 'string' ? fa.summary : '',
+          diagnostics: fa?.diagnostics || null,
         });
       }
     } catch (e) {
@@ -593,6 +599,38 @@ export default function AIAnalysis() {
     return 'Needs Improvement';
   };
 
+  const missingPhrases: string[] = Array.isArray((analysisResult as any)?.diagnostics?.keyword_coverage?.missing)
+    ? ((analysisResult as any).diagnostics.keyword_coverage.missing as string[])
+    : [];
+  const matchedPhraseCount: number =
+    typeof (analysisResult as any)?.diagnostics?.keyword_coverage?.matched_count === 'number'
+      ? (analysisResult as any).diagnostics.keyword_coverage.matched_count
+      : 0;
+  const totalPhraseCount: number =
+    typeof (analysisResult as any)?.diagnostics?.keyword_coverage?.total === 'number'
+      ? (analysisResult as any).diagnostics.keyword_coverage.total
+      : 0;
+
+  const filteredMissing = missingPhrases.filter((k) =>
+    String(k || '')
+      .toLowerCase()
+      .includes(missingFilter.trim().toLowerCase()),
+  );
+
+  const copyMissing = async (count: number) => {
+    try {
+      const list = filteredMissing.slice(0, Math.max(1, count));
+      if (!list.length) return toast.message('No missing phrases to copy');
+      const text = list.join('\n');
+      await navigator.clipboard.writeText(text);
+      setCopiedAt(Date.now());
+      toast.success(`Copied ${list.length} phrases`);
+    } catch (e) {
+      console.error('Clipboard copy failed', e);
+      toast.error('Could not copy to clipboard');
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -605,35 +643,83 @@ export default function AIAnalysis() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold flex items-center gap-2">
-            <Sparkles className="h-8 w-8 text-accent" />
-            AI Resume Analysis
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Get AI-powered feedback on your resume and job match
-          </p>
-        </div>
+      <TooltipProvider>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-accent" />
+                <h1 className="font-display text-3xl font-bold">ATS Checkpoint</h1>
+              </div>
+              <p className="text-muted-foreground mt-1">
+                Optimize for ATS shortlisting. The canonical score comes from deterministic JD keyword coverage + a model estimate.
+              </p>
+            </div>
+          </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Input Section */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Resume</CardTitle>
-                <CardDescription>Choose which resume to analyze</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {resumes.length === 0 ? (
-                  <div className="text-center py-4">
-                    <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-muted-foreground">No resumes uploaded yet</p>
-                    <Button variant="link" asChild className="mt-2">
-                      <a href="/candidate/resumes">Upload a resume</a>
-                    </Button>
-                  </div>
-                ) : (
+          {/* Inputs (top panel) */}
+          <Card className="bg-gradient-to-br from-primary/5 via-background to-background">
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Job Description
+                </Label>
+                <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="existing">Select Job</TabsTrigger>
+                    <TabsTrigger value="custom">Paste JD</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="existing" className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search jobs by title or company..."
+                        value={jobSearchQuery}
+                        onChange={(e) => setJobSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <div className="max-h-[240px] overflow-y-auto space-y-2 border rounded-md p-2 bg-background">
+                      {filteredJobs.length === 0 ? (
+                        <p className="text-muted-foreground text-sm text-center py-4">
+                          {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
+                        </p>
+                      ) : (
+                        filteredJobs.slice(0, 20).map((job) => (
+                          <div
+                            key={job.id}
+                            className={`p-3 rounded-md cursor-pointer transition-colors ${
+                              selectedJobId === job.id ? 'bg-primary/10 border border-primary' : 'bg-muted/50 hover:bg-muted'
+                            }`}
+                            onClick={() => handleJobSelect(job.id)}
+                          >
+                            <p className="font-medium text-sm">{job.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {job.organization_name} {job.location && `• ${job.location}`}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="custom">
+                    <Textarea
+                      placeholder="Paste the job description here..."
+                      rows={10}
+                      value={jobDescription}
+                      onChange={(e) => setJobDescription(e.target.value)}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div className="w-full md:max-w-[520px] space-y-2">
+                  <Label>Resume</Label>
                   <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a resume" />
@@ -651,240 +737,269 @@ export default function AIAnalysis() {
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5" />
-                  Job Description
-                </CardTitle>
-                <CardDescription>
-                  Select an existing job or paste a custom description
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="existing">Select Job</TabsTrigger>
-                    <TabsTrigger value="custom">Paste JD</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="existing" className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search jobs by title or company..."
-                        value={jobSearchQuery}
-                        onChange={(e) => setJobSearchQuery(e.target.value)}
-                        className="pl-9"
-                      />
+                  {!resumes.length && (
+                    <div className="text-xs text-muted-foreground">
+                      No resumes yet. <a className="underline" href="/candidate/resumes">Upload one</a>.
                     </div>
-                    <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-md p-2">
-                      {filteredJobs.length === 0 ? (
-                        <p className="text-muted-foreground text-sm text-center py-4">
-                          {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
-                        </p>
-                      ) : (
-                        filteredJobs.slice(0, 20).map((job) => (
-                          <div
-                            key={job.id}
-                            className={`p-3 rounded-md cursor-pointer transition-colors ${
-                              selectedJobId === job.id 
-                                ? 'bg-primary/10 border border-primary' 
-                                : 'bg-muted/50 hover:bg-muted'
-                            }`}
-                            onClick={() => handleJobSelect(job.id)}
-                          >
-                            <p className="font-medium text-sm">{job.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {job.organization_name} {job.location && `• ${job.location}`}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                      {filteredJobs.length > 20 && (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                          Showing 20 of {filteredJobs.length} jobs. Refine your search.
-                        </p>
-                      )}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="custom">
-                    <Textarea
-                      placeholder="Paste the job description here..."
-                      rows={8}
-                      value={jobDescription}
-                      onChange={(e) => setJobDescription(e.target.value)}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                  )}
+                </div>
 
-            <Button 
-              onClick={handleAnalyze} 
-              disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
-              className="w-full"
-              size="lg"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
-                </>
+                <div className="w-full md:w-auto">
+                  <Button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
+                    className="w-full md:w-auto"
+                    size="default"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Run check
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Results (bottom panel) */}
+          <div className="space-y-6">
+              {!analysisResult ? (
+                <Card>
+                  <CardContent className="py-12">
+                    <div className="max-w-xl mx-auto text-center space-y-2">
+                      <div className="text-2xl font-semibold">Run a check</div>
+                      <div className="text-muted-foreground">
+                        Select your resume and paste/select a JD. We’ll show exactly what phrases to add to raise the canonical score.
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Analyze Resume
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* Results Section */}
-          <div className="space-y-6">
-            {analysisResult ? (
-              <>
-                {/* Score Card */}
-                <Card className="border-primary">
-                  <CardContent className="pt-6">
-                    <div className="text-center">
-                      <div className={`text-5xl font-bold ${getScoreColor(analysisResult.match_score)}`}>
-                        {analysisResult.match_score}%
-                      </div>
-                      <p className="text-lg font-medium mt-1">
-                        {getScoreLabel(analysisResult.match_score)}
-                      </p>
-                      <Progress 
-                        value={analysisResult.match_score} 
-                        className="mt-4 h-2"
-                      />
-                      {analysisResult.diagnostics?.scoring && (
-                        <div className="mt-4 text-xs text-muted-foreground space-y-1">
-                          <div>
-                            <span className="font-medium text-foreground">Score breakdown:</span>{' '}
-                            model {analysisResult.diagnostics.scoring.model_score}% · keyword coverage{' '}
-                            {analysisResult.diagnostics.scoring.keyword_coverage_score}% (combined)
+                  <Card className="border-primary bg-gradient-to-br from-primary/5 via-background to-background">
+                    <CardContent className="pt-6">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            ATS match score (canonical)
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center">
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Canonical score = deterministic JD keyword coverage blended with a model estimate.
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
-                          <div>
-                            <span className="font-medium text-foreground">Keyword coverage:</span>{' '}
-                            {analysisResult.diagnostics.keyword_coverage?.matched_count ?? 0}/
-                            {analysisResult.diagnostics.keyword_coverage?.total ?? 0} JD phrases found
+                          <div className={`text-5xl font-bold tracking-tight ${getScoreColor(analysisResult.match_score)}`}>
+                            {analysisResult.match_score}%
+                          </div>
+                          <div className="mt-1 text-sm font-medium text-foreground">{getScoreLabel(analysisResult.match_score)}</div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <a href="/candidate/resume-workspace">
+                                Improve in Resume Workspace <ArrowRight className="ml-2 h-4 w-4" />
+                              </a>
+                            </Button>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
 
-                {analysisResult.diagnostics?.keyword_coverage?.missing?.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">ATS Keyword Checklist (JD phrases missing)</CardTitle>
-                      <CardDescription>
-                        These phrases are in the JD but were not found verbatim in the resume text used for analysis.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-2">
-                      {analysisResult.diagnostics.keyword_coverage.missing.slice(0, 30).map((k: string, i: number) => (
-                        <Badge key={i} variant="secondary">
-                          {k}
-                        </Badge>
-                      ))}
+                        <div className="w-full md:max-w-[420px]">
+                          <Progress value={analysisResult.match_score} className="h-2" />
+                          {analysisResult.diagnostics?.scoring && (
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                              <div className="rounded-md border bg-background p-2">
+                                <div className="font-medium text-foreground">Keyword coverage</div>
+                                <div>
+                                  {analysisResult.diagnostics.scoring.keyword_coverage_score}% · {matchedPhraseCount}/{totalPhraseCount} phrases
+                                </div>
+                              </div>
+                              <div className="rounded-md border bg-background p-2">
+                                <div className="font-medium text-foreground">Model estimate</div>
+                                <div>{analysisResult.diagnostics.scoring.model_score}%</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
-                )}
 
-                {/* What to do next (single, simplified action panel) */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">What to do next</CardTitle>
-                    <CardDescription>Use this to raise the canonical score and prep for interviews.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {analysisResult.diagnostics?.keyword_coverage?.missing?.length > 0 && (
-                      <div className="text-sm">
-                        <div className="font-medium">1) Add missing JD phrases verbatim</div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">ATS boost plan (3 steps)</CardTitle>
+                      <CardDescription>This is the fastest path to improve the canonical score.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-md border bg-background p-3 text-sm">
+                        <div className="font-medium">1) Copy missing JD phrases</div>
                         <div className="text-muted-foreground mt-1">
-                          Best place: Skills. Second best: most recent role bullets (only if defensible).
+                          Copy from the checklist below and paste into your resume using the same wording.
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {analysisResult.diagnostics.keyword_coverage.missing.slice(0, 30).map((k: string, i: number) => (
-                            <Badge key={i} variant="secondary">
-                              {k}
+                      </div>
+                      <div className="rounded-md border bg-background p-3 text-sm">
+                        <div className="font-medium">2) Place them in the right spot</div>
+                        <div className="text-muted-foreground mt-1">
+                          Best: Skills. Next: Summary. Last: most recent bullets (only if defensible).
+                        </div>
+                      </div>
+                      <div className="rounded-md border bg-background p-3 text-sm">
+                        <div className="font-medium">3) Re-run ATS check</div>
+                        <div className="text-muted-foreground mt-1">
+                          After edits, run the check again until keyword coverage is where you want it.
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
+                        <CardDescription>
+                          These phrases were not found verbatim in your resume text. Add them naturally (best place: Skills).
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <Input
+                            placeholder="Search missing phrases..."
+                            value={missingFilter}
+                            onChange={(e) => setMissingFilter(e.target.value)}
+                          />
+                          <div className="flex gap-2 shrink-0">
+                            <Button variant="outline" size="sm" onClick={() => copyMissing(15)} disabled={!filteredMissing.length}>
+                              {Date.now() - copiedAt < 2000 ? (
+                                <>
+                                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Clipboard className="mr-2 h-4 w-4" />
+                                  Copy top 15
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <ScrollArea className="h-[260px] rounded-md border p-3">
+                          {filteredMissing.length ? (
+                            <div className="flex flex-wrap gap-2">
+                              {filteredMissing.slice(0, 60).map((k, i) => (
+                                <Badge key={`${k}-${i}`} variant="secondary">
+                                  {k}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground py-10 text-center">
+                              No missing phrases.
+                            </div>
+                          )}
+                        </ScrollArea>
+
+                        <div className="text-xs text-muted-foreground">
+                          Tip: add to <span className="font-medium text-foreground">Skills</span> first; only add to bullets if you can defend it in interview.
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Next steps</CardTitle>
+                        <CardDescription>What to change, then what to prep for interviews.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="rounded-md border bg-background p-3 text-sm">
+                          <div className="font-medium">1) Add missing JD phrases</div>
+                          <div className="text-muted-foreground mt-1">
+                            Add the missing phrases verbatim, starting in Skills.
+                          </div>
+                        </div>
+                        <div className="rounded-md border bg-background p-3 text-sm">
+                          <div className="font-medium">2) Prep examples for gaps</div>
+                          <div className="text-muted-foreground mt-1">
+                            Anything you add should be explainable with a specific project story.
+                          </div>
+                          {analysisResult.missing_skills?.length ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {analysisResult.missing_skills.slice(0, 18).map((s, i) => (
+                                <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
+                                  {s}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        {analysisResult.recommendations?.length ? (
+                          <Accordion type="single" collapsible defaultValue="recs">
+                            <AccordionItem value="recs">
+                              <AccordionTrigger>Recommended edits</AccordionTrigger>
+                              <AccordionContent>
+                                <ul className="space-y-2 text-sm text-muted-foreground">
+                                  {analysisResult.recommendations.slice(0, 12).map((rec, i) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <span className="mt-1">•</span>
+                                      <span>{rec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Accordion type="multiple" className="w-full" defaultValue={['summary', 'matched']}>
+                    <AccordionItem value="summary">
+                      <AccordionTrigger>Summary</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">{analysisResult.summary}</div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="matched">
+                      <AccordionTrigger>Matched skills</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-wrap gap-2">
+                          {analysisResult.matched_skills.slice(0, 60).map((s, i) => (
+                            <Badge key={`${s}-${i}`} variant="outline">
+                              {s}
                             </Badge>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {analysisResult.missing_skills.length > 0 && (
-                      <div className="text-sm">
-                        <div className="font-medium">2) Prep examples for missing skills</div>
-                        <div className="text-muted-foreground mt-1">
-                          If you keep these in the resume with “exposure / collaborated / ramped” framing, expect interview questions.
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {analysisResult.missing_skills.slice(0, 20).map((skill, i) => (
-                            <Badge key={i} variant="outline" className="border-destructive/20 text-destructive">
-                              {skill}
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="missing">
+                      <AccordionTrigger>Missing skills (model)</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-wrap gap-2">
+                          {analysisResult.missing_skills.slice(0, 60).map((s, i) => (
+                            <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
+                              {s}
                             </Badge>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {analysisResult.recommendations?.length > 0 && (
-                      <div className="text-sm">
-                        <div className="font-medium">3) Apply these edits</div>
-                        <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                          {analysisResult.recommendations.slice(0, 8).map((rec, i) => (
-                            <li key={i}>{rec}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Recommendations */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-warning" />
-                      Recommendations
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {analysisResult.recommendations.map((rec, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-warning mt-1">•</span>
-                          <span className="text-muted-foreground">{rec}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Ready to Analyze</h3>
-                  <p className="text-muted-foreground text-center">
-                    Select a resume and optionally add a job description, then click analyze to get AI-powered feedback.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </>
+              )}
           </div>
         </div>
-      </div>
+      </TooltipProvider>
     </DashboardLayout>
   );
 }

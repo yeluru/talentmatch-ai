@@ -10,10 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { FileText, Plus, Save, Trash2, Clock, Download, History, Sparkles, X, Search, Briefcase } from 'lucide-react';
+import { FileText, Plus, Save, Trash2, Clock, Download, Sparkles, X, Search, Briefcase, Copy } from 'lucide-react';
 import { resumesObjectPath } from '@/lib/storagePaths';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -21,11 +24,13 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ExternalHyperlink,
+  TabStopType,
   AlignmentType,
   BorderStyle,
   convertInchesToTwip,
 } from 'docx';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFName, PDFString } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import outfitFontUrl from '@/assets/fonts/Outfit.ttf?url';
 
@@ -160,14 +165,6 @@ type ResumeDocumentRow = {
   analysis_json?: any;
   created_at: string;
   updated_at: string;
-};
-
-type ResumeVersionRow = {
-  id: string;
-  resume_document_id: string;
-  change_summary: string | null;
-  content_json: ResumeDocContent;
-  created_at: string;
 };
 
 function safeContent(v: any): ResumeDocContent {
@@ -400,6 +397,197 @@ function buildResumeTextFromResumeDoc(doc: ResumeDocContent): string {
   }
 
   return lines.join('\n').trim();
+}
+
+function formatUrlForHeaderDisplay(url: string): string {
+  let u = String(url || '').trim();
+  if (!u) return '';
+  u = u.replace(/^https?:\/\//i, '');
+  u = u.replace(/^www\./i, '');
+  u = u.replace(/\/$/, '');
+  return u.trim();
+}
+
+const HEADER_SEP = '  •  ';
+const HEADER_PIPE = '   |   ';
+
+function formatPhoneForHeaderDisplay(phone: string): string {
+  const raw = String(phone || '').trim();
+  if (!raw) return '';
+  const digits = raw.replace(/[^\d]+/g, '');
+  // Handle US-like numbers (10 digits, optionally leading 1)
+  const d = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (d.length === 10) {
+    return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+  return raw;
+}
+
+function ensureHttpUrl(url: string): string {
+  const u = String(url || '').trim();
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  // common: linkedin.com/... or github.com/...
+  return `https://${u.replace(/^www\./i, '')}`;
+}
+
+function normalizeBulletForDedupe(s: string) {
+  return String(s ?? '')
+    .toLowerCase()
+    .replace(/^[•\-\*\u2022]+\s*/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function bulletsNearDuplicate(a: string, b: string) {
+  const na = normalizeBulletForDedupe(a);
+  const nb = normalizeBulletForDedupe(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  // substring heuristic catches "same bullet but with a few extra words"
+  if (na.length >= 40 && nb.length >= 40) {
+    if (na.includes(nb) || nb.includes(na)) return true;
+  }
+  const trigrams = (s: string) => {
+    const t = s.replace(/\s+/g, ' ').trim();
+    const out = new Set<string>();
+    if (t.length < 12) return out;
+    // Character trigrams over a compacted string reduce sensitivity to minor tokenization differences
+    const c = t.replace(/\s+/g, '');
+    for (let i = 0; i < c.length - 2; i++) out.add(c.slice(i, i + 3));
+    return out;
+  };
+  const triJacc = (sa: Set<string>, sb: Set<string>) => {
+    if (!sa.size || !sb.size) return 0;
+    let inter = 0;
+    for (const x of sa) if (sb.has(x)) inter++;
+    return inter / (sa.size + sb.size - inter);
+  };
+  const ta = new Set(na.split(' ').filter(Boolean));
+  const tb = new Set(nb.split(' ').filter(Boolean));
+  if (ta.size < 5 || tb.size < 5) return false;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  const j = inter / (ta.size + tb.size - inter);
+  const tj = triJacc(trigrams(na), trigrams(nb));
+  // Word-level catches same semantics; trigram-level catches minor tokenization differences (microservices vs micro services).
+  return j >= 0.66 || tj >= 0.86;
+}
+
+function normalizeBulletsForExport(bullets: string[]): string[] {
+  const out: string[] = [];
+  const push = (s: string) => {
+    const v = String(s || '').trim();
+    if (!v) return;
+    // Drop label-only lines
+    if (/^responsibilities\s*:?$/i.test(v)) return;
+    out.push(v);
+  };
+
+  for (const raw of Array.isArray(bullets) ? bullets : []) {
+    let b = String(raw || '').trim();
+    if (!b) continue;
+    // Remove common label prefix
+    b = b.replace(/^responsibilities\s*:\s*/i, '').trim();
+    // Normalize bullets inside a bullet
+    b = b.replace(/[•\u2022]/g, '\n• ');
+
+    // If the bullet contains multiple lines, split it.
+    const lines = b
+      .split(/\n+/g)
+      .map((l) => l.replace(/^[•\-\*]+\s*/g, '').trim())
+      .filter(Boolean);
+    const longEnoughLines = lines.filter((l) => l.length >= 24);
+    if (longEnoughLines.length >= 2) {
+      for (const l of longEnoughLines) push(l);
+      continue;
+    }
+
+    // If it's a huge paragraph with many sentences, split into sentence-like bullets.
+    if (b.length > 240) {
+      const parts = b
+        .split(/(?<=[.!?])\s+/g)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .filter((p) => p.length >= 30);
+      if (parts.length >= 2) {
+        for (const p of parts.slice(0, 12)) push(p.replace(/[.]+$/g, '').trim());
+        continue;
+      }
+    }
+
+    push(b);
+  }
+
+  return out;
+}
+
+function sanitizeExperienceForExport(exp: Array<{ company?: any; title?: any; start?: any; end?: any; location?: any; bullets?: any[] }>) {
+  const looksLikeSectionLeak = (s: string) => {
+    const n = String(s || '').toLowerCase();
+    return (
+      n.includes('professional experience') ||
+      n.includes('core technical skills') ||
+      n.includes('professional summary') ||
+      n.includes('education') ||
+      n.includes('certifications') ||
+      n.includes('responsibilities:')
+    );
+  };
+
+  const cleanField = (v: any, max = 120) =>
+    String(v ?? '')
+      .replace(/\s+/g, ' ')
+      .replace(/[•\u2022]/g, ' ')
+      .trim()
+      .slice(0, max);
+
+  const out: any[] = [];
+  const seen = new Set<string>();
+  for (const e0 of Array.isArray(exp) ? exp : []) {
+    const rawTitle = String(e0?.title ?? '');
+    const rawCompany = String(e0?.company ?? '');
+
+    const title = cleanField(rawTitle, 120);
+    const company = cleanField(rawCompany, 120);
+    const start = cleanField(e0?.start, 40);
+    const end = cleanField(e0?.end, 40);
+    const location = cleanField(e0?.location, 80);
+
+    // Drop obvious "section leakage" rows (e.g., company/title contains an entire section blob).
+    const headerBlob = `${rawTitle} ${rawCompany}`.trim();
+    const tooLong = rawTitle.length > 140 || rawCompany.length > 140 || headerBlob.length > 220;
+    if (tooLong && looksLikeSectionLeak(headerBlob)) continue;
+
+    // Normalize + split mega-bullets; then near-dedupe.
+    const normalizedBullets = normalizeBulletsForExport(Array.isArray(e0?.bullets) ? e0.bullets : []);
+    const bullets: string[] = [];
+    for (const b of normalizedBullets) {
+      if (!b) continue;
+      if (looksLikeSectionLeak(b) && b.length > 80) continue;
+      if (bullets.some((eb) => bulletsNearDuplicate(String(eb || ''), b))) continue;
+      bullets.push(b);
+    }
+
+    if (!title && !company && !bullets.length) continue;
+
+    const key = [title.toLowerCase(), company.toLowerCase(), start.toLowerCase(), end.toLowerCase()].join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      ...e0,
+      title: title || undefined,
+      company: company || undefined,
+      start: start || undefined,
+      end: end || undefined,
+      location: location || undefined,
+      bullets,
+    });
+  }
+
+  return out;
 }
 
 function buildResumeTextFromParsedFacts(parsed: any): string {
@@ -691,19 +879,16 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
   const tech = doc.skills?.technical || [];
   const soft = doc.skills?.soft || [];
   const dedupeBullets = (bullets: string[]) => {
-    const seen = new Set<string>();
     const out: string[] = [];
-    for (const b of bullets.map((x) => String(x || '').trim()).filter(Boolean)) {
-      const k = b.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!k) continue;
-      if (seen.has(k)) continue;
-      seen.add(k);
+    for (const b of normalizeBulletsForExport(bullets)) {
+      if (!b) continue;
+      if (out.some((eb) => bulletsNearDuplicate(String(eb || ''), b))) continue;
       out.push(b);
     }
     return out;
   };
 
-  const exp = (doc.experience || []).map((e) => ({
+  const exp = sanitizeExperienceForExport(doc.experience || []).map((e: any) => ({
     ...e,
     bullets: dedupeBullets(Array.isArray(e?.bullets) ? e.bullets : []),
   }));
@@ -728,31 +913,56 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
       font: 'Outfit',
     });
 
+  const headerName = String(c.full_name || '').trim() || 'Resume';
+  const roleTopRight = String(opts?.targetTitle || '').trim() ? String(opts?.targetTitle || '').trim().toUpperCase() : '';
   const header: Paragraph[] = [
     new Paragraph({
-      children: [run(String(c.full_name || '').trim() || 'Resume', { bold: true, size: 36, color: '000000' })],
+      children: roleTopRight
+        ? [
+            run(headerName, { bold: true, size: 36, color: '000000' }),
+            new TextRun({ text: '\t', font: 'Outfit' }),
+            run(roleTopRight, { bold: true, size: 18, color: '000000' }),
+          ]
+        : [run(headerName, { bold: true, size: 36, color: '000000' })],
+      tabStops: roleTopRight ? [{ type: TabStopType.RIGHT, position: convertInchesToTwip(7.0) }] : undefined,
       spacing: { after: 60 },
     }),
   ];
 
-  const contactLine = [
-    c.location,
-    c.phone,
-    c.email,
-    c.linkedin_url,
-    c.github_url,
-  ]
+  const contactLine1 = [c.location, c.phone ? formatPhoneForHeaderDisplay(c.phone) : '', c.email]
     .map((v) => String(v || '').trim())
     .filter((v) => v && !isPlaceholder(v))
-    .join(' • ');
+    .join(HEADER_PIPE);
+  const liUrl = c.linkedin_url ? ensureHttpUrl(String(c.linkedin_url || '').trim()) : '';
+  const ghUrl = c.github_url ? ensureHttpUrl(String(c.github_url || '').trim()) : '';
 
-  if (contactLine) {
+  if (contactLine1) {
     header.push(
       new Paragraph({
-        children: [run(contactLine, { size: 20, color: '000000' })],
-        spacing: { after: 120 },
+        children: [run(contactLine1, { size: 20, color: '000000' })],
+        spacing: { after: liUrl || ghUrl ? 30 : 120 },
       }),
     );
+  }
+  if (liUrl || ghUrl) {
+    const linkRun = (t: string) =>
+      new TextRun({
+        text: t,
+        size: 20,
+        color: '000000',
+        underline: {},
+        font: 'Outfit',
+        style: 'Hyperlink',
+      });
+    const children: any[] = [];
+    if (liUrl) {
+      children.push(new ExternalHyperlink({ link: liUrl, children: [linkRun('LinkedIn')] }));
+    }
+    if (liUrl && ghUrl) children.push(run(HEADER_PIPE, { size: 20, color: '000000' }));
+    if (ghUrl) {
+      children.push(new ExternalHyperlink({ link: ghUrl, children: [linkRun('GitHub')] }));
+    }
+    header.push(new Paragraph({ children, spacing: { after: 120 } }));
   }
 
   const sectionHeading = (t: string) =>
@@ -1086,13 +1296,10 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   };
 
   const dedupeBullets = (bullets: string[]) => {
-    const seen = new Set<string>();
     const out: string[] = [];
-    for (const b of bullets.map((x) => String(x || '').trim()).filter(Boolean)) {
-      const k = b.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!k) continue;
-      if (seen.has(k)) continue;
-      seen.add(k);
+    for (const b of normalizeBulletsForExport(bullets)) {
+      if (!b) continue;
+      if (out.some((eb) => bulletsNearDuplicate(String(eb || ''), b))) continue;
       out.push(b);
     }
     return out;
@@ -1217,10 +1424,85 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   const name = String(c.full_name || title || 'Resume').trim();
   ensureSpace(40);
   drawTextInkBoost(name, margin, y, 20, fontBold, PDF_COLOR.text, true);
+
+  // Target role/title (ALL CAPS) on the top-right, aligned with the name line.
+  const roleUpper = String(title || '').trim() ? String(title || '').trim().toUpperCase() : '';
+  if (roleUpper) {
+    const maxWidth = contentWidth * 0.55;
+    let size = 10;
+    let text = roleUpper;
+    const measure = (t: string, s: number) => fontBold.widthOfTextAtSize(winAnsiSafe(t), s);
+    while (measure(text, size) > maxWidth && size > 8) size -= 0.5;
+    if (measure(text, size) > maxWidth) {
+      let t = text;
+      while (t.length > 10 && measure(`${t}...`, size) > maxWidth) t = t.slice(0, -1);
+      text = `${t}...`;
+    }
+    const w = measure(text, size);
+    drawTextInkBoost(text, margin + contentWidth - w, y, size, fontBold, PDF_COLOR.text, true);
+  }
   y -= 26;
 
-  const contactLine = [c.location, c.phone, c.email, c.linkedin_url, c.github_url].map((v) => String(v || '').trim()).filter(Boolean).join(' • ');
-  if (contactLine) drawParagraph(contactLine, 10, false, PDF_COLOR.meta);
+  const contactLine1 = [c.location, c.phone ? formatPhoneForHeaderDisplay(String(c.phone)) : '', c.email]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean)
+    .join(HEADER_PIPE);
+  if (contactLine1) drawParagraph(contactLine1, 10, false, PDF_COLOR.meta);
+
+  // Cursor for the optional link row ("LinkedIn  •  GitHub")
+  let xCursor = margin;
+
+  const drawLink = (label: string, url: string, size = 10) => {
+    const text = winAnsiSafe(label);
+    const usedFont = font;
+    const uri = ensureHttpUrl(String(url || '').trim());
+    page.drawText(text, { x: xCursor, y, size, font: usedFont, color: PDF_COLOR.meta });
+    // underline
+    const w = usedFont.widthOfTextAtSize(text, size);
+    page.drawLine({ start: { x: xCursor, y: y - 1 }, end: { x: xCursor + w, y: y - 1 }, thickness: 0.6, color: PDF_COLOR.meta });
+    // Real link annotation (clickable)
+    try {
+      if (uri) {
+        const ctx = (pdf as any).context;
+        const rect = ctx.obj([xCursor, y - 2, xCursor + w, y + size]);
+        const annot = ctx.obj({
+          Type: PDFName.of('Annot'),
+          Subtype: PDFName.of('Link'),
+          Rect: rect,
+          Border: ctx.obj([0, 0, 0]),
+          A: ctx.obj({ S: PDFName.of('URI'), URI: PDFString.of(uri) }),
+        });
+        const ref = ctx.register(annot);
+        // @ts-ignore
+        page.node.addAnnot(ref);
+      }
+    } catch {
+      // non-fatal
+    }
+
+    xCursor += w;
+  };
+
+  const linkItems: Array<{ label: string; url: string }> = [];
+  if (c.linkedin_url) linkItems.push({ label: 'LinkedIn', url: ensureHttpUrl(String(c.linkedin_url)) });
+  if (c.github_url) linkItems.push({ label: 'GitHub', url: ensureHttpUrl(String(c.github_url)) });
+
+  if (linkItems.length) {
+    ensureSpace(14);
+    xCursor = margin;
+    const sep = HEADER_PIPE;
+    for (let i = 0; i < linkItems.length; i++) {
+      const it = linkItems[i];
+      drawLink(it.label, it.url, 10);
+      if (i < linkItems.length - 1) {
+        const sepText = winAnsiSafe(sep);
+        const wSep = font.widthOfTextAtSize(sepText, 10);
+        page.drawText(sepText, { x: xCursor, y, size: 10, font, color: PDF_COLOR.meta });
+        xCursor += wSep;
+      }
+    }
+    y -= 13;
+  }
 
   const summary = String(doc.summary || '').trim();
   if (summary) {
@@ -1260,7 +1542,7 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     }
   }
 
-  const exp = (doc.experience || []).map((e) => ({
+  const exp = sanitizeExperienceForExport(doc.experience || []).map((e: any) => ({
     ...e,
     bullets: dedupeBullets(Array.isArray(e?.bullets) ? e.bullets : []),
   }));
@@ -1317,10 +1599,8 @@ export default function ResumeWorkspace() {
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [docs, setDocs] = useState<ResumeDocumentRow[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [versions, setVersions] = useState<ResumeVersionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [checkpointNote, setCheckpointNote] = useState('');
 
   const [resumes, setResumes] = useState<any[]>([]);
   const [selectedBaseResumeId, setSelectedBaseResumeId] = useState<string>('');
@@ -1353,8 +1633,352 @@ export default function ResumeWorkspace() {
   const [generateError, setGenerateError] = useState<string>('');
   const [lastGeneratedDocId, setLastGeneratedDocId] = useState<string | null>(null);
   const [lastGeneratedTitle, setLastGeneratedTitle] = useState<string>('');
+  const [missingPhraseQuery, setMissingPhraseQuery] = useState<string>('');
 
   const selected = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
+
+  const cleanPhrase = (s: unknown) =>
+    String(s || '')
+      .replace(/\s+/g, ' ')
+      .replace(/^•\s*/g, '')
+      .trim();
+
+  const isProbablyTruncatedFragment = (p: string) => {
+    const v = cleanPhrase(p);
+    const words = v.split(' ').filter(Boolean);
+    if (words.length >= 5 && /^[a-z]{1,3}$/.test(words[0] || '') && v.length > 30) return true; // mid-word slice like "vel ..."
+    if (v.length > 90) return true; // sentence fragment, not a keyword/phrase
+    if (/(^|\s)(ensuring|ensure)\s+reliable($|\s)/i.test(v)) return true; // low-signal fragment we see often
+    return false;
+  };
+
+  const isOrgSpecificPhrase = (p: string) => {
+    const v = cleanPhrase(p);
+    const n = v.toLowerCase();
+    if (/\b(dit|cio|irs)\b/.test(n)) return true;
+    return (
+      n.includes('department of') ||
+      n.includes('reporting directly') ||
+      n.includes('chief information officer') ||
+      n.includes('branch managers') ||
+      n.includes('county leadership') ||
+      n.includes('division-wide') ||
+      n.includes('internal revenue service')
+    );
+  };
+
+  const isGenericResponsibilityPhrase = (p: string) => {
+    const n = cleanPhrase(p).toLowerCase();
+    // These aren't “skills” a candidate should paste into Skills; they're leadership responsibilities.
+    return (
+      n.includes('supervis') ||
+      n.includes('staff') ||
+      n.includes('performance management') ||
+      n.includes('performance planning') ||
+      n.includes('staff development') ||
+      n.includes('competency planning') ||
+      n.includes('establishes priorities') ||
+      n.includes('oversees daily operations') ||
+      n.includes('execute technology initiatives') ||
+      n.includes('assists with') ||
+      n.includes('collaborates with')
+    );
+  };
+
+  const isTechnicalSkillLike = (p: string) => {
+    const v = cleanPhrase(p);
+    const n = v.toLowerCase();
+    if (!v) return false;
+    // Acronyms / tools / platforms / languages
+    if (/^[A-Z0-9]{2,10}$/.test(v)) return true;
+    if (/[+/]|\.|\/|\d/.test(v)) return true;
+    return (
+      n.includes('python') ||
+      n.includes('sql') ||
+      n.includes('aws') ||
+      n.includes('azure') ||
+      n.includes('gcp') ||
+      n.includes('spark') ||
+      n.includes('hadoop') ||
+      n.includes('kubernetes') ||
+      n.includes('docker') ||
+      n.includes('terraform') ||
+      n.includes('mlops') ||
+      n === 'ai' ||
+      n === 'ml' ||
+      n.includes('ai/ml')
+    );
+  };
+
+  const uniquePhrases = (arr: unknown[]) => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of arr || []) {
+      const v = cleanPhrase(raw);
+      if (!v) continue;
+      const k = v.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(v);
+    }
+    return out;
+  };
+
+  const visibleImprovements = useMemo(
+    () => (atsImprovements || []).filter((t) => !/^tailor engine version:/i.test(String(t || ''))),
+    [atsImprovements],
+  );
+  const debugImprovements = useMemo(
+    () => (atsImprovements || []).filter((t) => /^tailor engine version:/i.test(String(t || ''))),
+    [atsImprovements],
+  );
+
+  const missingVerbatimPhrases = useMemo(
+    () => uniquePhrases(analysisMissing || []).filter((p) => !isProbablyTruncatedFragment(p)).slice(0, 60),
+    [analysisMissing],
+  );
+  const filteredMissingVerbatim = useMemo(() => {
+    const q = cleanPhrase(missingPhraseQuery).toLowerCase();
+    if (!q) return missingVerbatimPhrases;
+    return missingVerbatimPhrases.filter((p) => p.toLowerCase().includes(q));
+  }, [missingPhraseQuery, missingVerbatimPhrases]);
+
+  const derivedKeywordTotal =
+    notesKeywordTotal ??
+    (analysisMatched.length + analysisMissing.length > 0 ? analysisMatched.length + analysisMissing.length : null);
+  const derivedKeywordMatched =
+    notesTailoredMatchedCount ?? (analysisMatched.length > 0 ? analysisMatched.length : null);
+  const derivedKeywordPct =
+    derivedKeywordTotal && derivedKeywordMatched != null ? Math.round((derivedKeywordMatched / derivedKeywordTotal) * 100) : null;
+
+  // Interview-prep should focus on what we actually changed (candidate-facing), not raw JD fragments.
+  const addedPhrasesClean = useMemo(() => uniquePhrases(notesAddedPhrases || []).filter((p) => !isProbablyTruncatedFragment(p)).slice(0, 20), [
+    notesAddedPhrases,
+  ]);
+  const prepFocus = useMemo(() => {
+    const src = uniquePhrases(notesAddedPhrases || []).filter((p) => !isProbablyTruncatedFragment(p) && !isOrgSpecificPhrase(p));
+    const prefer = src.filter((p) => isTechnicalSkillLike(p)).slice(0, 6);
+    if (prefer.length) return prefer;
+    return src.slice(0, 6);
+  }, [notesAddedPhrases]);
+
+  const resumeTextForEvidence = useMemo(() => {
+    const doc = selected?.content_json || {};
+    const parts: string[] = [];
+    if (doc.summary) parts.push(String(doc.summary));
+    const tech = (doc.skills?.technical || []).join(', ');
+    const soft = (doc.skills?.soft || []).join(', ');
+    if (tech) parts.push(`Skills: ${tech}`);
+    if (soft) parts.push(`Strengths: ${soft}`);
+    for (const e of doc.experience || []) {
+      parts.push([e.title, e.company, e.start, e.end, e.location].filter(Boolean).join(' • '));
+      for (const b of e.bullets || []) parts.push(String(b));
+    }
+    return parts.join('\n').trim();
+  }, [selected]);
+
+  const tokenize = (s: string) =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9+.#/ -]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .filter((w) => w.length > 2 && !['and', 'the', 'with', 'for', 'from', 'this', 'that', 'your', 'you', 'our', 'are'].includes(w));
+
+  const jdTextForAnalysis = useMemo(() => String((selected as any)?.jd_text || jdText || ''), [selected, jdText]);
+
+  const jdSections = useMemo(() => {
+    const raw = jdTextForAnalysis || '';
+    const n = raw.replace(/\r/g, '');
+    const lower = n.toLowerCase();
+    const pick = (re: RegExp) => {
+      const m = lower.match(re);
+      return m?.index ?? -1;
+    };
+    const idxReq = pick(/\b(required qualifications|requirements|required)\b/);
+    const idxPref = pick(/\b(preferred qualifications|preferred|nice to have)\b/);
+    const idxResp = pick(/\b(responsibilities|key responsibilities|what you'll do|job responsibilities)\b/);
+    const idxSoft = pick(/\b(soft skills|what we look for|who you are)\b/);
+    const sections: Array<{ key: 'resp' | 'req' | 'pref' | 'soft' | 'other'; start: number; end: number }> = [];
+    const points = [
+      { key: 'resp' as const, idx: idxResp },
+      { key: 'req' as const, idx: idxReq },
+      { key: 'pref' as const, idx: idxPref },
+      { key: 'soft' as const, idx: idxSoft },
+    ]
+      .filter((p) => p.idx >= 0)
+      .sort((a, b) => a.idx - b.idx);
+    if (!points.length) return { resp: n, req: '', pref: '', soft: '' };
+    for (let i = 0; i < points.length; i++) {
+      const cur = points[i];
+      const next = points[i + 1];
+      sections.push({ key: cur.key, start: cur.idx, end: next ? next.idx : lower.length });
+    }
+    const out: any = { resp: '', req: '', pref: '', soft: '' };
+    for (const s of sections) out[s.key] = n.slice(s.start, s.end).trim();
+    return out as { resp: string; req: string; pref: string; soft: string };
+  }, [jdTextForAnalysis]);
+
+  const keywordInventory = useMemo(() => {
+    const all = uniquePhrases([...(analysisMatched || []), ...(analysisMissing || [])])
+      .filter((p) => !isProbablyTruncatedFragment(p))
+      .slice(0, 80);
+    const reqLower = (jdSections.req || '').toLowerCase();
+    const prefLower = (jdSections.pref || '').toLowerCase();
+    const inv = all.map((k) => {
+      const n = k.toLowerCase();
+      const must = reqLower.includes(n);
+      const nice = !must && prefLower.includes(n);
+      return { keyword: k, priority: must ? 'Must-have' : nice ? 'Nice-to-have' : 'Other' };
+    });
+    return {
+      must: inv.filter((x) => x.priority === 'Must-have').slice(0, 40),
+      nice: inv.filter((x) => x.priority === 'Nice-to-have').slice(0, 40),
+      other: inv.filter((x) => x.priority === 'Other').slice(0, 40),
+    };
+  }, [analysisMatched, analysisMissing, jdSections, isProbablyTruncatedFragment]);
+
+  const extractResponsibilities = (text: string) => {
+    const raw = String(text || '').replace(/\r/g, '');
+    if (!raw.trim()) return [];
+
+    // Normalize inline bullets into lines so we can reliably extract responsibilities.
+    const normalized = raw.replace(/[•\u2022]/g, '\n• ').replace(/\n{3,}/g, '\n\n');
+    const lines = normalized
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const bulletish = lines
+      .filter((l) => /^[-•*]\s+/.test(l))
+      .map((l) => l.replace(/^[-•*]\s+/, '').trim())
+      .filter(Boolean);
+
+    // If JD is pasted as paragraphs, split into sentence-like chunks and take early clauses.
+    const sentenceish = normalized
+      .replace(/\. +/g, '.\n')
+      .replace(/; +/g, ';\n')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => l.length >= 25)
+      .map((l) => l.replace(/\s+/g, ' '))
+      .map((l) => (l.length > 140 ? `${l.slice(0, 140).replace(/\s+\S+$/, '')}` : l));
+
+    const plain = sentenceish
+      .filter((l) => !/^(required|preferred|qualifications|responsibilities)\b/i.test(l))
+      .slice(0, 40);
+
+    // Merge and keep only meaningful, non-fragment responsibilities.
+    const merged = uniquePhrases([...bulletish, ...plain])
+      .filter((p) => !isProbablyTruncatedFragment(p))
+      .filter((p) => p.split(' ').length >= 4)
+      .slice(0, 14);
+
+    // Last resort: if nothing extracted, create a few generic responsibility shells from top must-have keywords.
+    if (!merged.length) {
+      const fallback = uniquePhrases(keywordInventory.must.map((k) => k.keyword))
+        .filter((p) => p && p.length >= 3)
+        .slice(0, 8)
+        .map((k) => `Demonstrate experience with ${k}`);
+      return fallback;
+    }
+    return merged;
+  };
+
+  const responsibilityMap = useMemo(() => {
+    const jdResp = extractResponsibilities(jdSections.resp || jdTextForAnalysis);
+    const bullets: string[] = [];
+    for (const e of selected?.content_json?.experience || []) for (const b of e.bullets || []) bullets.push(String(b));
+    const resumeTokens = new Set(tokenize(resumeTextForEvidence));
+    const scoreLine = (line: string) => {
+      const toks = tokenize(line);
+      let hit = 0;
+      for (const t of toks) if (resumeTokens.has(t)) hit++;
+      const denom = Math.max(6, toks.length);
+      return hit / denom;
+    };
+    const bestEvidence = (line: string) => {
+      let best = '';
+      let bestScore = 0;
+      for (const b of bullets) {
+        const s = scoreLine(`${line} ${b}`);
+        if (s > bestScore) {
+          bestScore = s;
+          best = b;
+        }
+      }
+      return { evidence: best ? best.slice(0, 180) : '', score: bestScore };
+    };
+    return jdResp.map((r) => {
+      const s = scoreLine(r);
+      const ev = bestEvidence(r);
+      const status = s >= 0.55 ? 'Yes' : s >= 0.25 ? 'Partial' : 'Missing';
+      return { responsibility: r, status, evidence: ev.evidence };
+    });
+  }, [jdSections, jdTextForAnalysis, resumeTextForEvidence, selected]);
+
+  const deltaSkills = useMemo(() => {
+    const missing = uniquePhrases(analysisMissing || [])
+      .filter((p) => !isProbablyTruncatedFragment(p))
+      .filter((p) => p.split(' ').length <= 8)
+      .slice(0, 80);
+    const resumeLower = resumeTextForEvidence.toLowerCase();
+    const classify = (p: string) => {
+      const n = p.toLowerCase();
+      const tok = tokenize(p);
+      const tokenHits = tok.filter((t) => resumeLower.includes(t)).length;
+      if (resumeLower.includes(n)) return 'Direct'; // rarely true because it's missing, but keep for safety
+      if (tokenHits >= Math.max(2, Math.min(4, tok.length))) return 'Adjacent';
+      return 'Missing';
+    };
+    const items = missing.map((p) => ({ skill: p, closeness: classify(p), suggestedPlacement: isTechnicalSkillLike(p) ? 'Skills' : 'Summary/Bullets' }));
+    return items.slice(0, 25);
+  }, [analysisMissing, resumeTextForEvidence]);
+
+  const metricsStrength = useMemo(() => {
+    const bullets: string[] = [];
+    const exps = selected?.content_json?.experience || [];
+    for (const e of exps) for (const b of e.bullets || []) bullets.push(String(b));
+    const hasMetric = (b: string) => /(\b\d+(\.\d+)?\b|%|\$|k\b|m\b|bn\b)/i.test(String(b || ''));
+    const total = bullets.length || 0;
+    const withM = bullets.filter(hasMetric).length;
+    const pct = total ? Math.round((withM / total) * 100) : 0;
+    const recent = exps[0]?.bullets || [];
+    const weakRecent = recent.filter((b) => !hasMetric(String(b))).slice(0, 5);
+    return { total, withM, pct, weakRecent };
+  }, [selected]);
+
+  const redFlags = useMemo(() => {
+    const summary = String(selected?.content_json?.summary || '');
+    const skillsCount = (selected?.content_json?.skills?.technical || []).length;
+    const vagueLeadership = summary.toLowerCase().includes('proven track record') || summary.toLowerCase().includes('seeking to leverage');
+    const buzzwordy = skillsCount > 70;
+    const noMetrics = metricsStrength.total > 0 && metricsStrength.pct < 25;
+    const recs: string[] = [];
+    if (buzzwordy) recs.push('Skills list is very long; group and prioritize top keywords for this JD (keep ~50–70).');
+    if (vagueLeadership) recs.push('Summary reads generic; replace with 2–3 concrete scope/impact statements that match the JD.');
+    if (noMetrics) recs.push('Few quantified outcomes; add metrics to the most recent role bullets (scale, SLA, cost, time saved, defects).');
+    return recs.slice(0, 6);
+  }, [selected, metricsStrength]);
+
+  async function copyToClipboard(text: string) {
+    const t = String(text || '').trim();
+    if (!t) return;
+    try {
+      await navigator.clipboard.writeText(t);
+      toast.success('Copied');
+    } catch {
+      try {
+        // Fallback for environments where clipboard API is blocked
+        window.prompt('Copy to clipboard:', t);
+      } catch {
+        toast.error('Copy failed');
+      }
+    }
+  }
 
   // Hydrate ATS/Risk report + analysis from the selected saved document (so it persists per resume and survives refresh).
   useEffect(() => {
@@ -1538,30 +2162,18 @@ export default function ResumeWorkspace() {
     if (job) {
       // Keep JD editable even when starting from existing job
       setJdText(job.description || '');
+      // Prepopulate Target role/title from the selected job title (also used as the resume title).
+      if (job.title) setTargetTitle(job.title);
     }
   };
 
-  async function fetchVersions(docId: string) {
-    const { data, error } = await supabase
-      .from('resume_document_versions')
-      .select('id, resume_document_id, change_summary, content_json, created_at')
-      .eq('resume_document_id', docId)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    if (error) throw error;
-    setVersions(((data || []) as any[]).map((v) => ({ ...v, content_json: safeContent(v.content_json) })) as ResumeVersionRow[]);
-  }
-
-  useEffect(() => {
-    if (!selectedDocId) return;
-    fetchVersions(selectedDocId).catch((e) => console.warn(e));
-  }, [selectedDocId]);
+  // Version checkpoints UI removed for now (and we skip fetching versions).
 
   async function ensureResumeParsed(resumeRow: any): Promise<{ parsed: any; extractedText: string | null }> {
     const existing = resumeRow?.parsed_content?.parsed;
     const existingDiagnostics = resumeRow?.parsed_content?.diagnostics || null;
     const parserVersion = (existingDiagnostics as any)?.parser_version || null;
-    const CURRENT_PARSER_VERSION = '2026-01-12-parse-resume-v2';
+    const CURRENT_PARSER_VERSION = '2026-01-15-parse-resume-v3-links';
     const hasNewDiagnostics =
       existingDiagnostics &&
       typeof existingDiagnostics === 'object' &&
@@ -1753,6 +2365,8 @@ export default function ResumeWorkspace() {
       let tailoredKeywordTotal: number | null = null;
       let tailoredMatchedPhrases: string[] = [];
       let addedPhrases: string[] = [];
+      let missingList: string[] = [];
+      let matchedList: string[] = [];
       try {
         const resumeText = buildResumeTextFromResumeDoc(resumeDoc);
         const { data: analyzed, error: analyzeErr } = await supabase.functions.invoke('analyze-resume', {
@@ -1763,8 +2377,10 @@ export default function ResumeWorkspace() {
         if (typeof score === 'number') analyzerScore = score;
         const missingPhrases = (analyzed as any)?.diagnostics?.keyword_coverage?.missing;
         const matchedPhrases = (analyzed as any)?.diagnostics?.keyword_coverage?.matched;
-        setAnalysisMissing(Array.isArray(missingPhrases) ? missingPhrases.slice(0, 30).map((s: any) => String(s)) : []);
-        setAnalysisMatched(Array.isArray(matchedPhrases) ? matchedPhrases.slice(0, 30).map((s: any) => String(s)) : []);
+        missingList = Array.isArray(missingPhrases) ? missingPhrases.slice(0, 60).map((s: any) => String(s)) : [];
+        matchedList = Array.isArray(matchedPhrases) ? matchedPhrases.slice(0, 60).map((s: any) => String(s)) : [];
+        setAnalysisMissing(missingList);
+        setAnalysisMatched(matchedList);
         const kw = (analyzed as any)?.diagnostics?.keyword_coverage || null;
         if (kw && typeof kw === 'object') {
           if (typeof kw?.matched_count === 'number') tailoredMatchedCount = kw.matched_count;
@@ -1820,8 +2436,8 @@ export default function ResumeWorkspace() {
           defend_with_learning: defend,
           missing_facts_questions: mf,
           analyzer_match_score: analyzerScore,
-          analyzer_missing: analysisMissing, // JD phrases missing (verbatim) per analyzer
-          analyzer_matched: analysisMatched, // JD phrases matched (verbatim) per analyzer
+          analyzer_missing: missingList, // JD phrases missing (verbatim) per analyzer
+          analyzer_matched: matchedList, // JD phrases matched (verbatim) per analyzer
           candidate_notes: {
             base_match_score: baseAnalyzerScore,
             base_matched_count: baseMatchedCount,
@@ -1945,33 +2561,6 @@ export default function ResumeWorkspace() {
     }
   }
 
-  async function saveCheckpoint() {
-    if (!selected) return;
-    try {
-      const { error } = await supabase
-        .from('resume_document_versions')
-        .insert({
-          resume_document_id: selected.id,
-          content_json: selected.content_json,
-          change_summary: checkpointNote.trim() || null,
-          created_by: user?.id || null,
-        } as any);
-      if (error) throw error;
-      setCheckpointNote('');
-      toast.success('Checkpoint saved');
-      await fetchVersions(selected.id);
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e?.message || 'Failed to save checkpoint');
-    }
-  }
-
-  async function restoreVersion(v: ResumeVersionRow) {
-    if (!selected) return;
-    setDocs((prev) => prev.map((d) => (d.id === selected.id ? { ...d, content_json: v.content_json } : d)));
-    toast.message('Version loaded', { description: 'Review the document, then click Save Changes to persist.' });
-  }
-
   async function deleteDoc() {
     if (!selected) return;
     if (!confirm('Delete this resume document? This cannot be undone.')) return;
@@ -1990,6 +2579,25 @@ export default function ResumeWorkspace() {
     }
   }
 
+  async function deleteWorkspaceDoc(doc: ResumeDocumentRow) {
+    if (!doc?.id) return;
+    if (!confirm('Delete this resume document? This cannot be undone.')) return;
+    try {
+      const { error } = await supabase.from('resume_documents').delete().eq('id', doc.id);
+      if (error) throw error;
+      setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      setSelectedDocId((prev) => {
+        if (prev !== doc.id) return prev;
+        const next = docs.find((d) => d.id !== doc.id)?.id || null;
+        return next;
+      });
+      toast.success('Deleted');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Failed to delete');
+    }
+  }
+
   function updateSelected(patch: Partial<ResumeDocumentRow>) {
     if (!selected) return;
     setDocs((prev) => prev.map((d) => (d.id === selected.id ? { ...d, ...patch } : d)));
@@ -1998,6 +2606,72 @@ export default function ResumeWorkspace() {
   function updateContent(patch: Partial<ResumeDocContent>) {
     if (!selected) return;
     updateSelected({ content_json: { ...(selected.content_json || {}), ...patch } });
+  }
+
+  function updateContactField<K extends keyof NonNullable<ResumeDocContent['contact']>>(key: K, value: string) {
+    if (!selected) return;
+    const cur = (selected.content_json?.contact || {}) as NonNullable<ResumeDocContent['contact']>;
+    updateContent({
+      contact: {
+        ...cur,
+        [key]: value,
+      },
+    });
+  }
+
+  async function saveWorkspaceDocToMyResumes(doc: ResumeDocumentRow) {
+    if (!candidateId || !user?.id) return;
+    try {
+      const blob = await generateDocxBlob(doc.title, 'ats_single', doc.content_json);
+      const filePath = `${user.id}/${Date.now()}-tailored.docx`;
+
+      const { error: upErr } = await supabase.storage.from('resumes').upload(filePath, blob, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      if (upErr) throw upErr;
+
+      const storedFileUrl = `resumes/${filePath}`;
+      const { error: insErr } = await supabase.from('resumes').insert({
+        candidate_id: candidateId,
+        file_name: `${doc.title || 'Tailored Resume'}.docx`,
+        file_url: storedFileUrl,
+        file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        is_primary: false,
+        parsed_content: {
+          source: 'resume_workspace',
+          resume_doc: doc.content_json,
+          generated_at: new Date().toISOString(),
+        },
+      } as any);
+      if (insErr) throw insErr;
+
+      toast.success('Saved to My Resumes');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Failed to save to My Resumes');
+    }
+  }
+
+  async function downloadWorkspaceDocPdf(doc: ResumeDocumentRow) {
+    try {
+      const blob = await generatePdfBlob(doc.title, doc.content_json);
+      downloadBlob(`${doc.title || 'resume'}.pdf`, blob);
+      toast.success('Downloaded PDF');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Failed to generate PDF');
+    }
+  }
+
+  async function downloadWorkspaceDocDocx(doc: ResumeDocumentRow) {
+    try {
+      const blob = await generateDocxBlob(doc.title, 'ats_single', doc.content_json);
+      downloadBlob(`${doc.title || 'resume'}.docx`, blob);
+      toast.success('Downloaded DOCX');
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Failed to generate DOCX');
+    }
   }
 
   if (isLoading) {
@@ -2020,7 +2694,8 @@ export default function ResumeWorkspace() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <TooltipProvider>
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">Resume Workspace</h1>
@@ -2062,44 +2737,6 @@ export default function ResumeWorkspace() {
               </div>
             ) : (
               <>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Base resume</Label>
-                    <Select value={selectedBaseResumeId} onValueChange={(v) => setSelectedBaseResumeId(v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a base resume" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {resumes.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {(r.is_primary ? '★ ' : '') + String(r.file_name || 'Resume')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="link" className="px-0" onClick={() => navigate('/candidate/resumes')}>
-                      Manage uploads in My Resumes →
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Target role/title (required)</Label>
-                    <Input
-                      value={targetTitle}
-                      onChange={(e) => setTargetTitle(e.target.value)}
-                      placeholder="e.g., Senior Director of Engineering"
-                    />
-                    <div className="text-xs text-muted-foreground">This becomes the saved resume name.</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Additional preferences (optional)</Label>
-                    <Input
-                      value={additionalNotes}
-                      onChange={(e) => setAdditionalNotes(e.target.value)}
-                      placeholder="e.g., emphasize platform scaling, people leadership, cloud architecture…"
-                    />
-                  </div>
-                </div>
-
                 <Card className="card-elevated">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -2162,6 +2799,44 @@ export default function ResumeWorkspace() {
                   </CardContent>
                 </Card>
 
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Base resume</Label>
+                    <Select value={selectedBaseResumeId} onValueChange={(v) => setSelectedBaseResumeId(v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a base resume" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {resumes.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {(r.is_primary ? '★ ' : '') + String(r.file_name || 'Resume')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button variant="link" className="px-0" onClick={() => navigate('/candidate/resumes')}>
+                      Manage uploads in My Resumes →
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Target role/title (required)</Label>
+                    <Input
+                      value={targetTitle}
+                      onChange={(e) => setTargetTitle(e.target.value)}
+                      placeholder="e.g., Senior Director of Engineering"
+                    />
+                    <div className="text-xs text-muted-foreground">This becomes the saved resume name.</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Additional preferences (optional)</Label>
+                    <Input
+                      value={additionalNotes}
+                      onChange={(e) => setAdditionalNotes(e.target.value)}
+                      placeholder="e.g., emphasize platform scaling, people leadership, cloud architecture…"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <Button onClick={generateTailoredResume} disabled={isGenerating}>
                     <Sparkles className="mr-2 h-4 w-4" />
@@ -2169,30 +2844,6 @@ export default function ResumeWorkspace() {
                   </Button>
                 </div>
                 {generateError ? <div className="text-sm text-destructive">{generateError}</div> : null}
-
-                {(analysisScore != null || atsEstimate != null || analysisMissing.length > 0) && (
-                  <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
-                    {analysisScore != null && (
-                      <div className="text-sm">
-                        <span className="font-medium">JD match score (canonical):</span> {Math.round(analysisScore)}%
-                      </div>
-                    )}
-                    {analysisMissing.length > 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">Missing JD phrases (verbatim):</span>{' '}
-                        {analysisMissing.slice(0, 12).join(', ')}
-                      </div>
-                    )}
-                    {atsEstimate != null && (
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">Model estimate (not canonical):</span> {Math.round(atsEstimate)}%
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground">
-                      Details moved below: “Scoring details”, “Gap plan”, and “Candidate notes”.
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </CardContent>
@@ -2200,7 +2851,7 @@ export default function ResumeWorkspace() {
 
         <div className="grid gap-6 lg:grid-cols-12 lg:min-h-[calc(100vh-360px)]">
           {/* Left: docs list */}
-          <Card className="lg:col-span-3 card-elevated flex flex-col">
+          <Card className="lg:col-span-4 card-elevated flex flex-col">
             <CardHeader>
               <CardTitle className="text-base">My Resumes</CardTitle>
               <CardDescription>Saved, editable resumes from this workspace</CardDescription>
@@ -2209,19 +2860,103 @@ export default function ResumeWorkspace() {
               <ScrollArea className="h-full pr-2">
                 <div className="space-y-2">
                   {docs.map((d) => (
-                    <button
+                    <div
                       key={d.id}
-                      className={`w-full text-left rounded-md border p-3 transition ${
+                      className={`group w-full rounded-md border p-3 transition ${
                         d.id === selectedDocId ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'
                       }`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedDocId(d.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedDocId(d.id)}
                     >
-                      <div className="font-medium line-clamp-1">{d.title}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(d.updated_at).toLocaleString()}
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-semibold leading-5 line-clamp-1">{d.title}</div>
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <div className="text-xs text-muted-foreground flex items-center gap-2 min-w-0">
+                            <Clock className="h-3 w-3" />
+                            <span className="truncate">{new Date(d.updated_at).toLocaleString()}</span>
+                          </div>
+                          <div
+                            className={`flex items-center gap-0.5 transition-opacity ${
+                              d.id === selectedDocId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                            }`}
+                          >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 p-0"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void saveWorkspaceDocToMyResumes(d);
+                                }}
+                              >
+                                <Save className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Save to My Resumes</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 p-0"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void downloadWorkspaceDocPdf(d);
+                                }}
+                              >
+                                <Download className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Download PDF</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 p-0"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void downloadWorkspaceDocDocx(d);
+                                }}
+                              >
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Download DOCX</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 p-0"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void deleteWorkspaceDoc(d);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete</TooltipContent>
+                          </Tooltip>
+                          </div>
+                        </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                   {docs.length === 0 && (
                     <div className="text-sm text-muted-foreground">
@@ -2234,7 +2969,7 @@ export default function ResumeWorkspace() {
           </Card>
 
           {/* Center: editor */}
-          <Card className="lg:col-span-6 card-elevated flex flex-col">
+          <Card className="lg:col-span-8 card-elevated flex flex-col">
             <CardHeader>
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -2243,12 +2978,7 @@ export default function ResumeWorkspace() {
                     {selected ? 'Edit sections and save. Use checkpoints for version history.' : 'Select a resume document'}
                   </CardDescription>
                 </div>
-                {selected && (
-                  <Button variant="ghost" onClick={deleteDoc}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                )}
+                {/* Delete moved to My Resumes list row actions */}
               </div>
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
@@ -2264,13 +2994,89 @@ export default function ResumeWorkspace() {
                   <Separator className="my-4" />
 
                   <Tabs defaultValue="summary">
-                    <TabsList className="flex flex-wrap">
+                    <TabsList className="flex flex-wrap justify-start">
+                      <TabsTrigger value="contact">Contact</TabsTrigger>
                       <TabsTrigger value="summary">Summary</TabsTrigger>
                       <TabsTrigger value="skills">Skills</TabsTrigger>
                       <TabsTrigger value="experience">Experience</TabsTrigger>
                       <TabsTrigger value="education">Education</TabsTrigger>
                       <TabsTrigger value="certs">Certifications</TabsTrigger>
                     </TabsList>
+
+                    <TabsContent value="contact" className="space-y-4 mt-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Applying title (saved resume name)</Label>
+                          <Input
+                            value={selected.title}
+                            onChange={(e) => updateSelected({ title: e.target.value })}
+                            placeholder="e.g., Senior Data Scientist"
+                          />
+                          <div className="text-xs text-muted-foreground">
+                            This is the workspace resume name and the export file name.
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Full name</Label>
+                          <Input
+                            value={String(selected.content_json?.contact?.full_name || '')}
+                            onChange={(e) => updateContactField('full_name', e.target.value)}
+                            placeholder="Full name"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Location</Label>
+                          <Input
+                            value={String(selected.content_json?.contact?.location || '')}
+                            onChange={(e) => updateContactField('location', e.target.value)}
+                            placeholder="City, State"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Phone</Label>
+                          <Input
+                            value={String(selected.content_json?.contact?.phone || '')}
+                            onChange={(e) => updateContactField('phone', e.target.value)}
+                            placeholder="Phone"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Email</Label>
+                          <Input
+                            value={String(selected.content_json?.contact?.email || '')}
+                            onChange={(e) => updateContactField('email', e.target.value)}
+                            placeholder="Email"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>LinkedIn URL</Label>
+                          <Input
+                            value={String(selected.content_json?.contact?.linkedin_url || '')}
+                            onChange={(e) => updateContactField('linkedin_url', e.target.value)}
+                            placeholder="linkedin.com/in/…"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>GitHub URL</Label>
+                          <Input
+                            value={String(selected.content_json?.contact?.github_url || '')}
+                            onChange={(e) => updateContactField('github_url', e.target.value)}
+                            placeholder="github.com/…"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        Note: generating a new tailored resume overwrites contact info from the base resume facts. You can always edit here after
+                        generating.
+                      </div>
+                    </TabsContent>
 
                     <TabsContent value="summary" className="space-y-3 mt-4">
                       <Label>Professional Summary</Label>
@@ -2384,312 +3190,433 @@ export default function ResumeWorkspace() {
               )}
             </CardContent>
           </Card>
+        </div>
 
-          {/* Right: export + versions */}
-          <Card className="lg:col-span-3 card-elevated flex flex-col">
-            <CardHeader>
-              <CardTitle className="text-base">Export & History</CardTitle>
-              <CardDescription>Export and checkpoints</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
-              {!selected ? (
-                <div className="text-sm text-muted-foreground">Select a document to export.</div>
-              ) : (
-                <>
-                  {missingFacts.length > 0 && (
-                    <div className="rounded-md border border-border bg-muted/30 p-3">
-                      <div className="text-sm font-medium">Missing facts to improve this resume</div>
-                      <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                        {missingFacts.map((q, idx) => (
-                          <li key={idx}>{q}</li>
-                        ))}
-                      </ul>
+        {(analysisScore != null ||
+          atsEstimate != null ||
+          missingVerbatimPhrases.length > 0 ||
+          keywordsMissing.length > 0 ||
+          defendWithLearning.length > 0 ||
+          visibleImprovements.length > 0 ||
+          Boolean(jdSkillExtraction) ||
+          notesAddedPhrases.length > 0) && (
+          <div className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-12">
+              <Card className="card-elevated lg:col-span-5">
+                <CardHeader>
+                  <CardTitle className="text-base">ATS outcomes</CardTitle>
+                  <CardDescription>What to change next to raise the canonical score.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Canonical score</div>
+                    <div className="text-4xl font-bold tracking-tight">{analysisScore != null ? `${Math.round(analysisScore)}%` : '—'}</div>
+                    <div className="mt-2">
+                      <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-muted-foreground">Keyword coverage</div>
+                      <div className="font-medium text-foreground">
+                        {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
+                        {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-muted-foreground">Model estimate</div>
+                      <div className="font-medium text-foreground">{atsEstimate != null ? `${Math.round(atsEstimate)}%` : '—'}</div>
+                    </div>
+                  </div>
+
+                  {(notesBaseMatchedCount != null || notesTailoredMatchedCount != null) && (
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">Coverage change:</span>{' '}
+                      Base {notesBaseMatchedCount ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'} → Tailored{' '}
+                      {notesTailoredMatchedCount ?? derivedKeywordMatched ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'}
                     </div>
                   )}
 
-                  <div className="grid gap-2">
-                    <Button
-                      onClick={async () => {
-                        if (!selected || !candidateId || !user?.id) return;
-                        try {
-                          const blob = await generateDocxBlob(selected.title, 'ats_single', selected.content_json);
-                          const filePath = `${user.id}/${Date.now()}-tailored.docx`;
-
-                          const { error: upErr } = await supabase.storage
-                            .from('resumes')
-                            .upload(filePath, blob, {
-                              contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            });
-                          if (upErr) throw upErr;
-
-                          const storedFileUrl = `resumes/${filePath}`;
-                          const { error: insErr } = await supabase.from('resumes').insert({
-                            candidate_id: candidateId,
-                            file_name: `${selected.title || 'Tailored Resume'}.docx`,
-                            file_url: storedFileUrl,
-                            file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            is_primary: false,
-                            parsed_content: {
-                              source: 'resume_workspace',
-                              resume_doc: selected.content_json,
-                              generated_at: new Date().toISOString(),
-                            },
-                          } as any);
-                          if (insErr) throw insErr;
-
-                          toast.success('Saved to My Resumes');
-                        } catch (e: any) {
-                          console.error(e);
-                          toast.error(e?.message || 'Failed to save to My Resumes');
-                        }
-                      }}
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      Save to My Resumes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          const blob = await generatePdfBlob(selected.title, selected.content_json);
-                          downloadBlob(`${selected.title || 'resume'}.pdf`, blob);
-                          toast.success('Downloaded PDF');
-                        } catch (e: any) {
-                          console.error(e);
-                          toast.error(e?.message || 'Failed to generate PDF');
-                        }
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download (PDF)
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          const blob = await generateDocxBlob(selected.title, 'ats_single', selected.content_json);
-                          downloadBlob(`${selected.title || 'resume'}.docx`, blob);
-                          toast.success('Downloaded DOCX');
-                        } catch (e: any) {
-                          console.error(e);
-                          toast.error(e?.message || 'Failed to generate DOCX');
-                        }
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download (DOCX)
-                    </Button>
+                  <div className="text-sm">
+                    <div className="font-medium">3-step boost plan</div>
+                    <ol className="mt-2 list-decimal pl-5 text-muted-foreground space-y-1">
+                      <li>Copy missing JD phrases (right panel) and paste them verbatim.</li>
+                      <li>Place them in Skills first; Summary second; bullets only if you can defend them.</li>
+                      <li>Regenerate (or run ATS Checkpoint) and repeat until you’re happy with coverage.</li>
+                    </ol>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <History className="h-4 w-4" />
-                      Version checkpoints
-                    </Label>
-                    <Input
-                      value={checkpointNote}
-                      onChange={(e) => setCheckpointNote(e.target.value)}
-                      placeholder="Checkpoint note (optional)"
-                    />
-                    <Button variant="secondary" onClick={saveCheckpoint}>
-                      Save checkpoint
-                    </Button>
-                    <ScrollArea className="h-[220px] pr-2">
-                      <div className="space-y-2">
-                        {versions.map((v) => (
-                          <button
-                            key={v.id}
-                            className="w-full text-left rounded-md border border-border p-2 hover:bg-muted"
-                            onClick={() => restoreVersion(v)}
-                          >
-                            <div className="text-sm font-medium line-clamp-1">{v.change_summary || 'Checkpoint'}</div>
-                            <div className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString()}</div>
-                          </button>
+                  {notesAddedPhrases.length > 0 && (
+                    <div className="text-sm">
+                      <div className="font-medium">Added vs base (recent)</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {notesAddedPhrases.slice(0, 18).map((k, i) => (
+                          <Badge key={i} variant="secondary">
+                            {cleanPhrase(k)}
+                          </Badge>
                         ))}
-                        {versions.length === 0 && (
-                          <div className="text-sm text-muted-foreground">No checkpoints yet.</div>
-                        )}
                       </div>
-                    </ScrollArea>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-        {((analysisScore != null) ||
-          atsEstimate != null ||
-          keywordsFullyMatched.length > 0 ||
-          keywordsPartiallyMatched.length > 0 ||
-          atsImprovements.length > 0 ||
-          Boolean(jdSkillExtraction)) && (
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="text-base">Scoring details</CardTitle>
-              <CardDescription>Full analyzer + model details for this generated resume.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {analysisScore != null && (
-                <div className="text-sm">
-                  <span className="font-medium">JD match score (canonical):</span> {Math.round(analysisScore)}%
-                </div>
-              )}
-              {atsEstimate != null && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Model estimate (not canonical):</span> {Math.round(atsEstimate)}%
-                </div>
-              )}
-              {analysisMissing.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Missing JD phrases (verbatim):</span> {analysisMissing.slice(0, 30).join(', ')}
-                </div>
-              )}
-              {keywordsFullyMatched.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Keywords fully matched:</span> {keywordsFullyMatched.slice(0, 60).join(', ')}
-                </div>
-              )}
-              {keywordsPartiallyMatched.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Keywords partially matched:</span> {keywordsPartiallyMatched.slice(0, 60).join(', ')}
-                </div>
-              )}
-              {atsImprovements.length > 0 && (
-                <div className="text-sm">
-                  <div className="font-medium">Top improvements</div>
-                  <ul className="mt-1 list-disc pl-5 text-muted-foreground space-y-1">
-                    {atsImprovements.map((t, i) => (
-                      <li key={i}>{t}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {jdSkillExtraction && (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">JD Skill Extraction</div>
+              <Card className="card-elevated lg:col-span-7">
+                <CardHeader>
+                  <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
+                  <CardDescription>
+                    These phrases were not found verbatim in the resume text used for analysis. Add them naturally (best place: Skills).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="relative w-full sm:max-w-[420px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={missingPhraseQuery}
+                        onChange={(e) => setMissingPhraseQuery(e.target.value)}
+                        placeholder="Search missing phrases..."
+                        className="pl-9"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => copyToClipboard(filteredMissingVerbatim.slice(0, 15).join('\n'))}
+                      disabled={filteredMissingVerbatim.length === 0}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy top 15
+                    </Button>
+                  </div>
+
+                  {filteredMissingVerbatim.length > 0 ? (
+                    <div className="rounded-md border bg-background">
+                      <div className="max-h-[320px] overflow-auto p-3 space-y-2">
+                        {filteredMissingVerbatim.slice(0, 40).map((p) => (
+                          <div key={p} className="flex items-start justify-between gap-3">
+                            <div className="text-sm leading-6">{p}</div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 p-0" onClick={() => copyToClipboard(p)} title="Copy">
+                              <Copy className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="border-t p-3 text-xs text-muted-foreground">
+                        Tip: add to Skills first; only add to bullets if you can defend it in interview.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No missing phrases found.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {(addedPhrasesClean.length > 0 ||
+              highRiskClaims.length > 0 ||
+              (analysisMatched.length + analysisMissing.length > 0) ||
+              responsibilityMap.length > 0) && (
+              <Card className="card-elevated">
+                <CardHeader>
+                  <CardTitle className="text-base">JD deconstruction + interview readiness</CardTitle>
+                  <CardDescription>
+                    Built from the JD + your tailored resume. Use this to improve ATS and prep stories before interviews.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="deconstruct">
+                    <TabsList className="flex flex-wrap justify-start">
+                      <TabsTrigger value="deconstruct">1) JD deconstruction</TabsTrigger>
+                      <TabsTrigger value="ats">2) ATS gaps</TabsTrigger>
+                      <TabsTrigger value="resp">3) Responsibilities</TabsTrigger>
+                      <TabsTrigger value="delta">4) Delta skills</TabsTrigger>
+                      <TabsTrigger value="metrics">5) Metrics & red flags</TabsTrigger>
+                      <TabsTrigger value="prep">6) Interview prep</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="deconstruct" className="mt-4 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-md border bg-background p-3">
+                          <div className="text-sm font-medium">Hard skills (ATS keywords)</div>
+                          <div className="mt-2 space-y-2">
+                            {keywordInventory.must.length > 0 && (
+                              <div className="text-sm">
+                                <div className="font-medium text-foreground">Must-have</div>
+                                <div className="text-muted-foreground">{keywordInventory.must.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                              </div>
+                            )}
+                            {keywordInventory.nice.length > 0 && (
+                              <div className="text-sm">
+                                <div className="font-medium text-foreground">Nice-to-have</div>
+                                <div className="text-muted-foreground">{keywordInventory.nice.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-md border bg-background p-3">
+                          <div className="text-sm font-medium">Seniority signals (what the JD implies)</div>
+                          <div className="mt-2 text-sm text-muted-foreground space-y-1">
+                            <div>Dial up: scope, decision-making, cross-functional leadership, scale/ownership.</div>
+                            <div>Dial down: vague buzzwords and org-specific claims that aren’t yours.</div>
+                            <div>Ensure Summary + most recent role reflect the JD’s level (strategy vs hands-on).</div>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="ats" className="mt-4 space-y-3">
+                      <div className="rounded-md border bg-background p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-medium">Keyword coverage</div>
+                            <div className="text-xs text-muted-foreground">Use exact JD wording; replace synonyms where possible.</div>
+                          </div>
+                          <div className="text-sm font-medium text-foreground">
+                            {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
+                            {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-md border bg-background p-3 text-sm">
+                        <div className="font-medium">Keyword placement guidance</div>
+                        <ul className="mt-2 list-disc pl-5 text-muted-foreground space-y-1">
+                          <li>Skills: tools/platforms/acronyms (verbatim)</li>
+                          <li>Summary: role-level responsibilities + domain</li>
+                          <li>Recent bullets: keywords tied to outcomes/metrics (recency bias)</li>
+                        </ul>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="resp" className="mt-4 space-y-3">
+                      <div className="text-sm font-medium">Responsibility coverage map</div>
+                      {responsibilityMap.length > 0 ? (
+                        <div className="rounded-md border bg-background overflow-auto">
+                          <table className="w-full text-sm">
+                            <thead className="border-b bg-muted/30">
+                              <tr>
+                                <th className="text-left font-medium p-3 w-[45%]">JD responsibility</th>
+                                <th className="text-left font-medium p-3 w-[12%]">Coverage</th>
+                                <th className="text-left font-medium p-3">Resume evidence (best match)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {responsibilityMap.slice(0, 10).map((r) => (
+                                <tr key={r.responsibility} className="border-b last:border-b-0">
+                                  <td className="p-3 align-top">{r.responsibility}</td>
+                                  <td className="p-3 align-top">
+                                    <Badge
+                                      variant={r.status === 'Yes' ? 'default' : r.status === 'Partial' ? 'secondary' : 'outline'}
+                                    >
+                                      {r.status}
+                                    </Badge>
+                                  </td>
+                                  <td className="p-3 align-top text-muted-foreground">{r.evidence || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                          No responsibilities could be extracted yet. Paste a fuller JD (with responsibilities) and regenerate the tailored resume.
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        Use this table to decide what to expand in the most recent role, and which “Missing” items need an interview story (or should be
+                        removed).
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="delta" className="mt-4 space-y-3">
+                      <div className="text-sm font-medium">Delta skills (what the JD emphasizes that isn’t verbatim in your resume)</div>
+                      <div className="rounded-md border bg-background overflow-auto">
+                        <table className="w-full text-sm">
+                          <thead className="border-b bg-muted/30">
+                            <tr>
+                              <th className="text-left font-medium p-3">Delta skill/phrase</th>
+                              <th className="text-left font-medium p-3 w-[16%]">Closeness</th>
+                              <th className="text-left font-medium p-3 w-[20%]">Placement</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deltaSkills.slice(0, 12).map((d) => (
+                              <tr key={d.skill} className="border-b last:border-b-0">
+                                <td className="p-3">{d.skill}</td>
+                                <td className="p-3">
+                                  <Badge variant={d.closeness === 'Direct' ? 'default' : d.closeness === 'Adjacent' ? 'secondary' : 'outline'}>
+                                    {d.closeness}
+                                  </Badge>
+                                </td>
+                                <td className="p-3 text-muted-foreground">{d.suggestedPlacement}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="metrics" className="mt-4 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-md border bg-background p-3">
+                          <div className="text-sm font-medium">Metrics strength</div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            Metrics present: <span className="font-medium text-foreground">{metricsStrength.withM}</span>/
+                            <span className="font-medium text-foreground">{metricsStrength.total}</span> bullets (
+                            <span className="font-medium text-foreground">{metricsStrength.pct}%</span>)
+                          </div>
+                          {metricsStrength.weakRecent.length > 0 && (
+                            <div className="mt-3 text-sm">
+                              <div className="font-medium">Add metrics to these recent bullets</div>
+                              <ul className="mt-2 list-disc pl-5 text-muted-foreground space-y-1">
+                                {metricsStrength.weakRecent.map((b, i) => (
+                                  <li key={i}>{String(b).slice(0, 180)}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                        <div className="rounded-md border bg-background p-3">
+                          <div className="text-sm font-medium">Red flags (ATS + human)</div>
+                          {redFlags.length > 0 ? (
+                            <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                              {redFlags.map((r, i) => (
+                                <li key={i}>{r}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="mt-2 text-sm text-muted-foreground">No obvious red flags detected.</div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="prep" className="mt-4 space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-md border bg-background p-3">
+                          <div className="text-sm font-medium">Responsibility-to-story map (what to prep)</div>
+                          <div className="text-xs text-muted-foreground mt-1">Prep STAR stories for Partial/Missing responsibilities you keep in the resume.</div>
+                          <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                            {responsibilityMap
+                              .filter((r) => r.status !== 'Yes')
+                              .slice(0, 8)
+                              .map((r) => (
+                                <li key={r.responsibility}>
+                                  <span className="font-medium text-foreground">{r.status}:</span> {r.responsibility}
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                        <div className="rounded-md border bg-background p-3">
+                          <div className="text-sm font-medium">Edits you must be able to defend (added vs base)</div>
+                          <div className="text-xs text-muted-foreground mt-1">If anything below isn’t true, remove it before exporting.</div>
+                          {addedPhrasesClean.length > 0 ? (
+                            <div className="mt-2 space-y-2">
+                              {addedPhrasesClean.slice(0, 10).map((p) => (
+                                <div key={p} className="flex items-start justify-between gap-3">
+                                  <div className="text-sm leading-6">{p}</div>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 p-0" onClick={() => copyToClipboard(p)} title="Copy">
+                                    <Copy className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-sm text-muted-foreground">No tracked edits yet.</div>
+                          )}
+                          {prepFocus.length > 0 && (
+                            <div className="mt-4 text-sm">
+                              <div className="font-medium">Top interview focus areas (pick 5)</div>
+                              <div className="text-xs text-muted-foreground mt-1">For each: one STAR story + one metric + one trade-off.</div>
+                              <div className="mt-2 text-muted-foreground">{prepFocus.slice(0, 5).join(' • ')}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            )}
+
+            {jdSkillExtraction && (
+              <Card className="card-elevated">
+                <CardHeader>
+                  <CardTitle className="text-base">JD skill extraction (quick map)</CardTitle>
+                  <CardDescription>Use this as a checklist for your Summary + Skills ordering.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
                   {[
                     ['Core Technical Skills', jdSkillExtraction.core_technical_skills],
                     ['Platform / Cloud / Tooling', jdSkillExtraction.platform_cloud_tooling],
                     ['Architecture & Systems', jdSkillExtraction.architecture_systems],
                     ['Leadership & Org Design', jdSkillExtraction.leadership_org_design],
                     ['Business & Strategy', jdSkillExtraction.business_strategy],
-                  ].map(([label, arr]: any) => (
-                    <div key={label} className="text-sm">
-                      <div className="font-medium">{label}</div>
-                      <div className="text-muted-foreground">
-                        {Array.isArray(arr) && arr.length ? arr.slice(0, 32).join(', ') : '—'}
+                  ]
+                    .filter(([, arr]: any) => Array.isArray(arr) && arr.length)
+                    .map(([label, arr]: any) => (
+                      <div key={label} className="space-y-2">
+                        <div className="text-sm font-medium">{label}</div>
+                        <div className="flex flex-wrap gap-2">
+                          {(arr as any[]).slice(0, 18).map((t, i) => (
+                            <Badge key={`${label}-${i}`} variant="secondary">
+                              {cleanPhrase(t)}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  {[
+                    jdSkillExtraction.core_technical_skills,
+                    jdSkillExtraction.platform_cloud_tooling,
+                    jdSkillExtraction.architecture_systems,
+                    jdSkillExtraction.leadership_org_design,
+                    jdSkillExtraction.business_strategy,
+                  ].every((a: any) => !Array.isArray(a) || a.length === 0) && (
+                    <div className="text-sm text-muted-foreground">No skill groups extracted.</div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {(visibleImprovements.length > 0 || debugImprovements.length > 0) && (
+              <Card className="card-elevated">
+                <CardHeader>
+                  <CardTitle className="text-base">Advanced</CardTitle>
+                  <CardDescription>Optional details for debugging and deep review.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="diagnostics">
+                      <AccordionTrigger>Diagnostics</AccordionTrigger>
+                      <AccordionContent>
+                        {visibleImprovements.length > 0 && (
+                          <div className="text-sm">
+                            <div className="font-medium">Improvement ideas</div>
+                            <ul className="mt-2 list-disc pl-5 text-muted-foreground space-y-1">
+                              {visibleImprovements.slice(0, 10).map((t, i) => (
+                                <li key={i}>{cleanPhrase(t)}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {debugImprovements.length > 0 && (
+                          <div className="mt-4 text-xs text-muted-foreground">
+                            {debugImprovements.map((t, i) => (
+                              <div key={i}>{cleanPhrase(t)}</div>
+                            ))}
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
-
-        {(keywordsMissing.length > 0 || highRiskClaims.length > 0 || defendWithLearning.length > 0) && (
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="text-base">Gap Plan (Study Plan) + ATS Risk Notes</CardTitle>
-              <CardDescription>
-                Keywords are woven into the resume with safe framing when needed; use this plan to close gaps before interviews.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {defendWithLearning.length > 0 && (
-                <div className="text-sm">
-                  <div className="font-medium">Plan to study/practice (to defend gaps)</div>
-                  <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                    {defendWithLearning.slice(0, 20).map((d, i) => (
-                      <li key={i}>
-                        <span className="font-medium text-foreground">{d.claim_or_gap}:</span> {d.what_to_study}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {keywordsMissing.length > 0 && (
-                <div className="text-sm">
-                  <div className="font-medium">Keywords not fully supported by the base resume (and why)</div>
-                  <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                    {keywordsMissing.slice(0, 30).map((k, idx) => (
-                      <li key={idx}>
-                        <span className="font-medium text-foreground">{k.keyword}:</span> {k.reason}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {highRiskClaims.length > 0 && (
-                <div className="text-sm">
-                  <div className="font-medium">High-risk claims to be probed</div>
-                  <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                    {highRiskClaims.slice(0, 20).map((t, i) => (
-                      <li key={i}>{t}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {(notesAddedPhrases.length > 0 || notesBaseAnalyzerScore != null || (notesBaseMatchedCount != null && notesTailoredMatchedCount != null)) && (
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="text-base">Candidate Notes (What changed + how to prepare)</CardTitle>
-              <CardDescription>
-                This resume was best-fit to the JD for ATS shortlisting. Use these notes to prep defensible examples before interviews.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(notesBaseMatchedCount != null || notesTailoredMatchedCount != null) && (
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Keyword coverage change:</span>{' '}
-                  Base {notesBaseMatchedCount ?? '—'}/{notesKeywordTotal ?? '—'} → Tailored {notesTailoredMatchedCount ?? '—'}/
-                  {notesKeywordTotal ?? '—'}
-                  {notesBaseAnalyzerScore != null && analysisScore != null ? (
-                    <>
-                      {' '}
-                      • <span className="font-medium text-foreground">Match score change:</span> {Math.round(notesBaseAnalyzerScore)}% →{' '}
-                      {Math.round(analysisScore)}%
-                    </>
-                  ) : null}
-                </div>
-              )}
-
-              {notesAddedPhrases.length > 0 && (
-                <div className="text-sm">
-                  <div className="font-medium">JD phrases added vs your base resume</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {notesAddedPhrases.slice(0, 30).map((k, i) => (
-                      <Badge key={i} variant="secondary">
-                        {k}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {defendWithLearning.length > 0 && (
-                <div className="text-sm">
-                  <div className="font-medium">Interview prep checklist (based on injected/adjacent claims)</div>
-                  <ul className="mt-2 text-sm text-muted-foreground list-disc pl-5 space-y-1">
-                    {defendWithLearning.slice(0, 10).map((d, i) => (
-                      <li key={i}>
-                        <span className="font-medium text-foreground">{d.claim_or_gap}:</span> {d.what_to_study}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        </div>
+      </TooltipProvider>
     </DashboardLayout>
   );
 }

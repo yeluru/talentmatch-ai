@@ -59,7 +59,7 @@ const candidateNavItems = [
   { title: 'My Profile', href: '/candidate/profile', icon: User },
   { title: 'My Resumes', href: '/candidate/resumes', icon: FileText },
   { title: 'Resume Workspace', href: '/candidate/resume-workspace', icon: FileText },
-  { title: 'AI Resume Check', href: '/candidate/ai-analysis', icon: Sparkles },
+  { title: 'ATS Checkpoint', href: '/candidate/ai-analysis', icon: Sparkles },
   { title: 'Find Jobs', href: '/candidate/jobs', icon: Search },
   { title: 'Job Alerts', href: '/candidate/job-alerts', icon: Mail },
   { title: 'My Applications', href: '/candidate/applications', icon: Briefcase },

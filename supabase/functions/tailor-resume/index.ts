@@ -499,7 +499,13 @@ function extractJdKeywordsDeterministic(jd: string) {
 
   const out: string[] = [];
   const seen = new Set<string>();
-  const allowShort = new Set(["r", "c", "go", "ai", "ml"]);
+  const allowShort = new Set(["r", "c", "go", "ai", "ml", "qa", "ui", "ux", "pm", "vp", "okrs", "kpi", "kpis", "sre"]);
+  const startsWithMidWordFragment = (s: string) => {
+    const v = String(s || "").trim();
+    const first = v.split(/\s+/)[0] || "";
+    if (first.length >= 1 && first.length <= 3 && /^[a-z]+$/.test(first) && !allowShort.has(first)) return true;
+    return false;
+  };
   for (const raw of candidates) {
     const cleaned = String(raw || "")
       .replace(/^[•\-\*]+\s*/, "")
@@ -509,6 +515,7 @@ function extractJdKeywordsDeterministic(jd: string) {
     if (!cleaned) continue;
     const lower = cleaned.toLowerCase();
     if (badStarts.some((p) => lower.startsWith(p))) continue;
+    if (startsWithMidWordFragment(lower)) continue;
     // Keep certain short, high-signal keywords (e.g., "R", "C", "Go", "AI", "ML").
     if (lower.length < 3 && !allowShort.has(lower)) continue;
     if (["experience", "skills", "requirements", "qualifications", "responsibilities"].includes(lower)) continue;
