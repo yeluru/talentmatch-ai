@@ -834,6 +834,20 @@ export default function AIAnalysis() {
                     </CardContent>
                   </Card>
 
+                  {String(analysisResult.summary || '').trim() ? (
+                    <Card className="card-elevated">
+                      <CardHeader>
+                        <CardTitle className="text-base">Summary</CardTitle>
+                        <CardDescription>What the analysis thinks you should do next.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {analysisResult.summary}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base">ATS boost plan (3 steps)</CardTitle>
@@ -964,13 +978,7 @@ export default function AIAnalysis() {
                     </Card>
                   </div>
 
-                  <Accordion type="multiple" className="w-full" defaultValue={['summary', 'matched']}>
-                    <AccordionItem value="summary">
-                      <AccordionTrigger>Summary</AccordionTrigger>
-                      <AccordionContent>
-                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">{analysisResult.summary}</div>
-                      </AccordionContent>
-                    </AccordionItem>
+                  <Accordion type="multiple" className="w-full" defaultValue={['matched']}>
                     <AccordionItem value="matched">
                       <AccordionTrigger>Matched skills</AccordionTrigger>
                       <AccordionContent>
