@@ -1721,9 +1721,10 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
 }
 
 export default function ResumeWorkspace() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [candidateId, setCandidateId] = useState<string | null>(null);
+  const [candidateProfileRow, setCandidateProfileRow] = useState<any | null>(null);
   const [docs, setDocs] = useState<ResumeDocumentRow[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1741,6 +1742,45 @@ export default function ResumeWorkspace() {
   const [diffBaseText, setDiffBaseText] = useState<string>('');
   const [diffBaseLabel, setDiffBaseLabel] = useState<string>('');
   const [diffBaseLoading, setDiffBaseLoading] = useState<boolean>(false);
+
+  const contactFallback = useMemo(() => {
+    const cp = candidateProfileRow && typeof candidateProfileRow === 'object' ? candidateProfileRow : {};
+    const pr = profile && typeof profile === 'object' ? profile : ({} as any);
+    const pick = (...vals: any[]) => vals.map((v) => String(v ?? '').trim()).find((s) => s.length > 0) || '';
+    return {
+      full_name: pick(cp.full_name, pr.full_name),
+      email: pick(cp.email, pr.email),
+      phone: pick(cp.phone, pr.phone),
+      location: pick(cp.location, pr.location),
+      linkedin_url: pick(cp.linkedin_url, pr.linkedin_url),
+      github_url: pick(cp.github_url),
+    } as NonNullable<ResumeDocContent['contact']>;
+  }, [candidateProfileRow, profile]);
+
+  const applyContactFallback = (doc: ResumeDocContent): ResumeDocContent => {
+    const isPlaceholder = (v: unknown) => {
+      const s = String(v ?? '').trim();
+      if (!s) return true;
+      const n = s.toLowerCase();
+      return n.includes('not found') || n === 'n/a' || n === 'na' || n === 'unknown';
+    };
+    const sanitizeEmail = (v: string) => (v.includes('@') ? v : '');
+    const sanitizePhone = (v: string) => (/[0-9]{7,}/.test(v.replace(/[^\d]+/g, '')) ? v : '');
+    const sanitizeLinkedIn = (v: string) => (v.includes('linkedin.com') ? v : '');
+    const sanitizeGitHub = (v: string) => (v.includes('github.com') ? v : '');
+
+    const cur = (doc.contact && typeof doc.contact === 'object' ? doc.contact : {}) as any;
+    const next: any = { ...cur };
+
+    if (isPlaceholder(next.full_name)) next.full_name = contactFallback.full_name || '';
+    if (isPlaceholder(next.email)) next.email = sanitizeEmail(contactFallback.email || '');
+    if (isPlaceholder(next.phone)) next.phone = sanitizePhone(contactFallback.phone || '');
+    if (isPlaceholder(next.location)) next.location = contactFallback.location || '';
+    if (isPlaceholder(next.linkedin_url)) next.linkedin_url = sanitizeLinkedIn(contactFallback.linkedin_url || '');
+    if (isPlaceholder(next.github_url)) next.github_url = sanitizeGitHub(contactFallback.github_url || '');
+
+    return { ...doc, contact: next };
+  };
   const [jobInputMode, setJobInputMode] = useState<'existing' | 'custom'>('existing');
   const [jobs, setJobs] = useState<Array<{ id: string; title: string; description: string; organization_name: string; location: string | null }>>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
@@ -2349,7 +2389,7 @@ export default function ResumeWorkspace() {
         // Avoid maybeSingle() coercion errors by selecting the most recently updated row.
         const { data: cpRows, error: cpErr } = await supabase
           .from('candidate_profiles')
-          .select('id, updated_at')
+          .select('id, updated_at, full_name, email, phone, location, linkedin_url, github_url')
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
           .limit(1);
@@ -2357,6 +2397,7 @@ export default function ResumeWorkspace() {
         const cp = (cpRows || [])[0] as any;
         if (!cp?.id) throw new Error('Candidate profile not found');
         setCandidateId(cp.id);
+        setCandidateProfileRow(cp);
         await fetchDocs(cp.id);
         await fetchResumes(cp.id);
         await fetchJobs();
@@ -2620,7 +2661,7 @@ export default function ResumeWorkspace() {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
 
-      const resumeDoc = (data as any)?.resume_doc as ResumeDocContent | undefined;
+      const resumeDocRaw = (data as any)?.resume_doc as ResumeDocContent | undefined;
       const suggestedTitle = String((data as any)?.suggested_title || '').trim();
       const mf = Array.isArray((data as any)?.missing_facts_questions) ? (data as any).missing_facts_questions : [];
       setMissingFacts(mf.slice(0, 8));
@@ -2643,7 +2684,9 @@ export default function ResumeWorkspace() {
       const defend = Array.isArray((data as any)?.defend_with_learning) ? (data as any).defend_with_learning : [];
       setDefendWithLearning(defend.slice(0, 20));
 
-      if (!resumeDoc) throw new Error('Tailor-resume returned no resume_doc');
+      if (!resumeDocRaw) throw new Error('Tailor-resume returned no resume_doc');
+      // If parser didn't find contact info, pull it from candidate profile / user profile.
+      const resumeDoc = applyContactFallback(resumeDocRaw);
 
       // Compute a consistent match score using the SAME analyzer used in "AI Resume Check".
       let analyzerScore: number | null = null;
@@ -2802,7 +2845,14 @@ export default function ResumeWorkspace() {
   async function createNewDoc() {
     if (!candidateId) return;
     const initial: ResumeDocContent = {
-      contact: {},
+      contact: {
+        full_name: contactFallback.full_name || '',
+        email: contactFallback.email || '',
+        phone: contactFallback.phone || '',
+        location: contactFallback.location || '',
+        linkedin_url: contactFallback.linkedin_url || '',
+        github_url: contactFallback.github_url || '',
+      },
       summary: '',
       skills: { technical: [], soft: [] },
       experience: [],
