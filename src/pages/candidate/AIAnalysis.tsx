@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Clipboard, ClipboardCheck, Loader2, Search, Sparkles, Briefcase, ArrowRight, Info } from 'lucide-react';
+import { Loader2, Search, Sparkles, Briefcase, ArrowRight, Info } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { resumesObjectPath } from '@/lib/storagePaths';
 
@@ -233,8 +233,6 @@ export default function AIAnalysis() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [missingFilter, setMissingFilter] = useState('');
-  const [copiedAt, setCopiedAt] = useState<number>(0);
 
   useEffect(() => {
     if (user) {
@@ -611,25 +609,9 @@ export default function AIAnalysis() {
       ? (analysisResult as any).diagnostics.keyword_coverage.total
       : 0;
 
-  const filteredMissing = missingPhrases.filter((k) =>
-    String(k || '')
-      .toLowerCase()
-      .includes(missingFilter.trim().toLowerCase()),
-  );
-
-  const copyMissing = async (count: number) => {
-    try {
-      const list = filteredMissing.slice(0, Math.max(1, count));
-      if (!list.length) return toast.message('No missing phrases to copy');
-      const text = list.join('\n');
-      await navigator.clipboard.writeText(text);
-      setCopiedAt(Date.now());
-      toast.success(`Copied ${list.length} phrases`);
-    } catch (e) {
-      console.error('Clipboard copy failed', e);
-      toast.error('Could not copy to clipboard');
-    }
-  };
+  const topKeywordGaps = missingPhrases.slice(0, 5);
+  const topSkillGaps = (analysisResult?.missing_skills || []).slice(0, 5);
+  const topRecommendations = (analysisResult?.recommendations || []).slice(0, 5);
 
   if (isLoading) {
     return (
@@ -644,19 +626,19 @@ export default function AIAnalysis() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
-            <div>
+        <div>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-6 w-6 text-accent" />
                 <h1 className="font-display text-3xl font-bold">ATS Checkpoint</h1>
               </div>
-              <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1">
                 Optimize for ATS shortlisting. The canonical score comes from deterministic JD keyword coverage + a model estimate.
-              </p>
-            </div>
-          </div>
+          </p>
+        </div>
+                  </div>
 
           {/* Inputs (top panel) */}
           <Card className="bg-gradient-to-br from-primary/5 via-background to-background">
@@ -671,7 +653,7 @@ export default function AIAnalysis() {
                     <TabsTrigger value="existing">Select Job</TabsTrigger>
                     <TabsTrigger value="custom">Paste JD</TabsTrigger>
                   </TabsList>
-
+                  
                   <TabsContent value="existing" className="space-y-3">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -705,7 +687,7 @@ export default function AIAnalysis() {
                       )}
                     </div>
                   </TabsContent>
-
+                  
                   <TabsContent value="custom">
                     <Textarea
                       placeholder="Paste the job description here..."
@@ -745,25 +727,25 @@ export default function AIAnalysis() {
                 </div>
 
                 <div className="w-full md:w-auto">
-                  <Button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
+            <Button 
+              onClick={handleAnalyze} 
+              disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
                     className="w-full md:w-auto"
                     size="default"
-                  >
-                    {isAnalyzing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Running...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
                         Run check
-                      </>
-                    )}
-                  </Button>
-                </div>
+                </>
+              )}
+            </Button>
+          </div>
               </div>
             </CardContent>
           </Card>
@@ -804,13 +786,7 @@ export default function AIAnalysis() {
                             {analysisResult.match_score}%
                           </div>
                           <div className="mt-1 text-sm font-medium text-foreground">{getScoreLabel(analysisResult.match_score)}</div>
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Button variant="outline" size="sm" asChild>
-                              <a href="/candidate/resume-workspace">
-                                Improve in Resume Workspace <ArrowRight className="ml-2 h-4 w-4" />
-                              </a>
-                            </Button>
-                          </div>
+                        {/* ATS Checkpoint is for findings; edits happen in Resume Workspace */}
                         </div>
 
                         <div className="w-full md:max-w-[420px]">
@@ -831,154 +807,107 @@ export default function AIAnalysis() {
                           )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                  </CardContent>
+                </Card>
 
                   {String(analysisResult.summary || '').trim() ? (
                     <Card className="card-elevated">
-                      <CardHeader>
+                  <CardHeader>
                         <CardTitle className="text-base">Summary</CardTitle>
                         <CardDescription>What the analysis thinks you should do next.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
+                  </CardHeader>
+                  <CardContent>
                         <div className="text-sm text-muted-foreground whitespace-pre-wrap">
                           {analysisResult.summary}
-                        </div>
-                      </CardContent>
-                    </Card>
+                    </div>
+                  </CardContent>
+                </Card>
                   ) : null}
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">ATS boost plan (3 steps)</CardTitle>
-                      <CardDescription>This is the fastest path to improve the canonical score.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-3 md:grid-cols-3">
-                      <div className="rounded-md border bg-background p-3 text-sm">
-                        <div className="font-medium">1) Copy missing JD phrases</div>
-                        <div className="text-muted-foreground mt-1">
-                          Copy from the checklist below and paste into your resume using the same wording.
-                        </div>
-                      </div>
-                      <div className="rounded-md border bg-background p-3 text-sm">
-                        <div className="font-medium">2) Place them in the right spot</div>
-                        <div className="text-muted-foreground mt-1">
-                          Best: Skills. Next: Summary. Last: most recent bullets (only if defensible).
-                        </div>
-                      </div>
-                      <div className="rounded-md border bg-background p-3 text-sm">
-                        <div className="font-medium">3) Re-run ATS check</div>
-                        <div className="text-muted-foreground mt-1">
-                          After edits, run the check again until keyword coverage is where you want it.
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <div className="grid gap-6 xl:grid-cols-2">
-                    <Card className="h-full flex flex-col">
+                  <div className="grid gap-6 lg:grid-cols-3">
+                    <Card className="card-elevated">
                       <CardHeader>
-                        <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
-                        <CardDescription>
-                          These phrases were not found verbatim in your resume text. Add them naturally (best place: Skills).
-                        </CardDescription>
+                        <CardTitle className="text-base">Top keyword gaps (verbatim)</CardTitle>
+                        <CardDescription>Top phrases not found verbatim in your resume text.</CardDescription>
                       </CardHeader>
-                      <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <Input
-                            placeholder="Search missing phrases..."
-                            value={missingFilter}
-                            onChange={(e) => setMissingFilter(e.target.value)}
-                          />
-                          <div className="flex gap-2 shrink-0">
-                            <Button variant="outline" size="sm" onClick={() => copyMissing(15)} disabled={!filteredMissing.length}>
-                              {Date.now() - copiedAt < 2000 ? (
-                                <>
-                                  <ClipboardCheck className="mr-2 h-4 w-4" />
-                                  Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Clipboard className="mr-2 h-4 w-4" />
-                                  Copy top 15
-                                </>
-                              )}
-                            </Button>
+                      <CardContent>
+                        {topKeywordGaps.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {topKeywordGaps.map((k, i) => (
+                              <Badge key={`${k}-${i}`} variant="secondary">
+                                {k}
+                              </Badge>
+                            ))}
                           </div>
-                        </div>
-
-                        <div className="flex flex-col flex-1 min-h-0 rounded-md border overflow-hidden bg-background">
-                          <ScrollArea className="flex-1 min-h-0 p-3">
-                            {filteredMissing.length ? (
-                              <div className="flex flex-wrap gap-2">
-                                {filteredMissing.slice(0, 60).map((k, i) => (
-                                  <Badge key={`${k}-${i}`} variant="secondary">
-                                    {k}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-muted-foreground py-10 text-center">
-                                No missing phrases.
-                              </div>
-                            )}
-                          </ScrollArea>
-                          <div className="border-t px-3 py-2 text-xs text-muted-foreground">
-                            Tip: add to <span className="font-medium text-foreground">Skills</span> first; only add to bullets if you can defend it in interview.
-                          </div>
-                        </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No keyword gaps detected.</div>
+                        )}
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="card-elevated">
                       <CardHeader>
-                        <CardTitle className="text-base">Next steps</CardTitle>
-                        <CardDescription>What to change, then what to prep for interviews.</CardDescription>
+                        <CardTitle className="text-base">Top skill gaps (model)</CardTitle>
+                        <CardDescription>Model-inferred skills to consider adding (only if true).</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="rounded-md border bg-background p-3 text-sm">
-                          <div className="font-medium">1) Add missing JD phrases</div>
-                          <div className="text-muted-foreground mt-1">
-                            Add the missing phrases verbatim, starting in Skills.
+                      <CardContent>
+                        {topSkillGaps.length ? (
+                          <div className="flex flex-wrap gap-2">
+                            {topSkillGaps.map((s, i) => (
+                              <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
+                                {s}
+                              </Badge>
+                            ))}
                           </div>
-                        </div>
-                        <div className="rounded-md border bg-background p-3 text-sm">
-                          <div className="font-medium">2) Prep examples for gaps</div>
-                          <div className="text-muted-foreground mt-1">
-                            Anything you add should be explainable with a specific project story.
-                          </div>
-                          {analysisResult.missing_skills?.length ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {analysisResult.missing_skills.slice(0, 18).map((s, i) => (
-                                <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
-                                  {s}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                        {analysisResult.recommendations?.length ? (
-                          <Accordion type="single" collapsible defaultValue="recs">
-                            <AccordionItem value="recs">
-                              <AccordionTrigger>Recommended edits</AccordionTrigger>
-                              <AccordionContent>
-                                <ul className="space-y-2 text-sm text-muted-foreground">
-                                  {analysisResult.recommendations.slice(0, 12).map((rec, i) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="mt-1">•</span>
-                                      <span>{rec}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-                        ) : null}
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No model skill gaps detected.</div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="card-elevated">
+                      <CardHeader>
+                        <CardTitle className="text-base">Top recommendations</CardTitle>
+                        <CardDescription>Highest impact edits suggested by the analysis.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {topRecommendations.length ? (
+                          <ul className="space-y-2 text-sm text-muted-foreground">
+                            {topRecommendations.map((rec, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="mt-1">•</span>
+                                <span>{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No recommendations available.</div>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
 
                   <Accordion type="multiple" className="w-full" defaultValue={['matched']}>
+                    <AccordionItem value="keywords">
+                      <AccordionTrigger>All keyword gaps (verbatim)</AccordionTrigger>
+                      <AccordionContent>
+                        {missingPhrases.length ? (
+                          <div className="rounded-md border bg-background p-3">
+                            <ScrollArea className="h-[260px]">
+                              <div className="flex flex-wrap gap-2">
+                                {missingPhrases.slice(0, 120).map((k, i) => (
+                                  <Badge key={`${k}-${i}`} variant="secondary">
+                                    {k}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No keyword gaps detected.</div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
                     <AccordionItem value="matched">
                       <AccordionTrigger>Matched skills</AccordionTrigger>
                       <AccordionContent>
@@ -1005,7 +934,7 @@ export default function AIAnalysis() {
                     </AccordionItem>
                   </Accordion>
                 </>
-              )}
+            )}
           </div>
         </div>
       </TooltipProvider>
