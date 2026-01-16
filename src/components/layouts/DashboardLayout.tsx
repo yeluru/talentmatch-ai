@@ -172,8 +172,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="flex w-full bg-[var(--gradient-subtle)]" style={{ minHeight: '100vh' }}>
-        <Sidebar className="border-r border-sidebar-border">
+      <div className="flex w-full dashboard-bg" style={{ minHeight: '100vh' }}>
+        <Sidebar variant="floating" className="border-sidebar-border">
           <SidebarHeader className="border-b border-sidebar-border p-4">
             <Link to="/" className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -198,10 +198,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     asChild
                     isActive={location.pathname === item.href}
                     className={cn(
-                      "w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                      "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
                       location.pathname === item.href
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent"
+                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                     )}
                   >
                     <Link to={item.href}>
@@ -320,7 +320,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
 
-          <main className="flex-1 min-w-0 bg-[var(--gradient-subtle)]">
+          <main className="flex-1 min-w-0 dashboard-bg">
             <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
               {children ?? (
                 import.meta.env.DEV ? (

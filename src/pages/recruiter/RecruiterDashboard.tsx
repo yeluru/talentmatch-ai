@@ -294,7 +294,7 @@ export default function RecruiterDashboard() {
         </div>
 
         {/* Recent Applications */}
-        <Card>
+        <Card className="card-elevated">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Applications</CardTitle>
             <Button variant="outline" size="sm" asChild>

@@ -672,7 +672,7 @@ export default function OrgAdminDashboard() {
 
           <TabsContent value="account_managers" className="mt-6 space-y-6">
             {pendingInvites.length > 0 && (
-              <Card>
+              <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle>Pending account manager invitations</CardTitle>
                   <CardDescription>{pendingInvites.length} pending</CardDescription>
@@ -713,7 +713,7 @@ export default function OrgAdminDashboard() {
               </Card>
             )}
 
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
@@ -768,7 +768,7 @@ export default function OrgAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users" className="mt-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader>
                 <CardTitle>All users in organization</CardTitle>
                 <CardDescription>
@@ -837,7 +837,7 @@ export default function OrgAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="audit_logs" className="mt-6 space-y-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Audit Logs</CardTitle>
@@ -946,7 +946,7 @@ export default function OrgAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="recruiters" className="mt-6 space-y-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Recruiters</CardTitle>
@@ -1085,7 +1085,7 @@ export default function OrgAdminDashboard() {
           </TabsContent>
 
           <TabsContent value="candidates" className="mt-6 space-y-6">
-            <Card>
+            <Card className="card-elevated">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Candidates in your organization</CardTitle>

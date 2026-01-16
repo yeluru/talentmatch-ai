@@ -292,6 +292,33 @@
   .section-container {
     @apply py-20 md:py-28;
   }
+
+  /* Dashboard background: subtle “premium app” texture (light + dark) */
+  .dashboard-bg {
+    background: var(--gradient-subtle);
+    background-image:
+      radial-gradient(ellipse at top, hsl(var(--accent) / 0.10), transparent 55%),
+      radial-gradient(ellipse at bottom, hsl(var(--primary) / 0.08), transparent 55%),
+      radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.05) 1px, transparent 0);
+    background-size: auto, auto, 24px 24px;
+  }
+
+  .dark .dashboard-bg {
+    background-image:
+      radial-gradient(ellipse at top, hsl(var(--accent) / 0.12), transparent 60%),
+      radial-gradient(ellipse at bottom, hsl(var(--primary) / 0.10), transparent 60%),
+      radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.08) 1px, transparent 0);
+  }
+
+  /* Dashboard cards: elevated surface without the “lift” motion (keeps things calm in data-heavy views) */
+  .dash-card {
+    @apply rounded-2xl border bg-card/80 backdrop-blur-sm;
+    box-shadow: var(--shadow-card);
+  }
+
+  .dark .dash-card {
+    @apply bg-card;
+  }
   
   /* Text utilities */
   .text-balance {
