@@ -666,16 +666,16 @@ export default function SuperAdminDashboard() {
         title="Super Admin Dashboard" 
         description="Platform administration and user management"
       />
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-[var(--gradient-subtle)]">
         {/* Header */}
-        <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-lg">
+        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-destructive/10">
                 <Shield className="h-6 w-6 text-destructive" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">Platform Admin</h1>
+                <h1 className="font-display text-xl font-bold tracking-tight">Platform Admin</h1>
                 <p className="text-sm text-muted-foreground">{profile?.email}</p>
               </div>
             </div>

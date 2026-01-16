@@ -21,15 +21,15 @@ export function OrgAdminLayout({ children, title, subtitle, orgName }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+    <div className="min-h-screen bg-[var(--gradient-subtle)]">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-accent/10">
               <Shield className="h-6 w-6 text-accent" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">{title ?? "Org Admin"}</h1>
+              <h1 className="font-display text-xl font-bold tracking-tight">{title ?? "Org Admin"}</h1>
               <p className="text-sm text-muted-foreground">
                 {subtitle ?? (orgName ? `Organization: ${orgName}` : profile?.email)}
               </p>

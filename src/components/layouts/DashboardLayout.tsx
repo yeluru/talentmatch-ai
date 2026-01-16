@@ -172,7 +172,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="flex w-full bg-background" style={{ minHeight: '100vh' }}>
+      <div className="flex w-full bg-[var(--gradient-subtle)]" style={{ minHeight: '100vh' }}>
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="border-b border-sidebar-border p-4">
             <Link to="/" className="flex items-center gap-2">
@@ -198,14 +198,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     asChild
                     isActive={location.pathname === item.href}
                     className={cn(
-                      "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-colors",
+                      "w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
                       location.pathname === item.href
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                     )}
                   >
                     <Link to={item.href}>
-                      <item.icon className="h-5 w-5" />
+                      <item.icon className="h-4 w-4" />
                       <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -235,7 +235,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </Sidebar>
 
         <div className="flex-1 min-w-0 flex flex-col">
-          <header className="sticky top-0 z-40 h-16 border-b bg-card/80 backdrop-blur-lg">
+          <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur-lg">
             <div className="flex h-full items-center justify-between px-4 lg:px-6">
               <div className="flex items-center gap-4">
                 <SidebarTrigger className="lg:hidden" />
@@ -320,25 +320,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
 
-          <main className="flex-1 min-w-0 p-4 lg:p-6 bg-[var(--gradient-subtle)]">
-            {children ?? (
-              import.meta.env.DEV ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Route rendered no content</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      This route returned <code className="font-mono">null</code>. Check the debug banner (bottom-left) for role/orgId,
-                      and check the browser console for errors.
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Path: <code className="font-mono">{location.pathname}</code>
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : null
-            )}
+          <main className="flex-1 min-w-0 bg-[var(--gradient-subtle)]">
+            <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
+              {children ?? (
+                import.meta.env.DEV ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Route rendered no content</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        This route returned <code className="font-mono">null</code>. Check the debug banner (bottom-left) for role/orgId,
+                        and check the browser console for errors.
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Path: <code className="font-mono">{location.pathname}</code>
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : null
+              )}
+            </div>
           </main>
         </div>
       </div>

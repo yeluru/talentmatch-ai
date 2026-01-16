@@ -89,14 +89,15 @@
     --shadow-card-hover: 0 10px 25px hsl(222 47% 11% / 0.12);
     
     /* Sidebar */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 45 93% 47%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 40% 18%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 222 30% 22%;
-    --sidebar-ring: 45 93% 47%;
+    /* Light mode sidebar should feel like the home page: clean, bright, and minimal. */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 222 47% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 222 47% 20%;
     
     /* Match score colors */
     --score-excellent: 142 71% 45%;
