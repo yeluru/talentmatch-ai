@@ -893,24 +893,25 @@ export default function AIAnalysis() {
                           </div>
                         </div>
 
-                        <ScrollArea className="flex-1 min-h-0 rounded-md border p-3">
-                          {filteredMissing.length ? (
-                            <div className="flex flex-wrap gap-2">
-                              {filteredMissing.slice(0, 60).map((k, i) => (
-                                <Badge key={`${k}-${i}`} variant="secondary">
-                                  {k}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground py-10 text-center">
-                              No missing phrases.
-                            </div>
-                          )}
-                        </ScrollArea>
-
-                        <div className="text-xs text-muted-foreground">
-                          Tip: add to <span className="font-medium text-foreground">Skills</span> first; only add to bullets if you can defend it in interview.
+                        <div className="flex flex-col flex-1 min-h-0 rounded-md border overflow-hidden bg-background">
+                          <ScrollArea className="flex-1 min-h-0 p-3">
+                            {filteredMissing.length ? (
+                              <div className="flex flex-wrap gap-2">
+                                {filteredMissing.slice(0, 60).map((k, i) => (
+                                  <Badge key={`${k}-${i}`} variant="secondary">
+                                    {k}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground py-10 text-center">
+                                No missing phrases.
+                              </div>
+                            )}
+                          </ScrollArea>
+                          <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+                            Tip: add to <span className="font-medium text-foreground">Skills</span> first; only add to bullets if you can defend it in interview.
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
