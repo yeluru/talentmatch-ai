@@ -228,8 +228,8 @@ export default function JobDetails() {
               <CardHeader>
                 <CardTitle>About this role</CardTitle>
               </CardHeader>
-              <CardContent className="prose max-w-none">
-                <p className="whitespace-pre-wrap">{job.description}</p>
+              <CardContent className="text-base text-muted-foreground leading-relaxed">
+                <div className="whitespace-pre-wrap">{job.description}</div>
               </CardContent>
             </Card>
 
