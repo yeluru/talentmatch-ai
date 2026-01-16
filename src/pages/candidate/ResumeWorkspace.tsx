@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -840,7 +840,8 @@ function groupTechnicalSkills(items: string[]) {
 function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitle?: string }) {
   // DOCX spacing (twips). Keep consistent visual rhythm across skills + bullets.
   // 30 twips ≈ 1.5pt. We use this as our “line gap” standard.
-  const DOCX_LINE_GAP = 30;
+  // Increase bullet gap by +3pt (60 twips) vs prior.
+  const DOCX_LINE_GAP = 90;
   const normalizeName = (raw: string) => {
     const s = String(raw || '').trim();
     if (!s) return '';
@@ -921,7 +922,8 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
         ? [
             run(headerName, { bold: true, size: 36, color: '000000' }),
             new TextRun({ text: '\t', font: 'Outfit' }),
-            run(roleTopRight, { bold: true, size: 18, color: '000000' }),
+            // +1pt (2 half-points)
+            run(roleTopRight, { bold: true, size: 20, color: '000000' }),
           ]
         : [run(headerName, { bold: true, size: 36, color: '000000' })],
       tabStops: roleTopRight ? [{ type: TabStopType.RIGHT, position: convertInchesToTwip(7.0) }] : undefined,
@@ -929,46 +931,45 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
     }),
   ];
 
-  const contactLine1 = [c.location, c.phone ? formatPhoneForHeaderDisplay(c.phone) : '', c.email]
-    .map((v) => String(v || '').trim())
-    .filter((v) => v && !isPlaceholder(v))
-    .join(HEADER_PIPE);
+  const phoneDisp = c.phone ? formatPhoneForHeaderDisplay(c.phone) : '';
+  const emailDisp = String(c.email || '').trim();
   const liUrl = c.linkedin_url ? ensureHttpUrl(String(c.linkedin_url || '').trim()) : '';
   const ghUrl = c.github_url ? ensureHttpUrl(String(c.github_url || '').trim()) : '';
 
-  if (contactLine1) {
-    header.push(
-      new Paragraph({
-        children: [run(contactLine1, { size: 20, color: '000000' })],
-        spacing: { after: liUrl || ghUrl ? 30 : 120 },
-      }),
-    );
+  // Single-line contact row: phone | email | LinkedIn | GitHub (only show links if present).
+  const contactChildren: any[] = [];
+  const pushSep = () => contactChildren.push(run(HEADER_PIPE, { size: 20, color: '000000' }));
+  const linkRun = (t: string) =>
+    new TextRun({
+      text: t,
+      size: 20,
+      color: '000000',
+      underline: {},
+      font: 'Outfit',
+      style: 'Hyperlink',
+    });
+
+  if (phoneDisp && !isPlaceholder(phoneDisp)) contactChildren.push(run(phoneDisp, { size: 20, color: '000000' }));
+  if (emailDisp && !isPlaceholder(emailDisp)) {
+    if (contactChildren.length) pushSep();
+    contactChildren.push(run(emailDisp, { size: 20, color: '000000' }));
   }
-  if (liUrl || ghUrl) {
-    const linkRun = (t: string) =>
-      new TextRun({
-        text: t,
-        size: 20,
-        color: '000000',
-        underline: {},
-        font: 'Outfit',
-        style: 'Hyperlink',
-      });
-    const children: any[] = [];
-    if (liUrl) {
-      children.push(new ExternalHyperlink({ link: liUrl, children: [linkRun('LinkedIn')] }));
-    }
-    if (liUrl && ghUrl) children.push(run(HEADER_PIPE, { size: 20, color: '000000' }));
-    if (ghUrl) {
-      children.push(new ExternalHyperlink({ link: ghUrl, children: [linkRun('GitHub')] }));
-    }
-    header.push(new Paragraph({ children, spacing: { after: 120 } }));
+  if (liUrl) {
+    if (contactChildren.length) pushSep();
+    contactChildren.push(new ExternalHyperlink({ link: liUrl, children: [linkRun('LinkedIn')] }));
   }
+  if (ghUrl) {
+    if (contactChildren.length) pushSep();
+    contactChildren.push(new ExternalHyperlink({ link: ghUrl, children: [linkRun('GitHub')] }));
+  }
+
+  if (contactChildren.length) header.push(new Paragraph({ children: contactChildren, spacing: { after: 120 } }));
 
   const sectionHeading = (t: string) =>
     new Paragraph({
       // Match PDF look: thin rule ABOVE the heading + comfortable spacing after.
-      children: [run(String(t || '').toUpperCase(), { bold: true, size: 19, color: '000000' })],
+      // +1pt
+      children: [run(String(t || '').toUpperCase(), { bold: true, size: 21, color: '000000' })],
       spacing: { before: 180, after: 120 },
       border: {
         top: { style: BorderStyle.SINGLE, size: 6, color: 'E6E6E6', space: 1 },
@@ -1111,7 +1112,7 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
     for (const g of groupTechnicalSkills(tech).slice(0, 8)) {
       body.push(
         new Paragraph({
-          children: [run(g.title, { bold: true, size: 22, color: '000000' })],
+          children: [run(g.title, { bold: true, size: 24, color: '000000' })], // +1pt
           spacing: { after: 20 },
         }),
       );
@@ -1134,7 +1135,7 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
     if (!hideSoft && soft.length) {
       body.push(
         new Paragraph({
-          children: [run('Professional Strengths', { bold: true, size: 22, color: '000000' })],
+          children: [run('Professional Strengths', { bold: true, size: 24, color: '000000' })], // +1pt
           spacing: { after: 20 },
         }),
       );
@@ -1154,20 +1155,20 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
     body.push(sectionHeading('Professional Experience'));
     for (const e of exp) {
       const line = [e.title, e.company].filter(Boolean).join(' — ');
-      const dates = [e.start, e.end].filter(Boolean).join(' → ');
+      const dates = [e.start, e.end].filter(Boolean).join(' - ');
       const meta = [dates, e.location].filter(Boolean).join(' • ');
 
       if (line)
         body.push(
           new Paragraph({
-            children: [run(line, { bold: true, size: 22, color: '000000' })],
+            children: [run(line, { bold: true, size: 24, color: '000000' })], // +1pt
             spacing: { after: 60 }, // extra line break after company/role line
           }),
         );
       if (meta)
         body.push(
           new Paragraph({
-            children: [run(meta, { size: 20, color: '000000' })],
+            children: [run(meta, { size: 22, color: '000000' })], // +1pt
             spacing: { after: 120 }, // extra line break after timeline/meta line
           }),
         );
@@ -1305,17 +1306,20 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     return out;
   };
 
-  // Embed Outfit so PDFs look identical everywhere (no dependency on local fonts).
-  // Fall back to standard fonts if the asset fails to load for any reason.
-  let font = await pdf.embedFont(StandardFonts.Helvetica);
-  let fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  // Font strategy:
+  // - Body text uses standard Helvetica for darker/crisper appearance across PDF renderers.
+  // - Headings + name use embedded Outfit for brand/style consistency.
+  const bodyFont = await pdf.embedFont(StandardFonts.Helvetica);
+  const bodyFontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  let displayFont = bodyFontBold;
+  let displayFontBold = bodyFontBold;
   let usingWinAnsiFallback = true;
   try {
     const bytes = new Uint8Array(await (await fetch(outfitFontUrl)).arrayBuffer());
     const outfit = await pdf.embedFont(bytes, { subset: true });
-    font = outfit;
+    displayFont = outfit;
     // pdf-lib doesn't provide variable weight selection; we simulate bold by drawing twice in drawParagraph().
-    fontBold = outfit;
+    displayFontBold = outfit;
     usingWinAnsiFallback = false;
   } catch {
     // keep Helvetica fallbacks
@@ -1334,7 +1338,8 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   };
 
   // Keep consistent spacing between lines/bullets (matches the Skills group rhythm).
-  const PDF_LINE_GAP = 2; // points
+  // Increase bullet gap by +3pt vs prior.
+  const PDF_LINE_GAP = 5; // points
 
   let page = pdf.addPage(pageSize);
   let y = pageSize[1] - margin;
@@ -1357,15 +1362,16 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   };
 
   const winAnsiSafe = (s: string) => {
-    if (!usingWinAnsiFallback) return s;
-    // Standard PDF fonts are WinAnsi encoded; replace a few common Unicode characters.
-    return String(s || '')
-      .replaceAll('→', '->')
-      .replaceAll('•', '*');
+    // Body text uses StandardFonts.Helvetica which is WinAnsi encoded, so we must never
+    // pass characters like U+2192 (→) through to pdf-lib drawText() or it will throw.
+    // Keep output readable with ASCII fallbacks.
+    const out = String(s || '').replaceAll('→', '-');
+    // Only force bullet fallback when we're fully in WinAnsi fallback mode.
+    return usingWinAnsiFallback ? out.replaceAll('•', '*') : out;
   };
 
   const wrapLines = (text: string, size: number, bold = false) => {
-    const f = bold ? fontBold : font;
+    const f = bold ? displayFontBold : bodyFont;
     const words = winAnsiSafe(String(text || '')).split(/\s+/g).filter(Boolean);
     const lines: string[] = [];
     let cur = '';
@@ -1387,17 +1393,17 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     page.drawText(text, { x, y: y0, size, font: usedFont, color });
 
     // When using embedded Unicode fonts (Outfit), text can look “gray” due to thin glyphs + AA.
-    // Force visual black by overdrawing with tiny offsets (increases perceived weight).
+    // Force visual weight by overdrawing with tiny offsets.
     if (!usingWinAnsiFallback) {
-      // Keep body text clean; only add a subtle weight boost for headings/bold text.
       if (isBold) {
+        // Subtle boost only (avoid “inky” look).
         page.drawText(text, { x: x + 0.24, y: y0, size, font: usedFont, color });
         page.drawText(text, { x: x + 0.48, y: y0, size, font: usedFont, color });
       }
       return;
     }
 
-    // Standard fonts (Helvetica) are usually fine, but keep a subtle overdraw for extra punch.
+    // Standard fonts (Helvetica) are usually fine; add a subtle overdraw for bold lines.
     if (isBold) page.drawText(text, { x: x + 0.22, y: y0, size, font: usedFont, color });
   };
 
@@ -1405,7 +1411,7 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     const lines = wrapLines(text, size, bold);
     for (const line of lines) {
       ensureSpace(size + 4);
-      const usedFont = bold ? fontBold : font;
+      const usedFont = bold ? displayFontBold : bodyFont;
       drawTextInkBoost(line, margin, y, size, usedFont, color, bold);
       y -= size + 3;
     }
@@ -1415,7 +1421,8 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     y -= 6;
     drawLine();
     ensureSpace(18);
-    drawTextInkBoost(String(t || '').toUpperCase(), margin, y, 9.5, fontBold, PDF_COLOR.meta, true);
+    // +1pt
+    drawTextInkBoost(String(t || '').toUpperCase(), margin, y, 10.5, displayFontBold, PDF_COLOR.meta, true);
     // Extra line break after section heading (readability).
     y -= 22;
   };
@@ -1423,15 +1430,15 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   const c = cleanContact(doc.contact || {});
   const name = String(c.full_name || title || 'Resume').trim();
   ensureSpace(40);
-  drawTextInkBoost(name, margin, y, 20, fontBold, PDF_COLOR.text, true);
+  drawTextInkBoost(name, margin, y, 20, displayFontBold, PDF_COLOR.text, true);
 
   // Target role/title (ALL CAPS) on the top-right, aligned with the name line.
   const roleUpper = String(title || '').trim() ? String(title || '').trim().toUpperCase() : '';
   if (roleUpper) {
     const maxWidth = contentWidth * 0.55;
-    let size = 10;
+    let size = 11; // +1pt
     let text = roleUpper;
-    const measure = (t: string, s: number) => fontBold.widthOfTextAtSize(winAnsiSafe(t), s);
+    const measure = (t: string, s: number) => displayFontBold.widthOfTextAtSize(winAnsiSafe(t), s);
     while (measure(text, size) > maxWidth && size > 8) size -= 0.5;
     if (measure(text, size) > maxWidth) {
       let t = text;
@@ -1439,22 +1446,31 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
       text = `${t}...`;
     }
     const w = measure(text, size);
-    drawTextInkBoost(text, margin + contentWidth - w, y, size, fontBold, PDF_COLOR.text, true);
+    drawTextInkBoost(text, margin + contentWidth - w, y, size, displayFontBold, PDF_COLOR.text, true);
   }
   y -= 26;
 
-  const contactLine1 = [c.location, c.phone ? formatPhoneForHeaderDisplay(String(c.phone)) : '', c.email]
-    .map((v) => String(v || '').trim())
-    .filter(Boolean)
-    .join(HEADER_PIPE);
-  if (contactLine1) drawParagraph(contactLine1, 10, false, PDF_COLOR.meta);
-
-  // Cursor for the optional link row ("LinkedIn  •  GitHub")
+  // Single-line contact row: phone | email | LinkedIn | GitHub (only show links if present)
+  ensureSpace(16);
+  const contactSize = 10;
   let xCursor = margin;
+
+  const drawInlineSep = () => {
+    const sepText = winAnsiSafe(HEADER_PIPE);
+    page.drawText(sepText, { x: xCursor, y, size: contactSize, font: bodyFont, color: PDF_COLOR.meta });
+    xCursor += bodyFont.widthOfTextAtSize(sepText, contactSize);
+  };
+
+  const drawInlineText = (txt: string) => {
+    const s = winAnsiSafe(String(txt || '').trim());
+    if (!s) return;
+    page.drawText(s, { x: xCursor, y, size: contactSize, font: bodyFont, color: PDF_COLOR.meta });
+    xCursor += bodyFont.widthOfTextAtSize(s, contactSize);
+  };
 
   const drawLink = (label: string, url: string, size = 10) => {
     const text = winAnsiSafe(label);
-    const usedFont = font;
+    const usedFont = bodyFont;
     const uri = ensureHttpUrl(String(url || '').trim());
     page.drawText(text, { x: xCursor, y, size, font: usedFont, color: PDF_COLOR.meta });
     // underline
@@ -1483,26 +1499,33 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     xCursor += w;
   };
 
-  const linkItems: Array<{ label: string; url: string }> = [];
-  if (c.linkedin_url) linkItems.push({ label: 'LinkedIn', url: ensureHttpUrl(String(c.linkedin_url)) });
-  if (c.github_url) linkItems.push({ label: 'GitHub', url: ensureHttpUrl(String(c.github_url)) });
+  const phoneDisp = c.phone ? formatPhoneForHeaderDisplay(String(c.phone)) : '';
+  const emailDisp = String(c.email || '').trim();
+  const liUrl = c.linkedin_url ? ensureHttpUrl(String(c.linkedin_url)) : '';
+  const ghUrl = c.github_url ? ensureHttpUrl(String(c.github_url)) : '';
 
-  if (linkItems.length) {
-    ensureSpace(14);
-    xCursor = margin;
-    const sep = HEADER_PIPE;
-    for (let i = 0; i < linkItems.length; i++) {
-      const it = linkItems[i];
-      drawLink(it.label, it.url, 10);
-      if (i < linkItems.length - 1) {
-        const sepText = winAnsiSafe(sep);
-        const wSep = font.widthOfTextAtSize(sepText, 10);
-        page.drawText(sepText, { x: xCursor, y, size: 10, font, color: PDF_COLOR.meta });
-        xCursor += wSep;
-      }
-    }
-    y -= 13;
+  let any = false;
+  if (phoneDisp) {
+    drawInlineText(phoneDisp);
+    any = true;
   }
+  if (emailDisp) {
+    if (any) drawInlineSep();
+    drawInlineText(emailDisp);
+    any = true;
+  }
+  if (liUrl) {
+    if (any) drawInlineSep();
+    drawLink('LinkedIn', liUrl, contactSize);
+    any = true;
+  }
+  if (ghUrl) {
+    if (any) drawInlineSep();
+    drawLink('GitHub', ghUrl, contactSize);
+    any = true;
+  }
+
+  y -= 13;
 
   const summary = String(doc.summary || '').trim();
   if (summary) {
@@ -1518,7 +1541,7 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   if (tech.length || soft.length) {
     sectionHeading('Core Technical Skills');
     for (const g of groupTechnicalSkills(tech).slice(0, 8)) {
-      drawParagraph(g.title, 10.6, true, PDF_COLOR.text);
+      drawParagraph(g.title, 11.6, true, PDF_COLOR.text); // +1pt
       y -= 2;
       for (const l of skillsToWrappedLines(g.items, 60, { maxItemsPerLine: 6, maxCharsPerLine: 72 })) {
         drawParagraph(l, 10.4, false, PDF_COLOR.muted);
@@ -1532,7 +1555,7 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
       normalizeSkillItemsForExport(soft, 50).length < 4;
 
     if (!hideSoft && soft.length) {
-      drawParagraph('Professional Strengths', 10.6, true, PDF_COLOR.text);
+      drawParagraph('Professional Strengths', 11.6, true, PDF_COLOR.text); // +1pt
       y -= 2;
       for (const l of skillsToWrappedLines(soft, 40, { maxItemsPerLine: 6, maxCharsPerLine: 72 })) {
         drawParagraph(l, 10.4, false, PDF_COLOR.muted);
@@ -1550,12 +1573,12 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     sectionHeading('Professional Experience');
     for (const e of exp) {
       const role = [e.title, e.company].filter(Boolean).join(' — ');
-      const dates = [e.start, e.end].filter(Boolean).join(' → ');
+      const dates = [e.start, e.end].filter(Boolean).join(' - ');
       const meta = [dates, e.location].filter(Boolean).join(' • ');
-      if (role) drawParagraph(role, 10.9, true, PDF_COLOR.text);
+      if (role) drawParagraph(role, 11.9, true, PDF_COLOR.text); // +1pt
       // Line break after company/role line.
       if (role) y -= 3;
-      if (meta) drawParagraph(meta, 9.8, false, PDF_COLOR.meta);
+      if (meta) drawParagraph(meta, 10.8, false, PDF_COLOR.meta); // +1pt
       // Line break after timeline/meta line (before bullets).
       if (meta) y -= 6;
       const bullets = Array.isArray(e.bullets) ? e.bullets : [];
@@ -1601,6 +1624,9 @@ export default function ResumeWorkspace() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [autoSaveError, setAutoSaveError] = useState<string>('');
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<string | null>(null);
 
   const [resumes, setResumes] = useState<any[]>([]);
   const [selectedBaseResumeId, setSelectedBaseResumeId] = useState<string>('');
@@ -1635,7 +1661,116 @@ export default function ResumeWorkspace() {
   const [lastGeneratedTitle, setLastGeneratedTitle] = useState<string>('');
   const [missingPhraseQuery, setMissingPhraseQuery] = useState<string>('');
 
+  // Draft text for tabs that use freeform textareas. This prevents cursor jumps from immediate normalization/parsing.
+  const [experienceDraft, setExperienceDraft] = useState<string>('');
+  const [educationDraft, setEducationDraft] = useState<string>('');
+  const [certsDraft, setCertsDraft] = useState<string>('');
+  const expDraftTimerRef = useRef<number | null>(null);
+  const eduDraftTimerRef = useRef<number | null>(null);
+  const certDraftTimerRef = useRef<number | null>(null);
+
   const selected = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
+
+  // --- Autosave (debounced) ---
+  const autosaveTimerRef = useRef<number | null>(null);
+  const lastSavedSigRef = useRef<string>('');
+  const inFlightAutoSaveRef = useRef<AbortController | null>(null);
+
+  const selectedSavePayloadSig = useMemo(() => {
+    if (!selected) return '';
+    // Only include fields we persist in resume_documents updates.
+    const payload = {
+      title: selected.title,
+      template_id: selected.template_id,
+      target_role: selected.target_role,
+      target_seniority: selected.target_seniority,
+      content_json: selected.content_json,
+    };
+    try {
+      return JSON.stringify(payload);
+    } catch {
+      // Worst-case: still allow autosave attempts (signature changes each time).
+      return String(Date.now());
+    }
+  }, [selected]);
+
+  async function autoSaveSelected() {
+    if (!selected) return;
+    setAutoSaveError('');
+    setIsAutoSaving(true);
+    // Cancel any previous in-flight autosave (we only care about the latest).
+    try {
+      inFlightAutoSaveRef.current?.abort();
+    } catch {
+      // ignore
+    }
+    const ac = new AbortController();
+    inFlightAutoSaveRef.current = ac;
+
+    try {
+      const { error } = await supabase
+        .from('resume_documents')
+        .update({
+          title: selected.title,
+          template_id: selected.template_id,
+          target_role: selected.target_role,
+          target_seniority: selected.target_seniority,
+          content_json: selected.content_json,
+        })
+        .eq('id', selected.id)
+        // @ts-ignore - supabase-js supports abortSignal in options
+        .abortSignal(ac.signal);
+      if (error) throw error;
+      setLastAutoSavedAt(new Date().toISOString());
+      lastSavedSigRef.current = selectedSavePayloadSig;
+    } catch (e: any) {
+      // Don't spam toast on every keystroke; show a small inline error instead.
+      const msg = e?.message || 'Autosave failed';
+      setAutoSaveError(msg);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }
+
+  // Debounced autosave when selected doc changes.
+  useEffect(() => {
+    if (!selected) return;
+    // Initialize signature when switching docs to avoid an immediate autosave.
+    lastSavedSigRef.current = selectedSavePayloadSig;
+    setAutoSaveError('');
+    setIsAutoSaving(false);
+
+    // Initialize draft text from the selected doc.
+    setExperienceDraft(
+      (selected.content_json.experience || [])
+        .map((e) => {
+          const header = [e.title, e.company].filter(Boolean).join(' — ');
+          const bullets = (e.bullets || []).map((b) => `- ${b}`).join('\n');
+          return `${header}\n${bullets}`.trim();
+        })
+        .join('\n\n'),
+    );
+    setEducationDraft(
+      (selected.content_json.education || []).map((e) => [e.degree, e.field, e.school, e.year].filter(Boolean).join(' • ')).join('\n'),
+    );
+    setCertsDraft((selected.content_json.certifications || []).join('\n'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
+  useEffect(() => {
+    if (!selected) return;
+    // Skip autosave if nothing changed since last save.
+    if (!selectedSavePayloadSig || selectedSavePayloadSig === lastSavedSigRef.current) return;
+    // Debounce typing.
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = window.setTimeout(() => {
+      void autoSaveSelected();
+    }, 800);
+    return () => {
+      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSavePayloadSig, selected?.id]);
 
   const cleanPhrase = (s: unknown) =>
     String(s || '')
@@ -2989,6 +3124,9 @@ export default function ResumeWorkspace() {
                   <div className="mb-2 text-sm">
                     <span className="text-muted-foreground">Document:</span>{' '}
                     <span className="font-medium text-foreground">{selected.title}</span>
+                    <span className="ml-3 text-xs text-muted-foreground">
+                      {isAutoSaving ? 'Saving…' : autoSaveError ? `Autosave failed: ${autoSaveError}` : lastAutoSavedAt ? 'Autosaved' : ''}
+                    </span>
                   </div>
 
                   <Separator className="my-4" />
@@ -3126,24 +3264,33 @@ export default function ResumeWorkspace() {
                     <TabsContent value="experience" className="space-y-3 mt-4">
                       <Textarea
                         className="min-h-[360px] lg:min-h-[520px]"
-                        value={(selected.content_json.experience || [])
-                          .map((e) => {
-                            const header = [e.title, e.company].filter(Boolean).join(' — ');
-                            const bullets = (e.bullets || []).map((b) => `- ${b}`).join('\n');
-                            return `${header}\n${bullets}`.trim();
-                          })
-                          .join('\n\n')}
+                        value={experienceDraft}
                         onChange={(e) => {
-                          // Minimal parser: split blocks by blank line, treat first line as header, rest as bullets
-                          const blocks = e.target.value.split(/\n\s*\n/g).map((b) => b.trim()).filter(Boolean);
-                          const parsed = blocks.map((b) => {
-                            const lines = b.split('\n').map((l) => l.trim()).filter(Boolean);
-                            const header = lines[0] || '';
-                            const [title, company] = header.split('—').map((x) => x.trim());
-                            const bullets = lines.slice(1).map((l) => l.replace(/^-+\s*/, '').trim()).filter(Boolean);
-                            return { title: title || undefined, company: company || undefined, bullets };
-                          });
-                          updateContent({ experience: parsed });
+                          const next = e.target.value;
+                          setExperienceDraft(next);
+                          if (expDraftTimerRef.current) window.clearTimeout(expDraftTimerRef.current);
+                          expDraftTimerRef.current = window.setTimeout(() => {
+                            // Minimal parser: split blocks by blank line, treat first line as header, rest as bullets.
+                            // We only update bullets; header edits are ignored to avoid accidental company/title rewrites.
+                            const blocks = String(next)
+                              .split(/\n\s*\n/g)
+                              .map((b) => b.trim())
+                              .filter(Boolean);
+                            const parsedBullets = blocks.map((b) => {
+                              const lines = b.split('\n').map((l) => l.trim()).filter(Boolean);
+                              const bullets = lines
+                                .slice(1)
+                                .map((l) => l.replace(/^[•\-\*]+\s*/, '').trim())
+                                .filter(Boolean);
+                              return bullets;
+                            });
+                            const current = Array.isArray(selected.content_json.experience) ? selected.content_json.experience : [];
+                            const merged = current.map((role, idx) => ({
+                              ...role,
+                              bullets: parsedBullets[idx] || role.bullets || [],
+                            }));
+                            updateContent({ experience: merged });
+                          }, 500);
                         }}
                         placeholder={`Director of Engineering — Walmart\n- Led ...\n- Built ...\n\nEngineering Manager — Fannie Mae\n- ...`}
                       />
@@ -3152,17 +3299,21 @@ export default function ResumeWorkspace() {
                     <TabsContent value="education" className="space-y-2 mt-4">
                       <Textarea
                         className="min-h-[200px] lg:min-h-[260px]"
-                        value={(selected.content_json.education || [])
-                          .map((e) => [e.degree, e.field, e.school, e.year].filter(Boolean).join(' • '))
-                          .join('\n')}
+                        value={educationDraft}
                         onChange={(e) => {
-                          const rows = e.target.value
-                            .split('\n')
-                            .map((r) => r.trim())
-                            .filter(Boolean)
-                            .slice(0, 20)
-                            .map((r) => ({ school: r }));
-                          updateContent({ education: rows });
+                          const next = e.target.value;
+                          setEducationDraft(next);
+                          if (eduDraftTimerRef.current) window.clearTimeout(eduDraftTimerRef.current);
+                          eduDraftTimerRef.current = window.setTimeout(() => {
+                            const rows = String(next)
+                              .split('\n')
+                              .map((r) => r.trim())
+                              // Keep empty lines out of stored structure, but allow typing freely in the draft.
+                              .filter(Boolean)
+                              .slice(0, 30)
+                              .map((r) => ({ school: r }));
+                            updateContent({ education: rows });
+                          }, 500);
                         }}
                         placeholder="Executive MBA • George Mason University • 2020"
                       />
@@ -3172,16 +3323,21 @@ export default function ResumeWorkspace() {
                     <TabsContent value="certs" className="space-y-2 mt-4">
                       <Textarea
                         className="min-h-[200px] lg:min-h-[260px]"
-                        value={(selected.content_json.certifications || []).join('\n')}
-                        onChange={(e) =>
-                          updateContent({
-                            certifications: e.target.value
-                              .split('\n')
-                              .map((r) => r.trim())
-                              .filter(Boolean)
-                              .slice(0, 30),
-                          })
-                        }
+                        value={certsDraft}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setCertsDraft(next);
+                          if (certDraftTimerRef.current) window.clearTimeout(certDraftTimerRef.current);
+                          certDraftTimerRef.current = window.setTimeout(() => {
+                            updateContent({
+                              certifications: String(next)
+                                .split('\n')
+                                .map((r) => r.trim())
+                                .filter(Boolean)
+                                .slice(0, 50),
+                            });
+                          }, 500);
+                        }}
                         placeholder="AWS Certified Solutions Architect\n…"
                       />
                     </TabsContent>
