@@ -3357,7 +3357,7 @@ export default function ResumeWorkspace() {
           Boolean(jdSkillExtraction) ||
           notesAddedPhrases.length > 0) && (
           <div className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-12 items-stretch">
+            <div className="grid gap-6 lg:grid-cols-12">
               <Card className="card-elevated lg:col-span-5">
                 <CardHeader>
                   <CardTitle className="text-base">ATS outcomes</CardTitle>
@@ -3418,14 +3418,14 @@ export default function ResumeWorkspace() {
                 </CardContent>
               </Card>
 
-              <Card className="card-elevated lg:col-span-7 h-full flex flex-col">
+              <Card className="card-elevated lg:col-span-7">
                 <CardHeader>
                   <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
                   <CardDescription>
                     These phrases were not found verbatim in the resume text used for analysis. Add them naturally (best place: Skills).
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
+                <CardContent className="space-y-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative w-full sm:max-w-[420px]">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -3447,25 +3447,24 @@ export default function ResumeWorkspace() {
                   </div>
 
                   {filteredMissingVerbatim.length > 0 ? (
-                    <div className="flex flex-col flex-1 min-h-0 rounded-md border bg-background overflow-hidden">
-                      <ScrollArea className="flex-1 min-h-0 p-3">
-                        <div className="space-y-2">
-                          {filteredMissingVerbatim.slice(0, 60).map((p) => (
-                            <div key={p} className="flex items-start justify-between gap-3">
-                              <div className="text-sm leading-6">{p}</div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 p-0"
-                                onClick={() => copyToClipboard(p)}
-                                title="Copy"
-                              >
-                                <Copy className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
+                    <div className="rounded-md border bg-background">
+                      {/* Keep the widget compact, but make rows tighter so more items are visible before scrolling */}
+                      <div className="max-h-[320px] overflow-auto p-2 space-y-1">
+                        {filteredMissingVerbatim.slice(0, 60).map((p) => (
+                          <div key={p} className="flex items-start justify-between gap-3">
+                            <div className="text-[13px] leading-5">{p}</div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 p-0"
+                              onClick={() => copyToClipboard(p)}
+                              title="Copy"
+                            >
+                              <Copy className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                       <div className="border-t p-3 text-xs text-muted-foreground">
                         Tip: add to Skills first; only add to bullets if you can defend it in interview.
                       </div>
