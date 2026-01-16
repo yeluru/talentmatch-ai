@@ -656,6 +656,110 @@ function buildResumeTextFromParsedFacts(parsed: any): string {
   return lines.join('\n').trim();
 }
 
+type LineDiffOp = { type: 'equal' | 'add' | 'del'; line: string };
+
+function diffLines(beforeText: string, afterText: string): { ops: LineDiffOp[]; added: string[]; removed: string[] } {
+  const toLines = (t: string) =>
+    String(t || '')
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map((l) => l.replace(/\s+$/g, ''))
+      .filter((l) => l.trim().length > 0);
+
+  const a = toLines(beforeText);
+  const b = toLines(afterText);
+
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+
+  const ops: LineDiffOp[] = [];
+  let i = a.length;
+  let j = b.length;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      ops.push({ type: 'equal', line: a[i - 1] });
+      i -= 1;
+      j -= 1;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.push({ type: 'add', line: b[j - 1] });
+      j -= 1;
+    } else if (i > 0) {
+      ops.push({ type: 'del', line: a[i - 1] });
+      i -= 1;
+    }
+  }
+  ops.reverse();
+
+  const added = ops.filter((o) => o.type === 'add').map((o) => o.line);
+  const removed = ops.filter((o) => o.type === 'del').map((o) => o.line);
+  return { ops, added, removed };
+}
+
+async function generateDiffPdfBlob(opts: { title: string; beforeText: string; afterText: string }): Promise<Blob> {
+  const { title, beforeText, afterText } = opts;
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const pageSize: [number, number] = [612, 792];
+  const margin = 54;
+  const contentWidth = pageSize[0] - margin * 2;
+
+  const winAnsiSafe = (s: string) => String(s || '').replaceAll('→', '-').replaceAll('•', '*');
+
+  let page = pdf.addPage(pageSize);
+  let y = pageSize[1] - margin;
+
+  const ensureSpace = (needed: number) => {
+    if (y - needed >= margin) return;
+    page = pdf.addPage(pageSize);
+    y = pageSize[1] - margin;
+  };
+
+  const wrap = (t: string, size: number) => {
+    const words = winAnsiSafe(t).split(/\s+/g).filter(Boolean);
+    const lines: string[] = [];
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? `${cur} ${w}` : w;
+      if (font.widthOfTextAtSize(test, size) <= contentWidth) cur = test;
+      else {
+        if (cur) lines.push(cur);
+        cur = w;
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+
+  const draw = (t: string, size: number, bold = false, color = rgb(0, 0, 0)) => {
+    for (const line of wrap(t, size)) {
+      ensureSpace(size + 6);
+      page.drawText(line, { x: margin, y, size, font: bold ? fontBold : font, color });
+      y -= size + 4;
+    }
+  };
+
+  const { added, removed } = diffLines(beforeText, afterText);
+
+  draw(`${title || 'Resume'} — Change Report`, 18, true);
+  draw(`Added lines: ${added.length}  •  Removed lines: ${removed.length}`, 11, false, rgb(0.2, 0.2, 0.2));
+  y -= 8;
+
+  draw('ADDED', 12, true);
+  for (const l of added.slice(0, 200)) draw(`+ ${l}`, 10, false);
+  y -= 10;
+
+  draw('REMOVED', 12, true);
+  for (const l of removed.slice(0, 200)) draw(`- ${l}`, 10, false);
+
+  return new Blob([await pdf.save()], { type: 'application/pdf' });
+}
+
 function arrayBufferToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
   const chunkSize = 0x8000;
@@ -1632,6 +1736,11 @@ export default function ResumeWorkspace() {
   const [selectedBaseResumeId, setSelectedBaseResumeId] = useState<string>('');
   const [targetTitle, setTargetTitle] = useState<string>('');
   const [jdText, setJdText] = useState<string>(''); // used when pasting a custom JD
+
+  // --- Change diff (base resume vs current workspace doc) ---
+  const [diffBaseText, setDiffBaseText] = useState<string>('');
+  const [diffBaseLabel, setDiffBaseLabel] = useState<string>('');
+  const [diffBaseLoading, setDiffBaseLoading] = useState<boolean>(false);
   const [jobInputMode, setJobInputMode] = useState<'existing' | 'custom'>('existing');
   const [jobs, setJobs] = useState<Array<{ id: string; title: string; description: string; organization_name: string; location: string | null }>>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
@@ -1670,6 +1779,48 @@ export default function ResumeWorkspace() {
   const certDraftTimerRef = useRef<number | null>(null);
 
   const selected = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
+
+  const diffBaseResumeId = selected?.base_resume_id || selectedBaseResumeId || '';
+  const diffAfterText = useMemo(() => (selected ? buildResumeTextFromResumeDoc(selected.content_json) : ''), [selected?.id, selected?.content_json]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!selected || !diffBaseResumeId) {
+        setDiffBaseText('');
+        setDiffBaseLabel('');
+        return;
+      }
+      const base = (resumes || []).find((r: any) => r.id === diffBaseResumeId);
+      if (!base) {
+        setDiffBaseText('');
+        setDiffBaseLabel('');
+        return;
+      }
+      setDiffBaseLoading(true);
+      try {
+        const { parsed } = await ensureResumeParsed(base);
+        if (cancelled) return;
+        setDiffBaseLabel(String(base.file_name || 'Base resume'));
+        setDiffBaseText(buildResumeTextFromParsedFacts(parsed));
+      } catch {
+        if (cancelled) return;
+        setDiffBaseLabel(String(base.file_name || 'Base resume'));
+        setDiffBaseText('');
+      } finally {
+        if (!cancelled) setDiffBaseLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, diffBaseResumeId, resumes]);
+
+  const diff = useMemo(() => {
+    if (!diffBaseText || !diffAfterText) return null;
+    return diffLines(diffBaseText, diffAfterText);
+  }, [diffBaseText, diffAfterText]);
 
   // --- Autosave (debounced) ---
   const autosaveTimerRef = useRef<number | null>(null);
@@ -3139,6 +3290,7 @@ export default function ResumeWorkspace() {
                       <TabsTrigger value="experience">Experience</TabsTrigger>
                       <TabsTrigger value="education">Education</TabsTrigger>
                       <TabsTrigger value="certs">Certifications</TabsTrigger>
+                      <TabsTrigger value="changes">Changes</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="contact" className="space-y-4 mt-4">
@@ -3340,6 +3492,88 @@ export default function ResumeWorkspace() {
                         }}
                         placeholder="AWS Certified Solutions Architect\n…"
                       />
+                    </TabsContent>
+
+                    <TabsContent value="changes" className="space-y-4 mt-4">
+                      {!diffBaseResumeId ? (
+                        <div className="text-sm text-muted-foreground">
+                          Select a <span className="font-medium text-foreground">base resume</span> in the tailor section to compare changes.
+                        </div>
+                      ) : diffBaseLoading ? (
+                        <div className="text-sm text-muted-foreground">Loading base resume…</div>
+                      ) : !diff ? (
+                        <div className="text-sm text-muted-foreground">
+                          Could not compute changes (base resume text unavailable).
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm text-muted-foreground">
+                              Comparing <span className="font-medium text-foreground">{diffBaseLabel || 'Base resume'}</span> →{' '}
+                              <span className="font-medium text-foreground">{selected?.title || 'Current document'}</span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              onClick={async () => {
+                                if (!selected) return;
+                                const blob = await generateDiffPdfBlob({
+                                  title: selected.title || 'Resume',
+                                  beforeText: diffBaseText,
+                                  afterText: diffAfterText,
+                                });
+                                downloadBlob(`${selected.title || 'resume'}-change-report.pdf`, blob);
+                                toast.success('Downloaded change report');
+                              }}
+                            >
+                              Download Change Report (PDF)
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <Card className="dash-card">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-base">Added</CardTitle>
+                                <CardDescription>{diff.added.length} lines</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                <ScrollArea className="h-[240px]">
+                                  <div className="space-y-2">
+                                    {(diff.added.length ? diff.added : ['No additions detected.']).slice(0, 120).map((l, i) => (
+                                      <div key={i} className="text-sm">
+                                        <span className="text-success font-medium">+ </span>
+                                        <span className="text-muted-foreground">{l}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="dash-card">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-base">Removed</CardTitle>
+                                <CardDescription>{diff.removed.length} lines</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                <ScrollArea className="h-[240px]">
+                                  <div className="space-y-2">
+                                    {(diff.removed.length ? diff.removed : ['No removals detected.']).slice(0, 120).map((l, i) => (
+                                      <div key={i} className="text-sm">
+                                        <span className="text-destructive font-medium">- </span>
+                                        <span className="text-muted-foreground">{l}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              </CardContent>
+                            </Card>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            Note: this compares your current workspace document against the selected base resume. It’s not a PDF-to-PDF pixel diff.
+                          </div>
+                        </>
+                      )}
                     </TabsContent>
                   </Tabs>
                 </>
