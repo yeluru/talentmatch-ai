@@ -862,14 +862,14 @@ export default function AIAnalysis() {
                   </Card>
 
                   <div className="grid gap-6 xl:grid-cols-2">
-                    <Card>
+                    <Card className="h-full flex flex-col">
                       <CardHeader>
                         <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
                         <CardDescription>
                           These phrases were not found verbatim in your resume text. Add them naturally (best place: Skills).
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <Input
                             placeholder="Search missing phrases..."
@@ -893,7 +893,7 @@ export default function AIAnalysis() {
                           </div>
                         </div>
 
-                        <ScrollArea className="h-[260px] rounded-md border p-3">
+                        <ScrollArea className="flex-1 min-h-0 rounded-md border p-3">
                           {filteredMissing.length ? (
                             <div className="flex flex-wrap gap-2">
                               {filteredMissing.slice(0, 60).map((k, i) => (
