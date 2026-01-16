@@ -159,6 +159,15 @@
     @apply scroll-smooth overflow-x-hidden overflow-y-auto;
     width: 100%;
     max-width: 100%;
+    /* Global typography scale: slightly larger base to improve readability across the app.
+       Tailwind font sizes are rem-based, so this scales the whole UI consistently. */
+    font-size: 17px;
+  }
+
+  @media (max-width: 640px) {
+    html {
+      font-size: 16px;
+    }
   }
 
   body {
