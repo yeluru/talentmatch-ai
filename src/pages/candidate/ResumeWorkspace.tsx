@@ -3404,18 +3404,27 @@ export default function ResumeWorkspace() {
                     </ol>
                   </div>
 
-                  {notesAddedPhrases.length > 0 && (
-                    <div className="text-sm">
-                      <div className="font-medium">Added vs base (recent)</div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {notesAddedPhrases.slice(0, 18).map((k, i) => (
-                          <Badge key={i} variant="secondary">
-                            {cleanPhrase(k)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <div className="rounded-md border bg-background p-3 text-sm">
+                    <div className="font-medium">Quick tips (high impact)</div>
+                    <ul className="mt-2 space-y-1 text-muted-foreground">
+                      <li>
+                        <span className="text-foreground font-medium">Don’t add unverifiable claims.</span> If you can’t explain it in 60
+                        seconds with proof, skip it.
+                      </li>
+                      <li>
+                        <span className="text-foreground font-medium">Put phrases where recruiters expect them.</span> Skills first, Summary
+                        second, only then add to your most recent role bullets.
+                      </li>
+                      <li>
+                        <span className="text-foreground font-medium">Turn 1–2 phrases into evidence.</span> Add one concrete bullet with a
+                        metric (latency, cost, accuracy, volume, revenue).
+                      </li>
+                      <li>
+                        <span className="text-foreground font-medium">Re-run after edits.</span> Iterate until coverage is “good enough” for
+                        the jobs you’re targeting.
+                      </li>
+                    </ul>
+                  </div>
                 </CardContent>
               </Card>
 
