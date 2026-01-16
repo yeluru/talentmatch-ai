@@ -228,7 +228,7 @@ export default function JobDetails() {
               <CardHeader>
                 <CardTitle>About this role</CardTitle>
               </CardHeader>
-              <CardContent className="prose prose-sm max-w-none">
+              <CardContent className="prose max-w-none">
                 <p className="whitespace-pre-wrap">{job.description}</p>
               </CardContent>
             </Card>
@@ -244,7 +244,7 @@ export default function JobDetails() {
                 <CardContent className="space-y-4">
                   {job.required_skills && job.required_skills.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium mb-2">Required</h4>
+                      <h4 className="text-base font-medium mb-2">Required</h4>
                       <div className="flex flex-wrap gap-2">
                         {job.required_skills.map((skill, i) => (
                           <Badge key={i} variant="default">{skill}</Badge>
@@ -254,7 +254,7 @@ export default function JobDetails() {
                   )}
                   {job.nice_to_have_skills && job.nice_to_have_skills.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium mb-2">Nice to have</h4>
+                      <h4 className="text-base font-medium mb-2">Nice to have</h4>
                       <div className="flex flex-wrap gap-2">
                         {job.nice_to_have_skills.map((skill, i) => (
                           <Badge key={i} variant="secondary">{skill}</Badge>
@@ -274,13 +274,13 @@ export default function JobDetails() {
                 {/* Salary removed (contracting-first product) */}
                 {job.posted_at && (
                   <div>
-                    <p className="text-sm text-muted-foreground">Posted</p>
+                    <p className="text-base text-muted-foreground">Posted</p>
                     <p className="font-medium">{format(new Date(job.posted_at), 'MMMM d, yyyy')}</p>
                   </div>
                 )}
                 {job.closes_at && (
                   <div>
-                    <p className="text-sm text-muted-foreground">Closes</p>
+                    <p className="text-base text-muted-foreground">Closes</p>
                     <p className="font-medium">{format(new Date(job.closes_at), 'MMMM d, yyyy')}</p>
                   </div>
                 )}
@@ -306,7 +306,7 @@ export default function JobDetails() {
                         <div>
                           <Label>Select Resume</Label>
                           {resumes.length === 0 ? (
-                            <p className="text-sm text-muted-foreground mt-2">
+                            <p className="text-base text-muted-foreground mt-2">
                               No resumes uploaded.{' '}
                               <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/candidate/resumes')}>
                                 Upload one
@@ -359,7 +359,7 @@ export default function JobDetails() {
                   <CardTitle>About {job.organization.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">{job.organization.description}</p>
+                  <p className="text-base text-muted-foreground">{job.organization.description}</p>
                 </CardContent>
               </Card>
             )}
