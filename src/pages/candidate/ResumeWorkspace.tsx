@@ -3448,27 +3448,25 @@ export default function ResumeWorkspace() {
                   </div>
 
                   {filteredMissingVerbatim.length > 0 ? (
-                    <div className="rounded-md border bg-background">
-                      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                        <ScrollArea className="flex-1 min-h-0 p-2">
-                          <div className="space-y-1">
-                            {filteredMissingVerbatim.slice(0, 60).map((p) => (
-                              <div key={p} className="flex items-start justify-between gap-3">
-                                <div className="text-[13px] leading-5">{p}</div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => copyToClipboard(p)}
-                                  title="Copy"
-                                >
-                                  <Copy className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
+                    <div className="flex flex-col flex-1 min-h-0 rounded-md border bg-background overflow-hidden">
+                      <ScrollArea className="flex-1 min-h-0 p-2">
+                        <div className="space-y-1">
+                          {filteredMissingVerbatim.slice(0, 60).map((p) => (
+                            <div key={p} className="flex items-start justify-between gap-3">
+                              <div className="text-[13px] leading-5">{p}</div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 p-0"
+                                onClick={() => copyToClipboard(p)}
+                                title="Copy"
+                              >
+                                <Copy className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
                       <div className="border-t p-3 text-xs text-muted-foreground">
                         Tip: add to Skills first; only add to bullets if you can defend it in interview.
                       </div>
