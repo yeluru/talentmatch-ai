@@ -161,12 +161,12 @@
     max-width: 100%;
     /* Global typography scale: slightly larger base to improve readability across the app.
        Tailwind font sizes are rem-based, so this scales the whole UI consistently. */
-    font-size: 18px;
+    font-size: 17px;
   }
 
   @media (max-width: 640px) {
     html {
-      font-size: 17px;
+      font-size: 16px;
     }
   }
 
