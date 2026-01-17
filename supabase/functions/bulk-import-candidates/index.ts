@@ -252,6 +252,32 @@ serve(async (req) => {
           continue;
         }
 
+        // IMPORTANT:
+        // Recruiter visibility is driven by candidate_org_links (not candidate_profiles.organization_id).
+        // If we don't create this link, the recruiter won't see the sourced candidate in Talent Pool due to RLS.
+        const linkType = typeof source === 'string' && source.trim().length ? source.trim().slice(0, 80) : 'sourced';
+        const { error: linkErr } = await supabase
+          .from("candidate_org_links")
+          .insert({
+            candidate_id: candidateId,
+            organization_id: organizationId,
+            link_type: linkType,
+            status: 'active',
+            created_by: user.id,
+          });
+
+        if (linkErr) {
+          // If the link fails, the candidate will be invisible to recruiters. Clean up and report the error.
+          console.error("Error creating candidate-org link:", linkErr);
+          try {
+            await supabase.from("candidate_profiles").delete().eq("id", candidateId);
+          } catch {
+            // ignore cleanup errors
+          }
+          results.errors.push(`Failed to link ${validatedName} to org: ${linkErr.message}`);
+          continue;
+        }
+
         // Add validated skills
         if (validatedSkills.length > 0) {
           const skillInserts = validatedSkills.map((skill: string) => ({
