@@ -854,8 +854,8 @@ export default function TalentSourcing() {
               <p className="text-sm mt-1">Connect to job boards and HR systems</p>
             </div>
           </TabsContent>
-            </Tabs>
           </CardContent>
+            </Tabs>
           </Card>
 
           {/* Right: status */}
