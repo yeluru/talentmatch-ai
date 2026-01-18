@@ -15,12 +15,16 @@ dist-ssr
 # Env files (do not commit secrets)
 .env
 .env.*
+supabase/functions.env
 
 # Supabase local artifacts (do not commit)
 supabase/.branches/
 supabase/.temp/
 supabase/tmp/
 supabase/tmp/**
+supabase/.env
+supabase/.env.*
+supabase/.env.local
 
 # Editor directories and files
 .vscode/*
