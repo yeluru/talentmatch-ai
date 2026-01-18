@@ -72,7 +72,7 @@ export default function TalentSourcing() {
   const webSearch = useMutation({
     mutationFn: async (query: string) => {
       const { data, error } = await supabase.functions.invoke('web-search', {
-        body: { query, limit: 20, country: 'us', includeLinkedIn: false }
+        body: { query, limit: 20, country: 'us', strictCountry: true, includeLinkedIn: false }
       });
       if (error) throw error;
       return data;

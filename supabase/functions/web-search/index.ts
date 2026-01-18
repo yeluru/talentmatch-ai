@@ -51,6 +51,34 @@ function isLikelyGitHubProfileUrl(url: string): boolean {
   return u.includes("github.com/") && !u.includes("github.com/search") && !u.includes("github.com/topics");
 }
 
+function extractEmails(text: string): string[] {
+  const raw = String(text || "");
+  const matches = raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  // De-dupe + normalize
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const m of matches) {
+    const e = m.trim().toLowerCase();
+    if (!e) continue;
+    if (seen.has(e)) continue;
+    seen.add(e);
+    out.push(e);
+  }
+  return out.slice(0, 10);
+}
+
+function isUSLocation(location: string | null | undefined): boolean {
+  const s = String(location || "").trim().toLowerCase();
+  if (!s) return false;
+  if (s.includes("united states") || s.includes("usa") || s.includes("u.s.") || s === "us") return true;
+
+  // City, ST pattern (e.g., "Austin, TX")
+  const usStateAbbrev = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/i;
+  if (usStateAbbrev.test(s)) return true;
+
+  return false;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -95,7 +123,7 @@ serve(async (req) => {
       });
     }
 
-    const { query, limit = 20, country = "us", includeLinkedIn = false } = await req.json();
+    const { query, limit = 20, country = "us", includeLinkedIn = false, strictCountry = true } = await req.json();
     const rawQuery = String(query || "").trim();
     if (!rawQuery) {
       return new Response(JSON.stringify({ error: "Missing query" }), {
@@ -112,16 +140,18 @@ serve(async (req) => {
     const cappedLimit = Math.max(1, Math.min(Number(limit) || 20, 50));
 
     const fcCountry = String(country || "us").toLowerCase();
+    const strictUSOnly = Boolean(strictCountry) && fcCountry === "us";
 
     // Public web search strategy:
     // 1) Try a "candidate page" query (resume/cv/portfolio/github)
     // 2) If that yields nothing, retry with broader query (still excluding LinkedIn by default)
     // 3) If still nothing, try a GitHub-focused query (often best for dev roles)
     const baseConstraint = includeLinkedIn ? "" : " -site:linkedin.com";
+    const usConstraint = strictUSOnly ? ' ("United States" OR USA OR "U.S." OR "US")' : "";
     const queriesToTry: string[] = [
-      `${rawQuery} (resume OR cv OR portfolio OR github OR "about me")${baseConstraint}`,
-      `${rawQuery}${baseConstraint}`,
-      `site:github.com ${rawQuery}${baseConstraint}`,
+      `${rawQuery}${usConstraint} (resume OR cv OR portfolio OR github OR "about me")${baseConstraint}`,
+      `${rawQuery}${usConstraint}${baseConstraint}`,
+      `site:github.com ${rawQuery}${usConstraint}${baseConstraint}`,
     ];
 
     console.log("[web-search] rawQuery:", rawQuery);
@@ -170,6 +200,8 @@ serve(async (req) => {
       const markdown = String(result?.markdown || "");
 
       if (!url || !markdown || markdown.length < 200) continue;
+
+      const observedEmails = extractEmails(markdown);
 
       // Heuristic mapping for provenance/contact links
       const isLinkedIn = isLikelyLinkedInProfileUrl(url);
@@ -243,6 +275,19 @@ ${markdown.substring(0, 15000)}`,
 
         // Add provenance (safe to ignore downstream if not persisted)
         normalized.source_url = url;
+
+        // Prevent hallucinated emails: only allow emails that appear in the page text.
+        if (normalized.email) {
+          const e = String(normalized.email).trim().toLowerCase();
+          if (!observedEmails.includes(e)) normalized.email = null;
+        }
+
+        // Enforce strict US-only when requested.
+        if (strictUSOnly) {
+          if (!isUSLocation(normalized.location)) {
+            continue;
+          }
+        }
 
         profiles.push(normalized);
       } catch (e) {

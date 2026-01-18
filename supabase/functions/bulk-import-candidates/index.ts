@@ -43,6 +43,14 @@ function validateUrl(url: string | null | undefined): string | null {
   }
 }
 
+function pickFirstUrl(...candidates: Array<string | null | undefined>): string | null {
+  for (const c of candidates) {
+    const v = validateUrl(c);
+    if (v) return v;
+  }
+  return null;
+}
+
 function sanitizeString(value: string | null | undefined, maxLength: number = MAX_STRING_LENGTH): string | null {
   if (!value) return null;
   // Convert to string, trim, and limit length
@@ -240,6 +248,8 @@ serve(async (req) => {
         const validatedEmail = validateEmail(profile.email);
         const validatedPhone = validatePhone(profile.phone);
         const validatedLinkedin = validateUrl(profile.linkedin_url);
+        const validatedGithub = pickFirstUrl((profile as any).github_url);
+        const validatedWebsite = pickFirstUrl((profile as any).website, (profile as any).source_url);
         const validatedName = sanitizeString(profile.full_name, 200) || "Unknown";
         const validatedLocation = sanitizeString(profile.location);
         const validatedTitle = sanitizeString(profile.headline || profile.current_title);
@@ -338,6 +348,8 @@ serve(async (req) => {
             phone: validatedPhone,
             location: validatedLocation,
             linkedin_url: validatedLinkedin,
+            github_url: validatedGithub,
+            website: validatedWebsite,
             current_title: validatedTitle,
             current_company: validatedCompany,
             years_of_experience: validatedYearsExp,

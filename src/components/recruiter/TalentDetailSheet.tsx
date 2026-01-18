@@ -36,6 +36,7 @@ import {
   Mail,
   Phone,
   Linkedin,
+  Github,
   Calendar,
   GraduationCap,
   Loader2,
@@ -73,6 +74,8 @@ interface TalentData {
   phone: string | null;
   location: string | null;
   linkedin_url: string | null;
+  github_url: string | null;
+  website: string | null;
   headline: string | null;
   summary: string | null;
   current_title: string | null;
@@ -229,6 +232,32 @@ function TalentDetailContent({
               className="hover:underline text-primary truncate"
             >
               LinkedIn Profile
+            </a>
+          </div>
+        )}
+        {talent.github_url && (
+          <div className="flex items-center gap-2 text-sm">
+            <Github className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <a
+              href={talent.github_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline text-primary truncate"
+            >
+              GitHub
+            </a>
+          </div>
+        )}
+        {talent.website && (
+          <div className="flex items-center gap-2 text-sm">
+            <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <a
+              href={talent.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline text-primary truncate"
+            >
+              Source link
             </a>
           </div>
         )}
