@@ -504,6 +504,206 @@ export default function TalentSourcing() {
     return 'text-red-600';
   };
 
+  const totalSearchRows = searchMode === 'google' ? leadResults.length : searchResults.length;
+  const hasSearchRows = totalSearchRows > 0;
+  const isSearching =
+    searchMode === 'web'
+      ? webSearch.isPending
+      : searchMode === 'linkedin'
+        ? linkedinSearch.isPending
+        : googleSearch.isPending;
+
+  const searchResultsPane = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Checkbox
+            checked={totalSearchRows > 0 && selectedProfiles.size === totalSearchRows}
+            onCheckedChange={selectAllProfiles}
+            aria-label="Select all"
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-medium">
+              {totalSearchRows} {searchMode === 'google' ? 'leads' : 'profiles'} found
+              {searchMode === 'google' && typeof lastSearch?.totalFound === 'number' && (
+                <span className="text-muted-foreground"> (of ~{lastSearch.totalFound})</span>
+              )}
+            </div>
+            {lastSearch?.query && (
+              <div className="text-xs text-muted-foreground truncate">
+                {lastSearch.query}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Button
+          onClick={handleImportSelected}
+          disabled={selectedProfiles.size === 0 || importProfiles.isPending || saveLeads.isPending}
+          size="sm"
+          className="shrink-0"
+        >
+          {(searchMode === 'google' ? saveLeads.isPending : importProfiles.isPending) ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
+          {searchMode === 'google' ? 'Save leads' : 'Import'} {selectedProfiles.size || ''}
+        </Button>
+      </div>
+
+      <div className="rounded-xl border bg-muted/20 overflow-hidden">
+        <div className="grid lg:grid-cols-[1fr_360px]">
+          {/* List */}
+          <div className="max-h-[420px] overflow-y-auto p-2">
+            <div className="space-y-2">
+              {(searchMode === 'google' ? leadResults : searchResults).map((row: any, i: number) => {
+                const isActive = i === activeResultIndex;
+                const isSelected = selectedProfiles.has(i);
+                const title =
+                  searchMode === 'google'
+                    ? (row?.title ? String(row.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')
+                    : (row?.full_name || 'Unknown');
+                const subtitle =
+                  searchMode === 'google'
+                    ? (row?.snippet ? String(row.snippet) : '')
+                    : (row?.headline ? String(row.headline) : '');
+                const url =
+                  searchMode === 'google'
+                    ? row?.linkedin_url
+                    : (row?.linkedin_url || row?.website || row?.source_url);
+
+                return (
+                  <div
+                    key={row?.linkedin_url || row?.source_url || i}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
+                    }`}
+                    onClick={() => setActiveResultIndex(i)}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleProfileSelection(i)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{title}</div>
+                      {subtitle && (
+                        <div className="text-sm text-muted-foreground line-clamp-2">
+                          {subtitle}
+                        </div>
+                      )}
+                      {url && (
+                        <div className="text-xs text-muted-foreground truncate mt-1">
+                          {String(url)}
+                        </div>
+                      )}
+                    </div>
+                    {typeof row?.match_score === 'number' && (
+                      <Badge variant="secondary" className="shrink-0">
+                        {Math.round(row.match_score)}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="border-t lg:border-t-0 lg:border-l bg-background p-4">
+            {searchMode === 'google' ? (
+              leadResults[activeResultIndex] ? (
+                <div className="space-y-3">
+                  <div className="font-semibold">
+                    {leadResults[activeResultIndex].title
+                      ? String(leadResults[activeResultIndex].title).replace(/\s*\|\s*LinkedIn\s*$/i, '')
+                      : 'Lead preview'}
+                  </div>
+                  {leadResults[activeResultIndex].snippet && (
+                    <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {leadResults[activeResultIndex].snippet}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground break-all">
+                      {leadResults[activeResultIndex].linkedin_url}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(leadResults[activeResultIndex].linkedin_url!, '_blank')}
+                      className="w-full"
+                    >
+                      View on LinkedIn
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => saveLeads.mutate([leadResults[activeResultIndex]])}
+                      disabled={saveLeads.isPending}
+                      className="w-full"
+                    >
+                      Save this lead
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Select a lead to preview</div>
+              )
+            ) : (
+              searchResults[activeResultIndex] ? (
+                <div className="space-y-3">
+                  <div className="font-semibold">{searchResults[activeResultIndex].full_name || 'Profile'}</div>
+                  {searchResults[activeResultIndex].headline && (
+                    <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {searchResults[activeResultIndex].headline}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {searchResults[activeResultIndex].current_company && (
+                      <span className="inline-flex items-center gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        {searchResults[activeResultIndex].current_company}
+                      </span>
+                    )}
+                    {searchResults[activeResultIndex].location && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {searchResults[activeResultIndex].location}
+                      </span>
+                    )}
+                  </div>
+                  {searchResults[activeResultIndex].skills?.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {searchResults[activeResultIndex].skills!.slice(0, 10).map((s, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="space-y-2">
+                    <Button
+                      size="sm"
+                      onClick={() => importProfiles.mutate([searchResults[activeResultIndex]])}
+                      disabled={importProfiles.isPending}
+                      className="w-full"
+                    >
+                      Import this profile
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Select a profile to preview</div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -514,9 +714,9 @@ export default function TalentSourcing() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2 items-start lg:items-stretch">
+        <div className="grid gap-6 lg:h-[calc(100vh-240px)] lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_minmax(0,360px)] items-start lg:items-stretch">
           {/* Left: inputs/workflows */}
-          <Card className="min-w-0 lg:h-[calc(100vh-240px)] flex flex-col">
+          <Card className="min-w-0 h-full flex flex-col">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-0">
               <CardHeader className="space-y-3">
                 <CardTitle>Source candidates</CardTitle>
@@ -654,191 +854,9 @@ export default function TalentSourcing() {
                   </Button>
                 </div>
 
-                {(searchMode === 'google' ? leadResults.length > 0 : searchResults.length > 0) && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={selectedProfiles.size === (searchMode === 'google' ? leadResults.length : searchResults.length)}
-                          onCheckedChange={selectAllProfiles}
-                        />
-                        <span className="text-sm font-medium">
-                          {(searchMode === 'google' ? leadResults.length : searchResults.length)} {searchMode === 'google' ? 'leads found' : 'profiles found'}
-                          {searchMode === 'google' && typeof lastSearch?.totalFound === 'number' && (
-                            <span className="text-muted-foreground"> (of ~{lastSearch.totalFound})</span>
-                          )}
-                        </span>
-                      </div>
-                      <Button
-                        onClick={handleImportSelected}
-                        disabled={
-                          selectedProfiles.size === 0 ||
-                          importProfiles.isPending ||
-                          saveLeads.isPending
-                        }
-                        size="sm"
-                      >
-                        {(searchMode === 'google' ? saveLeads.isPending : importProfiles.isPending) ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Plus className="h-4 w-4 mr-2" />
-                        )}
-                        {searchMode === 'google' ? 'Save leads' : 'Import'} {selectedProfiles.size || ''}
-                      </Button>
-                    </div>
-
-                    {/* Results pane */}
-                    <div className="rounded-xl border bg-muted/20 overflow-hidden">
-                      <div className="grid lg:grid-cols-[1fr_360px]">
-                        {/* List */}
-                        <div className="max-h-[420px] overflow-y-auto p-2">
-                          <div className="space-y-2">
-                            {(searchMode === 'google' ? leadResults : searchResults).map((row: any, i: number) => {
-                              const isActive = i === activeResultIndex;
-                              const isSelected = selectedProfiles.has(i);
-                              const title =
-                                searchMode === 'google'
-                                  ? (row?.title ? String(row.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')
-                                  : (row?.full_name || 'Unknown');
-                              const subtitle =
-                                searchMode === 'google'
-                                  ? (row?.snippet ? String(row.snippet) : '')
-                                  : (row?.headline ? String(row.headline) : '');
-                              const url =
-                                searchMode === 'google'
-                                  ? row?.linkedin_url
-                                  : (row?.linkedin_url || row?.website || row?.source_url);
-
-                              return (
-                                <div
-                                  key={row?.linkedin_url || row?.source_url || i}
-                                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                                    isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
-                                  }`}
-                                  onClick={() => setActiveResultIndex(i)}
-                                >
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => toggleProfileSelection(i)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="mt-0.5"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium truncate">{title}</div>
-                                    {subtitle && (
-                                      <div className="text-sm text-muted-foreground line-clamp-2">
-                                        {subtitle}
-                                      </div>
-                                    )}
-                                    {url && (
-                                      <div className="text-xs text-muted-foreground truncate mt-1">
-                                        {String(url)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {typeof row?.match_score === 'number' && (
-                                    <Badge variant="secondary" className="shrink-0">
-                                      {Math.round(row.match_score)}
-                                    </Badge>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Preview */}
-                        <div className="border-t lg:border-t-0 lg:border-l bg-background p-4">
-                          {searchMode === 'google' ? (
-                            leadResults[activeResultIndex] ? (
-                              <div className="space-y-3">
-                                <div className="font-semibold">
-                                  {leadResults[activeResultIndex].title
-                                    ? String(leadResults[activeResultIndex].title).replace(/\s*\|\s*LinkedIn\s*$/i, '')
-                                    : 'Lead preview'}
-                                </div>
-                                {leadResults[activeResultIndex].snippet && (
-                                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                    {leadResults[activeResultIndex].snippet}
-                                  </div>
-                                )}
-                                <div className="space-y-2">
-                                  <div className="text-xs text-muted-foreground break-all">
-                                    {leadResults[activeResultIndex].linkedin_url}
-                                  </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => window.open(leadResults[activeResultIndex].linkedin_url!, '_blank')}
-                                    className="w-full"
-                                  >
-                                    View on LinkedIn
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => saveLeads.mutate([leadResults[activeResultIndex]])}
-                                    disabled={saveLeads.isPending}
-                                    className="w-full"
-                                  >
-                                    Save this lead
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-sm text-muted-foreground">Select a lead to preview</div>
-                            )
-                          ) : (
-                            searchResults[activeResultIndex] ? (
-                              <div className="space-y-3">
-                                <div className="font-semibold">{searchResults[activeResultIndex].full_name || 'Profile'}</div>
-                                {searchResults[activeResultIndex].headline && (
-                                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                    {searchResults[activeResultIndex].headline}
-                                  </div>
-                                )}
-                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                  {searchResults[activeResultIndex].current_company && (
-                                    <span className="inline-flex items-center gap-1">
-                                      <Briefcase className="h-3 w-3" />
-                                      {searchResults[activeResultIndex].current_company}
-                                    </span>
-                                  )}
-                                  {searchResults[activeResultIndex].location && (
-                                    <span className="inline-flex items-center gap-1">
-                                      <MapPin className="h-3 w-3" />
-                                      {searchResults[activeResultIndex].location}
-                                    </span>
-                                  )}
-                                </div>
-                                {searchResults[activeResultIndex].skills?.length ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {searchResults[activeResultIndex].skills!.slice(0, 10).map((s, idx) => (
-                                      <Badge key={idx} variant="secondary" className="text-xs">
-                                        {s}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                ) : null}
-                                <div className="space-y-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => importProfiles.mutate([searchResults[activeResultIndex]])}
-                                    disabled={importProfiles.isPending}
-                                    className="w-full"
-                                  >
-                                    Import this profile
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-sm text-muted-foreground">Select a profile to preview</div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div className="text-sm text-muted-foreground">
+                  Results appear in the panel below (under Source candidates + Status).
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -869,8 +887,8 @@ export default function TalentSourcing() {
           </Card>
 
           {/* Right: status */}
-          <div className="space-y-6 min-w-0">
-            <Card className="lg:h-[calc(100vh-240px)] flex flex-col">
+          <div className="space-y-6 min-w-0 h-full">
+            <Card className="h-full flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between gap-3">
                   <span>Status</span>
@@ -1020,6 +1038,37 @@ export default function TalentSourcing() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Bottom: results pane (spans full width under left+right) */}
+          {activeTab === 'search' && (
+            <Card className="lg:col-span-2 min-w-0 h-full flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between gap-3">
+                  <span>Results</span>
+                  <span className="text-sm text-muted-foreground">
+                    {isSearching ? 'Searching…' : hasSearchRows ? `${totalSearchRows} ready` : 'No results yet'}
+                  </span>
+                </CardTitle>
+                <CardDescription>
+                  Click a row to preview. Select multiple to import/save in bulk.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 min-h-0 overflow-auto">
+                {isSearching ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Searching…
+                  </div>
+                ) : hasSearchRows ? (
+                  searchResultsPane
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Run a search above to see results here.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>
