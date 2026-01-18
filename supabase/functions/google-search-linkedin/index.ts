@@ -42,6 +42,29 @@ function scoreSnippet(text: string): number {
   return s;
 }
 
+async function fetchGoogleCsePage(args: {
+  apiKey: string;
+  cx: string;
+  q: string;
+  start: number;
+  num: number;
+}): Promise<any> {
+  const url = new URL("https://www.googleapis.com/customsearch/v1");
+  url.searchParams.set("key", args.apiKey);
+  url.searchParams.set("cx", args.cx);
+  url.searchParams.set("q", args.q);
+  url.searchParams.set("num", String(args.num));
+  url.searchParams.set("start", String(args.start));
+
+  const resp = await fetch(url.toString());
+  if (!resp.ok) {
+    const t = await resp.text();
+    console.error("Google CSE error:", resp.status, t);
+    throw new Error(`Search failed: ${resp.status}`);
+  }
+  return await resp.json();
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -85,22 +108,28 @@ serve(async (req) => {
 
     const capped = Math.max(1, Math.min(Number(limit) || 20, 50));
     const xray = buildXrayQuery(rawQuery, String(country || "us").toLowerCase() === "us" ? "us" : "any");
+    // Google CSE returns max 10 results per request. Paginate to fill `capped`.
+    const pageSize = Math.min(10, capped);
+    const pages = Math.ceil(capped / pageSize);
 
-    const url = new URL("https://www.googleapis.com/customsearch/v1");
-    url.searchParams.set("key", GOOGLE_CSE_API_KEY);
-    url.searchParams.set("cx", GOOGLE_CSE_CX);
-    url.searchParams.set("q", xray);
-    url.searchParams.set("num", String(Math.min(10, capped)));
-
-    const resp = await fetch(url.toString());
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error("Google CSE error:", resp.status, t);
-      throw new Error(`Search failed: ${resp.status}`);
+    let totalResults = 0;
+    const items: any[] = [];
+    for (let p = 0; p < pages; p++) {
+      const start = 1 + p * pageSize; // 1, 11, 21...
+      const data = await fetchGoogleCsePage({
+        apiKey: GOOGLE_CSE_API_KEY,
+        cx: GOOGLE_CSE_CX,
+        q: xray,
+        start,
+        num: pageSize,
+      });
+      if (p === 0) {
+        totalResults = Number(data?.searchInformation?.totalResults || 0) || 0;
+      }
+      const pageItems = Array.isArray(data?.items) ? data.items : [];
+      items.push(...pageItems);
+      if (pageItems.length < pageSize) break; // no more pages
     }
-
-    const data = await resp.json();
-    const items = Array.isArray(data?.items) ? data.items : [];
 
     const dedup = new Map<string, any>();
     for (const item of items) {
@@ -126,7 +155,7 @@ serve(async (req) => {
       .sort((a, b) => (b.match_score || 0) - (a.match_score || 0))
       .slice(0, capped);
 
-    return new Response(JSON.stringify({ success: true, xray, results }), {
+    return new Response(JSON.stringify({ success: true, xray, results, total_found: totalResults }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
