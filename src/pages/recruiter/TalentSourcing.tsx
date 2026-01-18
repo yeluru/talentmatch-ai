@@ -714,9 +714,9 @@ export default function TalentSourcing() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:h-[calc(100vh-240px)] lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_minmax(0,360px)] items-start lg:items-stretch">
+        <div className="grid gap-6 lg:h-[calc(100vh-240px)] lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_minmax(0,360px)] items-start lg:items-stretch min-h-0">
           {/* Left: inputs/workflows */}
-          <Card className="min-w-0 h-full flex flex-col">
+          <Card className="min-w-0 h-full min-h-0 overflow-hidden flex flex-col">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-0">
               <CardHeader className="space-y-3">
                 <CardTitle>Source candidates</CardTitle>
@@ -887,8 +887,8 @@ export default function TalentSourcing() {
           </Card>
 
           {/* Right: status */}
-          <div className="space-y-6 min-w-0 h-full">
-            <Card className="h-full flex flex-col">
+          <div className="space-y-6 min-w-0 h-full min-h-0">
+            <Card className="h-full min-h-0 overflow-hidden flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between gap-3">
                   <span>Status</span>
@@ -1041,7 +1041,7 @@ export default function TalentSourcing() {
 
           {/* Bottom: results pane (spans full width under left+right) */}
           {activeTab === 'search' && (
-            <Card className="lg:col-span-2 min-w-0 h-full flex flex-col">
+            <Card className="lg:col-span-2 min-w-0 h-full min-h-0 overflow-hidden flex flex-col">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between gap-3">
                   <span>Results</span>
