@@ -27,6 +27,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface SearchedProfile {
   full_name: string;
