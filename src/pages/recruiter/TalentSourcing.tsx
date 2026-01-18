@@ -37,6 +37,9 @@ interface SearchedProfile {
   experience_years?: number;
   summary?: string;
   linkedin_url?: string;
+  github_url?: string;
+  website?: string;
+  source_url?: string;
   email?: string;
   source: string;
 }
@@ -51,11 +54,36 @@ export default function TalentSourcing() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchedProfile[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<number>>(new Set());
+  const [searchMode, setSearchMode] = useState<'web' | 'linkedin'>('web');
 
   // Resume upload state - persisted via zustand
   const { uploadResults, setUploadResults, clearResults, updateResult } = useBulkUploadStore();
 
-  // LinkedIn search mutation
+  // Web search mutation (public web)
+  const webSearch = useMutation({
+    mutationFn: async (query: string) => {
+      const { data, error } = await supabase.functions.invoke('web-search', {
+        body: { query, limit: 20, country: 'us', includeLinkedIn: false }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.profiles && data.profiles.length > 0) {
+        setSearchResults(data.profiles);
+        toast.success(`Found ${data.profiles.length} profiles`);
+      } else {
+        setSearchResults([]);
+        toast.info('No profiles found. Try different search terms.');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Search error:', error);
+      toast.error(error.message || 'Search failed');
+    }
+  });
+
+  // LinkedIn search mutation (provider-based; may be restricted)
   const linkedinSearch = useMutation({
     mutationFn: async (query: string) => {
       const { data, error } = await supabase.functions.invoke('linkedin-search', {
@@ -274,7 +302,8 @@ export default function TalentSourcing() {
       toast.error('Please enter a search query');
       return;
     }
-    linkedinSearch.mutate(searchQuery);
+    if (searchMode === 'web') webSearch.mutate(searchQuery);
+    else linkedinSearch.mutate(searchQuery);
   };
 
   const toggleProfileSelection = (index: number) => {
@@ -390,24 +419,51 @@ export default function TalentSourcing() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Linkedin className="h-5 w-5" />
-                  LinkedIn & Web Search
+                  <Globe className="h-5 w-5" />
+                  Web Search
                 </CardTitle>
                 <CardDescription>
-                  Search for profiles using natural language
+                  Search public profiles using natural language (US). Preview results, then import into Talent Pool.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant={searchMode === 'web' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchMode('web')}
+                  >
+                    <Globe className="h-4 w-4 mr-2" />
+                    Web
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={searchMode === 'linkedin' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchMode('linkedin')}
+                  >
+                    <Linkedin className="h-4 w-4 mr-2" />
+                    LinkedIn (provider)
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Use Web for public pages. LinkedIn requires an approved provider/API.
+                  </span>
+                </div>
+
                 <div className="flex gap-3">
                   <Input
-                    placeholder="e.g., React developer San Francisco 5+ years"
+                    placeholder="e.g., Python developer 5+ years AWS"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     className="flex-1"
                   />
-                  <Button onClick={handleSearch} disabled={linkedinSearch.isPending}>
-                    {linkedinSearch.isPending ? (
+                  <Button
+                    onClick={handleSearch}
+                    disabled={webSearch.isPending || linkedinSearch.isPending}
+                  >
+                    {(searchMode === 'web' ? webSearch.isPending : linkedinSearch.isPending) ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <Search className="h-4 w-4 mr-2" />
