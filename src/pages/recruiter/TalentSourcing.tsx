@@ -714,11 +714,12 @@ export default function TalentSourcing() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:h-[calc(100vh-240px)] lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_minmax(0,360px)] items-start lg:items-stretch min-h-0">
+        {/* Top row: Source candidates (left) + Status (right) */}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
           {/* Left: inputs/workflows */}
-          <Card className="min-w-0 h-full min-h-0 overflow-hidden flex flex-col">
+          <Card className="min-w-0">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-0">
-              <CardHeader className="space-y-3">
+              <CardHeader className="space-y-2 p-4 pb-3">
                 <CardTitle>Source candidates</CardTitle>
                 <CardDescription>Upload resumes or search the web to add candidates to your pool.</CardDescription>
 
@@ -743,57 +744,43 @@ export default function TalentSourcing() {
                 </TabsList>
               </CardHeader>
 
-              <CardContent className="pt-0 flex-1 min-h-0 overflow-auto">
+              <CardContent className="pt-0 p-4">
 
           {/* Bulk Resume Upload Tab */}
-          <TabsContent value="resumes" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Bulk Resume Upload
-                </CardTitle>
-                <CardDescription>
-                  Upload resumes to automatically parse, score, and import candidates
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Upload Area */}
-                <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                  <input
-                    type="file"
-                    id="resume-upload"
-                    multiple
-                    accept=".pdf,.docx,.txt"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                  <label htmlFor="resume-upload" className="cursor-pointer">
-                    <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-lg font-medium mb-1">Drop resumes here or click to upload</p>
-                    <p className="text-sm text-muted-foreground">
-                      PDF, DOC, DOCX, TXT • Auto-imports with a generic resume-quality score (not JD-based)
-                    </p>
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="resumes" className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <FileText className="h-4 w-4" />
+              Upload resumes to parse, score, and import into your pool.
+            </div>
+
+            {/* Upload Area */}
+            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+              <input
+                type="file"
+                id="resume-upload"
+                multiple
+                accept=".pdf,.docx,.txt"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <label htmlFor="resume-upload" className="cursor-pointer">
+                <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-base font-medium mb-1">Drop resumes here or click to upload</p>
+                <p className="text-sm text-muted-foreground">
+                  PDF, DOC, DOCX, TXT • Auto-imports with a generic resume-quality score (not JD-based)
+                </p>
+              </label>
+            </div>
           </TabsContent>
 
           {/* Web Search Tab */}
-          <TabsContent value="search" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5" />
-                  Web Search
-                </CardTitle>
-                <CardDescription>
-                  Search public profiles using natural language (US). Preview results, then import into Talent Pool.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-2 sm:grid-cols-3">
+          <TabsContent value="search" className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Globe className="h-4 w-4" />
+              Search and preview candidates, then import/save.
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
                   <Button
                     type="button"
                     variant={searchMode === 'web' ? 'default' : 'outline'}
@@ -825,7 +812,7 @@ export default function TalentSourcing() {
                     LinkedIn (provider)
                   </Button>
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground leading-relaxed">
                   Web = public pages. Google X‑Ray = LinkedIn URLs as leads. LinkedIn requires an approved provider/API.
                 </div>
 
@@ -857,39 +844,24 @@ export default function TalentSourcing() {
                 <div className="text-sm text-muted-foreground">
                   Results appear in the panel below (under Source candidates + Status).
                 </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* API Tab */}
-          <TabsContent value="api" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  API Integration
-                </CardTitle>
-                <CardDescription>
-                  Integrate with external sources via API
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>API integration coming soon</p>
-                  <p className="text-sm mt-1">Connect to job boards and HR systems</p>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="api" className="space-y-4">
+            <div className="text-center py-6 text-muted-foreground">
+              <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-50" />
+              <p>API integration coming soon</p>
+              <p className="text-sm mt-1">Connect to job boards and HR systems</p>
+            </div>
           </TabsContent>
-              </CardContent>
             </Tabs>
+          </CardContent>
           </Card>
 
           {/* Right: status */}
-          <div className="space-y-6 min-w-0 h-full min-h-0">
-            <Card className="h-full min-h-0 overflow-hidden flex flex-col">
-              <CardHeader>
+          <div className="min-w-0">
+            <Card className="lg:sticky lg:top-4">
+              <CardHeader className="p-4 pb-3">
                 <CardTitle className="flex items-center justify-between gap-3">
                   <span>Status</span>
                   {activeTab === 'resumes' && uploadResults.length > 0 && (
@@ -906,7 +878,7 @@ export default function TalentSourcing() {
                       : 'Activity'}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
+              <CardContent className="space-y-3 p-4 pt-0">
                 {activeTab === 'resumes' && (
                   <>
                     <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -942,7 +914,7 @@ export default function TalentSourcing() {
                         No uploads yet. Upload resumes on the left to populate your Talent Pool.
                       </div>
                     ) : (
-                      <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
                         {uploadResults.map((item, i) => (
                           <div
                             key={i}
@@ -1038,38 +1010,38 @@ export default function TalentSourcing() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Bottom: results pane (spans full width under left+right) */}
-          {activeTab === 'search' && (
-            <Card className="lg:col-span-2 min-w-0 h-full min-h-0 overflow-hidden flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between gap-3">
-                  <span>Results</span>
-                  <span className="text-sm text-muted-foreground">
-                    {isSearching ? 'Searching…' : hasSearchRows ? `${totalSearchRows} ready` : 'No results yet'}
-                  </span>
-                </CardTitle>
-                <CardDescription>
-                  Click a row to preview. Select multiple to import/save in bulk.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 min-h-0 overflow-auto">
-                {isSearching ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Searching…
-                  </div>
-                ) : hasSearchRows ? (
-                  searchResultsPane
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    Run a search above to see results here.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
+
+        {/* Bottom: results pane (full width, below top row) */}
+        {activeTab === 'search' && (
+          <Card className="min-w-0">
+            <CardHeader className="p-4 pb-3">
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span>Results</span>
+                <span className="text-sm text-muted-foreground">
+                  {isSearching ? 'Searching…' : hasSearchRows ? `${totalSearchRows} ready` : 'No results yet'}
+                </span>
+              </CardTitle>
+              <CardDescription>
+                Click a row to preview. Select multiple to import/save in bulk.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {isSearching ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Searching…
+                </div>
+              ) : hasSearchRows ? (
+                searchResultsPane
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Run a search above to see results here.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
