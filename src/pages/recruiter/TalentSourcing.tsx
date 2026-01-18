@@ -65,6 +65,46 @@ export default function TalentSourcing() {
     ts: number;
   } | null>(null);
 
+  const searchStorageKey = organizationId ? `talent_sourcing_search_v1:${organizationId}` : null;
+
+  // Restore search state when returning to this page
+  // (So recruiters don't lose results when navigating away.)
+  useEffect(() => {
+    if (!searchStorageKey) return;
+    try {
+      const raw = localStorage.getItem(searchStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.query && typeof parsed.query === 'string') setSearchQuery(parsed.query);
+      if (parsed?.mode === 'web' || parsed?.mode === 'linkedin') setSearchMode(parsed.mode);
+      if (Array.isArray(parsed?.results)) setSearchResults(parsed.results);
+      if (parsed?.lastSearch && typeof parsed.lastSearch === 'object') setLastSearch(parsed.lastSearch);
+      if (Array.isArray(parsed?.selected)) setSelectedProfiles(new Set(parsed.selected.filter((n: any) => Number.isInteger(n))));
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchStorageKey]);
+
+  // Persist search state
+  useEffect(() => {
+    if (!searchStorageKey) return;
+    try {
+      const payload = {
+        mode: searchMode,
+        query: searchQuery,
+        // Keep it small
+        results: searchResults.slice(0, 20),
+        selected: Array.from(selectedProfiles).slice(0, 200),
+        lastSearch,
+        ts: Date.now(),
+      };
+      localStorage.setItem(searchStorageKey, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  }, [searchStorageKey, searchMode, searchQuery, searchResults, selectedProfiles, lastSearch]);
+
   // Resume upload state - persisted via zustand
   const { uploadResults, setUploadResults, clearResults, updateResult } = useBulkUploadStore();
 
@@ -149,6 +189,10 @@ export default function TalentSourcing() {
       }
       setSelectedProfiles(new Set());
       setSearchResults([]);
+      setLastSearch(null);
+      if (searchStorageKey) {
+        try { localStorage.removeItem(searchStorageKey); } catch {}
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Import failed');
