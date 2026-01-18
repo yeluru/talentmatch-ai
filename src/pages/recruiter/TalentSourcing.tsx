@@ -45,8 +45,18 @@ interface SearchedProfile {
   source: string;
 }
 
+type GoogleLeadResult = {
+  linkedin_url: string;
+  source_url?: string;
+  title?: string;
+  snippet?: string;
+  match_score?: number;
+  matched_terms?: string[];
+  raw_result?: any;
+};
+
 export default function TalentSourcing() {
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const queryClient = useQueryClient();
   const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
   const [activeTab, setActiveTab] = useState<'resumes' | 'search' | 'api'>('resumes');
@@ -54,10 +64,11 @@ export default function TalentSourcing() {
   // Web search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchedProfile[]>([]);
+  const [leadResults, setLeadResults] = useState<GoogleLeadResult[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<number>>(new Set());
-  const [searchMode, setSearchMode] = useState<'web' | 'linkedin'>('web');
+  const [searchMode, setSearchMode] = useState<'web' | 'linkedin' | 'google'>('web');
   const [lastSearch, setLastSearch] = useState<{
-    mode: 'web' | 'linkedin';
+    mode: 'web' | 'linkedin' | 'google';
     query: string;
     found: number;
     totalFound?: number;
@@ -128,9 +139,11 @@ export default function TalentSourcing() {
       });
       if (data.profiles && data.profiles.length > 0) {
         setSearchResults(data.profiles);
+        setLeadResults([]);
         toast.success(`Found ${data.profiles.length} profiles`);
       } else {
         setSearchResults([]);
+        setLeadResults([]);
         toast.info('No profiles found. Try different search terms.');
       }
     },
@@ -159,15 +172,79 @@ export default function TalentSourcing() {
       });
       if (data.profiles && data.profiles.length > 0) {
         setSearchResults(data.profiles);
+        setLeadResults([]);
         toast.success(`Found ${data.profiles.length} profiles`);
       } else {
         setSearchResults([]);
+        setLeadResults([]);
         toast.info('No profiles found. Try different search terms.');
       }
     },
     onError: (error: any) => {
       console.error('Search error:', error);
       toast.error(error.message || 'Search failed');
+    }
+  });
+
+  const googleSearch = useMutation({
+    mutationFn: async (query: string) => {
+      const { data, error } = await supabase.functions.invoke('google-search-linkedin', {
+        body: { query, limit: 20, country: 'us' }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      const results = Array.isArray(data?.results) ? (data.results as GoogleLeadResult[]) : [];
+      setLastSearch({
+        mode: 'google',
+        query: searchQuery,
+        found: results.length,
+        ts: Date.now(),
+      });
+      setLeadResults(results);
+      setSearchResults([]);
+      if (results.length > 0) toast.success(`Found ${results.length} LinkedIn profiles`);
+      else toast.info('No profiles found. Try different search terms.');
+    },
+    onError: (error: any) => {
+      console.error('Search error:', error);
+      toast.error(error.message || 'Search failed');
+    }
+  });
+
+  const saveLeads = useMutation({
+    mutationFn: async (leads: GoogleLeadResult[]) => {
+      if (!organizationId) throw new Error('Missing organization');
+      if (!user?.id) throw new Error('Missing user');
+      const rows = leads.map((l) => ({
+        organization_id: organizationId,
+        created_by: user.id,
+        source: 'google_xray',
+        search_query: searchQuery,
+        linkedin_url: l.linkedin_url,
+        source_url: l.source_url || l.linkedin_url,
+        title: l.title || null,
+        snippet: l.snippet || null,
+        match_score: typeof l.match_score === 'number' ? Math.round(l.match_score) : null,
+        matched_terms: Array.isArray(l.matched_terms) ? l.matched_terms : [],
+        status: 'new',
+        raw_result: l.raw_result || {},
+      }));
+
+      const { data, error } = await (supabase as any)
+        .from('sourced_leads')
+        .upsert(rows, { onConflict: 'organization_id,linkedin_url' })
+        .select('id');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Saved ${data?.length || 0} leads`);
+      setSelectedProfiles(new Set());
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to save leads');
     }
   });
 
@@ -371,7 +448,8 @@ export default function TalentSourcing() {
       return;
     }
     if (searchMode === 'web') webSearch.mutate(searchQuery);
-    else linkedinSearch.mutate(searchQuery);
+    else if (searchMode === 'linkedin') linkedinSearch.mutate(searchQuery);
+    else googleSearch.mutate(searchQuery);
   };
 
   const toggleProfileSelection = (index: number) => {
@@ -384,14 +462,22 @@ export default function TalentSourcing() {
   };
 
   const selectAllProfiles = () => {
-    if (selectedProfiles.size === searchResults.length) {
+    const total = searchMode === 'google' ? leadResults.length : searchResults.length;
+    if (selectedProfiles.size === total) {
       setSelectedProfiles(new Set());
     } else {
-      setSelectedProfiles(new Set(searchResults.map((_, i) => i)));
+      const next = new Set<number>();
+      for (let i = 0; i < total; i++) next.add(i);
+      setSelectedProfiles(next);
     }
   };
 
   const handleImportSelected = () => {
+    if (searchMode === 'google') {
+      const leads = Array.from(selectedProfiles).map(i => leadResults[i]).filter(Boolean);
+      saveLeads.mutate(leads);
+      return;
+    }
     const profiles = Array.from(selectedProfiles).map(i => searchResults[i]);
     importProfiles.mutate(profiles);
   };
@@ -507,6 +593,15 @@ export default function TalentSourcing() {
                   </Button>
                   <Button
                     type="button"
+                    variant={searchMode === 'google' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchMode('google')}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Google X‑Ray (Leads)
+                  </Button>
+                  <Button
+                    type="button"
                     variant={searchMode === 'linkedin' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSearchMode('linkedin')}
@@ -515,7 +610,7 @@ export default function TalentSourcing() {
                     LinkedIn (provider)
                   </Button>
                   <span className="text-xs text-muted-foreground">
-                    Use Web for public pages. LinkedIn requires an approved provider/API.
+                    Web = public pages. Google X‑Ray = LinkedIn URLs as leads. LinkedIn requires an approved provider/API.
                   </span>
                 </div>
 
@@ -529,9 +624,13 @@ export default function TalentSourcing() {
                   />
                   <Button
                     onClick={handleSearch}
-                    disabled={webSearch.isPending || linkedinSearch.isPending}
+                    disabled={webSearch.isPending || linkedinSearch.isPending || googleSearch.isPending}
                   >
-                    {(searchMode === 'web' ? webSearch.isPending : linkedinSearch.isPending) ? (
+                    {(searchMode === 'web'
+                      ? webSearch.isPending
+                      : searchMode === 'linkedin'
+                        ? linkedinSearch.isPending
+                        : googleSearch.isPending) ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : (
                       <Search className="h-4 w-4 mr-2" />
@@ -540,34 +639,38 @@ export default function TalentSourcing() {
                   </Button>
                 </div>
 
-                {searchResults.length > 0 && (
+                {(searchMode === 'google' ? leadResults.length > 0 : searchResults.length > 0) && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Checkbox
-                          checked={selectedProfiles.size === searchResults.length}
+                          checked={selectedProfiles.size === (searchMode === 'google' ? leadResults.length : searchResults.length)}
                           onCheckedChange={selectAllProfiles}
                         />
                         <span className="text-sm font-medium">
-                          {searchResults.length} profiles found
+                          {(searchMode === 'google' ? leadResults.length : searchResults.length)} {searchMode === 'google' ? 'leads found' : 'profiles found'}
                         </span>
                       </div>
                       <Button
                         onClick={handleImportSelected}
-                        disabled={selectedProfiles.size === 0 || importProfiles.isPending}
+                        disabled={
+                          selectedProfiles.size === 0 ||
+                          importProfiles.isPending ||
+                          saveLeads.isPending
+                        }
                         size="sm"
                       >
-                        {importProfiles.isPending ? (
+                        {(searchMode === 'google' ? saveLeads.isPending : importProfiles.isPending) ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
                           <Plus className="h-4 w-4 mr-2" />
                         )}
-                        Import {selectedProfiles.size || ''}
+                        {searchMode === 'google' ? 'Save leads' : 'Import'} {selectedProfiles.size || ''}
                       </Button>
                     </div>
 
                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {searchResults.map((profile, i) => (
+                      {(searchMode === 'google' ? leadResults : searchResults).map((profile: any, i: number) => (
                         <div
                           key={i}
                           className={`flex items-center gap-4 p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -578,13 +681,16 @@ export default function TalentSourcing() {
                           <Checkbox checked={selectedProfiles.has(i)} />
                           <Avatar className="h-10 w-10">
                             <AvatarFallback>
-                              {(profile.full_name || 'U').charAt(0).toUpperCase()}
+                              {(profile.full_name || profile.title || 'U').charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium">{profile.full_name}</div>
+                            <div className="font-medium">
+                              {profile.full_name || (profile.title ? String(profile.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')}
+                            </div>
                             <div className="text-sm text-muted-foreground flex items-center gap-2">
                               {profile.headline && <span className="truncate">{profile.headline}</span>}
+                              {!profile.headline && profile.snippet && <span className="truncate">{profile.snippet}</span>}
                             </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                               {profile.current_company && (
@@ -597,6 +703,11 @@ export default function TalentSourcing() {
                                 <span className="flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
                                   {profile.location}
+                                </span>
+                              )}
+                              {profile.linkedin_url && (
+                                <span className="truncate">
+                                  {profile.linkedin_url}
                                 </span>
                               )}
                             </div>
