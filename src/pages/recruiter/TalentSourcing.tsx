@@ -67,7 +67,7 @@ export default function TalentSourcing() {
   const [leadResults, setLeadResults] = useState<GoogleLeadResult[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<number>>(new Set());
   const [searchMode, setSearchMode] = useState<'web' | 'linkedin' | 'google'>('web');
-  const [activeLeadIndex, setActiveLeadIndex] = useState<number>(0);
+  const [activeResultIndex, setActiveResultIndex] = useState<number>(0);
   const [lastSearch, setLastSearch] = useState<{
     mode: 'web' | 'linkedin' | 'google';
     query: string;
@@ -88,10 +88,12 @@ export default function TalentSourcing() {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed?.query && typeof parsed.query === 'string') setSearchQuery(parsed.query);
-      if (parsed?.mode === 'web' || parsed?.mode === 'linkedin') setSearchMode(parsed.mode);
-      if (Array.isArray(parsed?.results)) setSearchResults(parsed.results);
+      if (parsed?.mode === 'web' || parsed?.mode === 'linkedin' || parsed?.mode === 'google') setSearchMode(parsed.mode);
+      if (Array.isArray(parsed?.searchResults)) setSearchResults(parsed.searchResults);
+      if (Array.isArray(parsed?.leadResults)) setLeadResults(parsed.leadResults);
       if (parsed?.lastSearch && typeof parsed.lastSearch === 'object') setLastSearch(parsed.lastSearch);
       if (Array.isArray(parsed?.selected)) setSelectedProfiles(new Set(parsed.selected.filter((n: any) => Number.isInteger(n))));
+      if (Number.isInteger(parsed?.activeIndex)) setActiveResultIndex(Math.max(0, parsed.activeIndex));
     } catch {
       // ignore
     }
@@ -102,12 +104,16 @@ export default function TalentSourcing() {
   useEffect(() => {
     if (!searchStorageKey) return;
     try {
+      const safeSearchResults = searchResults.slice(0, 20);
+      const safeLeadResults = leadResults.slice(0, 50);
       const payload = {
         mode: searchMode,
         query: searchQuery,
         // Keep it small
-        results: searchResults.slice(0, 20),
+        searchResults: safeSearchResults,
+        leadResults: safeLeadResults,
         selected: Array.from(selectedProfiles).slice(0, 200),
+        activeIndex: activeResultIndex,
         lastSearch,
         ts: Date.now(),
       };
@@ -115,7 +121,7 @@ export default function TalentSourcing() {
     } catch {
       // ignore
     }
-  }, [searchStorageKey, searchMode, searchQuery, searchResults, selectedProfiles, lastSearch]);
+  }, [searchStorageKey, searchMode, searchQuery, searchResults, leadResults, selectedProfiles, activeResultIndex, lastSearch]);
 
   // Resume upload state - persisted via zustand
   const { uploadResults, setUploadResults, clearResults, updateResult } = useBulkUploadStore();
@@ -141,10 +147,13 @@ export default function TalentSourcing() {
       if (data.profiles && data.profiles.length > 0) {
         setSearchResults(data.profiles);
         setLeadResults([]);
+        setActiveResultIndex(0);
+        setSelectedProfiles(new Set());
         toast.success(`Found ${data.profiles.length} profiles`);
       } else {
         setSearchResults([]);
         setLeadResults([]);
+        setSelectedProfiles(new Set());
         toast.info('No profiles found. Try different search terms.');
       }
     },
@@ -174,10 +183,13 @@ export default function TalentSourcing() {
       if (data.profiles && data.profiles.length > 0) {
         setSearchResults(data.profiles);
         setLeadResults([]);
+        setActiveResultIndex(0);
+        setSelectedProfiles(new Set());
         toast.success(`Found ${data.profiles.length} profiles`);
       } else {
         setSearchResults([]);
         setLeadResults([]);
+        setSelectedProfiles(new Set());
         toast.info('No profiles found. Try different search terms.');
       }
     },
@@ -206,7 +218,8 @@ export default function TalentSourcing() {
       });
       setLeadResults(results);
       setSearchResults([]);
-      setActiveLeadIndex(0);
+      setActiveResultIndex(0);
+      setSelectedProfiles(new Set());
       if (results.length > 0) toast.success(`Found ${results.length} LinkedIn profiles`);
       else toast.info('No profiles found. Try different search terms.');
     },
@@ -268,11 +281,7 @@ export default function TalentSourcing() {
         toast.info(`${data.results.skipped} duplicates skipped`);
       }
       setSelectedProfiles(new Set());
-      setSearchResults([]);
-      setLastSearch(null);
-      if (searchStorageKey) {
-        try { localStorage.removeItem(searchStorageKey); } catch {}
-      }
+      // Keep results + last search so recruiters can continue browsing without losing context.
     },
     onError: (error: any) => {
       toast.error(error.message || 'Import failed');
@@ -584,12 +593,13 @@ export default function TalentSourcing() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <Button
                     type="button"
                     variant={searchMode === 'web' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSearchMode('web')}
+                    className="justify-start"
                   >
                     <Globe className="h-4 w-4 mr-2" />
                     Web
@@ -599,6 +609,7 @@ export default function TalentSourcing() {
                     variant={searchMode === 'google' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSearchMode('google')}
+                    className="justify-start"
                   >
                     <Search className="h-4 w-4 mr-2" />
                     Google X‑Ray (Leads)
@@ -608,13 +619,14 @@ export default function TalentSourcing() {
                     variant={searchMode === 'linkedin' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSearchMode('linkedin')}
+                    className="justify-start"
                   >
                     <Linkedin className="h-4 w-4 mr-2" />
                     LinkedIn (provider)
                   </Button>
-                  <span className="text-xs text-muted-foreground">
-                    Web = public pages. Google X‑Ray = LinkedIn URLs as leads. LinkedIn requires an approved provider/API.
-                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Web = public pages. Google X‑Ray = LinkedIn URLs as leads. LinkedIn requires an approved provider/API.
                 </div>
 
                 <div className="flex gap-3">
@@ -676,81 +688,95 @@ export default function TalentSourcing() {
                     </div>
 
                     {/* Results pane */}
-                    {searchMode === 'google' ? (
-                      <div className="rounded-xl border bg-muted/20 overflow-hidden">
-                        <div className="grid lg:grid-cols-[1fr_360px]">
-                          {/* List */}
-                          <div className="max-h-[420px] overflow-y-auto p-2">
-                            <div className="space-y-2">
-                              {leadResults.map((lead, i) => {
-                                const isActive = i === activeLeadIndex;
-                                const isSelected = selectedProfiles.has(i);
-                                return (
-                                  <div
-                                    key={lead.linkedin_url || i}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                                      isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
-                                    }`}
-                                    onClick={() => setActiveLeadIndex(i)}
-                                  >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={() => toggleProfileSelection(i)}
-                                      onClick={(e) => e.stopPropagation()}
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-medium truncate">
-                                        {lead.title ? String(lead.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile'}
+                    <div className="rounded-xl border bg-muted/20 overflow-hidden">
+                      <div className="grid lg:grid-cols-[1fr_360px]">
+                        {/* List */}
+                        <div className="max-h-[420px] overflow-y-auto p-2">
+                          <div className="space-y-2">
+                            {(searchMode === 'google' ? leadResults : searchResults).map((row: any, i: number) => {
+                              const isActive = i === activeResultIndex;
+                              const isSelected = selectedProfiles.has(i);
+                              const title =
+                                searchMode === 'google'
+                                  ? (row?.title ? String(row.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')
+                                  : (row?.full_name || 'Unknown');
+                              const subtitle =
+                                searchMode === 'google'
+                                  ? (row?.snippet ? String(row.snippet) : '')
+                                  : (row?.headline ? String(row.headline) : '');
+                              const url =
+                                searchMode === 'google'
+                                  ? row?.linkedin_url
+                                  : (row?.linkedin_url || row?.website || row?.source_url);
+
+                              return (
+                                <div
+                                  key={row?.linkedin_url || row?.source_url || i}
+                                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                    isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
+                                  }`}
+                                  onClick={() => setActiveResultIndex(i)}
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleProfileSelection(i)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="mt-0.5"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{title}</div>
+                                    {subtitle && (
+                                      <div className="text-sm text-muted-foreground line-clamp-2">
+                                        {subtitle}
                                       </div>
-                                      {lead.snippet && (
-                                        <div className="text-sm text-muted-foreground line-clamp-2">
-                                          {lead.snippet}
-                                        </div>
-                                      )}
+                                    )}
+                                    {url && (
                                       <div className="text-xs text-muted-foreground truncate mt-1">
-                                        {lead.linkedin_url}
+                                        {String(url)}
                                       </div>
-                                    </div>
-                                    {typeof lead.match_score === 'number' && (
-                                      <Badge variant="secondary" className="shrink-0">
-                                        {Math.round(lead.match_score)}
-                                      </Badge>
                                     )}
                                   </div>
-                                );
-                              })}
-                            </div>
+                                  {typeof row?.match_score === 'number' && (
+                                    <Badge variant="secondary" className="shrink-0">
+                                      {Math.round(row.match_score)}
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
+                        </div>
 
-                          {/* Preview */}
-                          <div className="border-t lg:border-t-0 lg:border-l bg-background p-4">
-                            {leadResults[activeLeadIndex] ? (
+                        {/* Preview */}
+                        <div className="border-t lg:border-t-0 lg:border-l bg-background p-4">
+                          {searchMode === 'google' ? (
+                            leadResults[activeResultIndex] ? (
                               <div className="space-y-3">
                                 <div className="font-semibold">
-                                  {leadResults[activeLeadIndex].title
-                                    ? String(leadResults[activeLeadIndex].title).replace(/\s*\|\s*LinkedIn\s*$/i, '')
+                                  {leadResults[activeResultIndex].title
+                                    ? String(leadResults[activeResultIndex].title).replace(/\s*\|\s*LinkedIn\s*$/i, '')
                                     : 'Lead preview'}
                                 </div>
-                                {leadResults[activeLeadIndex].snippet && (
+                                {leadResults[activeResultIndex].snippet && (
                                   <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                    {leadResults[activeLeadIndex].snippet}
+                                    {leadResults[activeResultIndex].snippet}
                                   </div>
                                 )}
                                 <div className="space-y-2">
                                   <div className="text-xs text-muted-foreground break-all">
-                                    {leadResults[activeLeadIndex].linkedin_url}
+                                    {leadResults[activeResultIndex].linkedin_url}
                                   </div>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => window.open(leadResults[activeLeadIndex].linkedin_url!, '_blank')}
+                                    onClick={() => window.open(leadResults[activeResultIndex].linkedin_url!, '_blank')}
                                     className="w-full"
                                   >
                                     View on LinkedIn
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => saveLeads.mutate([leadResults[activeLeadIndex]])}
+                                    onClick={() => saveLeads.mutate([leadResults[activeResultIndex]])}
                                     disabled={saveLeads.isPending}
                                     className="w-full"
                                   >
@@ -760,59 +786,57 @@ export default function TalentSourcing() {
                               </div>
                             ) : (
                               <div className="text-sm text-muted-foreground">Select a lead to preview</div>
-                            )}
-                          </div>
+                            )
+                          ) : (
+                            searchResults[activeResultIndex] ? (
+                              <div className="space-y-3">
+                                <div className="font-semibold">{searchResults[activeResultIndex].full_name || 'Profile'}</div>
+                                {searchResults[activeResultIndex].headline && (
+                                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                    {searchResults[activeResultIndex].headline}
+                                  </div>
+                                )}
+                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                  {searchResults[activeResultIndex].current_company && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <Briefcase className="h-3 w-3" />
+                                      {searchResults[activeResultIndex].current_company}
+                                    </span>
+                                  )}
+                                  {searchResults[activeResultIndex].location && (
+                                    <span className="inline-flex items-center gap-1">
+                                      <MapPin className="h-3 w-3" />
+                                      {searchResults[activeResultIndex].location}
+                                    </span>
+                                  )}
+                                </div>
+                                {searchResults[activeResultIndex].skills?.length ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {searchResults[activeResultIndex].skills!.slice(0, 10).map((s, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs">
+                                        {s}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="space-y-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => importProfiles.mutate([searchResults[activeResultIndex]])}
+                                    disabled={importProfiles.isPending}
+                                    className="w-full"
+                                  >
+                                    Import this profile
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">Select a profile to preview</div>
+                            )
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {searchResults.map((profile, i) => (
-                          <div
-                            key={i}
-                            className={`flex items-center gap-4 p-3 border rounded-lg cursor-pointer transition-colors ${
-                              selectedProfiles.has(i) ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
-                            }`}
-                            onClick={() => toggleProfileSelection(i)}
-                          >
-                            <Checkbox checked={selectedProfiles.has(i)} />
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback>
-                                {(profile.full_name || 'U').charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium">{profile.full_name}</div>
-                              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                                {profile.headline && <span className="truncate">{profile.headline}</span>}
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                {profile.current_company && (
-                                  <span className="flex items-center gap-1">
-                                    <Briefcase className="h-3 w-3" />
-                                    {profile.current_company}
-                                  </span>
-                                )}
-                                {profile.location && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {profile.location}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {profile.skills && profile.skills.length > 0 && (
-                              <div className="hidden md:flex flex-wrap gap-1 max-w-xs">
-                                {profile.skills.slice(0, 3).map((skill, j) => (
-                                  <Badge key={j} variant="secondary" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </CardContent>
