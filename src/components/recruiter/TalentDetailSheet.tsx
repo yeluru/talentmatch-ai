@@ -49,6 +49,7 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { resumesObjectPath } from '@/lib/storagePaths';
 
 interface TalentDetailSheetProps {
   talentId: string | null;
@@ -172,7 +173,12 @@ function TalentDetailContent({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-lg sm:text-xl font-semibold truncate">{talent.full_name || 'Unknown'}</h2>
-            {talent.ats_score && <ScoreBadge score={talent.ats_score} />}
+            {talent.ats_score !== null && talent.ats_score !== undefined && (
+              <div className="flex flex-col items-start leading-tight" title="Generic resume-quality score (not JD-based)">
+                <ScoreBadge score={talent.ats_score} showLabel={false} />
+                <span className="text-[10px] text-muted-foreground">generic score</span>
+              </div>
+            )}
           </div>
           {talent.headline && (
             <p className="text-sm text-muted-foreground line-clamp-2">{talent.headline}</p>
@@ -594,22 +600,12 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     setEditedNotes('');
   };
 
-  const extractResumePath = (fileUrl: string) => {
-    const byPublic = fileUrl.split('/object/public/resumes/')[1];
-    if (byPublic) return byPublic;
-
-    const byBucket = fileUrl.split('/resumes/')[1];
-    if (byBucket) return byBucket;
-
-    return null;
-  };
-
   const handleViewResume = async (fileUrl: string, fileName: string) => {
     const tab = window.open('about:blank', '_blank');
 
     setIsDownloading(true);
     try {
-      const filePath = extractResumePath(fileUrl);
+      const filePath = resumesObjectPath(fileUrl);
 
       if (filePath) {
         const { data: signedUrlData, error: signedUrlError } = await supabase
@@ -638,7 +634,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
   const handleDownloadResume = async (fileUrl: string, fileName: string) => {
     setIsDownloading(true);
     try {
-      const filePath = fileUrl.split('/resumes/')[1];
+      const filePath = resumesObjectPath(fileUrl);
       
       if (filePath) {
         const { data: signedUrlData, error: signedUrlError } = await supabase

@@ -390,6 +390,86 @@ function scoreExtractedText(text: string) {
   };
 }
 
+function clamp01(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
+
+function clampScore(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+/**
+ * Deterministic "resume quality" score (0-100), NOT JD-based.
+ * Purpose: avoid model scores clustering around the 80s and provide a stricter, more explainable baseline.
+ */
+function computeGenericResumeQualityScore(opts: { extractedText: string; parsed: any }) {
+  const extractedText = String(opts?.extractedText || "");
+  const parsed = opts?.parsed || {};
+
+  const diag = scoreExtractedText(extractedText);
+  const expCount = Array.isArray(parsed?.experience) ? parsed.experience.length : 0;
+  const eduCount = Array.isArray(parsed?.education) ? parsed.education.length : 0;
+  const techCount = Array.isArray(parsed?.technical_skills) ? parsed.technical_skills.length : 0;
+  const softCount = Array.isArray(parsed?.soft_skills) ? parsed.soft_skills.length : 0;
+  const summaryLen = String(parsed?.summary || "").trim().length;
+
+  const hasEmail = Boolean(String(parsed?.email || "").trim());
+  const hasPhone = Boolean(String(parsed?.phone || "").trim());
+  const hasLinkedIn = Boolean(String(parsed?.linkedin_url || "").trim());
+  const hasGitHub = Boolean(String(parsed?.github_url || "").trim());
+  const hasLocation = Boolean(String(parsed?.location || "").trim());
+
+  // Quantification signals: %, $, numbers with unit suffixes, and common impact verbs.
+  const quantSignals =
+    (extractedText.match(/\b\d+(\.\d+)?\s*%/g) || []).length +
+    (extractedText.match(/\$\s*\d+/g) || []).length +
+    (extractedText.match(/\b\d+(\.\d+)?\s*(k|m|b)\b/gi) || []).length +
+    (extractedText.match(/\b(saved|reduced|increased|improved|grew|accelerated)\b/gi) || []).length;
+
+  // Contact completeness (0..10)
+  const contact =
+    (hasEmail ? 4 : 0) +
+    (hasPhone ? 3 : 0) +
+    (hasLinkedIn ? 1 : 0) +
+    (hasGitHub ? 1 : 0) +
+    (hasLocation ? 1 : 0);
+
+  // Structure (0..22)
+  const structure =
+    Math.min(12, (diag.section_hits || 0) * 3) +
+    (expCount >= 2 ? 6 : expCount === 1 ? 3 : 0) +
+    (eduCount >= 1 ? 2 : 0) +
+    (summaryLen >= 80 ? 2 : summaryLen >= 40 ? 1 : 0);
+
+  // Bullets (0..18)
+  const bullets = 18 * clamp01((diag.bullet_markers || 0) / 16);
+
+  // Dates (0..10)
+  const dates = 10 * clamp01((diag.date_ranges || 0) / 5);
+
+  // Skills completeness (0..18)
+  const skills =
+    14 * clamp01(techCount / 28) +
+    4 * clamp01(softCount / 10);
+
+  // Quantifiable achievements (0..22)
+  const quant = 22 * clamp01(quantSignals / 14);
+
+  let total = contact + structure + bullets + dates + skills + quant; // ~0..100
+
+  // Stricter penalties for weak structure/content
+  if ((diag.extracted_text_length || 0) < 1200) total -= 10;
+  if ((diag.extracted_text_length || 0) < 800) total -= 10;
+  if (expCount < 1) total -= 20;
+  if ((diag.bullet_markers || 0) < 6) total -= 10;
+  if (techCount < 8) total -= 6;
+  if (!hasEmail) total -= 8;
+
+  return clampScore(total);
+}
+
 function itemsWithEOLToText(items: any[]): string {
   // Alternate PDF text reconstruction: preserve PDF.js intrinsic ordering and use hasEOL when present.
   // This can sometimes outperform coordinate bucketing for certain PDFs.
@@ -1645,6 +1725,19 @@ IMPORTANT:
     parsed.technical_skills = classified.technical_skills.slice(0, 60);
     parsed.soft_skills = classified.soft_skills.slice(0, 40);
 
+    // Calibrate ATS score to be stricter and less "same-y".
+    // The model-provided ats_score often clusters around the 80s; we blend it with a deterministic
+    // resume-quality score (not JD-based) derived from structure/bullets/dates/quantification/contact.
+    const aiRawAtsScore = Number(parsed.ats_score);
+    const deterministicScore = computeGenericResumeQualityScore({
+      extractedText: textContent || "",
+      parsed,
+    });
+    const finalAtsScore = Number.isFinite(aiRawAtsScore)
+      ? clampScore(0.4 * aiRawAtsScore + 0.6 * deterministicScore - 3)
+      : deterministicScore;
+    parsed.ats_score = finalAtsScore;
+
     // Ensure we always return a usable professional summary (AI sometimes returns header/contact text,
     // which gets stripped; we don't want the UI to end up with an empty summary).
     if (!parsed.summary || String(parsed.summary).trim().length < 40) {
@@ -1715,6 +1808,11 @@ IMPORTANT:
         estimated_structure: completeness,
         parsed_counts: parsedCounts,
         deterministic_hints: { experience_detected: expHints.length, education_detected: eduHints.length },
+        generic_score_calibration: {
+          deterministic_score: deterministicScore,
+          ai_raw_score: Number.isFinite(aiRawAtsScore) ? Math.round(aiRawAtsScore) : null,
+          final_score: finalAtsScore,
+        },
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

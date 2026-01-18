@@ -5,6 +5,7 @@ export interface UploadResult {
   fileName: string;
   status: 'pending' | 'parsing' | 'importing' | 'done' | 'error';
   error?: string;
+  note?: string;
   parsed?: {
     full_name?: string;
     current_title?: string;

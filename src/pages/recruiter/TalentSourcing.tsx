@@ -45,6 +45,7 @@ export default function TalentSourcing() {
   const { roles } = useAuth();
   const queryClient = useQueryClient();
   const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const [activeTab, setActiveTab] = useState<'resumes' | 'search' | 'api'>('resumes');
 
   // Web search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,10 +151,26 @@ export default function TalentSourcing() {
 
         if (existingResume) {
           console.log('Duplicate resume detected:', file.name);
-          updateResult(resultIndex, { 
-            status: 'error', 
-            error: `Duplicate rejected: This exact resume already exists in the system`
-          });
+          // Instead of erroring, re-link the existing candidate to this org so it becomes visible again.
+          try {
+            const { data: relinkData, error: relinkErr } = await supabase.functions.invoke('resolve-duplicate-resume', {
+              body: { organizationId, contentHash: fileHash, source: 'resume_upload' }
+            });
+            if (relinkErr) throw relinkErr;
+            const score = (relinkData as any)?.resume?.ats_score;
+            updateResult(resultIndex, {
+              status: 'done',
+              atsScore: typeof score === 'number' ? score : undefined,
+              parsed: undefined,
+              note: 'Duplicate detected: existing profile re-linked to Talent Pool',
+              error: undefined,
+            });
+          } catch (e: any) {
+            updateResult(resultIndex, {
+              status: 'error',
+              error: `Duplicate rejected: This exact resume already exists in the system`,
+            });
+          }
           continue; // Skip to next file
         }
 
@@ -214,20 +231,29 @@ export default function TalentSourcing() {
 
         if (importError) throw importError;
         
-        // Check if this was flagged as a duplicate
-        const hasDuplicateError = importData?.results?.errors?.some((e: string) => 
-          e.toUpperCase().includes('DUPLICATE')
+        // If the backend reported duplicates, treat as a non-fatal outcome (we re-link existing profiles).
+        const relinked = Number((importData as any)?.results?.relinked ?? 0);
+        const hasDuplicateError = (importData as any)?.results?.errors?.some((e: string) =>
+          String(e || '').toUpperCase().includes('DUPLICATE')
         );
-        
-        if (hasDuplicateError) {
-          updateResult(resultIndex, { 
-            status: 'error', 
+
+        if (relinked > 0) {
+          updateResult(resultIndex, {
+            status: 'done',
+            parsed,
+            atsScore: parsed.ats_score,
+            note: 'Duplicate detected: existing profile re-linked to Talent Pool',
+            error: undefined,
+          });
+        } else if (hasDuplicateError) {
+          updateResult(resultIndex, {
+            status: 'error',
             error: 'Duplicate resume: identical content already exists in the system',
-            parsed, 
-            atsScore: parsed.ats_score 
+            parsed,
+            atsScore: parsed.ats_score,
           });
         } else {
-          updateResult(resultIndex, { status: 'done', parsed, atsScore: parsed.ats_score });
+          updateResult(resultIndex, { status: 'done', parsed, atsScore: parsed.ats_score, error: undefined });
         }
 
       } catch (error: any) {
@@ -293,26 +319,36 @@ export default function TalentSourcing() {
           </p>
         </div>
 
-        <Tabs defaultValue="resumes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
-            <TabsTrigger value="resumes" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Resumes
-              {uploadResults.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                  {uploadResults.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="search" className="flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              Web Search
-            </TabsTrigger>
-            <TabsTrigger value="api" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              API
-            </TabsTrigger>
-          </TabsList>
+        <div className="grid gap-6 lg:grid-cols-2 items-start lg:items-stretch">
+          {/* Left: inputs/workflows */}
+          <Card className="min-w-0 lg:h-[calc(100vh-240px)] flex flex-col">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-0">
+              <CardHeader className="space-y-3">
+                <CardTitle>Source candidates</CardTitle>
+                <CardDescription>Upload resumes or search the web to add candidates to your pool.</CardDescription>
+
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="resumes" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Resumes
+                    {uploadResults.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                        {uploadResults.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="search" className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Web Search
+                  </TabsTrigger>
+                  <TabsTrigger value="api" className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    API
+                  </TabsTrigger>
+                </TabsList>
+              </CardHeader>
+
+              <CardContent className="pt-0 flex-1 min-h-0 overflow-auto">
 
           {/* Bulk Resume Upload Tab */}
           <TabsContent value="resumes" className="space-y-6">
@@ -341,84 +377,10 @@ export default function TalentSourcing() {
                     <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <p className="text-lg font-medium mb-1">Drop resumes here or click to upload</p>
                     <p className="text-sm text-muted-foreground">
-                      PDF, DOC, DOCX, TXT • Auto-imports with ATS score
+                      PDF, DOC, DOCX, TXT • Auto-imports with a generic resume-quality score (not JD-based)
                     </p>
                   </label>
                 </div>
-
-                {/* Upload Results */}
-                {uploadResults.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-sm">
-                        {processingCount > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Processing {processingCount}
-                          </span>
-                        )}
-                        {completedCount > 0 && (
-                          <span className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            {completedCount} imported
-                          </span>
-                        )}
-                        {errorCount > 0 && (
-                          <span className="flex items-center gap-1 text-destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            {errorCount} failed
-                          </span>
-                        )}
-                      </div>
-                      <Button variant="outline" size="sm" onClick={clearResults}>
-                        Clear All
-                      </Button>
-                    </div>
-
-                    {processingCount > 0 && (
-                      <Progress value={(completedCount / uploadResults.length) * 100} />
-                    )}
-
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
-                      {uploadResults.map((item, i) => (
-                        <div 
-                          key={i} 
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            item.status === 'done' ? 'bg-green-50 dark:bg-green-950/20 border-green-200' :
-                            item.status === 'error' ? 'bg-red-50 dark:bg-red-950/20 border-red-200' :
-                            'bg-muted/50'
-                          }`}
-                        >
-                          {item.status === 'pending' && <div className="h-5 w-5 rounded-full bg-muted" />}
-                          {item.status === 'parsing' && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}
-                          {item.status === 'importing' && <Loader2 className="h-5 w-5 animate-spin text-green-500" />}
-                          {item.status === 'done' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                          {item.status === 'error' && <AlertCircle className="h-5 w-5 text-destructive" />}
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">
-                              {item.parsed?.full_name || item.fileName}
-                            </div>
-                            {item.parsed?.current_title && (
-                              <div className="text-sm text-muted-foreground truncate">
-                                {item.parsed.current_title}
-                              </div>
-                            )}
-                            {item.error && (
-                              <div className="text-sm text-destructive">{item.error}</div>
-                            )}
-                          </div>
-
-                          {item.atsScore !== undefined && (
-                            <div className={`font-bold ${getScoreColor(item.atsScore)}`}>
-                              {item.atsScore}%
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -554,7 +516,136 @@ export default function TalentSourcing() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+              </CardContent>
+            </Tabs>
+          </Card>
+
+          {/* Right: status */}
+          <div className="space-y-6 min-w-0">
+            <Card className="lg:h-[calc(100vh-240px)] flex flex-col">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between gap-3">
+                  <span>Status</span>
+                  {activeTab === 'resumes' && uploadResults.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={clearResults}>
+                      Clear All
+                    </Button>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  {activeTab === 'resumes'
+                    ? 'Upload parsing + import progress'
+                    : activeTab === 'search'
+                      ? 'Search + import progress'
+                      : 'Activity'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
+                {activeTab === 'resumes' && (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="text-muted-foreground">
+                        {uploadResults.length} file{uploadResults.length === 1 ? '' : 's'}
+                      </span>
+                      {processingCount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Processing {processingCount}
+                        </span>
+                      )}
+                      {completedCount > 0 && (
+                        <span className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          {completedCount} imported
+                        </span>
+                      )}
+                      {errorCount > 0 && (
+                        <span className="flex items-center gap-1 text-destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          {errorCount} failed
+                        </span>
+                      )}
+                    </div>
+
+                    {uploadResults.length > 0 && processingCount > 0 && (
+                      <Progress value={(completedCount / uploadResults.length) * 100} />
+                    )}
+
+                    {uploadResults.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No uploads yet. Upload resumes on the left to populate your Talent Pool.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+                        {uploadResults.map((item, i) => (
+                          <div
+                            key={i}
+                            className={`flex items-center gap-3 p-3 rounded-lg border ${
+                              item.status === 'done'
+                                ? 'bg-green-50 dark:bg-green-950/20 border-green-200'
+                                : item.status === 'error'
+                                  ? 'bg-red-50 dark:bg-red-950/20 border-red-200'
+                                  : 'bg-muted/50'
+                            }`}
+                          >
+                            {item.status === 'pending' && <div className="h-5 w-5 rounded-full bg-muted" />}
+                            {item.status === 'parsing' && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}
+                            {item.status === 'importing' && <Loader2 className="h-5 w-5 animate-spin text-green-500" />}
+                            {item.status === 'done' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                            {item.status === 'error' && <AlertCircle className="h-5 w-5 text-destructive" />}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{item.parsed?.full_name || item.fileName}</div>
+                              {item.parsed?.current_title && (
+                                <div className="text-sm text-muted-foreground truncate">{item.parsed.current_title}</div>
+                              )}
+                              {item.status === 'error' && item.error && (
+                                <div className="text-sm text-destructive">{item.error}</div>
+                              )}
+                              {item.status !== 'error' && item.note && (
+                                <div className="text-sm text-muted-foreground">{item.note}</div>
+                              )}
+                            </div>
+
+                            {item.atsScore !== undefined && (
+                              <div className="flex flex-col items-end leading-tight">
+                                <div className={`font-bold ${getScoreColor(item.atsScore)}`}>{item.atsScore}%</div>
+                                <div className="text-[10px] text-muted-foreground">generic score</div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeTab === 'search' && (
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div>
+                      Results: <span className="text-foreground">{searchResults.length}</span>
+                    </div>
+                    <div>
+                      Selected: <span className="text-foreground">{selectedProfiles.size}</span>
+                    </div>
+                    <div>
+                      Import status:{' '}
+                      <span className="text-foreground">
+                        {importProfiles.isPending ? 'Importing…' : 'Idle'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'api' && (
+                  <div className="text-sm text-muted-foreground">
+                    API integrations will show status here once enabled.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

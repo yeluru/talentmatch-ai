@@ -1,11 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -40,11 +50,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Users, Briefcase, MapPin, ArrowUpDown, Filter, X, ListPlus, Send, CheckSquare, MessageSquare, Save } from 'lucide-react';
+import { Search, Loader2, Users, Briefcase, MapPin, ArrowUpDown, Filter, X, ListPlus, Send, CheckSquare, MessageSquare, Save, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentPoolRow } from '@/components/recruiter/TalentPoolRow';
@@ -79,6 +91,68 @@ interface TalentProfile {
 
 type SortOption = 'date_desc' | 'date_asc' | 'score_desc' | 'score_asc' | 'name_asc';
 
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'new', label: 'New' },
+  { value: 'contacted', label: 'Contacted' },
+  { value: 'interviewing', label: 'Interviewing' },
+  { value: 'offered', label: 'Offered' },
+  { value: 'hired', label: 'Hired' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+/**
+ * Boolean query parser:
+ * - OR groups: comma (,) or keyword "or"
+ * - AND terms inside a group: keyword "and"
+ *
+ * Examples:
+ * - "fannie, freddie" => [["fannie"], ["freddie"]]
+ * - "fannie or freddie" => [["fannie"], ["freddie"]]
+ * - "fannie and freddie" => [["fannie","freddie"]]
+ *
+ * Note: plain whitespace without explicit "and" stays within a single term group as-is;
+ * users should type "and" when they want strict AND behavior.
+ */
+function parseBooleanQueryGroups(input: string): string[][] {
+  const raw = String(input || '').trim().toLowerCase();
+  if (!raw) return [];
+
+  const normalizeTerm = (t: string) =>
+    t
+      .trim()
+      // Strip punctuation at edges so "fannie," still matches
+      .replace(/^[^a-z0-9]+/gi, '')
+      .replace(/[^a-z0-9]+$/gi, '')
+      .trim();
+
+  // Split into OR groups by comma or " or "
+  const orGroups = raw
+    .split(/,|\s+or\s+/i)
+    .map((g) => g.trim())
+    .filter(Boolean);
+
+  const groups: string[][] = [];
+  for (const g of orGroups) {
+    // Split into AND terms only when user explicitly types "and"
+    const andTerms = g
+      .split(/\s+and\s+/i)
+      .map(normalizeTerm)
+      .filter((t) => t.length > 0);
+
+    // If user didn't type "and" but typed multiple words, treat as a single phrase term.
+    // This keeps search forgiving while still allowing strict AND when requested.
+    if (andTerms.length === 0) continue;
+    if (andTerms.length === 1) {
+      const phrase = normalizeTerm(g);
+      if (phrase) groups.push([phrase]);
+      continue;
+    }
+    groups.push(andTerms);
+  }
+
+  return groups;
+}
+
 const EXPERIENCE_LEVELS = [
   { value: 'entry', label: 'Entry (0-2 years)', min: 0, max: 2 },
   { value: 'mid', label: 'Mid-Level (3-5 years)', min: 3, max: 5 },
@@ -86,26 +160,108 @@ const EXPERIENCE_LEVELS = [
   { value: 'lead', label: 'Lead (10+ years)', min: 10, max: 100 },
 ];
 
-const ITEMS_PER_PAGE = 10;
+const DEFAULT_ITEMS_PER_PAGE = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
+const PAGE_SIZE_KEY_PREFIX = 'talentpool_page_size_v1';
+function getPageSizeKey(orgId: string) {
+  return `${PAGE_SIZE_KEY_PREFIX}:${orgId}`;
+}
+
+function loadPageSize(orgId: string): number {
+  try {
+    if (!orgId) return DEFAULT_ITEMS_PER_PAGE;
+    const raw = localStorage.getItem(getPageSizeKey(orgId));
+    const n = Number(raw);
+    if (PAGE_SIZE_OPTIONS.includes(n as any)) return n;
+    return DEFAULT_ITEMS_PER_PAGE;
+  } catch {
+    return DEFAULT_ITEMS_PER_PAGE;
+  }
+}
+
+function savePageSize(orgId: string, n: number) {
+  try {
+    if (!orgId) return;
+    localStorage.setItem(getPageSizeKey(orgId), String(n));
+  } catch {
+    // ignore
+  }
+}
+
+type TalentPoolView = 'all' | 'new' | 'high_score' | 'recent';
+
+const RECENT_VIEWS_KEY_PREFIX = 'talentpool_recent_views_v1';
+function getRecentViewsKey(orgId: string) {
+  return `${RECENT_VIEWS_KEY_PREFIX}:${orgId}`;
+}
+
+function loadRecentViews(orgId: string): { id: string; ts: number }[] {
+  try {
+    if (!orgId) return [];
+    const raw = localStorage.getItem(getRecentViewsKey(orgId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && typeof x.ts === 'number')
+      .slice(0, 50);
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentViews(orgId: string, items: { id: string; ts: number }[]) {
+  try {
+    if (!orgId) return;
+    localStorage.setItem(getRecentViewsKey(orgId), JSON.stringify(items.slice(0, 50)));
+  } catch {
+    // ignore
+  }
+}
 
 export default function TalentPool() {
   const { roles, user } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
+  const organizationId = roles.find((r) => r.role === 'recruiter')?.organization_id;
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date_desc');
   const [companyFilter, setCompanyFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [activeView, setActiveView] = useState<TalentPoolView>('all');
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => loadPageSize(organizationId || ''));
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeCandidateIds, setRemoveCandidateIds] = useState<string[]>([]);
   
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const organizationId = roles.find((r) => r.role === 'recruiter')?.organization_id;
+  const [recentViews, setRecentViews] = useState<{ id: string; ts: number }[]>(() =>
+    loadRecentViews(organizationId || '')
+  );
+
+  useEffect(() => {
+    if (!organizationId) return;
+    setRecentViews(loadRecentViews(organizationId));
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    setItemsPerPage(loadPageSize(organizationId));
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    savePageSize(organizationId, itemsPerPage);
+  }, [organizationId, itemsPerPage]);
 
   const { pullDistance, refreshing: isRefreshing } = usePullToRefresh({
     enabled: isMobile,
@@ -121,28 +277,60 @@ export default function TalentPool() {
 
 
       // 1) Candidates sourced into this org (uploaded/imported)
-      const { data: sourced, error: sourcedError } = await supabase
-        .from('candidate_profiles')
-        .select(
-          `
-          id,
-          full_name,
-          email,
-          location,
-          current_title,
-          current_company,
-          years_of_experience,
-          headline,
-          ats_score,
-          created_at,
-          recruiter_notes,
-          recruiter_status
-        `
-        )
+      //
+      // IMPORTANT:
+      // Recruiter visibility is enforced via RLS using candidate_org_links (see recruiter_can_access_candidate()).
+      // The legacy candidate_profiles.organization_id field is no longer authoritative for access decisions.
+      //
+      // So we derive sourced candidates from candidate_org_links, then fetch their profiles.
+      const { data: sourcedLinks, error: sourcedLinksError } = await supabase
+        .from('candidate_org_links')
+        .select('candidate_id')
         .eq('organization_id', organizationId)
-        .is('user_id', null);
+        .eq('status', 'active')
+        // link_type is not an enum; bulk import currently writes the request `source` string.
+        // Support both current values and legacy/backfill values.
+        .in('link_type', [
+          'resume_upload',
+          'web_search',
+          'sourced_resume',
+          'sourced_web',
+          'sourced',
+          'unknown',
+        ]);
 
-      if (sourcedError) throw sourcedError;
+      if (sourcedLinksError) throw sourcedLinksError;
+
+      const sourcedIds = Array.from(
+        new Set((sourcedLinks || []).map((l: any) => l.candidate_id).filter(Boolean))
+      ) as string[];
+
+      let sourced: TalentProfile[] = [];
+      if (sourcedIds.length) {
+        const { data: sourcedProfiles, error: sourcedProfilesError } = await supabase
+          .from('candidate_profiles')
+          .select(
+            `
+            id,
+            full_name,
+            email,
+            location,
+            current_title,
+            current_company,
+            years_of_experience,
+            headline,
+            ats_score,
+            created_at,
+            recruiter_notes,
+            recruiter_status
+          `
+          )
+          .in('id', sourcedIds)
+          .is('user_id', null);
+
+        if (sourcedProfilesError) throw sourcedProfilesError;
+        sourced = (sourcedProfiles || []) as TalentProfile[];
+      }
 
       // 2) Candidates who applied to this org's jobs
       const { data: applicantLinks, error: applicantLinksError } = await supabase
@@ -307,6 +495,39 @@ export default function TalentPool() {
     },
   });
 
+  const deleteFromTalentPoolMutation = useMutation({
+    mutationFn: async (candidateIds: string[]) => {
+      if (!organizationId) throw new Error('Missing organization');
+      const uniq = Array.from(new Set(candidateIds.map(String))).map((s) => s.trim()).filter(Boolean);
+      if (uniq.length === 0) return { removed: 0 };
+      const { data, error } = await supabase.functions.invoke('delete-sourced-candidate', {
+        body: { organizationId, candidateIds: uniq },
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (data) => {
+      const deleted = Number((data as any)?.results?.deleted ?? 0);
+      const skipped = Number((data as any)?.results?.skipped ?? 0);
+      if (deleted > 0 && skipped === 0) toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
+      else if (deleted > 0) toast.success(`Deleted ${deleted}, skipped ${skipped}`);
+      else toast.error('Nothing was deleted');
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to delete');
+    },
+  });
+
+  const requestRemove = (candidateIds: string[]) => {
+    const uniq = Array.from(new Set(candidateIds.map(String))).map((s) => s.trim()).filter(Boolean);
+    if (uniq.length === 0) return;
+    setRemoveCandidateIds(uniq);
+    setRemoveDialogOpen(true);
+  };
+
   // Extract unique companies and locations for filter dropdowns
   const uniqueCompanies = useMemo(() => {
     if (!talents) return [];
@@ -324,30 +545,66 @@ export default function TalentPool() {
     return Array.from(locations).sort();
   }, [talents]);
 
+  const uniqueStatuses = useMemo(() => {
+    if (!talents) return [];
+    const statuses = new Set<string>();
+    talents.forEach((t) => {
+      const s = (t.recruiter_status || '').trim();
+      if (s) statuses.add(s);
+    });
+    return Array.from(statuses).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [talents]);
+
+  const statusFilterOptions = useMemo(() => {
+    const canonical = STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }));
+    const canonicalValueSet = new Set(canonical.map((s) => s.value.toLowerCase().trim()));
+
+    const custom = uniqueStatuses
+      .map((s) => {
+        const norm = s.toLowerCase().trim();
+        return { value: norm, label: s };
+      })
+      .filter((s) => s.value && !canonicalValueSet.has(s.value));
+
+    return [...canonical, ...custom];
+  }, [uniqueStatuses]);
+
   // Filter and sort talents
   const filteredTalents = useMemo(() => {
     if (!talents) return [];
 
-    let result = talents.filter((t) => {
+    const now = Date.now();
+    const recentIdSet = new Set(recentViews.map((x) => x.id));
+
+    let base = talents;
+    if (activeView === 'new') {
+      const cutoff = now - 7 * 24 * 60 * 60 * 1000; // 7 days
+      base = base.filter((t) => new Date(t.created_at).getTime() >= cutoff);
+    } else if (activeView === 'high_score') {
+      base = base.filter((t) => (t.ats_score || 0) >= 80);
+    } else if (activeView === 'recent') {
+      base = base.filter((t) => recentIdSet.has(t.id));
+    }
+
+    let result = base.filter((t) => {
       // Text search with boolean OR support (comma-separated terms)
       const name = (t.full_name || '').toLowerCase();
       const title = (t.current_title || '').toLowerCase();
       const headline = (t.headline || '').toLowerCase();
+      const email = (t.email || '').toLowerCase();
+      const notes = (t.recruiter_notes || '').toLowerCase();
       const skillsText = t.skills.map((s) => s.skill_name.toLowerCase()).join(' ');
       const companiesText = t.companies.map((c) => c.toLowerCase()).join(' ');
       const location = (t.location || '').toLowerCase();
-      const searchableText = `${name} ${title} ${headline} ${skillsText} ${companiesText} ${location}`;
+      const searchableText = `${name} ${title} ${headline} ${email} ${notes} ${skillsText} ${companiesText} ${location}`;
 
-      // Parse search terms: split by comma or " or ", trim whitespace, filter empty
-      const searchTerms = searchQuery
-        .split(/,|\s+or\s+/i)
-        .map((term) => term.trim().toLowerCase())
-        .filter((term) => term.length > 0);
-
-      // Match if ANY term is found (OR logic)
+      const queryGroups = parseBooleanQueryGroups(searchQuery);
+      // Boolean semantics:
+      // - OR across groups
+      // - AND within a group
       const matchesSearch =
-        searchTerms.length === 0 ||
-        searchTerms.some((term) => searchableText.includes(term));
+        queryGroups.length === 0 ||
+        queryGroups.some((andTerms) => andTerms.every((term) => searchableText.includes(term)));
 
       // Company filter
       const matchesCompany =
@@ -357,6 +614,11 @@ export default function TalentPool() {
       const matchesLocation =
         !locationFilter ||
         (t.location && t.location.toLowerCase().includes(locationFilter.toLowerCase()));
+
+      // Status filter
+      const matchesStatus =
+        !statusFilter ||
+        ((t.recruiter_status || '').toLowerCase().trim() === statusFilter.toLowerCase().trim());
 
       // Experience filter
       let matchesExperience = true;
@@ -369,7 +631,7 @@ export default function TalentPool() {
         }
       }
 
-      return matchesSearch && matchesCompany && matchesLocation && matchesExperience;
+      return matchesSearch && matchesCompany && matchesLocation && matchesStatus && matchesExperience;
     });
 
     // Sort
@@ -391,54 +653,84 @@ export default function TalentPool() {
     });
 
     return result;
-  }, [talents, searchQuery, sortBy, companyFilter, locationFilter, experienceFilter]);
+  }, [
+    talents,
+    searchQuery,
+    sortBy,
+    companyFilter,
+    locationFilter,
+    statusFilter,
+    experienceFilter,
+    activeView,
+    recentViews,
+  ]);
 
   // Group filtered talents by email for visual grouping
   const groupedTalents = useMemo(() => {
-    const groups = new Map<string, TalentProfile[]>();
-    
-    for (const talent of filteredTalents) {
-      // Group by email if available, otherwise treat as individual
-      const key = talent.email?.toLowerCase().trim() || `no-email-${talent.id}`;
-      const existing = groups.get(key) || [];
-      existing.push(talent);
-      groups.set(key, existing);
-    }
-    
-    // Convert to array and sort groups by most recent profile date
-    return Array.from(groups.values()).sort((a, b) => {
-      const latestA = Math.max(...a.map(p => new Date(p.created_at).getTime()));
-      const latestB = Math.max(...b.map(p => new Date(p.created_at).getTime()));
-      return latestB - latestA;
-    });
-  }, [filteredTalents]);
+    // IMPORTANT:
+    // `filteredTalents` is already sorted by `sortBy`.
+    // So grouping MUST preserve that order (otherwise sorting appears "broken").
+    const groups: TalentProfile[][] = [];
+    const indexByKey = new Map<string, number>();
 
-  // Reset page when filters change
-  useMemo(() => {
+    for (const talent of filteredTalents) {
+      // When searching, do NOT group by email — users expect "records" to match visible rows.
+      const isSearching = searchQuery.trim().length > 0;
+      const key = isSearching
+        ? `id-${talent.id}`
+        : (talent.email?.toLowerCase().trim() || `no-email-${talent.id}`);
+
+      const existingIndex = indexByKey.get(key);
+      if (existingIndex === undefined) {
+        indexByKey.set(key, groups.length);
+        groups.push([talent]);
+      } else {
+        groups[existingIndex].push(talent);
+      }
+    }
+
+    return groups;
+  }, [filteredTalents, searchQuery]);
+
+  // Reset page when filters/search/view/page-size change
+  useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, companyFilter, locationFilter, experienceFilter, sortBy]);
+  }, [searchQuery, companyFilter, locationFilter, statusFilter, experienceFilter, sortBy, activeView, itemsPerPage]);
 
   // Pagination calculations - now based on groups, not individual profiles
-  const totalPages = Math.ceil(groupedTalents.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(groupedTalents.length / itemsPerPage);
   const paginatedGroups = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return groupedTalents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [groupedTalents, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return groupedTalents.slice(startIndex, startIndex + itemsPerPage);
+  }, [groupedTalents, currentPage, itemsPerPage]);
   
   // Flatten paginated groups for selection logic
   const paginatedTalents = useMemo(() => {
     return paginatedGroups.flat();
   }, [paginatedGroups]);
 
-  const hasActiveFilters = companyFilter || locationFilter || experienceFilter;
+  // If the result set shrinks (e.g. after search), ensure we don't strand the user on an empty page.
+  useEffect(() => {
+    if (totalPages === 0) return;
+    if (currentPage > totalPages) setCurrentPage(1);
+  }, [currentPage, totalPages]);
+
+  const hasActiveFilters = companyFilter || locationFilter || statusFilter || experienceFilter;
 
   const clearFilters = () => {
     setCompanyFilter('');
     setLocationFilter('');
+    setStatusFilter('');
     setExperienceFilter('');
   };
 
   const handleTalentClick = (id: string) => {
+    if (organizationId) {
+      const now = Date.now();
+      const next = [{ id, ts: now }, ...recentViews.filter((x) => x.id !== id)].slice(0, 20);
+      setRecentViews(next);
+      saveRecentViews(organizationId, next);
+    }
     setSelectedTalentId(id);
     setSheetOpen(true);
   };
@@ -484,6 +776,10 @@ export default function TalentPool() {
     });
   };
 
+  const handleRemoveSelected = () => {
+    requestRemove(Array.from(selectedIds));
+  };
+
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages: (number | 'ellipsis')[] = [];
@@ -511,42 +807,31 @@ export default function TalentPool() {
     );
   }
 
-  return (
-    <DashboardLayout>
-      {/* Pull-to-refresh indicator (mobile) */}
-      {isMobile && (
-        <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
-      )}
-      
-      {/* Scroll to top button */}
-      <ScrollToTop />
+  const filterCount =
+    (companyFilter ? 1 : 0) +
+    (locationFilter ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    (experienceFilter ? 1 : 0);
 
-      <MobileListHeader
-        title="Talent Pool"
-        subtitle="Sourced profiles from bulk uploads and searches"
-        filterCount={
-          (companyFilter ? 1 : 0) + 
-          (locationFilter ? 1 : 0) + 
-          (experienceFilter ? 1 : 0)
-        }
-      >
-        <div className="space-y-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Boolean search: Fannie, Freddie or react"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          {/* Sort */}
+  const filtersContent = (
+    <div className="space-y-3">
+      {/* Search row (hero) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder='Search (boolean): "fannie and freddie", react or angular'
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 h-11"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 w-full sm:w-[180px]">
               <ArrowUpDown className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="date_desc">Newest First</SelectItem>
@@ -557,148 +842,279 @@ export default function TalentPool() {
             </SelectContent>
           </Select>
 
-          {/* Company Filter */}
-          <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Company" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {uniqueCompanies.map((company) => (
-                <SelectItem key={company} value={company}>
-                  {company}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Location Filter */}
-          <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Location" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
-              {uniqueLocations.map((location) => (
-                <SelectItem key={location} value={location}>
-                  {location}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Experience Filter */}
-          <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Experience" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
-              {EXPERIENCE_LEVELS.map((level) => (
-                <SelectItem key={level.value} value={level.value}>
-                  {level.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
-              <X className="h-4 w-4 mr-1" />
-              Clear Filters
-            </Button>
-          )}
-        </div>
-      </MobileListHeader>
-
-      <Card className="mt-4">
-        <CardHeader>
-          {/* Results count */}
-          {groupedTalents.length > 0 && (
-            <div className="text-sm text-muted-foreground">
-              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, groupedTalents.length)} of {groupedTalents.length} candidates ({filteredTalents.length} profiles)
-            </div>
-          )}
-        </CardHeader>
-          <CardContent>
-            {!filteredTalents?.length ? (
-              <EmptyState
-                icon={Users}
-                title={hasActiveFilters ? 'No matches found' : 'No profiles in talent pool'}
-                description={
-                  hasActiveFilters
-                    ? 'Try adjusting your filters'
-                    : 'Import candidates via Talent Sourcing to build your pool'
-                }
-              />
-            ) : (
-              <>
-                {/* Select All Row */}
-                <div className="flex items-center gap-3 pb-3 mb-3 border-b">
-                  <Checkbox
-                    checked={paginatedTalents.length > 0 && selectedIds.size === paginatedTalents.length}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Select all on this page"
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {selectedIds.size > 0
-                      ? `${selectedIds.size} selected`
-                      : 'Select all on this page'}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {paginatedGroups.map((group, idx) => (
-                    <TalentPoolGroupedRow
-                      key={group[0]?.email || group[0]?.id || idx}
-                      profiles={group}
-                      selectedIds={selectedIds}
-                      onToggleSelection={toggleSelection}
-                      onViewProfile={handleTalentClick}
-                    />
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="mt-6 pt-4 border-t">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                        {getPageNumbers().map((page, idx) => (
-                          <PaginationItem key={idx}>
-                            {page === 'ellipsis' ? (
-                              <PaginationEllipsis />
-                            ) : (
-                              <PaginationLink
-                                onClick={() => handlePageChange(page)}
-                                isActive={currentPage === page}
-                                className="cursor-pointer"
-                              >
-                                {page}
-                              </PaginationLink>
-                            )}
-                          </PaginationItem>
-                        ))}
-                        <PaginationItem>
-                          <PaginationNext
-                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-11 whitespace-nowrap">
+                <Filter className="h-4 w-4 mr-2" />
+                More filters
+                {filterCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {filterCount}
+                  </Badge>
                 )}
-              </>
-            )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[340px]">
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Filters</div>
+
+                <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Companies</SelectItem>
+                    {uniqueCompanies.map((company) => (
+                      <SelectItem key={company} value={company}>
+                        {company}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {uniqueLocations.map((location) => (
+                      <SelectItem key={location} value={location}>
+                        {location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {statusFilterOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Experience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    {EXPERIENCE_LEVELS.map((level) => (
+                      <SelectItem key={level.value} value={level.value}>
+                        {level.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full justify-start">
+                    <X className="h-4 w-4 mr-2" />
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      {/* Views row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 overflow-x-auto">
+          <ToggleGroup
+            type="single"
+            value={activeView}
+            onValueChange={(v) => setActiveView((v as TalentPoolView) || 'all')}
+            className="justify-start"
+          >
+            <ToggleGroupItem value="all" aria-label="All">
+              All
+            </ToggleGroupItem>
+            <ToggleGroupItem value="new" aria-label="New">
+              New
+            </ToggleGroupItem>
+            <ToggleGroupItem value="high_score" aria-label="High score">
+              High score
+            </ToggleGroupItem>
+            <ToggleGroupItem value="recent" aria-label="Recently viewed">
+              Recently viewed
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
+        {(searchQuery.trim() || hasActiveFilters) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearchQuery('');
+              clearFilters();
+            }}
+            className="whitespace-nowrap"
+          >
+            <X className="h-4 w-4 mr-1" />
+            Reset
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <DashboardLayout>
+      {/* Pull-to-refresh indicator (mobile) */}
+      {isMobile && (
+        <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
+      )}
+      
+      {/* Scroll to top button */}
+      <ScrollToTop />
+
+      {/* Mobile: keep the existing top sheet header UX */}
+      {isMobile && (
+        <MobileListHeader
+          title="Talent Pool"
+          subtitle="Sourced profiles from bulk uploads and searches"
+          filterCount={filterCount}
+        >
+          {filtersContent}
+        </MobileListHeader>
+      )}
+
+      {/* Desktop: compact filter bar above results */}
+      {!isMobile && (
+        <Card className="mt-4">
+          <CardContent className="p-4">
+            {filtersContent}
           </CardContent>
         </Card>
+      )}
+
+      <Card className="mt-4">
+        <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+          <div className="min-w-0">
+            <CardTitle>Talent Pool</CardTitle>
+            <CardDescription>
+              {groupedTalents.length > 0
+                ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length} candidates (${filteredTalents.length} profiles)`
+                : 'Sourced profiles from bulk uploads and searches'}
+            </CardDescription>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <Select
+              value={String(itemsPerPage)}
+              onValueChange={(v) => {
+                const n = Number(v);
+                if (!Number.isFinite(n)) return;
+                setItemsPerPage(n);
+              }}
+            >
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue placeholder="Per page" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} / page
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Badge variant="secondary">
+              {filteredTalents.length} profile{filteredTalents.length === 1 ? '' : 's'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!filteredTalents?.length ? (
+            <EmptyState
+              icon={Users}
+              title={hasActiveFilters || searchQuery.trim() ? 'No matches found' : 'No profiles in talent pool'}
+              description={
+                hasActiveFilters || searchQuery.trim()
+                  ? 'Try adjusting your search or filters'
+                  : 'Import candidates via Talent Sourcing to build your pool'
+              }
+            />
+          ) : (
+            <>
+              {/* Select All Row */}
+              <div className="flex items-center gap-3 pb-3 mb-3 border-b">
+                <Checkbox
+                  checked={paginatedTalents.length > 0 && selectedIds.size === paginatedTalents.length}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all on this page"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedIds.size > 0
+                    ? `${selectedIds.size} selected`
+                    : 'Select all on this page'}
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {paginatedGroups.map((group, idx) => (
+                  <TalentPoolGroupedRow
+                    key={group[0]?.email || group[0]?.id || idx}
+                    profiles={group}
+                    selectedIds={selectedIds}
+                    onToggleSelection={toggleSelection}
+                    onViewProfile={handleTalentClick}
+                    onRequestRemove={(candidateId) => requestRemove([candidateId])}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 pt-4 border-t">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {getPageNumbers().map((page, idx) => (
+                        <PaginationItem key={idx}>
+                          {page === 'ellipsis' ? (
+                            <PaginationEllipsis />
+                          ) : (
+                            <PaginationLink
+                              onClick={() => handlePageChange(page)}
+                              isActive={currentPage === page}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          )}
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
@@ -787,6 +1203,18 @@ export default function TalentPool() {
             variant="ghost"
             size="sm"
             className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
+            onClick={handleRemoveSelected}
+            disabled={selectedIds.size === 0 || deleteFromTalentPoolMutation.isPending}
+            title="Delete selected (hard delete)"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
             onClick={() => setSelectedIds(new Set())}
           >
             <X className="h-4 w-4" />
@@ -799,6 +1227,31 @@ export default function TalentPool() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
+
+      <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete candidate profile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected profile{removeCandidateIds.length === 1 ? '' : 's'} and all related records.
+              This is only allowed for sourced profiles that aren’t shared with other orgs and have no applications.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteFromTalentPoolMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteFromTalentPoolMutation.isPending}
+              onClick={() => {
+                deleteFromTalentPoolMutation.mutate(removeCandidateIds);
+                setRemoveCandidateIds([]);
+              }}
+            >
+              {deleteFromTalentPoolMutation.isPending ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

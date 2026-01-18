@@ -16,7 +16,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
-import { ChevronDown, ChevronRight, MapPin, Briefcase, Users, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronRight, MapPin, Briefcase, Users, MessageSquare, Trash2 } from 'lucide-react';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentPoolRow } from './TalentPoolRow';
 import { format } from 'date-fns';
@@ -59,6 +59,7 @@ interface TalentPoolGroupedRowProps {
   selectedIds: Set<string>;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onViewProfile: (id: string) => void;
+  onRequestRemove?: (candidateId: string) => void;
 }
 
 export function TalentPoolGroupedRow({
@@ -66,6 +67,7 @@ export function TalentPoolGroupedRow({
   selectedIds,
   onToggleSelection,
   onViewProfile,
+  onRequestRemove,
 }: TalentPoolGroupedRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const queryClient = useQueryClient();
@@ -78,6 +80,7 @@ export function TalentPoolGroupedRow({
         isSelected={selectedIds.has(profiles[0].id)}
         onToggleSelection={onToggleSelection}
         onViewProfile={onViewProfile}
+        onRequestRemove={onRequestRemove}
       />
     );
   }
@@ -172,7 +175,13 @@ export function TalentPoolGroupedRow({
                   {profiles.length} profiles
                 </Badge>
                 {bestScore > 0 && (
-                  <ScoreBadge score={bestScore} size="sm" className="hidden sm:flex" />
+                  <div
+                    className="hidden sm:flex flex-col items-start leading-tight"
+                    title="Generic resume-quality score (not JD-based)"
+                  >
+                    <ScoreBadge score={bestScore} size="sm" showLabel={false} />
+                    <span className="text-[10px] text-muted-foreground">generic score</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -245,6 +254,7 @@ export function TalentPoolGroupedRow({
                     isSelected={selectedIds.has(profile.id)}
                     onToggleSelection={onToggleSelection}
                     onViewProfile={onViewProfile}
+                    onRequestRemove={onRequestRemove}
                     queryClient={queryClient}
                   />
                 ))}
@@ -262,6 +272,7 @@ interface GroupedProfileRowProps {
   isSelected: boolean;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onViewProfile: (id: string) => void;
+  onRequestRemove?: (candidateId: string) => void;
   queryClient: ReturnType<typeof useQueryClient>;
 }
 
@@ -271,6 +282,7 @@ function GroupedProfileRow({
   isSelected,
   onToggleSelection,
   onViewProfile,
+  onRequestRemove,
   queryClient,
 }: GroupedProfileRowProps) {
   const updateStatus = useMutation({
@@ -324,7 +336,27 @@ function GroupedProfileRow({
               <Badge variant="default" className="text-xs">Latest</Badge>
             )}
             {profile.ats_score && profile.ats_score > 0 && (
-              <ScoreBadge score={profile.ats_score} size="sm" className="hidden sm:flex" />
+              <div
+                className="hidden sm:flex flex-col items-start leading-tight"
+                title="Generic resume-quality score (not JD-based)"
+              >
+                <ScoreBadge score={profile.ats_score} size="sm" showLabel={false} />
+                <span className="text-[10px] text-muted-foreground">generic score</span>
+              </div>
+            )}
+            {onRequestRemove && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                title="Remove from Talent Pool"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRequestRemove(profile.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
           </div>
         </div>
@@ -384,7 +416,13 @@ function GroupedProfileRow({
           </HoverCard>
 
           {profile.ats_score && profile.ats_score > 0 && (
-            <ScoreBadge score={profile.ats_score} size="sm" className="sm:hidden" />
+            <div
+              className="sm:hidden flex flex-col items-start leading-tight"
+              title="Generic resume-quality score (not JD-based)"
+            >
+              <ScoreBadge score={profile.ats_score} size="sm" showLabel={false} />
+              <span className="text-[10px] text-muted-foreground">generic score</span>
+            </div>
           )}
         </div>
       </div>

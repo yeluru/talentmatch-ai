@@ -21,7 +21,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Briefcase, MapPin, MessageSquare, Save, Loader2, ListPlus, Mail, Phone } from 'lucide-react';
+import { Briefcase, MapPin, MessageSquare, Save, Loader2, ListPlus, Mail, Phone, Trash2 } from 'lucide-react';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -65,6 +65,7 @@ interface TalentPoolRowProps {
   isSelected: boolean;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onViewProfile: (id: string) => void;
+  onRequestRemove?: (candidateId: string) => void;
   onAddToShortlist?: (id: string) => void;
   onSendEmail?: (id: string) => void;
 }
@@ -74,6 +75,7 @@ export function TalentPoolRow({
   isSelected,
   onToggleSelection,
   onViewProfile,
+  onRequestRemove,
   onAddToShortlist,
   onSendEmail,
 }: TalentPoolRowProps) {
@@ -248,12 +250,34 @@ export function TalentPoolRow({
                 >
                   {talent.full_name || 'Unknown'}
                 </button>
-                {talent.ats_score && <ScoreBadge score={talent.ats_score} size="sm" />}
+                {talent.ats_score !== null && talent.ats_score !== undefined && (
+                  <div
+                    className="flex flex-col items-start leading-tight"
+                    title="Generic resume-quality score (not JD-based)"
+                  >
+                    <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
+                    <span className="text-[10px] text-muted-foreground">generic score</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
               {format(new Date(talent.created_at), 'MMM d')}
             </div>
+            {onRequestRemove && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                title="Remove from Talent Pool"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRequestRemove(talent.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
 
           {/* Middle Section: Title, Location, Experience */}

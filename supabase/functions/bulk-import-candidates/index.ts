@@ -51,6 +51,51 @@ function sanitizeString(value: string | null | undefined, maxLength: number = MA
   return sanitized.replace(/[<>]/g, '');
 }
 
+function parseLooseDateToISO(s: unknown): string | null {
+  const raw = String(s ?? "").trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (lower.includes("present") || lower.includes("current")) return null;
+
+  // YYYY-MM-DD
+  const ymd = raw.match(/\b(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/);
+  if (ymd) return ymd[0];
+
+  // YYYY-MM or YYYY/MM
+  const ym = raw.match(/\b(19|20)\d{2}[-\/](0[1-9]|1[0-2])\b/);
+  if (ym) return `${ym[0].replace("/", "-")}-01`;
+
+  // Month YYYY (e.g., Aug 2025)
+  const monthMap: Record<string, string> = {
+    jan: "01", january: "01",
+    feb: "02", february: "02",
+    mar: "03", march: "03",
+    apr: "04", april: "04",
+    may: "05",
+    jun: "06", june: "06",
+    jul: "07", july: "07",
+    aug: "08", august: "08",
+    sep: "09", sept: "09", september: "09",
+    oct: "10", october: "10",
+    nov: "11", november: "11",
+    dec: "12", december: "12",
+  };
+
+  const my = raw.match(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(19|20)\d{2}\b/i);
+  if (my) {
+    const mRaw = String(my[1] || "").toLowerCase().replace(".", "");
+    const y = my[2];
+    const mm = monthMap[mRaw];
+    if (mm) return `${y}-${mm}-01`;
+  }
+
+  // YYYY
+  const y = raw.match(/\b(19|20)\d{2}\b/);
+  if (y) return `${y[0]}-01-01`;
+
+  return null;
+}
+
 function validateSkills(skills: unknown): string[] {
   if (!Array.isArray(skills)) return [];
   return skills
@@ -58,6 +103,27 @@ function validateSkills(skills: unknown): string[] {
     .filter((skill): skill is string => typeof skill === 'string')
     .map(skill => sanitizeString(skill, MAX_SKILL_LENGTH))
     .filter((skill): skill is string => skill !== null && skill.length > 0);
+}
+
+function normalizeSkillStrings(items: unknown): string[] {
+  return validateSkills(items)
+    .map((s) => String(s).replace(/^[•\-\*\u2022]+\s*/g, '').trim())
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+function uniqLower(items: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const s of items) {
+    const v = String(s || '').trim();
+    if (!v) continue;
+    const k = v.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(v);
+  }
+  return out;
 }
 
 function validateNumber(value: unknown, min: number = 0, max: number = 100): number | null {
@@ -164,6 +230,7 @@ serve(async (req) => {
     const results = {
       imported: 0,
       skipped: 0,
+      relinked: 0,
       errors: [] as string[]
     };
 
@@ -179,7 +246,16 @@ serve(async (req) => {
         const validatedCompany = sanitizeString(profile.current_company);
         const validatedSummary = sanitizeString(profile.summary, MAX_SUMMARY_LENGTH);
         const validatedHeadline = sanitizeString(profile.headline || profile.summary, MAX_STRING_LENGTH);
-        const validatedSkills = validateSkills(profile.skills);
+        // Skills can come from:
+        // - web_search payloads: profile.skills
+        // - parse-resume payloads: profile.technical_skills + profile.soft_skills
+        const validatedSkills = uniqLower([
+          ...normalizeSkillStrings((profile as any).skills),
+          ...normalizeSkillStrings((profile as any).technical_skills),
+        ]).slice(0, MAX_SKILLS);
+        const validatedSoftSkills = uniqLower([
+          ...normalizeSkillStrings((profile as any).soft_skills),
+        ]).slice(0, MAX_SKILLS);
         const validatedYearsExp = validateNumber(profile.experience_years || profile.years_of_experience, 0, 70);
         const validatedAtsScore = validateNumber(profile.ats_score, 0, 100);
         
@@ -214,6 +290,32 @@ serve(async (req) => {
           }
 
           if (existingByHash) {
+            // Do NOT hard-fail: if the resume already exists, re-link the existing candidate to this org
+            // so the recruiter can see it again even if it was previously removed from the pool.
+            const { data: resumeRow } = await supabase
+              .from("resumes")
+              .select("candidate_id")
+              .eq("content_hash", incomingHash)
+              .maybeSingle();
+
+            const existingCandidateId = (resumeRow as any)?.candidate_id as string | undefined;
+            if (existingCandidateId) {
+              try {
+                await supabase.from("candidate_org_links").upsert({
+                  candidate_id: existingCandidateId,
+                  organization_id: organizationId,
+                  link_type: typeof source === 'string' && source.trim().length ? source.trim().slice(0, 80) : 'resume_upload',
+                  status: 'active',
+                  created_by: user.id,
+                } as any);
+                results.skipped++;
+                results.relinked++;
+              } catch (e) {
+                results.skipped++;
+              }
+              continue;
+            }
+
             console.log("[bulk-import] DUPLICATE detected - rejecting import for", validatedName);
             results.skipped++;
             results.errors.push(`DUPLICATE: ${validatedName} - identical resume already exists`);
@@ -278,26 +380,98 @@ serve(async (req) => {
           continue;
         }
 
-        // Add validated skills
-        if (validatedSkills.length > 0) {
-          const skillInserts = validatedSkills.map((skill: string) => ({
-            candidate_id: candidateId,
-            skill_name: skill
-          }));
-
-          const { error: skillsError } = await supabase
-            .from("candidate_skills")
-            .insert(skillInserts);
-
-          if (skillsError) {
-            console.error("Error adding skills:", skillsError);
+        // Persist skills (technical + soft) for Talent Pool search/filtering.
+        // NOTE: candidate_skills.skill_type exists in newer migrations; default is 'technical'.
+        try {
+          const skillRows: any[] = [];
+          for (const s of validatedSkills) {
+            skillRows.push({ candidate_id: candidateId, skill_name: s, skill_type: 'technical' });
           }
+          for (const s of validatedSoftSkills) {
+            skillRows.push({ candidate_id: candidateId, skill_name: s, skill_type: 'soft' });
+          }
+          if (skillRows.length > 0) {
+            const { error: skillsError } = await supabase.from("candidate_skills").insert(skillRows);
+            if (skillsError) console.error("Error adding skills:", skillsError);
+          }
+        } catch (e) {
+          console.warn("Non-fatal: skills insert failed", e);
+        }
+
+        // Persist work experience rows (powers company search + company chips in Talent Pool)
+        try {
+          const expRaw = Array.isArray((profile as any)?.experience) ? (profile as any).experience : [];
+          if (expRaw.length > 0) {
+            const expInserts = expRaw
+              .slice(0, 30)
+              .map((e: any) => {
+                const company_name = sanitizeString(e?.company, 200);
+                const job_title = sanitizeString(e?.title, 200);
+                const location = sanitizeString(e?.location, 200);
+                const startISO = parseLooseDateToISO(e?.start);
+                const endISO = parseLooseDateToISO(e?.end);
+                const is_current = !endISO && /present|current/i.test(String(e?.end || "")) ? true : false;
+                const bullets = Array.isArray(e?.bullets) ? e.bullets.map((b: any) => sanitizeString(String(b ?? ""), 500) || "").filter(Boolean) : [];
+                const description = bullets.length ? bullets.join("\n") : null;
+
+                // candidate_experience requires company_name + job_title. start_date is NOT NULL in schema,
+                // but parse output may miss dates; use end_date as a fallback, otherwise a safe sentinel.
+                if (!company_name || !job_title) return null;
+                const start_date = startISO || endISO || "1900-01-01";
+
+                return {
+                  candidate_id: candidateId,
+                  company_name,
+                  job_title,
+                  location,
+                  start_date,
+                  end_date: endISO,
+                  is_current,
+                  description,
+                };
+              })
+              .filter(Boolean);
+
+            if (expInserts.length > 0) {
+              const { error: expErr } = await supabase.from("candidate_experience").insert(expInserts as any);
+              if (expErr) console.error("Error adding experience:", expErr);
+            }
+          }
+        } catch (e) {
+          console.warn("Non-fatal: experience insert failed", e);
+        }
+
+        // Persist education rows (improves profile completeness + search/filtering)
+        try {
+          const eduRaw = Array.isArray((profile as any)?.education) ? (profile as any).education : [];
+          if (eduRaw.length > 0) {
+            const eduInserts = eduRaw
+              .slice(0, 20)
+              .map((e: any) => {
+                const institution = sanitizeString(e?.school ?? e?.institution, 200);
+                const degree = sanitizeString(e?.degree, 200);
+                const field_of_study = sanitizeString(e?.field ?? e?.field_of_study, 200);
+                const start_date = parseLooseDateToISO(e?.start);
+                const end_date = parseLooseDateToISO(e?.end);
+                if (!institution || !degree) return null; // schema requires both
+                return { candidate_id: candidateId, institution, degree, field_of_study, start_date, end_date };
+              })
+              .filter(Boolean);
+            if (eduInserts.length > 0) {
+              const { error: eduErr } = await supabase.from("candidate_education").insert(eduInserts as any);
+              if (eduErr) console.error("Error adding education:", eduErr);
+            }
+          }
+        } catch (e) {
+          console.warn("Non-fatal: education insert failed", e);
         }
 
         // Create resume record if resume file info is provided
         if (profile.resume_file) {
           const validatedFileName = sanitizeString(profile.resume_file.file_name, 255) || "resume.pdf";
-          const validatedFileUrl = validateUrl(profile.resume_file.file_url);
+          // IMPORTANT: For storage files we store a bucket-relative reference (e.g. "resumes/<path>" or "<path>"),
+          // not necessarily an http(s) URL.
+          const validatedFileUrl = sanitizeString(profile.resume_file.file_url, 800);
           const validatedFileType = sanitizeString(profile.resume_file.file_type, 100) || 'application/pdf';
           const validatedHash = profile.resume_file.content_hash 
             ? String(profile.resume_file.content_hash).slice(0, 128) 

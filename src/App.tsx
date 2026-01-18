@@ -8,7 +8,6 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
-import { DevDebugBanner } from "@/components/DevDebugBanner";
 import { AppInitGate } from "@/components/AppInitGate";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -102,7 +101,6 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <DevDebugBanner />
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
