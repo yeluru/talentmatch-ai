@@ -46,6 +46,9 @@ verify_jwt = false
 [functions.linkedin-search]
 verify_jwt = false
 
+[functions.web-search]
+verify_jwt = false
+
 [functions.bulk-import-candidates]
 verify_jwt = false
 

@@ -7,6 +7,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function firecrawlSearch(args: {
+  apiKey: string;
+  query: string;
+  limit: number;
+  country: string;
+}): Promise<{ success: boolean; data: any[] }> {
+  const { apiKey, query, limit, country } = args;
+  const resp = await fetch("https://api.firecrawl.dev/v1/search", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+      limit,
+      lang: "en",
+      country,
+      scrapeOptions: { formats: ["markdown"] },
+    }),
+  });
+
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    console.error("Firecrawl search error:", resp.status, errorText);
+    throw new Error(`Search failed: ${resp.status}`);
+  }
+
+  const json = await resp.json();
+  const data = Array.isArray(json?.data) ? json.data : [];
+  return { success: Boolean(json?.success), data };
+}
+
 function isLikelyLinkedInProfileUrl(url: string): boolean {
   const u = String(url || "").toLowerCase();
   return u.includes("linkedin.com/in/");
@@ -78,51 +111,57 @@ serve(async (req) => {
 
     const cappedLimit = Math.max(1, Math.min(Number(limit) || 20, 50));
 
+    const fcCountry = String(country || "us").toLowerCase();
+
     // Public web search strategy:
-    // - Bias toward candidate-like pages (resume, CV, portfolio, GitHub)
-    // - Exclude LinkedIn by default (we treat LinkedIn as a separate integration path)
-    const querySuffix = `(${rawQuery}) (resume OR cv OR portfolio OR github OR \"about me\")`;
-    const firecrawlQuery = includeLinkedIn
-      ? querySuffix
-      : `${querySuffix} -site:linkedin.com`;
+    // 1) Try a "candidate page" query (resume/cv/portfolio/github)
+    // 2) If that yields nothing, retry with broader query (still excluding LinkedIn by default)
+    // 3) If still nothing, try a GitHub-focused query (often best for dev roles)
+    const baseConstraint = includeLinkedIn ? "" : " -site:linkedin.com";
+    const queriesToTry: string[] = [
+      `${rawQuery} (resume OR cv OR portfolio OR github OR "about me")${baseConstraint}`,
+      `${rawQuery}${baseConstraint}`,
+      `site:github.com ${rawQuery}${baseConstraint}`,
+    ];
 
-    const searchResponse = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: firecrawlQuery,
+    console.log("[web-search] rawQuery:", rawQuery);
+    console.log("[web-search] queriesToTry:", queriesToTry);
+
+    const debug = {
+      country: fcCountry,
+      includeLinkedIn: Boolean(includeLinkedIn),
+      queries_tried: [] as { query: string; results: number }[],
+    };
+
+    let searchResults: any[] = [];
+    for (const q of queriesToTry) {
+      const out = await firecrawlSearch({
+        apiKey: FIRECRAWL_API_KEY,
+        query: q,
         limit: cappedLimit,
-        lang: "en",
-        country: String(country || "us").toLowerCase(),
-        scrapeOptions: {
-          formats: ["markdown"],
-        },
-      }),
-    });
-
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error("Firecrawl search error:", searchResponse.status, errorText);
-      throw new Error(`Search failed: ${searchResponse.status}`);
+        country: fcCountry,
+      });
+      const count = out?.data?.length || 0;
+      debug.queries_tried.push({ query: q, results: count });
+      if (out.success && count > 0) {
+        searchResults = out.data.slice(0, cappedLimit);
+        break;
+      }
     }
 
-    const searchData = await searchResponse.json();
-
-    if (!searchData.success || !searchData.data?.length) {
+    if (!searchResults.length) {
       return new Response(JSON.stringify({
         success: true,
         profiles: [],
-        total_found: searchData.data?.length || 0,
+        total_found: 0,
         message: "No profiles found for this search query",
+        debug,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const results = Array.isArray(searchData.data) ? searchData.data.slice(0, cappedLimit) : [];
+    const results = searchResults;
     const profiles: any[] = [];
 
     for (const result of results) {
@@ -214,7 +253,8 @@ ${markdown.substring(0, 15000)}`,
     return new Response(JSON.stringify({
       success: true,
       profiles,
-      total_found: searchData.data.length,
+      total_found: results.length,
+      debug,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

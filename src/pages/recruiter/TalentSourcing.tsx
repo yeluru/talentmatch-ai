@@ -55,6 +55,14 @@ export default function TalentSourcing() {
   const [searchResults, setSearchResults] = useState<SearchedProfile[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<number>>(new Set());
   const [searchMode, setSearchMode] = useState<'web' | 'linkedin'>('web');
+  const [lastSearch, setLastSearch] = useState<{
+    mode: 'web' | 'linkedin';
+    query: string;
+    found: number;
+    totalFound?: number;
+    debug?: any;
+    ts: number;
+  } | null>(null);
 
   // Resume upload state - persisted via zustand
   const { uploadResults, setUploadResults, clearResults, updateResult } = useBulkUploadStore();
@@ -69,6 +77,14 @@ export default function TalentSourcing() {
       return data;
     },
     onSuccess: (data) => {
+      setLastSearch({
+        mode: 'web',
+        query: searchQuery,
+        found: data?.profiles?.length || 0,
+        totalFound: data?.total_found,
+        debug: data?.debug,
+        ts: Date.now(),
+      });
       if (data.profiles && data.profiles.length > 0) {
         setSearchResults(data.profiles);
         toast.success(`Found ${data.profiles.length} profiles`);
@@ -93,6 +109,13 @@ export default function TalentSourcing() {
       return data;
     },
     onSuccess: (data) => {
+      setLastSearch({
+        mode: 'linkedin',
+        query: searchQuery,
+        found: data?.profiles?.length || 0,
+        totalFound: data?.total_found,
+        ts: Date.now(),
+      });
       if (data.profiles && data.profiles.length > 0) {
         setSearchResults(data.profiles);
         toast.success(`Found ${data.profiles.length} profiles`);
@@ -678,6 +701,16 @@ export default function TalentSourcing() {
 
                 {activeTab === 'search' && (
                   <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-between">
+                      <span>Mode</span>
+                      <span className="text-foreground">{searchMode === 'web' ? 'Web (public)' : 'LinkedIn (provider)'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Search status</span>
+                      <span className="text-foreground">
+                        {(searchMode === 'web' ? webSearch.isPending : linkedinSearch.isPending) ? 'Searching…' : 'Idle'}
+                      </span>
+                    </div>
                     <div>
                       Results: <span className="text-foreground">{searchResults.length}</span>
                     </div>
@@ -690,6 +723,23 @@ export default function TalentSourcing() {
                         {importProfiles.isPending ? 'Importing…' : 'Idle'}
                       </span>
                     </div>
+                    {lastSearch && (
+                      <div className="pt-2 border-t">
+                        <div className="text-xs text-muted-foreground">Last search</div>
+                        <div className="text-foreground truncate">{lastSearch.query}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Found {lastSearch.found}
+                          {typeof lastSearch.totalFound === 'number' ? ` (total ${lastSearch.totalFound})` : ''}
+                          {' '}• {format(new Date(lastSearch.ts), 'MMM d, h:mm a')}
+                        </div>
+                      </div>
+                    )}
+                    {searchResults.length === 0 && !(searchMode === 'web' ? webSearch.isPending : linkedinSearch.isPending) && (
+                      <div className="pt-2 text-xs">
+                        Tip: try shorter queries like <span className="text-foreground">"python aws resume"</span> or{" "}
+                        <span className="text-foreground">"python developer aws united states"</span>.
+                      </div>
+                    )}
                   </div>
                 )}
 
