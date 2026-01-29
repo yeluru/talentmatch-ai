@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Upload, FileText, Trash2, Star, StarOff, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { resumesObjectPath } from '@/lib/storagePaths';
+import { openResumeInNewTab } from '@/lib/resumeLinks';
 
 interface Resume {
   id: string;
@@ -439,19 +440,7 @@ export default function CandidateResumes() {
 
   const handleDownloadResume = async (fileUrl: string, fileName: string) => {
     try {
-      const filePath = resumesObjectPath(fileUrl);
-      if (!filePath) throw new Error('Could not resolve resume file path');
-
-      const { data, error } = await supabase.storage
-        .from('resumes')
-        .createSignedUrl(filePath, 600, { download: true });
-      if (error) throw error;
-
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
-      } else {
-        throw new Error('Failed to generate download URL');
-      }
+      await openResumeInNewTab(fileUrl, { expiresInSeconds: 600, download: true });
     } catch (error: any) {
       console.error('Error downloading resume:', error);
       toast.error(error?.message || 'Failed to download resume');
@@ -474,7 +463,7 @@ export default function CandidateResumes() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">My Resumes</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Manage your resume documents
             </p>
           </div>
@@ -500,9 +489,9 @@ export default function CandidateResumes() {
         {resumes.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <FileText className="h-12 w-12mb-4" />
               <h3 className="text-lg font-semibold mb-2">No resumes uploaded</h3>
-              <p className="text-muted-foreground text-center mb-4">
+              <p className="text-center mb-4">
                 Upload your resume to start applying for jobs
               </p>
               <Button onClick={() => fileInputRef.current?.click()}>
@@ -553,7 +542,7 @@ export default function CandidateResumes() {
                 <CardContent>
                   {resume.ats_score && (
                     <div className="mb-3">
-                      <span className="text-sm text-muted-foreground">ATS Score: </span>
+                      <span className="text-sm">ATS Score: </span>
                       <span className="font-semibold text-primary">{resume.ats_score}%</span>
                     </div>
                   )}

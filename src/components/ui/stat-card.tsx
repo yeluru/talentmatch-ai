@@ -28,14 +28,14 @@ export function StatCard({
     <>
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <p className="text-sm font-medium">{title}</p>
           <p className="text-3xl font-bold font-display tracking-tight">{value}</p>
           {change && (
             <p className={cn(
               "text-sm font-medium",
               changeType === 'positive' && 'text-success',
               changeType === 'negative' && 'text-destructive',
-              changeType === 'neutral' && 'text-muted-foreground'
+              changeType === 'neutral' && ''
             )}>
               {change}
             </p>

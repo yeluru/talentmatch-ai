@@ -52,6 +52,12 @@ verify_jwt = false
 [functions.google-search-linkedin]
 verify_jwt = false
 
+[functions.serpapi-search-linkedin]
+verify_jwt = false
+
+[functions.build-xray-from-jd]
+verify_jwt = false
+
 [functions.bulk-import-candidates]
 verify_jwt = false
 

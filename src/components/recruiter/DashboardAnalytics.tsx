@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { Loader2, TrendingUp, Users, Target } from 'lucide-react';
 import {
   AreaChart,
@@ -51,7 +52,7 @@ export function DashboardAnalytics() {
   const [pipelineData, setPipelineData] = useState<PipelineStage[]>([]);
   const [conversionData, setConversionData] = useState<ConversionData[]>([]);
 
-  const orgId = organizationId || roles.find(r => r.role === 'recruiter')?.organization_id;
+  const orgId = organizationId || orgIdForRecruiterSuite(roles);
 
   useEffect(() => {
     if (orgId) {
@@ -154,7 +155,7 @@ export function DashboardAnalytics() {
     return (
       <Card>
         <CardContent className="flex items-center justify-center h-48">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-6 w-6 animate-spin" />
         </CardContent>
       </Card>
     );

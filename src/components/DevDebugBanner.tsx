@@ -23,7 +23,7 @@ export function DevDebugBanner() {
       <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
         {items.map(([k, v]) => (
           <div key={k} className="contents">
-            <div className="text-muted-foreground">{k}:</div>
+            <div className="">{k}:</div>
             <div className="font-mono truncate">{v}</div>
           </div>
         ))}

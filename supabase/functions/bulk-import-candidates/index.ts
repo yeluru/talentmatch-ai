@@ -311,13 +311,16 @@ serve(async (req) => {
             const existingCandidateId = (resumeRow as any)?.candidate_id as string | undefined;
             if (existingCandidateId) {
               try {
-                await supabase.from("candidate_org_links").upsert({
-                  candidate_id: existingCandidateId,
-                  organization_id: organizationId,
-                  link_type: typeof source === 'string' && source.trim().length ? source.trim().slice(0, 80) : 'resume_upload',
-                  status: 'active',
-                  created_by: user.id,
-                } as any);
+                await supabase.from("candidate_org_links").upsert(
+                  {
+                    candidate_id: existingCandidateId,
+                    organization_id: organizationId,
+                    link_type: typeof source === 'string' && source.trim().length ? source.trim().slice(0, 80) : 'resume_upload',
+                    status: 'active',
+                    created_by: user.id,
+                  } as any,
+                  { onConflict: "candidate_id,organization_id" },
+                );
                 results.skipped++;
                 results.relinked++;
               } catch (e) {
@@ -331,6 +334,48 @@ serve(async (req) => {
             results.errors.push(`DUPLICATE: ${validatedName} - identical resume already exists`);
             continue;
           }
+        }
+
+        // De-dupe sourced candidates within this org by LinkedIn URL (preferred) or email.
+        // Without this, repeated "Import" clicks create multiple candidate_profiles rows.
+        let existingCandidateId: string | null = null;
+        if (validatedLinkedin) {
+          const { data: existingByLinkedin } = await supabase
+            .from("candidate_profiles")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("linkedin_url", validatedLinkedin)
+            .maybeSingle();
+          if (existingByLinkedin?.id) existingCandidateId = String(existingByLinkedin.id);
+        }
+        if (!existingCandidateId && validatedEmail) {
+          const { data: existingByEmail } = await supabase
+            .from("candidate_profiles")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("email", validatedEmail)
+            .maybeSingle();
+          if (existingByEmail?.id) existingCandidateId = String(existingByEmail.id);
+        }
+        if (existingCandidateId) {
+          try {
+            const linkType = typeof source === 'string' && source.trim().length ? source.trim().slice(0, 80) : 'sourced';
+            await supabase.from("candidate_org_links").upsert(
+              {
+                candidate_id: existingCandidateId,
+                organization_id: organizationId,
+                link_type: linkType,
+                status: 'active',
+                created_by: user.id,
+              } as any,
+              { onConflict: "candidate_id,organization_id" },
+            );
+            results.skipped++;
+            results.relinked++;
+          } catch {
+            results.skipped++;
+          }
+          continue;
         }
 
         // Generate a unique ID for the sourced profile

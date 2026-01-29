@@ -123,7 +123,7 @@ export default function Settings() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+          <p className="">Manage your account settings and preferences</p>
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
@@ -229,7 +229,7 @@ export default function Settings() {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Email Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                      <p className="text-sm">Receive notifications via email</p>
                     </div>
                     <Switch
                       checked={notificationSettings.email_notifications}
@@ -242,7 +242,7 @@ export default function Settings() {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Push Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Receive browser push notifications</p>
+                      <p className="text-sm">Receive browser push notifications</p>
                     </div>
                     <Switch
                       checked={notificationSettings.push_notifications}
@@ -255,7 +255,7 @@ export default function Settings() {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Application Updates</Label>
-                      <p className="text-sm text-muted-foreground">Get notified when your application status changes</p>
+                      <p className="text-sm">Get notified when your application status changes</p>
                     </div>
                     <Switch
                       checked={notificationSettings.application_updates}
@@ -268,7 +268,7 @@ export default function Settings() {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Marketing Emails</Label>
-                      <p className="text-sm text-muted-foreground">Receive tips and product updates</p>
+                      <p className="text-sm">Receive tips and product updates</p>
                     </div>
                     <Switch
                       checked={notificationSettings.marketing_emails}
@@ -379,7 +379,7 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div>
                     <Label>Password</Label>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-smmb-2">
                       Change your password to keep your account secure
                     </p>
                     <Button variant="outline" onClick={() => {
@@ -392,7 +392,7 @@ export default function Settings() {
                   <Separator />
                   <div>
                     <Label>Active Sessions</Label>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-smmb-2">
                       Manage your active sessions across devices
                     </p>
                     <Button variant="outline" onClick={async () => {
@@ -405,7 +405,7 @@ export default function Settings() {
                   <Separator />
                   <div>
                     <Label className="text-destructive">Danger Zone</Label>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-smmb-2">
                       Permanently delete your account and all data
                     </p>
                     <Button variant="destructive">Delete Account</Button>

@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FileText, Plus, Save, Trash2, Clock, Download, Sparkles, X, Search, Briefcase, Copy } from 'lucide-react';
-import { resumesObjectPath } from '@/lib/storagePaths';
+import { getSignedResumeUrl } from '@/lib/resumeLinks';
 import { useNavigate } from 'react-router-dom';
 import {
   Document,
@@ -105,7 +105,7 @@ function SkillChipsEditor(props: {
     <div className="space-y-2">
       <div className="flex items-end justify-between gap-3">
         <Label>{label}</Label>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs">
           {values.length}/{max}
         </div>
       </div>
@@ -127,7 +127,7 @@ function SkillChipsEditor(props: {
           ))}
         </div>
       ) : (
-        <div className="text-sm text-muted-foreground">No skills yet.</div>
+        <div className="text-sm">No skills yet.</div>
       )}
 
       <div className="flex gap-2">
@@ -709,7 +709,7 @@ async function generateDiffPdfBlob(opts: { title: string; beforeText: string; af
   const margin = 54;
   const contentWidth = pageSize[0] - margin * 2;
 
-  const winAnsiSafe = (s: string) => String(s || '').replaceAll('→', '-').replaceAll('•', '*');
+  const winAnsiSafe = (s: string) => String(s || '').replace(/→/g, '-').replace(/•/g, '*');
 
   let page = pdf.addPage(pageSize);
   let y = pageSize[1] - margin;
@@ -757,7 +757,10 @@ async function generateDiffPdfBlob(opts: { title: string; beforeText: string; af
   draw('REMOVED', 12, true);
   for (const l of removed.slice(0, 200)) draw(`- ${l}`, 10, false);
 
-  return new Blob([await pdf.save()], { type: 'application/pdf' });
+  const pdfBytes = await pdf.save();
+  // Force a concrete ArrayBuffer-backed Uint8Array (avoids SharedArrayBuffer typing).
+  const safeBytes = new Uint8Array(pdfBytes);
+  return new Blob([safeBytes], { type: 'application/pdf' });
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -959,7 +962,7 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
     const marker = '\u0000';
     let out = s.replace(/\s{2,}/g, marker); // preserve “real” word breaks
     out = out.replace(/([A-Za-z])\s+(?=[A-Za-z])/g, '$1'); // remove spaces between letters
-    out = out.replaceAll(marker, ' ');
+    out = out.split(marker).join(' ');
     return out.replace(/\s+/g, ' ').trim();
   };
 
@@ -1379,7 +1382,7 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     const marker = '\u0000';
     let out = s.replace(/\s{2,}/g, marker);
     out = out.replace(/([A-Za-z])\s+(?=[A-Za-z])/g, '$1');
-    out = out.replaceAll(marker, ' ');
+    out = out.split(marker).join(' ');
     return out.replace(/\s+/g, ' ').trim();
   };
 
@@ -1469,9 +1472,9 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
     // Body text uses StandardFonts.Helvetica which is WinAnsi encoded, so we must never
     // pass characters like U+2192 (→) through to pdf-lib drawText() or it will throw.
     // Keep output readable with ASCII fallbacks.
-    const out = String(s || '').replaceAll('→', '-');
+    const out = String(s || '').replace(/→/g, '-');
     // Only force bullet fallback when we're fully in WinAnsi fallback mode.
-    return usingWinAnsiFallback ? out.replaceAll('•', '*') : out;
+    return usingWinAnsiFallback ? out.replace(/•/g, '*') : out;
   };
 
   const wrapLines = (text: string, size: number, bold = false) => {
@@ -1717,7 +1720,8 @@ async function generatePdfBlob(title: string, doc: ResumeDocContent): Promise<Bl
   }
 
   const bytes = await pdf.save();
-  return new Blob([bytes], { type: 'application/pdf' });
+  const safeBytes = new Uint8Array(bytes);
+  return new Blob([safeBytes], { type: 'application/pdf' });
 }
 
 export default function ResumeWorkspace() {
@@ -1900,7 +1904,7 @@ export default function ResumeWorkspace() {
 
     try {
       const { error } = await supabase
-        .from('resume_documents')
+        .from('resume_documents' as any)
         .update({
           title: selected.title,
           template_id: selected.template_id,
@@ -2413,7 +2417,7 @@ export default function ResumeWorkspace() {
 
   async function fetchDocs(cpId: string) {
     const { data, error } = await supabase
-      .from('resume_documents')
+      .from('resume_documents' as any)
       .select('*')
       .eq('candidate_id', cpId)
       .order('updated_at', { ascending: false });
@@ -2513,16 +2517,9 @@ export default function ResumeWorkspace() {
       return { parsed: existing, extractedText: existingExtracted };
     }
 
-    const filePath = resumesObjectPath(resumeRow?.file_url);
-    if (!filePath) throw new Error('Could not resolve base resume storage path');
+    const signedUrl = await getSignedResumeUrl(resumeRow?.file_url, { expiresInSeconds: 900 });
 
-    const { data: signed, error: signedErr } = await supabase.storage
-      .from('resumes')
-      .createSignedUrl(filePath, 900);
-    if (signedErr) throw signedErr;
-    if (!signed?.signedUrl) throw new Error('Could not create signed URL for base resume');
-
-    const resp = await fetch(signed.signedUrl);
+    const resp = await fetch(signedUrl);
     if (!resp.ok) throw new Error(`Failed to download base resume (${resp.status})`);
     const buf = await resp.arrayBuffer();
     const fileBase64 = arrayBufferToBase64(buf);
@@ -2790,7 +2787,7 @@ export default function ResumeWorkspace() {
 
       if (overwriteId) {
         const { data: updatedRows, error: upErr } = await supabase
-          .from('resume_documents')
+          .from('resume_documents' as any)
           .update(payload)
           .eq('id', overwriteId)
           .select('*');
@@ -2805,7 +2802,7 @@ export default function ResumeWorkspace() {
         } else {
           // If the doc was deleted/stale (0 rows updated), fall back to insert instead of crashing.
           const { data: insertedRows, error: insErr } = await supabase
-            .from('resume_documents')
+            .from('resume_documents' as any)
             .insert(payload)
             .select('*');
           if (insErr) throw insErr;
@@ -2819,7 +2816,7 @@ export default function ResumeWorkspace() {
         }
       } else {
         const { data: insertedRows, error: insErr } = await supabase
-          .from('resume_documents')
+          .from('resume_documents' as any)
           .insert(payload)
           .select('*');
         if (insErr) throw insErr;
@@ -2860,7 +2857,7 @@ export default function ResumeWorkspace() {
       certifications: [],
     };
     const { data, error } = await supabase
-      .from('resume_documents')
+      .from('resume_documents' as any)
         .insert({ candidate_id: candidateId, title: 'Untitled Resume', template_id: 'ats_single', content_json: initial })
       .select('*');
     if (error) throw error;
@@ -2877,7 +2874,7 @@ export default function ResumeWorkspace() {
     setIsSaving(true);
     try {
       const { error } = await supabase
-        .from('resume_documents')
+        .from('resume_documents' as any)
         .update({
           title: selected.title,
           template_id: selected.template_id,
@@ -2901,7 +2898,7 @@ export default function ResumeWorkspace() {
     if (!selected) return;
     if (!confirm('Delete this resume document? This cannot be undone.')) return;
     try {
-      const { error } = await supabase.from('resume_documents').delete().eq('id', selected.id);
+      const { error } = await (supabase as any).from('resume_documents').delete().eq('id', selected.id);
       if (error) throw error;
       setDocs((prev) => prev.filter((d) => d.id !== selected.id));
       setSelectedDocId((prev) => {
@@ -2919,7 +2916,7 @@ export default function ResumeWorkspace() {
     if (!doc?.id) return;
     if (!confirm('Delete this resume document? This cannot be undone.')) return;
     try {
-      const { error } = await supabase.from('resume_documents').delete().eq('id', doc.id);
+      const { error } = await (supabase as any).from('resume_documents').delete().eq('id', doc.id);
       if (error) throw error;
       setDocs((prev) => prev.filter((d) => d.id !== doc.id));
       setSelectedDocId((prev) => {
@@ -3035,7 +3032,7 @@ export default function ResumeWorkspace() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">Resume Workspace</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Tailor a resume for a specific job description with minimal friction. Your generated resume can be saved back into “My Resumes”.
             </p>
           </div>
@@ -3062,7 +3059,7 @@ export default function ResumeWorkspace() {
           </CardHeader>
           <CardContent className="space-y-4">
             {resumes.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm">
                 You don’t have any uploaded resumes yet. Upload one first, then come back here to tailor it for a job.
                 <div className="mt-3">
                   <Button onClick={() => navigate('/candidate/resumes')}>
@@ -3090,7 +3087,7 @@ export default function ResumeWorkspace() {
 
                       <TabsContent value="existing" className="space-y-3">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
                           <Input
                             placeholder="Search jobs by title or company..."
                             value={jobSearchQuery}
@@ -3100,7 +3097,7 @@ export default function ResumeWorkspace() {
                         </div>
                         <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-md p-2">
                           {filteredJobs.length === 0 ? (
-                            <p className="text-muted-foreground text-sm text-center py-4">
+                            <p className="text-sm text-center py-4">
                               {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
                             </p>
                           ) : (
@@ -3113,14 +3110,14 @@ export default function ResumeWorkspace() {
                                 onClick={() => handleJobSelect(job.id)}
                               >
                                 <p className="font-medium text-sm">{job.title}</p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs">
                                   {job.organization_name} {job.location && `• ${job.location}`}
                                 </p>
                               </div>
                             ))
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground">Tip: you can edit the JD in “Paste JD” after selecting a job.</div>
+                        <div className="text-xs">Tip: you can edit the JD in “Paste JD” after selecting a job.</div>
                       </TabsContent>
 
                       <TabsContent value="custom">
@@ -3161,7 +3158,7 @@ export default function ResumeWorkspace() {
                       onChange={(e) => setTargetTitle(e.target.value)}
                       placeholder="e.g., Senior Director of Engineering"
                     />
-                    <div className="text-xs text-muted-foreground">This becomes the saved resume name.</div>
+                    <div className="text-xs">This becomes the saved resume name.</div>
                   </div>
                   <div className="space-y-2">
                     <Label>Additional preferences (optional)</Label>
@@ -3209,7 +3206,7 @@ export default function ResumeWorkspace() {
                       <div className="min-w-0">
                         <div className="text-[15px] font-semibold leading-5 line-clamp-1">{d.title}</div>
                         <div className="mt-2 flex items-center justify-between gap-2">
-                          <div className="text-xs text-muted-foreground flex items-center gap-2 min-w-0">
+                          <div className="text-xsflex items-center gap-2 min-w-0">
                             <Clock className="h-3 w-3" />
                             <span className="truncate">{new Date(d.updated_at).toLocaleString()}</span>
                           </div>
@@ -3230,7 +3227,7 @@ export default function ResumeWorkspace() {
                                   void saveWorkspaceDocToMyResumes(d);
                                 }}
                               >
-                                <Save className="h-4 w-4 text-muted-foreground" />
+                                <Save className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Save to My Resumes</TooltipContent>
@@ -3248,7 +3245,7 @@ export default function ResumeWorkspace() {
                                   void downloadWorkspaceDocPdf(d);
                                 }}
                               >
-                                <Download className="h-4 w-4 text-muted-foreground" />
+                                <Download className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Download PDF</TooltipContent>
@@ -3266,7 +3263,7 @@ export default function ResumeWorkspace() {
                                   void downloadWorkspaceDocDocx(d);
                                 }}
                               >
-                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <FileText className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Download DOCX</TooltipContent>
@@ -3284,7 +3281,7 @@ export default function ResumeWorkspace() {
                                   void deleteWorkspaceDoc(d);
                                 }}
                               >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Delete</TooltipContent>
@@ -3295,7 +3292,7 @@ export default function ResumeWorkspace() {
                     </div>
                   ))}
                   {docs.length === 0 && (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm">
                       No resume documents yet. Click “New” to create your first one.
                     </div>
                   )}
@@ -3319,13 +3316,13 @@ export default function ResumeWorkspace() {
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
               {!selected ? (
-                <div className="text-sm text-muted-foreground">Select a document from the left.</div>
+                <div className="text-sm">Select a document from the left.</div>
               ) : (
                 <>
                   <div className="mb-2 text-sm">
-                    <span className="text-muted-foreground">Document:</span>{' '}
+                    <span className="">Document:</span>{' '}
                     <span className="font-medium text-foreground">{selected.title}</span>
-                    <span className="ml-3 text-xs text-muted-foreground">
+                    <span className="ml-3 text-xs">
                       {isAutoSaving ? 'Saving…' : autoSaveError ? `Autosave failed: ${autoSaveError}` : lastAutoSavedAt ? 'Autosaved' : ''}
                     </span>
                   </div>
@@ -3352,7 +3349,7 @@ export default function ResumeWorkspace() {
                             onChange={(e) => updateSelected({ title: e.target.value })}
                             placeholder="e.g., Senior Data Scientist"
                           />
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs">
                             This is the workspace resume name and the export file name.
                           </div>
                         </div>
@@ -3412,7 +3409,7 @@ export default function ResumeWorkspace() {
                         </div>
                       </div>
 
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs">
                         Note: generating a new tailored resume overwrites contact info from the base resume facts. You can always edit here after
                         generating.
                       </div>
@@ -3546,19 +3543,19 @@ export default function ResumeWorkspace() {
 
                     <TabsContent value="changes" className="space-y-4 mt-4">
                       {!diffBaseResumeId ? (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm">
                           Select a <span className="font-medium text-foreground">base resume</span> in the tailor section to compare changes.
                         </div>
                       ) : diffBaseLoading ? (
-                        <div className="text-sm text-muted-foreground">Loading base resume…</div>
+                        <div className="text-sm">Loading base resume…</div>
                       ) : !diff ? (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm">
                           Could not compute changes (base resume text unavailable).
                         </div>
                       ) : (
                         <>
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm">
                               Comparing <span className="font-medium text-foreground">{diffBaseLabel || 'Base resume'}</span> →{' '}
                               <span className="font-medium text-foreground">{selected?.title || 'Current document'}</span>
                             </div>
@@ -3591,7 +3588,7 @@ export default function ResumeWorkspace() {
                                     {(diff.added.length ? diff.added : ['No additions detected.']).slice(0, 120).map((l, i) => (
                                       <div key={i} className="text-sm">
                                         <span className="text-success font-medium">+ </span>
-                                        <span className="text-muted-foreground">{l}</span>
+                                        <span className="">{l}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -3610,7 +3607,7 @@ export default function ResumeWorkspace() {
                                     {(diff.removed.length ? diff.removed : ['No removals detected.']).slice(0, 120).map((l, i) => (
                                       <div key={i} className="text-sm">
                                         <span className="text-destructive font-medium">- </span>
-                                        <span className="text-muted-foreground">{l}</span>
+                                        <span className="">{l}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -3619,7 +3616,7 @@ export default function ResumeWorkspace() {
                             </Card>
                           </div>
 
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs">
                             Note: this compares your current workspace document against the selected base resume. It’s not a PDF-to-PDF pixel diff.
                           </div>
                         </>
@@ -3650,7 +3647,7 @@ export default function ResumeWorkspace() {
                 </CardHeader>
                 <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
                   <div>
-                    <div className="text-sm text-muted-foreground">Canonical score</div>
+                    <div className="text-sm">Canonical score</div>
                     <div className="text-4xl font-bold tracking-tight">{analysisScore != null ? `${Math.round(analysisScore)}%` : '—'}</div>
                     <div className="mt-2">
                       <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2" />
@@ -3659,20 +3656,20 @@ export default function ResumeWorkspace() {
 
                   <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-muted-foreground">Keyword coverage</div>
+                      <div className="">Keyword coverage</div>
                       <div className="font-medium text-foreground">
                         {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
                         {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-muted-foreground">Model estimate</div>
+                      <div className="">Model estimate</div>
                       <div className="font-medium text-foreground">{atsEstimate != null ? `${Math.round(atsEstimate)}%` : '—'}</div>
                     </div>
                   </div>
 
                   {(notesBaseMatchedCount != null || notesTailoredMatchedCount != null) && (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm">
                       <span className="font-medium text-foreground">Coverage change:</span>{' '}
                       Base {notesBaseMatchedCount ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'} → Tailored{' '}
                       {notesTailoredMatchedCount ?? derivedKeywordMatched ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'}
@@ -3681,7 +3678,7 @@ export default function ResumeWorkspace() {
 
                   <div className="text-sm">
                     <div className="font-medium">3-step boost plan</div>
-                    <ol className="mt-2 list-decimal pl-5 text-muted-foreground space-y-1">
+                    <ol className="mt-2 list-decimal pl-5space-y-1">
                       <li>Copy missing JD phrases (right panel) and paste them verbatim.</li>
                       <li>Place them in Skills first; Summary second; bullets only if you can defend them.</li>
                       <li>Regenerate (or run ATS Checkpoint) and repeat until you’re happy with coverage.</li>
@@ -3690,7 +3687,7 @@ export default function ResumeWorkspace() {
 
                   <div className="rounded-md border bg-background p-3 text-sm">
                     <div className="font-medium">Quick tips (high impact)</div>
-                    <ul className="mt-2 space-y-1 text-muted-foreground">
+                    <ul className="mt-2 space-y-1">
                       <li>
                         <span className="text-foreground font-medium">Don’t add unverifiable claims.</span> If you can’t explain it in 60
                         seconds with proof, skip it.
@@ -3722,7 +3719,7 @@ export default function ResumeWorkspace() {
                 <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative w-full sm:max-w-[420px]">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
                       <Input
                         value={missingPhraseQuery}
                         onChange={(e) => setMissingPhraseQuery(e.target.value)}
@@ -3754,18 +3751,18 @@ export default function ResumeWorkspace() {
                                 onClick={() => copyToClipboard(p)}
                                 title="Copy"
                               >
-                                <Copy className="h-4 w-4 text-muted-foreground" />
+                                <Copy className="h-4 w-4" />
                               </Button>
                             </div>
                           ))}
                         </div>
                       </ScrollArea>
-                      <div className="border-t p-3 text-xs text-muted-foreground">
+                      <div className="border-t p-3 text-xs">
                         Tip: add to Skills first; only add to bullets if you can defend it in interview.
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-muted-foreground">No missing phrases found.</div>
+                    <div className="text-sm">No missing phrases found.</div>
                   )}
                 </CardContent>
               </Card>
@@ -3801,20 +3798,20 @@ export default function ResumeWorkspace() {
                             {keywordInventory.must.length > 0 && (
                               <div className="text-sm">
                                 <div className="font-medium text-foreground">Must-have</div>
-                                <div className="text-muted-foreground">{keywordInventory.must.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                                <div className="">{keywordInventory.must.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
                               </div>
                             )}
                             {keywordInventory.nice.length > 0 && (
                               <div className="text-sm">
                                 <div className="font-medium text-foreground">Nice-to-have</div>
-                                <div className="text-muted-foreground">{keywordInventory.nice.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                                <div className="">{keywordInventory.nice.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
                               </div>
                             )}
                           </div>
                         </div>
                         <div className="rounded-md border bg-background p-3">
                           <div className="text-sm font-medium">Seniority signals (what the JD implies)</div>
-                          <div className="mt-2 text-sm text-muted-foreground space-y-1">
+                          <div className="mt-2 text-smspace-y-1">
                             <div>Dial up: scope, decision-making, cross-functional leadership, scale/ownership.</div>
                             <div>Dial down: vague buzzwords and org-specific claims that aren’t yours.</div>
                             <div>Ensure Summary + most recent role reflect the JD’s level (strategy vs hands-on).</div>
@@ -3828,7 +3825,7 @@ export default function ResumeWorkspace() {
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <div className="text-sm font-medium">Keyword coverage</div>
-                            <div className="text-xs text-muted-foreground">Use exact JD wording; replace synonyms where possible.</div>
+                            <div className="text-xs">Use exact JD wording; replace synonyms where possible.</div>
                           </div>
                           <div className="text-sm font-medium text-foreground">
                             {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
@@ -3838,7 +3835,7 @@ export default function ResumeWorkspace() {
                       </div>
                       <div className="rounded-md border bg-background p-3 text-sm">
                         <div className="font-medium">Keyword placement guidance</div>
-                        <ul className="mt-2 list-disc pl-5 text-muted-foreground space-y-1">
+                        <ul className="mt-2 list-disc pl-5space-y-1">
                           <li>Skills: tools/platforms/acronyms (verbatim)</li>
                           <li>Summary: role-level responsibilities + domain</li>
                           <li>Recent bullets: keywords tied to outcomes/metrics (recency bias)</li>
@@ -3869,18 +3866,18 @@ export default function ResumeWorkspace() {
                                       {r.status}
                                     </Badge>
                                   </td>
-                                  <td className="p-3 align-top text-muted-foreground">{r.evidence || '—'}</td>
+                                  <td className="p-3 align-top">{r.evidence || '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       ) : (
-                        <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                        <div className="rounded-md border bg-muted/20 p-3 text-sm">
                           No responsibilities could be extracted yet. Paste a fuller JD (with responsibilities) and regenerate the tailored resume.
                         </div>
                       )}
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs">
                         Use this table to decide what to expand in the most recent role, and which “Missing” items need an interview story (or should be
                         removed).
                       </div>
@@ -3906,7 +3903,7 @@ export default function ResumeWorkspace() {
                                     {d.closeness}
                                   </Badge>
                                 </td>
-                                <td className="p-3 text-muted-foreground">{d.suggestedPlacement}</td>
+                                <td className="p-3">{d.suggestedPlacement}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -3918,7 +3915,7 @@ export default function ResumeWorkspace() {
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-md border bg-background p-3">
                           <div className="text-sm font-medium">Metrics strength</div>
-                          <div className="mt-2 text-sm text-muted-foreground">
+                          <div className="mt-2 text-sm">
                             Metrics present: <span className="font-medium text-foreground">{metricsStrength.withM}</span>/
                             <span className="font-medium text-foreground">{metricsStrength.total}</span> bullets (
                             <span className="font-medium text-foreground">{metricsStrength.pct}%</span>)
@@ -3926,7 +3923,7 @@ export default function ResumeWorkspace() {
                           {metricsStrength.weakRecent.length > 0 && (
                             <div className="mt-3 text-sm">
                               <div className="font-medium">Add metrics to these recent bullets</div>
-                              <ul className="mt-2 list-disc pl-5 text-muted-foreground space-y-1">
+                              <ul className="mt-2 list-disc pl-5space-y-1">
                                 {metricsStrength.weakRecent.map((b, i) => (
                                   <li key={i}>{String(b).slice(0, 180)}</li>
                                 ))}
@@ -3937,13 +3934,13 @@ export default function ResumeWorkspace() {
                         <div className="rounded-md border bg-background p-3">
                           <div className="text-sm font-medium">Red flags (ATS + human)</div>
                           {redFlags.length > 0 ? (
-                            <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                            <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
                               {redFlags.map((r, i) => (
                                 <li key={i}>{r}</li>
                               ))}
                             </ul>
                           ) : (
-                            <div className="mt-2 text-sm text-muted-foreground">No obvious red flags detected.</div>
+                            <div className="mt-2 text-sm">No obvious red flags detected.</div>
                           )}
                         </div>
                       </div>
@@ -3953,8 +3950,8 @@ export default function ResumeWorkspace() {
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-md border bg-background p-3">
                           <div className="text-sm font-medium">Responsibility-to-story map (what to prep)</div>
-                          <div className="text-xs text-muted-foreground mt-1">Prep STAR stories for Partial/Missing responsibilities you keep in the resume.</div>
-                          <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                          <div className="text-xsmt-1">Prep STAR stories for Partial/Missing responsibilities you keep in the resume.</div>
+                          <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
                             {responsibilityMap
                               .filter((r) => r.status !== 'Yes')
                               .slice(0, 8)
@@ -3967,26 +3964,26 @@ export default function ResumeWorkspace() {
                         </div>
                         <div className="rounded-md border bg-background p-3">
                           <div className="text-sm font-medium">Edits you must be able to defend (added vs base)</div>
-                          <div className="text-xs text-muted-foreground mt-1">If anything below isn’t true, remove it before exporting.</div>
+                          <div className="text-xsmt-1">If anything below isn’t true, remove it before exporting.</div>
                           {addedPhrasesClean.length > 0 ? (
                             <div className="mt-2 space-y-2">
                               {addedPhrasesClean.slice(0, 10).map((p) => (
                                 <div key={p} className="flex items-start justify-between gap-3">
                                   <div className="text-sm leading-6">{p}</div>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 p-0" onClick={() => copyToClipboard(p)} title="Copy">
-                                    <Copy className="h-4 w-4 text-muted-foreground" />
+                                    <Copy className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="mt-2 text-sm text-muted-foreground">No tracked edits yet.</div>
+                            <div className="mt-2 text-sm">No tracked edits yet.</div>
                           )}
                           {prepFocus.length > 0 && (
                             <div className="mt-4 text-sm">
                               <div className="font-medium">Top interview focus areas (pick 5)</div>
-                              <div className="text-xs text-muted-foreground mt-1">For each: one STAR story + one metric + one trade-off.</div>
-                              <div className="mt-2 text-muted-foreground">{prepFocus.slice(0, 5).join(' • ')}</div>
+                              <div className="text-xsmt-1">For each: one STAR story + one metric + one trade-off.</div>
+                              <div className="mt-2">{prepFocus.slice(0, 5).join(' • ')}</div>
                             </div>
                           )}
                         </div>
@@ -4031,7 +4028,7 @@ export default function ResumeWorkspace() {
                     jdSkillExtraction.leadership_org_design,
                     jdSkillExtraction.business_strategy,
                   ].every((a: any) => !Array.isArray(a) || a.length === 0) && (
-                    <div className="text-sm text-muted-foreground">No skill groups extracted.</div>
+                    <div className="text-sm">No skill groups extracted.</div>
                   )}
                 </CardContent>
               </Card>
@@ -4051,7 +4048,7 @@ export default function ResumeWorkspace() {
                         {visibleImprovements.length > 0 && (
                           <div className="text-sm">
                             <div className="font-medium">Improvement ideas</div>
-                            <ul className="mt-2 list-disc pl-5 text-muted-foreground space-y-1">
+                            <ul className="mt-2 list-disc pl-5space-y-1">
                               {visibleImprovements.slice(0, 10).map((t, i) => (
                                 <li key={i}>{cleanPhrase(t)}</li>
                               ))}
@@ -4059,7 +4056,7 @@ export default function ResumeWorkspace() {
                           </div>
                         )}
                         {debugImprovements.length > 0 && (
-                          <div className="mt-4 text-xs text-muted-foreground">
+                          <div className="mt-4 text-xs">
                             {debugImprovements.map((t, i) => (
                               <div key={i}>{cleanPhrase(t)}</div>
                             ))}

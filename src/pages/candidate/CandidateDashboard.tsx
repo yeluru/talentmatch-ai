@@ -200,7 +200,7 @@ export default function CandidateDashboard() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
           <>
@@ -252,7 +252,7 @@ export default function CandidateDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="mb-4">
                     Get instant AI-powered feedback on your resume. See how well you match job descriptions and get suggestions to improve.
                   </p>
                   <Button asChild>
@@ -268,7 +268,7 @@ export default function CandidateDashboard() {
                   <CardTitle>Find Your Next Role</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="mb-4">
                     Browse open positions and find jobs that match your skills and experience.
                   </p>
                   <Button variant="outline" asChild>
@@ -283,9 +283,9 @@ export default function CandidateDashboard() {
             {!resumes?.length && (
               <Card className="border-dashed border-2 card-elevated">
                 <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                  <FileText className="h-12 w-12mb-4" />
                   <h3 className="font-semibold text-lg mb-2">Upload Your Resume</h3>
-                  <p className="text-muted-foreground mb-4 max-w-md">
+                  <p className="mb-4 max-w-md">
                     To start applying for jobs and use AI analysis, upload your resume first.
                   </p>
                   <Button asChild>

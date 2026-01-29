@@ -50,17 +50,19 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
 
-const CANDIDATE_STATUSES = [
-  { value: 'new', label: 'New', variant: 'outline' as const },
-  { value: 'contacted', label: 'Contacted', variant: 'secondary' as const },
-  { value: 'screening', label: 'Screening', variant: 'default' as const },
-  { value: 'interviewing', label: 'Interviewing', variant: 'default' as const },
-  { value: 'offered', label: 'Offered', variant: 'default' as const },
-  { value: 'hired', label: 'Hired', variant: 'default' as const },
-  { value: 'rejected', label: 'Rejected', variant: 'destructive' as const },
-  { value: 'withdrawn', label: 'Withdrawn', variant: 'outline' as const },
-];
+const CANDIDATE_STATUSES = TALENT_POOL_STATUS_OPTIONS.map((s) => ({
+  ...s,
+  variant:
+    s.value === 'rejected'
+      ? ('destructive' as const)
+      : s.value === 'contacted'
+        ? ('secondary' as const)
+        : s.value === 'new' || s.value === 'withdrawn'
+          ? ('outline' as const)
+          : ('default' as const),
+}));
 
 interface ShortlistCandidate {
   id: string;
@@ -299,7 +301,7 @@ export function ShortlistCandidateCard({
                 </p>
               )}
 
-              <div className="flex items-start gap-2 text-sm text-muted-foreground min-w-0">
+              <div className="flex items-start gap-2 text-smmin-w-0">
                 <Briefcase className="h-3 w-3 shrink-0 mt-1" />
                 <span className="block min-w-0 flex-1 whitespace-normal break-words leading-snug">
                   {candidate.candidate_profiles?.current_title || 'No title'}
@@ -342,11 +344,11 @@ export function ShortlistCandidateCard({
               </HoverCardTrigger>
               <HoverCardContent className="w-72" align="end">
                 {candidate.candidate_profiles?.recruiter_notes || candidate.notes ? (
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                  <p className="text-smwhitespace-pre-wrap line-clamp-6">
                     {candidate.candidate_profiles?.recruiter_notes || candidate.notes}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">No notes added</p>
+                  <p className="text-smitalic">No notes added</p>
                 )}
               </HoverCardContent>
             </HoverCard>
@@ -421,7 +423,7 @@ export function ShortlistCandidateCard({
         <CollapsibleContent>
           <div className="px-3 pb-3 pt-0 border-t bg-muted/30">
             <div className="pt-3 space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Notes</label>
+              <label className="text-sm font-medium">Notes</label>
               <Textarea
                 placeholder="Notes about this candidate (shows in Talent Pool and Shortlists)..."
                 value={profileNotes}

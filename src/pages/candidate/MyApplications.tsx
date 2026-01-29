@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Loader2, Building2, MapPin, Clock, ArrowRight, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface Application {
   id: string;
@@ -25,16 +26,15 @@ interface Application {
   };
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  applied: { label: 'Applied', variant: 'secondary' },
-  reviewing: { label: 'Under Review', variant: 'default' },
-  shortlisted: { label: 'Shortlisted', variant: 'default' },
-  interviewing: { label: 'Interviewing', variant: 'default' },
-  offered: { label: 'Offer Extended', variant: 'default' },
-  hired: { label: 'Hired', variant: 'default' },
-  rejected: { label: 'Not Selected', variant: 'destructive' },
-  withdrawn: { label: 'Withdrawn', variant: 'outline' },
-};
+const ACTIVE_STAGE_SET = new Set<string>([
+  'applied',
+  'reviewing',
+  'screening',
+  'shortlisted',
+  'interviewing',
+  'offered',
+]);
+const CLOSED_STAGE_SET = new Set<string>(['hired', 'rejected', 'withdrawn']);
 
 export default function MyApplications() {
   const { user } = useAuth();
@@ -90,14 +90,10 @@ export default function MyApplications() {
 
   const filteredApplications = applications.filter(app => {
     if (activeTab === 'all') return true;
-    if (activeTab === 'active') return ['applied', 'reviewing', 'shortlisted', 'interviewing', 'offered'].includes(app.status || '');
-    if (activeTab === 'closed') return ['hired', 'rejected', 'withdrawn'].includes(app.status || '');
+    if (activeTab === 'active') return ACTIVE_STAGE_SET.has(String(app.status || ''));
+    if (activeTab === 'closed') return CLOSED_STAGE_SET.has(String(app.status || ''));
     return true;
   });
-
-  const getStatusInfo = (status: string | null) => {
-    return statusConfig[status || 'applied'] || statusConfig.applied;
-  };
 
   if (isLoading) {
     return (
@@ -114,7 +110,7 @@ export default function MyApplications() {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">My Applications</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1">
             Track your job applications and their status
           </p>
         </div>
@@ -125,10 +121,10 @@ export default function MyApplications() {
               All ({applications.length})
             </TabsTrigger>
             <TabsTrigger value="active">
-              Active ({applications.filter(a => ['applied', 'reviewing', 'shortlisted', 'interviewing', 'offered'].includes(a.status || '')).length})
+              Active ({applications.filter(a => ACTIVE_STAGE_SET.has(String(a.status || ''))).length})
             </TabsTrigger>
             <TabsTrigger value="closed">
-              Closed ({applications.filter(a => ['hired', 'rejected', 'withdrawn'].includes(a.status || '')).length})
+              Closed ({applications.filter(a => CLOSED_STAGE_SET.has(String(a.status || ''))).length})
             </TabsTrigger>
           </TabsList>
 
@@ -136,9 +132,9 @@ export default function MyApplications() {
             {filteredApplications.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                  <FileText className="h-12 w-12mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No applications yet</h3>
-                  <p className="text-muted-foreground text-center mb-4">
+                  <p className="text-center mb-4">
                     Start applying to jobs to see them here
                   </p>
                   <Button asChild>
@@ -151,7 +147,6 @@ export default function MyApplications() {
             ) : (
               <div className="space-y-4">
                 {filteredApplications.map((app) => {
-                  const statusInfo = getStatusInfo(app.status);
                   return (
                     <Card key={app.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="pt-6">
@@ -161,15 +156,15 @@ export default function MyApplications() {
                               {app.job.organization?.logo_url ? (
                                 <img src={app.job.organization.logo_url} alt="" className="h-8 w-8 object-contain" />
                               ) : (
-                                <Building2 className="h-6 w-6 text-muted-foreground" />
+                                <Building2 className="h-6 w-6" />
                               )}
                             </div>
                             <div>
                               <Link to={`/candidate/jobs/${app.job.id}`} className="hover:underline">
                                 <h3 className="font-semibold">{app.job.title}</h3>
                               </Link>
-                              <p className="text-muted-foreground text-sm">{app.job.organization?.name}</p>
-                              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                              <p className="text-sm">{app.job.organization?.name}</p>
+                              <div className="flex items-center gap-2 mt-1 text-sm">
                                 {app.job.location && (
                                   <span className="flex items-center">
                                     <MapPin className="mr-1 h-3 w-3" />
@@ -183,14 +178,14 @@ export default function MyApplications() {
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-2">
-                            <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                            <StatusBadge status={app.status || 'applied'} />
                             {app.ai_match_score && (
                               <span className="text-sm">
-                                <span className="text-muted-foreground">Match: </span>
+                                <span className="">Match: </span>
                                 <span className="font-semibold text-primary">{app.ai_match_score}%</span>
                               </span>
                             )}
-                            <span className="text-sm text-muted-foreground flex items-center">
+                            <span className="text-smflex items-center">
                               <Clock className="mr-1 h-3 w-3" />
                               Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}
                             </span>

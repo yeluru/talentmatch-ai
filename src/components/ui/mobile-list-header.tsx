@@ -29,7 +29,7 @@ export function MobileListHeader({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold">{title}</h1>
-            {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
+            {subtitle && <p className="mt-1">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -45,7 +45,7 @@ export function MobileListHeader({
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl font-bold truncate">{title}</h1>
           {subtitle && (
-            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+            <p className="text-xstruncate">{subtitle}</p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

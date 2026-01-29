@@ -76,9 +76,9 @@ export default function Notifications() {
     switch (type) {
       case 'application': return <Briefcase className="h-5 w-5 text-primary" />;
       case 'interview': return <Users className="h-5 w-5 text-accent" />;
-      case 'job': return <FileText className="h-5 w-5 text-muted-foreground" />;
+      case 'job': return <FileText className="h-5 w-5" />;
       case 'ai': return <Sparkles className="h-5 w-5 text-yellow-500" />;
-      default: return <Bell className="h-5 w-5 text-muted-foreground" />;
+      default: return <Bell className="h-5 w-5" />;
     }
   };
 
@@ -94,7 +94,7 @@ export default function Notifications() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -111,7 +111,7 @@ export default function Notifications() {
                 <Badge variant="secondary">{unreadCount} unread</Badge>
               )}
             </h1>
-            <p className="text-muted-foreground">Stay updated on your activity</p>
+            <p className="">Stay updated on your activity</p>
           </div>
           {unreadCount > 0 && (
             <Button 
@@ -162,10 +162,10 @@ export default function Notifications() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className={`font-medium ${!notification.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                              <p className={`font-medium ${!notification.is_read ? 'text-foreground' : ''}`}>
                                 {notification.title}
                               </p>
-                              <p className="text-sm text-muted-foreground mt-1">
+                              <p className="text-smmt-1">
                                 {notification.message}
                               </p>
                             </div>
@@ -174,7 +174,7 @@ export default function Notifications() {
                             )}
                           </div>
                           <div className="flex items-center gap-4 mt-2">
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs">
                               {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                             </span>
                             {notification.link && (

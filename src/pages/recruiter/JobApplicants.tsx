@@ -39,15 +39,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { ApplicantDetailSheet } from '@/components/recruiter/ApplicantDetailSheet';
-
-const statusColors: Record<string, string> = {
-  applied: 'bg-blue-500/10 text-blue-500',
-  screening: 'bg-yellow-500/10 text-yellow-500',
-  interviewing: 'bg-purple-500/10 text-purple-500',
-  offered: 'bg-green-500/10 text-green-500',
-  hired: 'bg-emerald-500/10 text-emerald-500',
-  rejected: 'bg-red-500/10 text-red-500',
-};
+import { openResumeInNewTab } from '@/lib/resumeLinks';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { APPLICATION_STAGE_OPTIONS } from '@/lib/statusOptions';
 
 export default function JobApplicants() {
   const { id: jobId } = useParams<{ id: string }>();
@@ -139,12 +133,23 @@ export default function JobApplicants() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applicants', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['application-detail'], exact: false });
       toast.success('Application status updated');
     },
     onError: () => {
       toast.error('Failed to update status');
     },
   });
+
+  const openResume = async (resumes: any) => {
+    try {
+      const fileUrl = Array.isArray(resumes) ? resumes[0]?.file_url : resumes?.file_url;
+      await openResumeInNewTab(fileUrl, { expiresInSeconds: 600 });
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not open resume');
+    }
+  };
 
   const handleOpenDetail = (applicationId: string) => {
     setSelectedApplicationId(applicationId);
@@ -183,7 +188,7 @@ export default function JobApplicants() {
           </Button>
           <div className="flex-1">
             <h1 className="font-display text-2xl font-bold">{job?.title}</h1>
-            <p className="text-muted-foreground">
+            <p className="">
               {applications?.length || 0} applicant{applications?.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -194,7 +199,7 @@ export default function JobApplicants() {
 
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
             <Input
               placeholder="Search applicants..."
               className="pl-9"
@@ -208,12 +213,11 @@ export default function JobApplicants() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="applied">Applied</SelectItem>
-              <SelectItem value="screening">Screening</SelectItem>
-              <SelectItem value="interviewing">Interviewing</SelectItem>
-              <SelectItem value="offered">Offered</SelectItem>
-              <SelectItem value="hired">Hired</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              {APPLICATION_STAGE_OPTIONS.filter((o) => o.value !== 'reviewed').map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -228,10 +232,10 @@ export default function JobApplicants() {
           />
         ) : (
           <div className="space-y-3">
-            {filteredApplications.map((application) => (
+            {filteredApplications.map((application, idx) => (
               <Card 
                 key={application.id} 
-                className="hover:border-primary/30 transition-colors cursor-pointer"
+                className={`hover:border-primary/30 transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-secondary/60' : ''}`}
                 onClick={() => handleOpenDetail(application.id)}
               >
                 <CardContent className="p-4">
@@ -248,7 +252,7 @@ export default function JobApplicants() {
                           <h3 className="font-semibold">
                             {application.candidate_profiles?.full_name || 'Unknown'}
                           </h3>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm">
                             {application.candidate_profiles?.current_title}
                             {application.candidate_profiles?.current_company && 
                               ` at ${application.candidate_profiles.current_company}`}
@@ -259,13 +263,11 @@ export default function JobApplicants() {
                           {application.ai_match_score && (
                             <ScoreBadge score={application.ai_match_score} />
                           )}
-                          <Badge className={statusColors[application.status || 'applied']}>
-                            {application.status || 'applied'}
-                          </Badge>
+                          <StatusBadge status={application.status || 'applied'} />
                         </div>
                       </div>
                       
-                      <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
                         {application.candidate_profiles?.email && (
                           <span className="flex items-center gap-1">
                             <Mail className="h-3 w-3" />
@@ -291,18 +293,14 @@ export default function JobApplicants() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        {application.resumes && (
-                          <DropdownMenuItem asChild>
-                            <a 
-                              href={application.resumes.file_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              View Resume
-                            </a>
+                        {application.resumes && (Array.isArray(application.resumes) ? application.resumes.length > 0 : true) ? (
+                          <DropdownMenuItem
+                            onClick={async () => { await openResume(application.resumes); }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Resume
                           </DropdownMenuItem>
-                        )}
+                        ) : null}
                         <DropdownMenuItem
                           onClick={() => updateStatus.mutate({ 
                             applicationId: application.id, 

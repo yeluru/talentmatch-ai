@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Home,
@@ -48,11 +49,14 @@ import { Badge } from '@/components/ui/badge';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CATEGORY_LANDING_HREFS } from '@/lib/recruiterCategoryLandings';
 
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
+
+const SIDEBAR_DESKTOP_OPEN_KEY = 'sidebar:desktopOpen';
 
 const candidateNavItems = [
   { title: 'Dashboard', href: '/candidate', icon: Home },
@@ -66,32 +70,77 @@ const candidateNavItems = [
 ];
 
 const recruiterNavItems = [
+  // kept for non-grouped contexts (e.g., breadcrumbs/tooltips); grouped rendering uses recruiterNavGroups below
   { title: 'Dashboard', href: '/recruiter', icon: Home },
-  { title: 'Talent Sourcing', href: '/recruiter/talent-sourcing', icon: Upload },
-  { title: 'Talent Pool', href: '/recruiter/talent-pool', icon: Users },
-  { title: 'Marketplace Profiles', href: '/recruiter/marketplace', icon: Search },
-  { title: 'Talent Search', href: '/recruiter/talent-search', icon: Search },
-  { title: 'AI Agents', href: '/recruiter/agents', icon: Bot },
-  { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
-  { title: 'Applications Pipeline', href: '/recruiter/pipeline', icon: ListChecks },
-  { title: 'Engagement Pipeline', href: '/recruiter/engagements', icon: ListChecks },
-  { title: 'Outreach', href: '/recruiter/outreach', icon: Mail },
-  { title: 'Email Templates', href: '/recruiter/email-templates', icon: Mail },
-  { title: 'Interviews', href: '/recruiter/interviews', icon: Briefcase },
-  { title: 'Insights', href: '/recruiter/insights', icon: BarChart3 },
-  { title: 'Post a Job', href: '/recruiter/jobs/new', icon: PlusCircle },
-  { title: 'My Jobs', href: '/recruiter/jobs', icon: Briefcase },
-  { title: 'Applications', href: '/recruiter/candidates', icon: Users },
-  { title: 'AI Matching', href: '/recruiter/ai-matching', icon: Sparkles },
+];
+
+type NavItem = { title: string; href: string; icon: any };
+type NavGroup = { label: string; items: NavItem[] };
+
+const recruiterNavGroups: NavGroup[] = [
+  {
+    label: 'TALENT MANAGEMENT',
+    items: [
+      { title: 'Talent Pool', href: '/recruiter/talent-pool', icon: Users },
+      { title: 'Bulk Upload Profiles', href: '/recruiter/talent-search/uploads', icon: Upload },
+      { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
+      { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
+      { title: 'Marketplace Profiles', href: '/recruiter/marketplace', icon: Search },
+      { title: 'Talent Search', href: '/recruiter/talent-search/search', icon: Search },
+      { title: 'API Integration', href: '/recruiter/talent-search/api', icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Jobs',
+    items: [
+      { title: 'My Jobs', href: '/recruiter/jobs', icon: Briefcase },
+      { title: 'Post a Job', href: '/recruiter/jobs/new', icon: PlusCircle },
+      { title: 'My Applicants', href: '/recruiter/candidates', icon: Users },
+      { title: 'AI Matching', href: '/recruiter/ai-matching', icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Pipelines',
+    items: [
+      { title: 'Applications Pipeline', href: '/recruiter/pipeline', icon: ListChecks },
+      { title: 'Engagement Pipeline', href: '/recruiter/engagements', icon: ListChecks },
+      { title: 'Interviews', href: '/recruiter/interviews', icon: Briefcase },
+    ],
+  },
+  {
+    label: 'Communications',
+    items: [
+      { title: 'Outreach', href: '/recruiter/outreach', icon: Mail },
+      { title: 'Email Templates', href: '/recruiter/email-templates', icon: Mail },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [{ title: 'Insights', href: '/recruiter/insights', icon: BarChart3 }],
+  },
+  {
+    label: 'Automation',
+    items: [{ title: 'AI Agents', href: '/recruiter/agents', icon: Bot }],
+  },
 ];
 
 const managerNavItems = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Analytics', href: '/manager/analytics', icon: BarChart3 },
   { title: 'Team', href: '/manager/team', icon: Users },
-  { title: 'Candidates', href: '/manager/candidates', icon: Users },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
+  { title: 'Organization', href: '/manager/organization', icon: Building2 },
+  { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
+];
+
+/** Account Manager: oversight-only nav (Manager Dashboard, Team, etc.). */
+const accountManagerOversightNavItems: NavItem[] = [
+  { title: 'Dashboard', href: '/manager', icon: Home },
+  { title: 'Team', href: '/manager/team', icon: Users },
+  { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
+  { title: 'Analytics', href: '/manager/analytics', icon: BarChart3 },
+  { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
 ];
@@ -100,30 +149,20 @@ const orgAdminNavItems = [
   { title: 'Dashboard', href: '/org-admin', icon: Home },
 ];
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+function DashboardLayoutInner({
+  children,
+  isDark,
+  setIsDark,
+}: DashboardLayoutProps & { isDark: boolean; setIsDark: (next: boolean) => void }) {
   const { profile, currentRole, roles, signOut, switchRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
 
-  // Dark mode state with localStorage persistence
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme');
-      if (saved) return saved === 'dark';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
-
+  // Auto-close mobile nav after navigation
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, location.pathname, setOpenMobile]);
 
   const navItems =
     currentRole === 'candidate'
@@ -171,179 +210,449 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex w-full dashboard-bg" style={{ minHeight: '100vh' }}>
-        <Sidebar variant="floating" className="border-sidebar-border">
-          <SidebarHeader className="border-b border-sidebar-border p-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <span className="font-display font-bold text-xl tracking-tight">
-                Talent<span className="text-accent">Match</span>
-              </span>
-            </Link>
-          </SidebarHeader>
-          
-          <SidebarContent className="p-2">
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
+    <div className="flex w-full dashboard-bg" style={{ minHeight: '100vh' }}>
+      <Sidebar variant="floating" collapsible="icon" className="border-sidebar-border">
+        <SidebarHeader className="border-b border-sidebar-border p-4">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5 text-primary-foreground"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <span className="font-display font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
+              Talent<span className="text-accent">Match</span>
+            </span>
+          </Link>
+        </SidebarHeader>
+
+        <SidebarContent className="p-2">
+          <SidebarMenu>
+            {currentRole === 'recruiter' ? (
+              <>
+                <SidebarMenuItem key="/recruiter">
                   <SidebarMenuButton
                     asChild
-                    isActive={location.pathname === item.href}
+                    tooltip="Dashboard"
+                    isActive={location.pathname === '/recruiter'}
                     className={cn(
                       "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
-                      location.pathname === item.href
-                        ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent"
+                      "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                      location.pathname === '/recruiter'
+                        ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
                         : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                     )}
                   >
-                    <Link to={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span className="font-medium">{item.title}</span>
+                    <Link
+                      to="/recruiter"
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
+                      <Home className="h-4 w-4 shrink-0" />
+                      <span className="font-medium group-data-[collapsible=icon]:hidden">Dashboard</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          
-          <SidebarFooter className="border-t border-sidebar-border p-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={profile?.avatar_url || ''} />
-                <AvatarFallback className="bg-accent text-accent-foreground">
-                  {profile?.full_name?.charAt(0) || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
-                  {profile?.full_name || 'User'}
-                </p>
-                <Badge variant="secondary" className={cn("text-xs mt-0.5", roleColor)}>
-                  {roleLabel}
-                </Badge>
-              </div>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
 
-        <div className="flex-1 min-w-0 flex flex-col">
-          <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur-lg">
-            <div className="flex h-full items-center justify-between px-4 lg:px-6">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger className="lg:hidden" />
-                <Breadcrumbs />
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsDark(!isDark)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </Button>
-                
-                <NotificationsDropdown />
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={profile?.avatar_url || ''} />
-                        <AvatarFallback className="bg-accent text-accent-foreground text-sm">
-                          {profile?.full_name?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col">
-                        <span>{profile?.full_name}</span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {profile?.email}
-                        </span>
+                {recruiterNavGroups.map((group) => {
+                  const landingHref = CATEGORY_LANDING_HREFS[group.label];
+                  return (
+                  <div key={group.label} className="mt-2">
+                    {landingHref ? (
+                      <Link
+                        to={landingHref}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
+                        className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden block"
+                      >
+                        {group.label}
+                      </Link>
+                    ) : (
+                      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
+                        {group.label}
                       </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    
-                    {roles.length > 1 && (
-                      <>
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">
-                          Switch Role
-                        </DropdownMenuLabel>
-                        {roles.map((r) => (
-                          <DropdownMenuItem
-                            key={r.role}
-                            onClick={() => handleRoleSwitch(r.role)}
+                    )}
+                    {group.items.map((item) => {
+                      const active =
+                        location.pathname === item.href ||
+                        (location.pathname.startsWith(item.href + '/') && item.href !== '/recruiter');
+                      return (
+                        <SidebarMenuItem key={item.href}>
+                          <SidebarMenuButton
+                            asChild
+                            tooltip={item.title}
+                            isActive={active}
                             className={cn(
-                              currentRole === r.role && "bg-accent/10"
+                              "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                              "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                              active
+                                ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
+                                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
                             )}
                           >
-                            {r.role === 'candidate' && 'Candidate'}
-                            {r.role === 'recruiter' && 'Recruiter'}
-                            {r.role === 'account_manager' && 'Account Manager'}
-                            {r.role === 'super_admin' && 'Super Admin'}
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    
-                    <DropdownMenuItem asChild>
-                      <Link to="/settings">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={handleSignOut}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </header>
+                            <Link
+                              to={item.href}
+                              onClick={() => {
+                                if (isMobile) setOpenMobile(false);
+                              }}
+                            >
+                              <item.icon className="h-4 w-4 shrink-0" />
+                              <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </div>
+                  );
+                })}
+              </>
+            ) : currentRole === 'account_manager' ? (
+              <>
+                {/* TEAM & OVERSIGHT (top): manage team, view org, override — AM's primary landing */}
+                <div className="space-y-1 group-data-[collapsible=icon]:space-y-0">
+                  <div className="px-3 py-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-manager group-data-[collapsible=icon]:hidden">
+                      Team &amp; Oversight
+                    </div>
+                    <div className="text-[10px] text-sidebar-foreground/50 mt-0.5 group-data-[collapsible=icon]:hidden">
+                      Manage team, view org, override
+                    </div>
+                  </div>
+                  {accountManagerOversightNavItems.map((item) => {
+                    const active =
+                      location.pathname === item.href ||
+                      (item.href !== '/manager' && location.pathname.startsWith(item.href + '/'));
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          tooltip={item.title}
+                          isActive={active}
+                          className={cn(
+                            "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                            "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                            active
+                              ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
+                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                          )}
+                        >
+                          <Link to={item.href} onClick={() => isMobile && setOpenMobile(false)}>
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </div>
 
-          <main className="flex-1 min-w-0 dashboard-bg">
-            <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8">
-              {children ?? (
-                import.meta.env.DEV ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Route rendered no content</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        This route returned <code className="font-mono">null</code>. Check the debug banner (bottom-left) for role/orgId,
-                        and check the browser console for errors.
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Path: <code className="font-mono">{location.pathname}</code>
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : null
-              )}
+                {/* Visual separator between Oversight and Recruiting */}
+                <div className="my-3 border-t border-sidebar-border group-data-[collapsible=icon]:my-2" aria-hidden />
+
+                {/* RECRUITING: independent work (create jobs, search talent, run pipelines) */}
+                <div className="space-y-1 group-data-[collapsible=icon]:space-y-0">
+                  <div className="px-3 py-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-accent group-data-[collapsible=icon]:hidden">
+                      Recruiting
+                    </div>
+                    <div className="text-[10px] text-sidebar-foreground/50 mt-0.5 group-data-[collapsible=icon]:hidden">
+                      Create jobs, search talent, run pipelines
+                    </div>
+                  </div>
+                  <SidebarMenuItem key="am-recruiter-dashboard">
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="Recruiter Dashboard"
+                      isActive={location.pathname === '/recruiter'}
+                      className={cn(
+                        "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                        "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                        location.pathname === '/recruiter'
+                          ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
+                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                      )}
+                    >
+                      <Link to="/recruiter" onClick={() => isMobile && setOpenMobile(false)}>
+                        <Home className="h-4 w-4 shrink-0" />
+                        <span className="font-medium group-data-[collapsible=icon]:hidden">Recruiter Dashboard</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {recruiterNavGroups.map((group) => {
+                    const landingHref = CATEGORY_LANDING_HREFS[group.label];
+                    return (
+                      <div key={`am-${group.label}`} className="mt-2">
+                        {landingHref ? (
+                          <Link
+                            to={landingHref}
+                            onClick={() => isMobile && setOpenMobile(false)}
+                            className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden block"
+                          >
+                            {group.label}
+                          </Link>
+                        ) : (
+                          <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
+                            {group.label}
+                          </div>
+                        )}
+                        {group.items.map((item) => {
+                          const active =
+                            location.pathname === item.href ||
+                            (location.pathname.startsWith(item.href + '/') && item.href !== '/recruiter');
+                          return (
+                            <SidebarMenuItem key={item.href}>
+                              <SidebarMenuButton
+                                asChild
+                                tooltip={item.title}
+                                isActive={active}
+                                className={cn(
+                                  "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                                  "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                                  active
+                                    ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
+                                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                                )}
+                              >
+                                <Link to={item.href} onClick={() => isMobile && setOpenMobile(false)}>
+                                  <item.icon className="h-4 w-4 shrink-0" />
+                                  <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
+                                </Link>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={item.title}
+                    isActive={location.pathname === item.href}
+                    className={cn(
+                      "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                      "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                      location.pathname === item.href
+                        ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
+                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                    )}
+                  >
+                    <Link
+                      to={item.href}
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))
+            )}
+          </SidebarMenu>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t border-sidebar-border p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 shrink-0">
+              <AvatarImage src={profile?.avatar_url || ''} />
+              <AvatarFallback className="bg-accent text-accent-foreground">
+                {profile?.full_name?.charAt(0) || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {profile?.full_name || 'User'}
+              </p>
+              <Badge variant="secondary" className={cn("text-xs mt-0.5", roleColor)}>
+                {roleLabel}
+              </Badge>
             </div>
-          </main>
-        </div>
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur-lg">
+          <div className="flex h-full items-center justify-between px-4 lg:px-6">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
+              {(() => {
+                const full = profile?.full_name?.trim() || '';
+                const spaceIdx = full.indexOf(' ');
+                const firstName = spaceIdx > 0 ? full.slice(0, spaceIdx) : full;
+                const lastName = spaceIdx > 0 ? full.slice(spaceIdx + 1) : '';
+                return (
+                  <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                    {firstName && <span className="text-foreground">{firstName}</span>}
+                    {lastName && <span className="ml-1.5">{lastName}</span>}
+                  </span>
+                );
+              })()}
+              <Breadcrumbs />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsDark(!isDark)}
+                className="hover:text-foreground"
+              >
+                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+
+              <NotificationsDropdown />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url || ''} />
+                      <AvatarFallback className="bg-accent text-accent-foreground text-sm">
+                        {profile?.full_name?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
+                      <span>{profile?.full_name}</span>
+                      <span className="text-xs font-normal">
+                        {profile?.email}
+                      </span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  {roles.length > 1 && (
+                    <>
+                      <DropdownMenuLabel className="text-xs">
+                        Switch Role
+                      </DropdownMenuLabel>
+                      {roles.map((r) => (
+                        <DropdownMenuItem
+                          key={r.role}
+                          onClick={() => handleRoleSwitch(r.role)}
+                          className={cn(
+                            currentRole === r.role && "bg-accent/10"
+                          )}
+                        >
+                          {r.role === 'candidate' && 'Candidate'}
+                          {r.role === 'recruiter' && 'Recruiter'}
+                          {r.role === 'account_manager' && 'Account Manager'}
+                          {r.role === 'super_admin' && 'Super Admin'}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 min-w-0 overflow-x-hidden dashboard-bg">
+          <div className="w-full max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
+            {children ?? (
+              import.meta.env.DEV ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Route rendered no content</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">
+                      This route returned <code className="font-mono">null</code>. Check the debug banner (bottom-left) for role/orgId,
+                      and check the browser console for errors.
+                    </p>
+                    <p className="mt-2 text-xs">
+                      Path: <code className="font-mono">{location.pathname}</code>
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : null
+            )}
+          </div>
+        </main>
       </div>
+    </div>
+  );
+}
+
+export function DashboardLayout({ children }: DashboardLayoutProps) {
+  // Dark mode state with localStorage persistence
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  // Desktop sidebar state persistence (expanded vs icon-rail)
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem(SIDEBAR_DESKTOP_OPEN_KEY);
+    if (saved === null) return true;
+    return saved === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_DESKTOP_OPEN_KEY, String(desktopSidebarOpen));
+  }, [desktopSidebarOpen]);
+
+  return (
+    <SidebarProvider open={desktopSidebarOpen} onOpenChange={setDesktopSidebarOpen}>
+      <DashboardLayoutInner isDark={isDark} setIsDark={setIsDark}>
+        {children}
+      </DashboardLayoutInner>
     </SidebarProvider>
   );
 }

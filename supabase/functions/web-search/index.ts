@@ -7,13 +7,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type FirecrawlItem = {
+  url?: string;
+  title?: string;
+  markdown?: string;
+};
+
 async function firecrawlSearch(args: {
   apiKey: string;
   query: string;
   limit: number;
   country: string;
-}): Promise<{ success: boolean; data: any[] }> {
-  const { apiKey, query, limit, country } = args;
+  timeoutMs?: number;
+}): Promise<{ success: boolean; data: FirecrawlItem[] }> {
+  const { apiKey, query, limit, country, timeoutMs = 12000 } = args;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   const resp = await fetch("https://api.firecrawl.dev/v1/search", {
     method: "POST",
     headers: {
@@ -27,7 +37,10 @@ async function firecrawlSearch(args: {
       country,
       scrapeOptions: { formats: ["markdown"] },
     }),
+    signal: controller.signal,
   });
+
+  clearTimeout(timeout);
 
   if (!resp.ok) {
     const errorText = await resp.text();
@@ -36,25 +49,31 @@ async function firecrawlSearch(args: {
   }
 
   const json = await resp.json();
-  const data = Array.isArray(json?.data) ? json.data : [];
+  const data = Array.isArray(json?.data) ? (json.data as FirecrawlItem[]) : [];
   return { success: Boolean(json?.success), data };
 }
 
-function isLikelyLinkedInProfileUrl(url: string): boolean {
-  const u = String(url || "").toLowerCase();
-  return u.includes("linkedin.com/in/");
+function msLeft(deadlineMs: number) {
+  return deadlineMs - Date.now();
 }
 
-function isLikelyGitHubProfileUrl(url: string): boolean {
-  const u = String(url || "").toLowerCase();
-  // Basic heuristic: github.com/<user> (not repo)
-  return u.includes("github.com/") && !u.includes("github.com/search") && !u.includes("github.com/topics");
+async function settledInBatches<T>(
+  items: Array<() => Promise<T>>,
+  batchSize: number,
+): Promise<PromiseSettledResult<T>[]> {
+  const out: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize).map((fn) => fn());
+    const settled = await Promise.allSettled(batch);
+    out.push(...settled);
+  }
+  return out;
 }
 
 function extractEmails(text: string): string[] {
   const raw = String(text || "");
-  const matches = raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-  // De-dupe + normalize
+  const matches =
+    raw.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
   const seen = new Set<string>();
   const out: string[] = [];
   for (const m of matches) {
@@ -67,16 +86,53 @@ function extractEmails(text: string): string[] {
   return out.slice(0, 10);
 }
 
-function isUSLocation(location: string | null | undefined): boolean {
-  const s = String(location || "").trim().toLowerCase();
-  if (!s) return false;
-  if (s.includes("united states") || s.includes("usa") || s.includes("u.s.") || s === "us") return true;
+function isLikelyLinkedInProfileUrl(url: string): boolean {
+  const u = String(url || "").toLowerCase();
+  return u.includes("linkedin.com/in/");
+}
 
-  // City, ST pattern (e.g., "Austin, TX")
-  const usStateAbbrev = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/i;
-  if (usStateAbbrev.test(s)) return true;
+function isLikelyGitHubProfileUrl(url: string): boolean {
+  const u = String(url || "").toLowerCase();
+  return u.startsWith("https://github.com/") && !u.includes("/search");
+}
 
-  return false;
+function guessNameFromTitleOrUrl(title: string, url: string): string {
+  const t = String(title || "").trim();
+  if (t) {
+    const cleaned = t
+      .replace(/\s*\|\s*LinkedIn\s*$/i, "")
+      .split(" - ")[0]
+      .split(" | ")[0]
+      .trim();
+    if (cleaned) return cleaned.slice(0, 80);
+  }
+  try {
+    const u = new URL(url);
+    const seg = u.pathname.split("/").filter(Boolean).pop() || "";
+    const base = seg.replace(/[-_]+/g, " ").trim();
+    return base ? base.slice(0, 80) : "Unknown";
+  } catch {
+    return "Unknown";
+  }
+}
+
+function cleanExcerpt(url: string, markdown: string): string {
+  const u = String(url || "").toLowerCase();
+  let text = String(markdown || "").replace(/\s+/g, " ").trim();
+  if (u.startsWith("https://github.com/")) {
+    const patterns = [
+      /skip to content/gi,
+      /you signed in with another tab or window\.[^\.]*\./gi,
+      /you signed out in another tab or window\.[^\.]*\./gi,
+      /you switched accounts on another tab or window\.[^\.]*\./gi,
+      /reload to refresh your session\.?/gi,
+      /dismiss alert/gi,
+      /\{\{\s*message\s*\}\}/g,
+    ];
+    for (const p of patterns) text = text.replace(p, " ");
+    text = text.replace(/\s+/g, " ").trim();
+  }
+  return text;
 }
 
 serve(async (req) => {
@@ -85,7 +141,9 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication check
+    const startedAt = Date.now();
+    const deadlineMs = startedAt + 55_000;
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization" }), {
@@ -100,7 +158,11 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -108,7 +170,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify user has recruiter role
     const { data: userRole } = await supabase
       .from("user_roles")
       .select("role")
@@ -117,13 +178,22 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!userRole) {
-      return new Response(JSON.stringify({ error: "Forbidden - requires recruiter or manager role" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Forbidden - requires recruiter or manager role" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const { query, limit = 20, country = "us", includeLinkedIn = false, strictCountry = true } = await req.json();
+    const body = await req.json();
+    const {
+      query,
+      limit = 20,
+      country = "us",
+      includeLinkedIn = false,
+      excludeUrls = [],
+      strategyIndex = 0,
+    } = body ?? {};
+
     const rawQuery = String(query || "").trim();
     if (!rawQuery) {
       return new Response(JSON.stringify({ error: "Missing query" }), {
@@ -134,97 +204,163 @@ serve(async (req) => {
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
-      throw new Error("FIRECRAWL_API_KEY is not configured. Please connect Firecrawl in settings.");
+      throw new Error("FIRECRAWL_API_KEY is not configured.");
     }
 
-    const cappedLimit = Math.max(1, Math.min(Number(limit) || 20, 50));
-
+    const cappedLimit = Math.max(1, Math.min(Number(limit) || 20, 20)); // hard cap 20 per page
     const fcCountry = String(country || "us").toLowerCase();
-    const strictUSOnly = Boolean(strictCountry) && fcCountry === "us";
-
-    // Public web search strategy:
-    // 1) Try a "candidate page" query (resume/cv/portfolio/github)
-    // 2) If that yields nothing, retry with broader query (still excluding LinkedIn by default)
-    // 3) If still nothing, try a GitHub-focused query (often best for dev roles)
     const baseConstraint = includeLinkedIn ? "" : " -site:linkedin.com";
-    const usConstraint = strictUSOnly ? ' ("United States" OR USA OR "U.S." OR "US")' : "";
-    const queriesToTry: string[] = [
-      `${rawQuery}${usConstraint} (resume OR cv OR portfolio OR github OR "about me")${baseConstraint}`,
-      `${rawQuery}${usConstraint}${baseConstraint}`,
-      `site:github.com ${rawQuery}${usConstraint}${baseConstraint}`,
-    ];
 
-    console.log("[web-search] rawQuery:", rawQuery);
-    console.log("[web-search] queriesToTry:", queriesToTry);
+    const queriesToTry: string[] = [
+      `${rawQuery} (resume OR cv OR portfolio OR github OR "about me")${baseConstraint}`,
+      `${rawQuery}${baseConstraint}`,
+      `site:github.com ${rawQuery}${baseConstraint}`,
+    ];
+    const rotateBy =
+      Math.max(0, Math.min(Number(strategyIndex) || 0, 1000)) %
+      Math.max(1, queriesToTry.length);
+    const rotatedQueries = queriesToTry
+      .slice(rotateBy)
+      .concat(queriesToTry.slice(0, rotateBy));
+
+    const excluded = new Set<string>(
+      Array.isArray(excludeUrls)
+        ? excludeUrls.map((u: any) => String(u || "").trim()).filter(Boolean)
+        : [],
+    );
 
     const debug = {
       country: fcCountry,
       includeLinkedIn: Boolean(includeLinkedIn),
-      queries_tried: [] as { query: string; results: number }[],
+      strategy_index: rotateBy,
+      excluded_urls: excluded.size,
+      queries_tried: [] as { query: string; results: number; added: number; error?: string }[],
+      firecrawl_merged: { unique_urls: 0, used: 0, max_unique_target: cappedLimit },
+      extracted_attempted: 0,
+      extracted_ok: 0,
     };
 
-    let searchResults: any[] = [];
-    for (const q of queriesToTry) {
-      const out = await firecrawlSearch({
-        apiKey: FIRECRAWL_API_KEY,
-        query: q,
-        limit: cappedLimit,
-        country: fcCountry,
-      });
-      const count = out?.data?.length || 0;
-      debug.queries_tried.push({ query: q, results: count });
-      if (out.success && count > 0) {
-        searchResults = out.data.slice(0, cappedLimit);
-        break;
+    // Build a richer strategy set so repeated "Load more" calls can find new URLs.
+    // Note: this is not true cursor pagination; it's iterative discovery + excludeUrls.
+    const strategyTemplates: string[] = [
+      `${rawQuery} (resume OR cv OR portfolio OR github OR "about me")${baseConstraint}`,
+      `${rawQuery} (portfolio OR github OR "personal website" OR "about")${baseConstraint}`,
+      `${rawQuery} (site:github.com OR site:gitlab.com)${baseConstraint}`,
+      `${rawQuery} site:github.com (python OR aws OR fastapi OR django OR flask)${baseConstraint}`,
+      `${rawQuery} (site:dev.to OR site:medium.com OR site:substack.com) (python OR aws)${baseConstraint}`,
+      `${rawQuery}${baseConstraint}`,
+    ];
+    const rotateBy2 =
+      Math.max(0, Math.min(Number(strategyIndex) || 0, 10_000)) %
+      Math.max(1, strategyTemplates.length);
+    const rotatedStrategies = strategyTemplates
+      .slice(rotateBy2)
+      .concat(strategyTemplates.slice(0, rotateBy2));
+
+    // Aggregate across variants; keep trying until we fill 20 unique URLs or run out of time.
+    const dedup = new Map<string, FirecrawlItem>();
+    const maxFetches = 6;
+    const perFetchLimit = 20; // Firecrawl-side; we still return max 20 unique to UI
+    for (const q of rotatedStrategies) {
+      if (dedup.size >= cappedLimit) break;
+      if (debug.queries_tried.length >= maxFetches) break;
+      if (msLeft(deadlineMs) < 18_000) break;
+
+      try {
+        const out = await firecrawlSearch({
+          apiKey: FIRECRAWL_API_KEY,
+          query: q,
+          limit: perFetchLimit,
+          country: fcCountry,
+          timeoutMs: Math.min(12_000, Math.max(4_000, msLeft(deadlineMs) - 4_000)),
+        });
+
+        let added = 0;
+        if (out.success && out.data.length > 0) {
+          for (const item of out.data) {
+            const url = String(item?.url || "").trim();
+            if (!url) continue;
+            if (excluded.has(url)) continue;
+            if (dedup.has(url)) continue;
+            dedup.set(url, item);
+            added++;
+            if (dedup.size >= cappedLimit) break;
+          }
+        }
+
+        debug.queries_tried.push({ query: q, results: out.data.length, added });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        debug.queries_tried.push({ query: q, results: 0, added: 0, error: msg });
       }
     }
 
-    if (!searchResults.length) {
-      return new Response(JSON.stringify({
-        success: true,
-        profiles: [],
-        total_found: 0,
-        message: "No profiles found for this search query",
-        debug,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const results = Array.from(dedup.values()).slice(0, cappedLimit);
+    debug.firecrawl_merged = { unique_urls: dedup.size, used: results.length };
+
+    if (results.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          profiles: [],
+          total_found: 0,
+          message: "No profiles found. Try different search terms.",
+          debug,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const results = searchResults;
-    const profiles: any[] = [];
+    // Base profiles for all results (fast)
+    const baseProfiles = results.map((r) => {
+      const url = String(r?.url || "").trim();
+      const title = String(r?.title || "").trim();
+      const markdown = String(r?.markdown || "");
+      const excerpt = cleanExcerpt(url, markdown).slice(0, 600);
+      return {
+        full_name: guessNameFromTitleOrUrl(title, url),
+        headline: title || null,
+        current_company: null,
+        location: null,
+        skills: [],
+        experience_years: null,
+        summary: null,
+        email: null,
+        linkedin_url: isLikelyLinkedInProfileUrl(url) ? url : null,
+        github_url: isLikelyGitHubProfileUrl(url) ? url : null,
+        website: !isLikelyLinkedInProfileUrl(url) && !isLikelyGitHubProfileUrl(url) ? url : null,
+        source_url: url,
+        source_title: title || null,
+        source_excerpt: excerpt || null,
+        source: "web_search",
+      };
+    });
 
-    for (const result of results) {
-      const url = String(result?.url || "").trim();
-      const title = String(result?.title || "").trim();
-      const markdown = String(result?.markdown || "");
+    // Enrich a subset with LLM extraction (for details), but do NOT filter results with the LLM.
+    const extractCap = Math.min(10, results.length);
+    debug.extracted_attempted = extractCap;
 
-      if (!url || !markdown || markdown.length < 200) continue;
+    const tasks: Array<() => Promise<any | null>> = results.slice(0, extractCap).map((r) => async () => {
+      if (msLeft(deadlineMs) < 8_000) return null;
+      const url = String(r?.url || "").trim();
+      const title = String(r?.title || "").trim();
+      const markdown = String(r?.markdown || "");
+      if (!url || !markdown || markdown.length < 200) return null;
 
       const observedEmails = extractEmails(markdown);
 
-      // Heuristic mapping for provenance/contact links
-      const isLinkedIn = isLikelyLinkedInProfileUrl(url);
-      const isGitHub = isLikelyGitHubProfileUrl(url);
-
       try {
-        const { res: aiResponse } = await callChatCompletions({
+        const { res } = await callChatCompletions({
           messages: [
             {
               role: "system",
               content:
-                `You extract candidate profile information from public web pages (resume/portfolio/GitHub/about pages).
-Return the best-effort structured data. If unknown, return null. Do not hallucinate emails/companies.`,
+                `Extract candidate profile information from public web pages.
+Return best-effort structured data. If unknown, return null. Do not hallucinate emails.`,
             },
             {
               role: "user",
-              content: `Extract candidate profile information from this page:
-
-URL: ${url}
-Title: ${title}
-
-Content:
-${markdown.substring(0, 15000)}`,
+              content: `URL: ${url}\nTitle: ${title}\n\nContent:\n${markdown.substring(0, 15000)}`,
             },
           ],
           tools: [
@@ -232,21 +368,20 @@ ${markdown.substring(0, 15000)}`,
               type: "function",
               function: {
                 name: "extract_profile",
-                description: "Extract structured candidate profile data from web page content",
                 parameters: {
                   type: "object",
                   properties: {
-                    full_name: { type: "string", description: "Person's full name" },
-                    headline: { type: "string", description: "Professional headline/title" },
-                    current_company: { type: "string", description: "Current employer" },
-                    location: { type: "string", description: "Geographic location" },
+                    full_name: { type: "string" },
+                    headline: { type: "string" },
+                    current_company: { type: "string" },
+                    location: { type: "string" },
                     skills: { type: "array", items: { type: "string" } },
-                    experience_years: { type: "number", description: "Estimated years of experience" },
-                    summary: { type: "string", description: "Brief professional summary" },
-                    email: { type: "string", description: "Email address if explicitly present" },
-                    linkedin_url: { type: "string", description: "LinkedIn URL if explicitly present" },
-                    github_url: { type: "string", description: "GitHub profile URL if explicitly present" },
-                    website: { type: "string", description: "Personal website/portfolio URL if explicitly present" },
+                    experience_years: { type: "number" },
+                    summary: { type: "string" },
+                    email: { type: "string" },
+                    linkedin_url: { type: "string" },
+                    github_url: { type: "string" },
+                    website: { type: "string" },
                   },
                   required: ["full_name"],
                   additionalProperties: false,
@@ -255,54 +390,59 @@ ${markdown.substring(0, 15000)}`,
             },
           ],
           tool_choice: { type: "function", function: { name: "extract_profile" } },
+          timeoutMs: Math.min(10_000, Math.max(3_000, msLeft(deadlineMs) - 2_000)),
         });
 
-        if (!aiResponse.ok) continue;
-        const aiData = await aiResponse.json();
-        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) continue;
+        if (!res.ok) return null;
+        const json = await res.json();
+        const toolCall = json.choices?.[0]?.message?.tool_calls?.[0];
+        if (!toolCall) return null;
 
         const extracted = JSON.parse(toolCall.function.arguments);
 
-        // Provide stable source links even if model didn't return them
-        const normalized: any = {
+        // Prevent hallucinated emails (must be present in page text)
+        if (extracted?.email) {
+          const e = String(extracted.email).trim().toLowerCase();
+          if (!observedEmails.includes(e)) extracted.email = null;
+        }
+
+        return {
           ...extracted,
           source: "web_search",
+          source_url: url,
+          source_title: title || null,
+          source_excerpt: cleanExcerpt(url, markdown).slice(0, 600) || null,
+          linkedin_url: extracted.linkedin_url || (isLikelyLinkedInProfileUrl(url) ? url : null),
+          github_url: extracted.github_url || (isLikelyGitHubProfileUrl(url) ? url : null),
+          website:
+            extracted.website ||
+            (!isLikelyLinkedInProfileUrl(url) && !isLikelyGitHubProfileUrl(url) ? url : null),
         };
-        if (isLinkedIn && !normalized.linkedin_url) normalized.linkedin_url = url;
-        if (isGitHub && !normalized.github_url) normalized.github_url = url;
-        if (!isLinkedIn && !isGitHub && !normalized.website) normalized.website = url;
+      } catch {
+        return null;
+      }
+    });
 
-        // Add provenance (safe to ignore downstream if not persisted)
-        normalized.source_url = url;
-
-        // Prevent hallucinated emails: only allow emails that appear in the page text.
-        if (normalized.email) {
-          const e = String(normalized.email).trim().toLowerCase();
-          if (!observedEmails.includes(e)) normalized.email = null;
-        }
-
-        // Enforce strict US-only when requested.
-        if (strictUSOnly) {
-          if (!isUSLocation(normalized.location)) {
-            continue;
-          }
-        }
-
-        profiles.push(normalized);
-      } catch (e) {
-        console.error("Error parsing web profile:", e);
+    const settled = await settledInBatches(tasks, 3);
+    const enrichedByUrl = new Map<string, any>();
+    for (const s of settled) {
+      if (s.status === "fulfilled" && s.value?.source_url) {
+        enrichedByUrl.set(String(s.value.source_url), s.value);
       }
     }
+    debug.extracted_ok = enrichedByUrl.size;
 
-    return new Response(JSON.stringify({
-      success: true,
-      profiles,
-      total_found: results.length,
-      debug,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const merged = baseProfiles.map((p) => enrichedByUrl.get(String(p.source_url)) ?? p);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        profiles: merged.slice(0, cappedLimit),
+        total_found: results.length,
+        debug,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (error: unknown) {
     console.error("web-search error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ShortlistCandidateCard } from '@/components/recruiter/ShortlistCandidateCard';
 import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
+import { useSearchParams } from 'react-router-dom';
 
 interface Shortlist {
   id: string;
@@ -73,6 +74,7 @@ interface ShortlistCandidate {
 export default function Shortlists() {
   const { user, roles, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedShortlist, setSelectedShortlist] = useState<Shortlist | null>(null);
   const [newName, setNewName] = useState('');
@@ -85,6 +87,7 @@ export default function Shortlists() {
   const [talentSheetOpen, setTalentSheetOpen] = useState(false);
   
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
+  const shortlistParam = searchParams.get('shortlist');
 
   const safeFormatDate = (value?: string | null) => {
     if (!value) return '—';
@@ -135,6 +138,14 @@ export default function Shortlists() {
       });
     },
   });
+
+  // Deep-link support: /recruiter/shortlists?shortlist=<id>
+  useEffect(() => {
+    if (!shortlistParam) return;
+    if (!shortlists || shortlists.length === 0) return;
+    const target = shortlists.find((s) => String(s.id) === String(shortlistParam));
+    if (target) setSelectedShortlist(target);
+  }, [shortlistParam, shortlists]);
 
   // Fetch candidates in selected shortlist
   const { data: shortlistCandidates } = useQuery({
@@ -204,6 +215,11 @@ export default function Shortlists() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shortlists'] });
       setSelectedShortlist(null);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('shortlist');
+        return next;
+      });
       toast.success('Shortlist deleted');
     },
   });
@@ -286,7 +302,7 @@ export default function Shortlists() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -301,7 +317,7 @@ export default function Shortlists() {
               <ListChecks className="h-8 w-8 text-accent" />
               Candidate Shortlists
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Organize candidates into project-based shortlists
             </p>
           </div>
@@ -330,7 +346,7 @@ export default function Shortlists() {
                 </div>
                 <div className="flex items-center gap-2 mt-3">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
                     <Input
                       placeholder="Search shortlists..."
                       value={searchQuery}
@@ -358,7 +374,14 @@ export default function Shortlists() {
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                       selectedShortlist?.id === shortlist.id ? 'border-accent bg-accent/5' : 'hover:bg-muted/30'
                     }`}
-                    onClick={() => setSelectedShortlist(shortlist)}
+                    onClick={() => {
+                      setSelectedShortlist(shortlist);
+                      setSearchParams((prev) => {
+                        const next = new URLSearchParams(prev);
+                        next.set('shortlist', String(shortlist.id));
+                        return next;
+                      });
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -386,9 +409,9 @@ export default function Shortlists() {
                       </DropdownMenu>
                     </div>
                     {shortlist.description && (
-                      <p className="text-sm text-muted-foreground mb-2">{shortlist.description}</p>
+                      <p className="text-smmb-2">{shortlist.description}</p>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-4 text-xs">
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
                         {shortlist.candidates_count} candidates
@@ -412,7 +435,7 @@ export default function Shortlists() {
                 {selectedShortlist && shortlistCandidates && shortlistCandidates.length > 0 && (
                   <div className="flex items-center gap-2 mt-3">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
                       <Input
                         placeholder="Search candidates..."
                         value={candidateSearchQuery}

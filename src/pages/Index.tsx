@@ -68,17 +68,17 @@ export default function Index() {
           <div className="mx-auto max-w-5xl">
             <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
               <div className="text-center lg:text-left">
-                <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80">
+                <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1 text-xs font-medium">
                   <span className="h-1.5 w-1.5 rounded-full bg-accent ai-pulse" />
                   AI-powered recruiting + candidate coaching
                 </p>
 
-                <h1 className="mt-5 text-balance text-4xl sm:text-5xl lg:text-6xl font-display font-bold tracking-tight text-white">
-                  Hire faster. Apply smarter.{" "}
+                <h1 className="mt-5 text-balance text-4xl sm:text-5xl lg:text-6xl font-display font-bold tracking-tight text-foreground">
+                  Hire faster. Apply smarter.{` `}
                   <span className="text-accent">Stay in control.</span>
                 </h1>
 
-                <p className="mt-5 text-balance text-lg sm:text-xl leading-relaxed text-white/80">
+                <p className="mt-5 text-balance text-lg sm:text-xl leading-relaxed">
                   TalentMatch helps candidates understand their resume gaps against real job requirements, and helps hiring teams find the
                   best-fit talent without drowning in noise.
                 </p>
@@ -90,18 +90,18 @@ export default function Index() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" className="bg-white/5 border-white/20 text-white hover:bg-white/10" asChild>
+                  <Button size="lg" variant="outline" className="bg-transparent" asChild>
                     <Link to="/recruiters">See recruiter workflow</Link>
                   </Button>
                 </div>
 
-                <div className="mt-7 flex flex-wrap items-center justify-center gap-3 text-sm text-white/70 lg:justify-start">
+                <div className="mt-7 flex flex-wrap items-center justify-center gap-3 text-sm lg:justify-start">
                   {[
                     'Invite-only staff onboarding',
                     'Tenant isolation (RLS)',
                     'Platform audit logs',
                   ].map((t) => (
-                    <span key={t} className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1">
+                    <span key={t} className="inline-flex items-center gap-2 rounded-full bg-card/70 px-3 py-1">
                       <CheckCircle2 className="h-4 w-4 text-accent" />
                       {t}
                     </span>
@@ -115,7 +115,7 @@ export default function Index() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-foreground">Today’s focus</p>
-                      <p className="text-xs text-muted-foreground">A clean pipeline + clear insights</p>
+                      <p className="text-xs">A clean pipeline + clear insights</p>
                     </div>
                     <div className="h-9 w-9 rounded-xl bg-accent/15 flex items-center justify-center">
                       <Sparkles className="h-5 w-5 text-accent" />
@@ -124,23 +124,23 @@ export default function Index() {
 
                   <div className="mt-5 grid gap-4 md:grid-cols-2">
                     <div className="card-elevated p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Candidates scored</p>
+                      <p className="text-xs font-medium">Candidates scored</p>
                       <p className="mt-1 text-2xl font-display font-bold">128</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Top matches surfaced first</p>
+                      <p className="mt-1 text-xs">Top matches surfaced first</p>
                     </div>
                     <div className="card-elevated p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Time saved / req</p>
+                      <p className="text-xs font-medium">Time saved / req</p>
                       <p className="mt-1 text-2xl font-display font-bold">3.4h</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Less screening, more conversations</p>
+                      <p className="mt-1 text-xs">Less screening, more conversations</p>
                     </div>
                     <div className="card-elevated p-4 md:col-span-2">
-                      <p className="text-xs font-medium text-muted-foreground">Candidate coaching</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="text-xs font-medium">Candidate coaching</p>
+                      <p className="mt-1 text-sm">
                         Resume check highlights missing skills and recommends improvements—without rewriting your story.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {['Matched: React', 'Matched: Postgres', 'Missing: RLS', 'Missing: React Query'].map((b) => (
-                          <span key={b} className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                          <span key={b} className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs">
                             {b}
                           </span>
                         ))}
@@ -163,7 +163,7 @@ export default function Index() {
             <h2 className="text-3xl font-bold text-foreground mb-4">
               Here's what TalentMatch actually does
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-lg">
               No vague promises. These are the specific problems we help solve.
             </p>
           </div>
@@ -177,7 +177,7 @@ export default function Index() {
                   </div>
                   <div>
                     <h3 className="font-display font-semibold text-foreground mb-2 text-lg">{item.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+                    <p className="leading-relaxed">{item.description}</p>
                   </div>
                 </div>
               </div>
@@ -193,7 +193,7 @@ export default function Index() {
             <h2 className="text-3xl font-bold text-foreground mb-4">
               Built for three types of users
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-lg">
               Pick your path based on what you need.
             </p>
           </div>
@@ -206,12 +206,12 @@ export default function Index() {
                   <Users className="h-6 w-6 text-candidate" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">I'm looking for a job</h3>
-                <p className="text-muted-foreground text-sm mb-4">
+                <p className="text-sm mb-4">
                   Upload your resume, see how it matches against real jobs, and track your applications.
                 </p>
                 <ul className="space-y-2 mb-4">
                   {['Get resume feedback', 'Find matching jobs', 'Track applications'].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <li key={item} className="flex items-center gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-candidate flex-shrink-0" />
                       <span>{item}</span>
                     </li>
@@ -230,12 +230,12 @@ export default function Index() {
                   <Briefcase className="h-6 w-6 text-recruiter" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">I'm hiring people</h3>
-                <p className="text-muted-foreground text-sm mb-4">
+                <p className="text-sm mb-4">
                   Post jobs, search for candidates, and manage your hiring pipeline without the chaos.
                 </p>
                 <ul className="space-y-2 mb-4">
                   {['Search by skills', 'Manage pipeline', 'Send outreach'].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <li key={item} className="flex items-center gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-recruiter flex-shrink-0" />
                       <span>{item}</span>
                     </li>
@@ -254,12 +254,12 @@ export default function Index() {
                   <BarChart3 className="h-6 w-6 text-manager" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">I manage a team</h3>
-                <p className="text-muted-foreground text-sm mb-4">
+                <p className="text-sm mb-4">
                   See how your recruiting team is performing and where the bottlenecks are.
                 </p>
                 <ul className="space-y-2 mb-4">
                   {['Team performance', 'Hiring metrics', 'Pipeline reports'].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <li key={item} className="flex items-center gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-manager flex-shrink-0" />
                       <span>{item}</span>
                     </li>
@@ -286,7 +286,7 @@ export default function Index() {
                   <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-3">
                     Ready to try it?
                   </h2>
-                  <p className="text-muted-foreground text-lg">
+                  <p className="text-lg">
                     Create a free account and see if it helps. No credit card required.
                   </p>
                 </div>

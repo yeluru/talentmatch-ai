@@ -103,7 +103,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <div
                   key={step.id}
                   className={`flex items-center gap-2 ${
-                    isActive ? 'text-primary' : isCompleted ? 'text-primary/60' : 'text-muted-foreground'
+                    isActive ? 'text-primary' : isCompleted ? 'text-primary/60' : ''
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -278,7 +278,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <CheckCircle2 className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">You're all set!</h3>
-              <p className="text-muted-foreground mb-6">
+              <p className="mb-6">
                 Your profile is ready. Start exploring job opportunities that match your skills.
               </p>
             </div>

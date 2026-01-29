@@ -96,7 +96,7 @@ export default function CandidatesLanding() {
                 <span className="text-candidate">Faster</span>
               </h1>
               
-              <p className="text-lg text-muted-foreground mb-8 max-w-lg">
+              <p className="text-lgmb-8 max-w-lg">
                 Get matched with opportunities that fit your skills, experience, and career goals. 
                 Our intelligent platform helps you stand out and find your perfect role.
               </p>
@@ -128,7 +128,7 @@ export default function CandidatesLanding() {
                     </div>
                     <div>
                       <div className="text-3xl font-display font-bold text-candidate">94%</div>
-                      <div className="text-sm text-muted-foreground">Profile Match Score</div>
+                      <div className="text-sm">Profile Match Score</div>
                     </div>
                   </div>
                   
@@ -136,7 +136,7 @@ export default function CandidatesLanding() {
                     <div className="h-3 bg-muted rounded-full overflow-hidden">
                       <div className="h-full bg-candidate rounded-full" style={{ width: '94%' }} />
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
+                    <div className="flex justify-between text-xs">
                       <span>Skills: 96%</span>
                       <span>Experience: 92%</span>
                       <span>Culture: 90%</span>
@@ -167,7 +167,7 @@ export default function CandidatesLanding() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
               Everything You Need to Succeed
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-lg max-w-2xl mx-auto">
               From resume optimization to job matching, we provide the tools to accelerate your career.
             </p>
           </div>
@@ -179,7 +179,7 @@ export default function CandidatesLanding() {
                   <feature.icon className="h-6 w-6 text-candidate" />
                 </div>
                 <h3 className="font-display text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -195,7 +195,7 @@ export default function CandidatesLanding() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
               How It Works
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-lg">
               Get started in minutes and find your next opportunity
             </p>
           </div>
@@ -211,7 +211,7 @@ export default function CandidatesLanding() {
                     {step.number}
                   </div>
                   <h3 className="font-display text-xl font-semibold mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm">{step.description}</p>
+                  <p className="text-sm">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -227,7 +227,7 @@ export default function CandidatesLanding() {
               <h2 className="font-display text-3xl sm:text-4xl font-bold mb-6">
                 Your Career, Elevated
               </h2>
-              <p className="text-muted-foreground text-lg mb-8">
+              <p className="text-lg mb-8">
                 Join thousands of professionals who have accelerated their careers with TalentMatch.
               </p>
               
@@ -250,7 +250,7 @@ export default function CandidatesLanding() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-sm">
                   Already have an account?{' '}
                   <Link to="/auth" className="text-candidate hover:underline">
                     Sign in

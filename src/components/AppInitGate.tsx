@@ -43,13 +43,13 @@ export function AppInitGate({ children }: AppInitGateProps) {
                   <div className="h-full w-1/2 bg-accent animate-pulse" />
                 </div>
               </div>
-              <div className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="mt-5 flex items-center gap-2 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Preparing your workspace…</span>
               </div>
             </div>
           </div>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
+          <p className="mt-3 text-center text-xs">
             Tip: first load may take a moment.
           </p>
         </div>

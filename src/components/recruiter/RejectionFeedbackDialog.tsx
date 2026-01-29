@@ -103,7 +103,7 @@ export function RejectionFeedbackDialog({
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs">
               This feedback will be visible to the candidate
             </p>
           </div>

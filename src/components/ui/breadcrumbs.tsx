@@ -19,12 +19,22 @@ const routeLabels: Record<string, string> = {
   'talent-sourcing': 'Talent Sourcing',
   'talent-pool': 'Talent Pool',
   'talent-search': 'Talent Search',
+  'talent-management': 'Talent Management',
+  'ats-match-search': 'ATS Match Search',
+  'jobs-home': 'Jobs',
+  'pipelines': 'Pipelines',
+  'communications': 'Communications',
+  'insights-home': 'Insights',
+  'automation-home': 'Automation',
+  'uploads': 'Bulk Upload Profiles',
+  'search': 'Talent Search',
+  'api': 'API Integration',
   'agents': 'AI Agents',
   'shortlists': 'Shortlists',
   'outreach': 'Outreach',
   'insights': 'Insights',
   'new': 'Create New',
-  'candidates': 'Candidates',
+  'candidates': 'My Applicants',
   'ai-matching': 'AI Matching',
   'edit': 'Edit',
   'applicants': 'Applicants',
@@ -118,7 +128,7 @@ export function Breadcrumbs() {
     <nav className="flex items-center gap-1.5 text-sm overflow-x-auto" aria-label="Breadcrumb">
       <Link 
         to={role.href}
-        className="flex items-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        className="flex items-center hover:text-foreground transition-colors shrink-0"
         aria-label="Home"
       >
         <Home className="h-4 w-4" />
@@ -126,11 +136,11 @@ export function Breadcrumbs() {
       
       {breadcrumbs.slice(1).map((item, index) => (
         <Fragment key={index}>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           {item.href ? (
             <Link
               to={item.href}
-              className="text-muted-foreground hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-[150px]"
+              className="hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-[150px]"
             >
               {item.label}
             </Link>

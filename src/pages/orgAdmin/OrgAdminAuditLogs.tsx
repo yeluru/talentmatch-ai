@@ -4,11 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { sortBy } from "@/lib/sort";
+import { useTableSort } from "@/hooks/useTableSort";
 
 type Row = {
   id: string;
@@ -30,8 +33,31 @@ export default function OrgAdminAuditLogs() {
   const [expanded, setExpanded] = useState(false);
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
+  const tableSort = useTableSort<"created_at" | "user_name" | "action" | "entity_type" | "ip_address">({
+    key: "created_at",
+    dir: "desc",
+  });
 
   const cutoffIso = useMemo(() => new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), []);
+
+  const sortedLogs = useMemo(() => {
+    return sortBy(logs, tableSort.sort, (r, key) => {
+      switch (key) {
+        case "created_at":
+          return r.created_at;
+        case "user_name":
+          return r.user_name || "";
+        case "action":
+          return r.action;
+        case "entity_type":
+          return r.entity_type;
+        case "ip_address":
+          return r.ip_address || "";
+        default:
+          return r.created_at;
+      }
+    });
+  }, [logs, tableSort.sort]);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q.trim()), 300);
@@ -141,7 +167,7 @@ export default function OrgAdminAuditLogs() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold">Audit Logs</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Default view shows the last 4 hours. Search queries the full tenant history.
             </p>
           </div>
@@ -174,24 +200,24 @@ export default function OrgAdminAuditLogs() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Entity</TableHead>
-                    <TableHead>IP</TableHead>
+                    <SortableTableHead label="Time" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="User" sortKey="user_name" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Action" sortKey="action" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Entity" sortKey="entity_type" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="IP" sortKey="ip_address" sort={tableSort.sort} onToggle={tableSort.toggle} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.length === 0 ? (
+                  {sortedLogs.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8">
                         No audit logs found.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    logs.map((log) => (
+                    sortedLogs.map((log) => (
                       <TableRow key={log.id}>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap">
                           {format(new Date(log.created_at), "MMM d, yyyy HH:mm:ss")}
                         </TableCell>
                         <TableCell className="max-w-[220px]">
@@ -202,11 +228,11 @@ export default function OrgAdminAuditLogs() {
                             {log.action}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className="">
                           {log.entity_type}
                           {log.entity_id ? ` (${String(log.entity_id).slice(0, 8)}…)` : ""}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{log.ip_address || "—"}</TableCell>
+                        <TableCell className="">{log.ip_address || "—"}</TableCell>
                       </TableRow>
                     ))
                   )}

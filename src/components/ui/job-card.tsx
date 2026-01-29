@@ -82,7 +82,7 @@ export function JobCard({
                   className="h-full w-full rounded-lg object-cover"
                 />
               ) : (
-                <Building2 className="h-6 w-6 text-muted-foreground" />
+                <Building2 className="h-6 w-6" />
               )}
             </div>
             <div>
@@ -92,7 +92,7 @@ export function JobCard({
               >
                 {job.title}
               </Link>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm">
                 {job.organization?.name || 'Company'}
               </p>
             </div>
@@ -105,7 +105,7 @@ export function JobCard({
       </CardHeader>
       
       <CardContent className={cn("pb-3", variant === 'compact' && 'p-0 pb-3')}>
-        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-3">
+        <div className="flex flex-wrap gap-3 text-smmb-3">
           {job.location && (
             <span className="flex items-center gap-1">
               <MapPin className="h-4 w-4" />

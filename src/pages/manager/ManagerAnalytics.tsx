@@ -101,7 +101,7 @@ export default function ManagerAnalytics() {
             <CardTitle>Organization not assigned</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm">
               Your account manager role is active, but it isn’t linked to an organization yet. Please ask a platform admin to re-invite
               you or reassign you to a tenant.
             </p>
@@ -116,7 +116,7 @@ export default function ManagerAnalytics() {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">Analytics</h1>
-          <p className="text-muted-foreground mt-1">Organization hiring metrics and insights</p>
+          <p className="mt-1">Organization hiring metrics and insights</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -132,12 +132,12 @@ export default function ManagerAnalytics() {
           </CardHeader>
           <CardContent>
             {data.applicationsByStatus.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No application data yet.</p>
+              <p className="text-sm">No application data yet.</p>
             ) : (
               <div className="space-y-4">
                 {data.applicationsByStatus.map((item) => (
                   <div key={item.status} className="flex items-center gap-4">
-                    <span className="w-24 text-sm text-muted-foreground capitalize">{item.status}</span>
+                    <span className="w-24 text-smcapitalize">{item.status}</span>
                     <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
                       <div 
                         className="h-full bg-accent" 

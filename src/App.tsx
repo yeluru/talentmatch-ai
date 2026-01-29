@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,69 +10,82 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import { AppInitGate } from "@/components/AppInitGate";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
+
+const RouteLoading = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="h-8 w-8 animate-spin" />
+  </div>
+);
+
+const withSuspense = (node: React.ReactNode) => (
+  <Suspense fallback={<RouteLoading />}>{node}</Suspense>
+);
+
+// Lazy-loaded pages (route-level code splitting)
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Public Pages
-import PublicJobPage from "./pages/public/PublicJobPage";
-import CandidatesLanding from "./pages/public/CandidatesLanding";
-import RecruitersLanding from "./pages/public/RecruitersLanding";
-import ManagersLanding from "./pages/public/ManagersLanding";
+const PublicJobPage = lazy(() => import("./pages/public/PublicJobPage"));
+const CandidatesLanding = lazy(() => import("./pages/public/CandidatesLanding"));
+const RecruitersLanding = lazy(() => import("./pages/public/RecruitersLanding"));
+const ManagersLanding = lazy(() => import("./pages/public/ManagersLanding"));
 
 // Candidate Pages
-import CandidateDashboard from "./pages/candidate/CandidateDashboard";
-import CandidateProfile from "./pages/candidate/CandidateProfile";
-import CandidateResumes from "./pages/candidate/CandidateResumes";
-import ResumeWorkspace from "./pages/candidate/ResumeWorkspace";
-import JobSearch from "./pages/candidate/JobSearch";
-import JobDetails from "./pages/candidate/JobDetails";
-import MyApplications from "./pages/candidate/MyApplications";
-import AIAnalysis from "./pages/candidate/AIAnalysis";
-import JobAlerts from "./pages/candidate/JobAlerts";
+const CandidateDashboard = lazy(() => import("./pages/candidate/CandidateDashboard"));
+const CandidateProfile = lazy(() => import("./pages/candidate/CandidateProfile"));
+const CandidateResumes = lazy(() => import("./pages/candidate/CandidateResumes"));
+const ResumeWorkspace = lazy(() => import("./pages/candidate/ResumeWorkspace"));
+const JobSearch = lazy(() => import("./pages/candidate/JobSearch"));
+const JobDetails = lazy(() => import("./pages/candidate/JobDetails"));
+const MyApplications = lazy(() => import("./pages/candidate/MyApplications"));
+const AIAnalysis = lazy(() => import("./pages/candidate/AIAnalysis"));
+const JobAlerts = lazy(() => import("./pages/candidate/JobAlerts"));
+const CandidateEngagementRequest = lazy(() => import("./pages/candidate/CandidateEngagementRequest"));
 
 // Recruiter Pages
-import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
-import RecruiterJobs from "./pages/recruiter/RecruiterJobs";
-import CreateJob from "./pages/recruiter/CreateJob";
-import EditJob from "./pages/recruiter/EditJob";
-import JobApplicants from "./pages/recruiter/JobApplicants";
-import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
-import AIMatching from "./pages/recruiter/AIMatching";
-import TalentSearch from "./pages/recruiter/TalentSearch";
-import TalentSourcing from "./pages/recruiter/TalentSourcing";
-import TalentPool from "./pages/recruiter/TalentPool";
-import TalentInsights from "./pages/recruiter/TalentInsights";
-import AIAgents from "./pages/recruiter/AIAgents";
-import OutreachCampaigns from "./pages/recruiter/OutreachCampaigns";
-import Shortlists from "./pages/recruiter/Shortlists";
+const RecruiterDashboard = lazy(() => import("./pages/recruiter/RecruiterDashboard"));
+const RecruiterJobs = lazy(() => import("./pages/recruiter/RecruiterJobs"));
+const CreateJob = lazy(() => import("./pages/recruiter/CreateJob"));
+const EditJob = lazy(() => import("./pages/recruiter/EditJob"));
+const JobApplicants = lazy(() => import("./pages/recruiter/JobApplicants"));
+const RecruiterCandidates = lazy(() => import("./pages/recruiter/RecruiterCandidates"));
+const AIMatching = lazy(() => import("./pages/recruiter/AIMatching"));
+const TalentSearch = lazy(() => import("./pages/recruiter/TalentSearch"));
+const TalentSourcing = lazy(() => import("./pages/recruiter/TalentSourcing"));
+const TalentPool = lazy(() => import("./pages/recruiter/TalentPool"));
+const TalentInsights = lazy(() => import("./pages/recruiter/TalentInsights"));
+const AIAgents = lazy(() => import("./pages/recruiter/AIAgents"));
+const OutreachCampaigns = lazy(() => import("./pages/recruiter/OutreachCampaigns"));
+const Shortlists = lazy(() => import("./pages/recruiter/Shortlists"));
+const CandidatePipeline = lazy(() => import("./pages/recruiter/CandidatePipeline"));
+const EmailTemplates = lazy(() => import("./pages/recruiter/EmailTemplates"));
+const InterviewSchedule = lazy(() => import("./pages/recruiter/InterviewSchedule"));
+const MarketplaceProfiles = lazy(() => import("./pages/recruiter/MarketplaceProfiles"));
+const EngagementPipeline = lazy(() => import("./pages/recruiter/EngagementPipeline"));
+const CategoryLandingPage = lazy(() => import("./pages/recruiter/CategoryLandingPage"));
 
 // Manager Pages
-import ManagerDashboard from "./pages/manager/ManagerDashboard";
-import ManagerTeam from "./pages/manager/ManagerTeam";
-import ManagerJobs from "./pages/manager/ManagerJobs";
-import ManagerOrganization from "./pages/manager/ManagerOrganization";
-import ManagerAnalytics from "./pages/manager/ManagerAnalytics";
-import ManagerCandidates from "./pages/manager/ManagerCandidates";
-import ClientManagement from "./pages/manager/ClientManagement";
-import AuditLogs from "./pages/manager/AuditLogs";
+const ManagerDashboard = lazy(() => import("./pages/manager/ManagerDashboard"));
+const ManagerTeam = lazy(() => import("./pages/manager/ManagerTeam"));
+const ManagerRecruiterProgress = lazy(() => import("./pages/manager/ManagerRecruiterProgress"));
+const ManagerJobs = lazy(() => import("./pages/manager/ManagerJobs"));
+const ManagerOrganization = lazy(() => import("./pages/manager/ManagerOrganization"));
+const ManagerAnalytics = lazy(() => import("./pages/manager/ManagerAnalytics"));
+const ClientManagement = lazy(() => import("./pages/manager/ClientManagement"));
+const AuditLogs = lazy(() => import("./pages/manager/AuditLogs"));
 
 // Super Admin Pages
-import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
-import OrgAdminDashboard from "./pages/orgAdmin/OrgAdminDashboard";
+const SuperAdminDashboard = lazy(() => import("./pages/admin/SuperAdminDashboard"));
+const OrgAdminDashboard = lazy(() => import("./pages/orgAdmin/OrgAdminDashboard"));
 
 // Shared Pages
-import Settings from "./pages/Settings";
-import Notifications from "./pages/Notifications";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-
-// Additional Recruiter Pages
-import CandidatePipeline from "./pages/recruiter/CandidatePipeline";
-import EmailTemplates from "./pages/recruiter/EmailTemplates";
-import InterviewSchedule from "./pages/recruiter/InterviewSchedule";
-import MarketplaceProfiles from "./pages/recruiter/MarketplaceProfiles";
-import EngagementPipeline from "./pages/recruiter/EngagementPipeline";
+const Settings = lazy(() => import("./pages/Settings"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,27 +116,27 @@ const App = () => (
               <Sonner />
               <BrowserRouter>
                 <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/privacy" element={<Privacy />} />
+                  <Route path="/" element={withSuspense(<Index />)} />
+                  <Route path="/auth" element={withSuspense(<Auth />)} />
+                  <Route path="/settings" element={withSuspense(<Settings />)} />
+                  <Route path="/notifications" element={withSuspense(<Notifications />)} />
+                  <Route path="/terms" element={withSuspense(<Terms />)} />
+                  <Route path="/privacy" element={withSuspense(<Privacy />)} />
 
                   {/* Public Landing Pages */}
-                  <Route path="/candidates" element={<CandidatesLanding />} />
-                  <Route path="/recruiters" element={<RecruitersLanding />} />
-                  <Route path="/managers" element={<ManagersLanding />} />
+                  <Route path="/candidates" element={withSuspense(<CandidatesLanding />)} />
+                  <Route path="/recruiters" element={withSuspense(<RecruitersLanding />)} />
+                  <Route path="/managers" element={withSuspense(<ManagersLanding />)} />
 
                   {/* Public Job Routes */}
-                  <Route path="/jobs/:orgSlug/:jobId" element={<PublicJobPage />} />
+                  <Route path="/jobs/:orgSlug/:jobId" element={withSuspense(<PublicJobPage />)} />
 
                   {/* Candidate Routes */}
                   <Route
                     path="/candidate"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <CandidateDashboard />
+                        {withSuspense(<CandidateDashboard />)}
                       </ProtectedRoute>
                     }
                   />
@@ -130,7 +144,7 @@ const App = () => (
                     path="/candidate/profile"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <CandidateProfile />
+                        {withSuspense(<CandidateProfile />)}
                       </ProtectedRoute>
                     }
                   />
@@ -138,7 +152,7 @@ const App = () => (
                     path="/candidate/resumes"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <CandidateResumes />
+                        {withSuspense(<CandidateResumes />)}
                       </ProtectedRoute>
                     }
                   />
@@ -146,7 +160,7 @@ const App = () => (
                     path="/candidate/resume-workspace"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <ResumeWorkspace />
+                        {withSuspense(<ResumeWorkspace />)}
                       </ProtectedRoute>
                     }
                   />
@@ -154,7 +168,7 @@ const App = () => (
                     path="/candidate/jobs"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <JobSearch />
+                        {withSuspense(<JobSearch />)}
                       </ProtectedRoute>
                     }
                   />
@@ -162,7 +176,7 @@ const App = () => (
                     path="/candidate/jobs/:id"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <JobDetails />
+                        {withSuspense(<JobDetails />)}
                       </ProtectedRoute>
                     }
                   />
@@ -170,7 +184,7 @@ const App = () => (
                     path="/candidate/applications"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <MyApplications />
+                        {withSuspense(<MyApplications />)}
                       </ProtectedRoute>
                     }
                   />
@@ -178,7 +192,7 @@ const App = () => (
                     path="/candidate/job-alerts"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <JobAlerts />
+                        {withSuspense(<JobAlerts />)}
                       </ProtectedRoute>
                     }
                   />
@@ -186,7 +200,15 @@ const App = () => (
                     path="/candidate/ai-analysis"
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
-                        <AIAnalysis />
+                        {withSuspense(<AIAnalysis />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/candidate/engagements/requests/:requestId"
+                    element={
+                      <ProtectedRoute allowedRoles={["candidate"]}>
+                        {withSuspense(<CandidateEngagementRequest />)}
                       </ProtectedRoute>
                     }
                   />
@@ -195,39 +217,39 @@ const App = () => (
                   <Route
                     path="/recruiter"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <RecruiterDashboard />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<RecruiterDashboard />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/jobs"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <RecruiterJobs />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<RecruiterJobs />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/jobs/new"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <CreateJob />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CreateJob />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/jobs/:id/edit"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <EditJob />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<EditJob />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/jobs/:id"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
                         <RecruiterJobIdRedirect />
                       </ProtectedRoute>
                     }
@@ -235,89 +257,166 @@ const App = () => (
                   <Route
                     path="/recruiter/jobs/:id/applicants"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <JobApplicants />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<JobApplicants />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/candidates"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <RecruiterCandidates />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<RecruiterCandidates />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/ai-matching"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <AIMatching />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<AIMatching />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/ats-match-search"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentSearch />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/talent-management"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CategoryLandingPage />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/talent-search"
+                    element={<Navigate to="/recruiter/talent-management" replace />}
+                  />
+                  <Route
+                    path="/recruiter/jobs-home"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <TalentSearch />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CategoryLandingPage />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
+                    path="/recruiter/pipelines"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CategoryLandingPage />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/communications"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CategoryLandingPage />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/insights-home"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CategoryLandingPage />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/automation-home"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CategoryLandingPage />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/talent-search/uploads"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentSourcing />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/talent-search/search"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentSourcing />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/recruiter/talent-search/api"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentSourcing />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Legacy route - redirect to new structure */}
+                  <Route
                     path="/recruiter/talent-sourcing"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <TalentSourcing />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentSourcing />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/talent-pool"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <TalentPool />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentPool />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/marketplace"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <MarketplaceProfiles />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<MarketplaceProfiles />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/insights"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <TalentInsights />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<TalentInsights />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/agents"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <AIAgents />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<AIAgents />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/outreach"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <OutreachCampaigns />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<OutreachCampaigns />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/shortlists"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
                         <RouteErrorBoundary title="Shortlists failed to load">
-                          <Shortlists />
+                          {withSuspense(<Shortlists />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -325,32 +424,32 @@ const App = () => (
                   <Route
                     path="/recruiter/pipeline"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <CandidatePipeline />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<CandidatePipeline />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/engagements"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <EngagementPipeline />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<EngagementPipeline />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/email-templates"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <EmailTemplates />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<EmailTemplates />)}
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/recruiter/interviews"
                     element={
-                      <ProtectedRoute allowedRoles={["recruiter"]}>
-                        <InterviewSchedule />
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<InterviewSchedule />)}
                       </ProtectedRoute>
                     }
                   />
@@ -361,7 +460,7 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager dashboard failed to load">
-                          <ManagerDashboard />
+                          {withSuspense(<ManagerDashboard />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -371,7 +470,7 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager analytics failed to load">
-                          <ManagerAnalytics />
+                          {withSuspense(<ManagerAnalytics />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -381,7 +480,17 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager team failed to load">
-                          <ManagerTeam />
+                          {withSuspense(<ManagerTeam />)}
+                        </RouteErrorBoundary>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/team/recruiters/:recruiterUserId"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        <RouteErrorBoundary title="Recruiter progress failed to load">
+                          {withSuspense(<ManagerRecruiterProgress />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -391,27 +500,21 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager jobs failed to load">
-                          <ManagerJobs />
+                          {withSuspense(<ManagerJobs />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/manager/candidates"
-                    element={
-                      <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <RouteErrorBoundary title="Manager candidates failed to load">
-                          <ManagerCandidates />
-                        </RouteErrorBoundary>
-                      </ProtectedRoute>
-                    }
+                    element={<Navigate to="/recruiter/talent-pool" replace />}
                   />
                   <Route
                     path="/manager/organization"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager organization failed to load">
-                          <ManagerOrganization />
+                          {withSuspense(<ManagerOrganization />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -421,7 +524,7 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager clients failed to load">
-                          <ClientManagement />
+                          {withSuspense(<ClientManagement />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -431,7 +534,7 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager audit logs failed to load">
-                          <AuditLogs />
+                          {withSuspense(<AuditLogs />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
@@ -442,7 +545,7 @@ const App = () => (
                     path="/admin"
                     element={
                       <ProtectedRoute allowedRoles={["super_admin"]}>
-                        <SuperAdminDashboard />
+                        {withSuspense(<SuperAdminDashboard />)}
                       </ProtectedRoute>
                     }
                   />
@@ -452,7 +555,7 @@ const App = () => (
                     path="/org-admin"
                     element={
                       <ProtectedRoute allowedRoles={["org_admin"]}>
-                        <OrgAdminDashboard />
+                        {withSuspense(<OrgAdminDashboard />)}
                       </ProtectedRoute>
                     }
                   />
@@ -473,7 +576,7 @@ const App = () => (
                     }
                   />
 
-                  <Route path="*" element={<NotFound />} />
+                  <Route path="*" element={withSuspense(<NotFound />)} />
                 </Routes>
               </BrowserRouter>
             </TooltipProvider>

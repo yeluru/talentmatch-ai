@@ -30,21 +30,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   Search, 
-  MapPin, 
-  Briefcase,
   Loader2,
   Users,
   Star,
   FileText,
   Sparkles,
-  Phone,
-  Mail,
-  Linkedin,
   CheckCircle,
   XCircle,
 } from 'lucide-react';
@@ -52,12 +48,15 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
-import { StatusBadge, ApplicationStatus } from '@/components/ui/status-badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { MobileListHeader } from '@/components/ui/mobile-list-header';
 import { SwipeableRow } from '@/components/ui/swipeable-row';
+import { APPLICATION_STAGE_OPTIONS } from '@/lib/statusOptions';
+import { openResumeInNewTab } from '@/lib/resumeLinks';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface ParsedResumeContent {
   current_title?: string;
@@ -113,6 +112,7 @@ function CandidateDetailContent({
   isMobile = false,
 }: CandidateDetailContentProps) {
   if (!selectedApplication) return null;
+  const [isOpeningResume, setIsOpeningResume] = useState(false);
 
   return (
     <div
@@ -133,13 +133,11 @@ function CandidateDetailContent({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="applied">Applied</SelectItem>
-            <SelectItem value="reviewing">Reviewing</SelectItem>
-            <SelectItem value="shortlisted">Shortlisted</SelectItem>
-            <SelectItem value="interviewing">Interviewing</SelectItem>
-            <SelectItem value="offered">Offered</SelectItem>
-            <SelectItem value="hired">Hired</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            {APPLICATION_STAGE_OPTIONS.filter((o) => o.value !== 'reviewed').map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -150,7 +148,7 @@ function CandidateDetailContent({
           <Sparkles className="h-5 w-5 text-accent" />
           <div>
             <div className="font-medium">AI Match Score</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm">
               {selectedApplication.ai_match_score}% match for this position
             </div>
           </div>
@@ -171,15 +169,27 @@ function CandidateDetailContent({
       {selectedApplication?.resumes && (Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes.length > 0 : true) && (
         <div className="space-y-2">
           <Label>Resume</Label>
-          <Button variant="outline" asChild className="w-full sm:w-auto">
-            <a 
-              href={Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes[0]?.file_url : selectedApplication.resumes?.file_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              View Resume
-            </a>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={isOpeningResume}
+            onClick={async () => {
+              try {
+                const fileUrl = Array.isArray(selectedApplication.resumes)
+                  ? selectedApplication.resumes[0]?.file_url
+                  : selectedApplication.resumes?.file_url;
+                setIsOpeningResume(true);
+                await openResumeInNewTab(fileUrl, { expiresInSeconds: 600 });
+              } catch (e: any) {
+                toast.error(e?.message || 'Could not open resume');
+              } finally {
+                setIsOpeningResume(false);
+              }
+            }}
+          >
+            {isOpeningResume ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+            View Resume
           </Button>
         </div>
       )}
@@ -195,7 +205,7 @@ function CandidateDetailContent({
               className="p-1"
             >
               <Star 
-                className={`h-6 w-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+                className={`h-6 w-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : ''}`}
               />
             </button>
           ))}
@@ -241,7 +251,7 @@ export default function RecruiterCandidates() {
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['recruiter-applications', organizationId, selectedJobFilter] });
@@ -329,7 +339,7 @@ export default function RecruiterCandidates() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recruiter-applications'] });
+      queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
       toast.success('Application updated');
       setSelectedApplication(null);
     },
@@ -412,7 +422,7 @@ export default function RecruiterCandidates() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -427,7 +437,7 @@ export default function RecruiterCandidates() {
       </Avatar>
       <div>
         <div className="font-semibold">{getDisplayName(selectedApplication)}</div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm">
           {selectedApplication?.candidate_profiles?.current_title}
         </div>
       </div>
@@ -447,7 +457,7 @@ export default function RecruiterCandidates() {
       >
         <div className="flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
             <Input
               placeholder="Search candidates..."
               value={searchQuery}
@@ -485,121 +495,104 @@ export default function RecruiterCandidates() {
       </MobileListHeader>
 
       <Card className="mt-4">
-        <CardContent className="pt-6">
+        <CardContent className="p-0">
             {!filteredApplications?.length ? (
-              <EmptyState
-                icon={Users}
-                title="No candidates found"
-                description={applications?.length ? "Try adjusting your filters" : "Applications will appear here when candidates apply"}
-              />
-            ) : (
+              <div className="p-6">
+                <EmptyState
+                  icon={Users}
+                  title="No candidates found"
+                  description={applications?.length ? "Try adjusting your filters" : "Applications will appear here when candidates apply"}
+                />
+              </div>
+            ) : isMobile ? (
               <div className="divide-y">
                 {filteredApplications.map((app) => {
                   const rowContent = (
-                    <div 
-                      className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 px-6 transition-colors active:bg-muted bg-background"
+                    <div
+                      className="flex items-center gap-2 py-2.5 px-4 cursor-pointer active:bg-muted"
                       onClick={() => handleOpenDetails(app)}
                     >
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12 flex-shrink-0">
-                          <AvatarFallback className="bg-accent text-accent-foreground">
-                            {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <h3 className="font-semibold">{getDisplayName(app)}</h3>
-                            <StatusBadge status={(app.status || 'applied') as ApplicationStatus} />
-                            {app.ai_match_score && (
-                              <ScoreBadge score={app.ai_match_score} size="sm" />
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {getDisplayTitle(app)} • {getDisplayExperience(app)} years exp.
-                          </p>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
-                            {getDisplayEmail(app) && (
-                              <span className="flex items-center gap-1">
-                                <Mail className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate max-w-[200px]">{getDisplayEmail(app)}</span>
-                              </span>
-                            )}
-                            {getDisplayPhone(app) && !isMobile && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="h-3.5 w-3.5 shrink-0" />
-                                {getDisplayPhone(app)}
-                              </span>
-                            )}
-                            {getDisplayLinkedIn(app) && !isMobile && (
-                              <a 
-                                href={getDisplayLinkedIn(app)} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 hover:text-accent"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Linkedin className="h-3.5 w-3.5 shrink-0" />
-                                LinkedIn
-                              </a>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="h-3.5 w-3.5" />
-                              <span className="truncate max-w-[150px]">{app.jobs?.title}</span>
-                            </span>
-                            <span className="hidden sm:inline">Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}</span>
-                            <span className="sm:hidden">{format(new Date(app.applied_at), 'MMM d')}</span>
-                          </div>
-                        </div>
-                        {app.recruiter_rating ? (
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-sm font-medium">{app.recruiter_rating}</span>
-                          </div>
-                        ) : null}
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                          {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{getDisplayName(app)}</div>
+                        <div className="text-xstruncate">{app.jobs?.title} · {getDisplayTitle(app)}</div>
                       </div>
+                      <StatusBadge status={app.status || 'applied'} />
+                      {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : null}
+                      {app.recruiter_rating ? <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" /> : null}
                     </div>
                   );
-
-                  if (isMobile) {
-                    return (
-                      <SwipeableRow
-                        key={app.id}
-                        leftActions={[
-                          {
-                            icon: <CheckCircle className="h-5 w-5" />,
-                            label: 'Shortlist',
-                            className: 'bg-green-600 text-white',
-                            onAction: () => {
-                              updateApplication.mutate({ appId: app.id, status: 'shortlisted' });
-                            },
-                          },
-                        ]}
-                        rightActions={[
-                          {
-                            icon: <XCircle className="h-5 w-5" />,
-                            label: 'Reject',
-                            className: 'bg-destructive text-destructive-foreground',
-                            onAction: () => {
-                              updateApplication.mutate({ appId: app.id, status: 'rejected' });
-                            },
-                          },
-                        ]}
-                        className="-mx-6"
-                      >
-                        {rowContent}
-                      </SwipeableRow>
-                    );
-                  }
-
                   return (
-                    <div key={app.id} className="-mx-6">
+                    <SwipeableRow
+                      key={app.id}
+                      leftActions={[
+                        { icon: <CheckCircle className="h-5 w-5" />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'shortlisted' }) },
+                      ]}
+                      rightActions={[
+                        { icon: <XCircle className="h-5 w-5" />, label: 'Reject', className: 'bg-destructive text-destructive-foreground', onAction: () => updateApplication.mutate({ appId: app.id, status: 'rejected' }) },
+                      ]}
+                      className="-mx-6"
+                    >
                       {rowContent}
-                    </div>
+                    </SwipeableRow>
                   );
                 })}
               </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="max-w-[140px]">Job</TableHead>
+                    <TableHead className="max-w-[160px]">Title</TableHead>
+                    <TableHead className="w-24">Status</TableHead>
+                    <TableHead className="w-14 text-right">Match</TableHead>
+                    <TableHead className="w-24">Applied</TableHead>
+                    <TableHead className="w-10">Rating</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredApplications.map((app) => (
+                    <TableRow
+                      key={app.id}
+                      className="cursor-pointer"
+                      onClick={() => handleOpenDetails(app)}
+                    >
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                              {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium truncate max-w-[140px]">{getDisplayName(app)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="truncate max-w-[140px] py-2">{app.jobs?.title ?? '—'}</TableCell>
+                      <TableCell className="truncate max-w-[160px] py-2">{getDisplayTitle(app)}</TableCell>
+                      <TableCell className="py-2">
+                        <StatusBadge status={app.status || 'applied'} />
+                      </TableCell>
+                      <TableCell className="text-right py-2">
+                        {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs py-2">{format(new Date(app.applied_at), 'MMM d, yyyy')}</TableCell>
+                      <TableCell className="py-2">
+                        {app.recruiter_rating ? (
+                          <span className="flex items-center gap-0.5">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs">{app.recruiter_rating}</span>
+                          </span>
+                        ) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

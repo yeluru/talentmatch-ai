@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { orgIdForRecruiterSuite } from '@/lib/org';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,8 +26,9 @@ export default function EditJob() {
   const { user, roles } = useAuth();
   const navigate = useNavigate();
   const { id: jobId } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -111,6 +113,8 @@ export default function EditJob() {
       return status;
     },
     onSuccess: (status) => {
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
       toast.success(
         status === 'published' ? 'Job published!' : 
         status === 'closed' ? 'Job closed' : 
@@ -170,7 +174,7 @@ export default function EditJob() {
           </Button>
           <div className="flex-1">
             <h1 className="font-display text-3xl font-bold">Edit Job</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Update your job posting
             </p>
           </div>

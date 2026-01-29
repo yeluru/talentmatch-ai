@@ -761,7 +761,7 @@ export default function AuthPage() {
                 <CardDescription className="text-base">
                   We've sent a password reset link to <strong className="text-foreground">{resetEmail}</strong>
                 </CardDescription>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm">
                   Didn't receive the email? Check your spam folder or{' '}
                   <button 
                     className="text-primary hover:underline font-medium"
@@ -812,7 +812,7 @@ export default function AuthPage() {
             <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
               <Logo />
             </Link>
-            <p className="text-muted-foreground flex items-center justify-center gap-2">
+            <p className="flex items-center justify-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               AI-Powered Recruitment Platform
             </p>
@@ -841,7 +841,7 @@ export default function AuthPage() {
                     {otpExpired && (
                       <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
                         <p className="font-medium text-destructive">Email verification link expired</p>
-                        <p className="mt-1 text-muted-foreground">
+                        <p className="mt-1">
                           Your invite link is still valid, but the email verification step timed out. Resend the verification email and try again.
                         </p>
                         <div className="mt-3 flex gap-2">
@@ -1030,7 +1030,7 @@ export default function AuthPage() {
                             className="h-12"
                             maxLength={20}
                           />
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs">
                             If you have an invite code from a recruiting company, enter it to see their private jobs.
                           </p>
                         </div>
@@ -1045,7 +1045,7 @@ export default function AuthPage() {
                             <Label htmlFor="signup-marketplace-opt-in" className="cursor-pointer">
                               Allow employers to discover my profile
                             </Label>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs">
                               If enabled, recruiters from other organizations can view your profile (without contact details) and invite you to engage.
                             </p>
                           </div>
@@ -1065,7 +1065,7 @@ export default function AuthPage() {
             </Tabs>
           </Card>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="text-center text-smmt-6">
             By continuing, you agree to our{' '}
             <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
             {' '}and{' '}

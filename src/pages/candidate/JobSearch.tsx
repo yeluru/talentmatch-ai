@@ -119,7 +119,7 @@ export default function JobSearch() {
       >
         <div className="space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
             <Input
               placeholder="Search jobs, skills, companies..."
               value={searchQuery}
@@ -171,16 +171,16 @@ export default function JobSearch() {
 
       <div className="space-y-4 mt-4">
         {/* Results count */}
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm">
           {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} found
         </p>
 
         {filteredJobs.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Briefcase className="h-12 w-12 text-muted-foreground mb-4" />
+              <Briefcase className="h-12 w-12mb-4" />
               <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
-              <p className="text-muted-foreground text-center">
+              <p className="text-center">
                 If you’re expecting jobs from a specific recruiting company, ask them for an invite code (to unlock tenant-private jobs). Otherwise, browse marketplace jobs (public jobs) posted by employers.
               </p>
             </CardContent>
@@ -197,14 +197,14 @@ export default function JobSearch() {
                           {job.organization?.logo_url ? (
                             <img src={job.organization.logo_url} alt="" className="h-8 w-8 object-contain" />
                           ) : (
-                            <Building2 className="h-6 w-6 text-muted-foreground" />
+                            <Building2 className="h-6 w-6" />
                           )}
                         </div>
                         <div className="flex-1">
                           <Link to={`/candidate/jobs/${job.id}`} className="hover:underline">
                             <h3 className="font-semibold text-lg">{job.title}</h3>
                           </Link>
-                          <p className="text-muted-foreground">{job.organization?.name || 'Company'}</p>
+                          <p className="">{job.organization?.name || 'Company'}</p>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {job.location && (
                               <Badge variant="outline" className="font-normal">
@@ -229,7 +229,7 @@ export default function JobSearch() {
                           </div>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
+                      <p className="text-smmt-3 line-clamp-2">
                         {job.description}
                       </p>
                       {job.required_skills && job.required_skills.length > 0 && (
@@ -250,7 +250,7 @@ export default function JobSearch() {
                     <div className="flex flex-col items-end gap-2 lg:min-w-48">
                       <div className="text-right">
                         {job.posted_at && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm">
                             <Clock className="inline mr-1 h-3 w-3" />
                             {format(new Date(job.posted_at), 'MMM d, yyyy')}
                           </p>

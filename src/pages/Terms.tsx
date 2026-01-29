@@ -14,7 +14,7 @@ export default function Terms() {
           <CardHeader>
             <CardTitle className="font-display text-2xl">Terms of Service</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <CardContent className="space-y-4 text-sm">
             <p>
               This is a placeholder terms page for local development. Replace this content before production.
             </p>

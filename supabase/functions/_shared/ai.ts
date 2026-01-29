@@ -64,7 +64,11 @@ function getProviderConfig() {
 }
 
 export async function callChatCompletions(
-  req: Omit<ChatCompletionsRequest, "model"> & { model?: string },
+  req: Omit<ChatCompletionsRequest, "model"> & {
+    model?: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  },
 ) {
   const cfg = getProviderConfig();
   if (!cfg) {
@@ -75,15 +79,31 @@ export async function callChatCompletions(
 
   const model = req.model || cfg.defaultModel;
 
+  const controller = req.timeoutMs ? new AbortController() : null;
+  const timeout = req.timeoutMs
+    ? setTimeout(() => controller?.abort(), req.timeoutMs)
+    : null;
+
+  const signal = controller?.signal ?? req.signal;
+
   const res = await fetch(cfg.url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${cfg.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ ...req, model }),
+    body: JSON.stringify({
+      model,
+      messages: req.messages,
+      tools: req.tools,
+      tool_choice: req.tool_choice,
+      temperature: req.temperature,
+      top_p: req.top_p,
+    }),
+    signal,
   });
 
+  if (timeout) clearTimeout(timeout);
   return { res, provider: cfg.provider };
 }
 

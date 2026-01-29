@@ -187,12 +187,12 @@ export default function JobDetails() {
                     {job.organization?.logo_url ? (
                       <img src={job.organization.logo_url} alt="" className="h-12 w-12 object-contain" />
                     ) : (
-                      <Building2 className="h-8 w-8 text-muted-foreground" />
+                      <Building2 className="h-8 w-8" />
                     )}
                   </div>
                   <div className="flex-1">
                     <h1 className="font-display text-2xl font-bold">{job.title}</h1>
-                    <p className="text-lg text-muted-foreground">{job.organization?.name}</p>
+                    <p className="text-lg">{job.organization?.name}</p>
                     <div className="flex flex-wrap gap-2 mt-3">
                       {job.location && (
                         <Badge variant="outline">
@@ -228,7 +228,7 @@ export default function JobDetails() {
               <CardHeader>
                 <CardTitle>About this role</CardTitle>
               </CardHeader>
-              <CardContent className="text-base text-muted-foreground leading-relaxed">
+              <CardContent className="text-baseleading-relaxed">
                 <div className="whitespace-pre-wrap">{job.description}</div>
               </CardContent>
             </Card>
@@ -274,13 +274,13 @@ export default function JobDetails() {
                 {/* Salary removed (contracting-first product) */}
                 {job.posted_at && (
                   <div>
-                    <p className="text-base text-muted-foreground">Posted</p>
+                    <p className="text-base">Posted</p>
                     <p className="font-medium">{format(new Date(job.posted_at), 'MMMM d, yyyy')}</p>
                   </div>
                 )}
                 {job.closes_at && (
                   <div>
-                    <p className="text-base text-muted-foreground">Closes</p>
+                    <p className="text-base">Closes</p>
                     <p className="font-medium">{format(new Date(job.closes_at), 'MMMM d, yyyy')}</p>
                   </div>
                 )}
@@ -306,7 +306,7 @@ export default function JobDetails() {
                         <div>
                           <Label>Select Resume</Label>
                           {resumes.length === 0 ? (
-                            <p className="text-base text-muted-foreground mt-2">
+                            <p className="text-basemt-2">
                               No resumes uploaded.{' '}
                               <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/candidate/resumes')}>
                                 Upload one
@@ -359,7 +359,7 @@ export default function JobDetails() {
                   <CardTitle>About {job.organization.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-base text-muted-foreground">{job.organization.description}</p>
+                  <p className="text-base">{job.organization.description}</p>
                 </CardContent>
               </Card>
             )}

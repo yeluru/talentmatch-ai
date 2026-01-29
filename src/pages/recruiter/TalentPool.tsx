@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,16 +53,19 @@ import {
 } from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Users, Briefcase, MapPin, ArrowUpDown, Filter, X, ListPlus, Send, CheckSquare, MessageSquare, Save, Trash2 } from 'lucide-react';
+import { Search, Loader2, Users, Briefcase, MapPin, Filter, X, ListPlus, Plus, Send, MessageSquare, Save, Trash2, Upload } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
-import { TalentPoolRow } from '@/components/recruiter/TalentPoolRow';
-import { TalentPoolGroupedRow } from '@/components/recruiter/TalentPoolGroupedRow';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { CompactTalentPoolRow } from '@/components/recruiter/CompactTalentPoolRow';
 import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
+import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
+import { useTableSort } from '@/hooks/useTableSort';
+import { sortBy as sortByUtil } from '@/lib/sort';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -69,6 +73,10 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { MobileListHeader } from '@/components/ui/mobile-list-header';
+import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { orgIdForRole } from '@/lib/org';
+import { useNavigate, Link } from 'react-router-dom';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TalentProfile {
   id: string;
@@ -89,16 +97,9 @@ interface TalentProfile {
   companies: string[];
 }
 
-type SortOption = 'date_desc' | 'date_asc' | 'score_desc' | 'score_asc' | 'name_asc';
+type TalentPoolSortKey = 'full_name' | 'current_title' | 'location' | 'years_of_experience' | 'recruiter_status' | 'ats_score' | 'created_at';
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: 'new', label: 'New' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'interviewing', label: 'Interviewing' },
-  { value: 'offered', label: 'Offered' },
-  { value: 'hired', label: 'Hired' },
-  { value: 'rejected', label: 'Rejected' },
-];
+const STATUS_OPTIONS = TALENT_POOL_STATUS_OPTIONS;
 
 /**
  * Boolean query parser:
@@ -221,14 +222,15 @@ function saveRecentViews(orgId: string, items: { id: string; ts: number }[]) {
 }
 
 export default function TalentPool() {
-  const { roles, user } = useAuth();
+  const { roles, user, currentRole } = useAuth();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
-  const organizationId = roles.find((r) => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRole(roles as any, currentRole);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
+  const tableSort = useTableSort<TalentPoolSortKey>({ key: 'created_at', dir: 'desc' });
   const [companyFilter, setCompanyFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<string>('');
@@ -240,10 +242,17 @@ export default function TalentPool() {
   const [currentPage, setCurrentPage] = useState(1);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeCandidateIds, setRemoveCandidateIds] = useState<string[]>([]);
+  const [rowShortlistDialogOpen, setRowShortlistDialogOpen] = useState(false);
+  const [rowShortlistCandidateId, setRowShortlistCandidateId] = useState<string | null>(null);
+  const [rowSelectedShortlistId, setRowSelectedShortlistId] = useState<string>('');
+  const [rowNewShortlistName, setRowNewShortlistName] = useState('');
+
+  // Start engagement dialog state
+  const [engageOpen, setEngageOpen] = useState(false);
+  const [engageCandidateId, setEngageCandidateId] = useState<string | null>(null);
+  const [engageJobId, setEngageJobId] = useState<string>('');
   
   // Bulk selection state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
   const [recentViews, setRecentViews] = useState<{ id: string; ts: number }[]>(() =>
     loadRecentViews(organizationId || '')
   );
@@ -293,6 +302,8 @@ export default function TalentPool() {
         .in('link_type', [
           'resume_upload',
           'web_search',
+          'google_xray',
+          'linkedin_search',
           'sourced_resume',
           'sourced_web',
           'sourced',
@@ -375,10 +386,24 @@ export default function TalentPool() {
 
       if (!candidates.length) return [];
 
-      // De-dupe by id
-      const byId = new Map<string, any>();
-      for (const c of candidates) byId.set(c.id, c);
-      const deduped = Array.from(byId.values());
+      // De-dupe by stable identity (LinkedIn/email) to avoid duplicates from repeated imports.
+      const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
+      const identityKey = (c: any) => {
+        const li = norm((c as any).linkedin_url);
+        if (li) return `li:${li}`;
+        const em = norm((c as any).email);
+        if (em) return `em:${em}`;
+        return `id:${String((c as any).id || '')}`;
+      };
+      const sorted = candidates
+        .slice()
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const byIdentity = new Map<string, any>();
+      for (const c of sorted) {
+        const k = identityKey(c);
+        if (!byIdentity.has(k)) byIdentity.set(k, c);
+      }
+      const deduped = Array.from(byIdentity.values());
 
       // Get skills
       const candidateIds = deduped.map((c) => c.id);
@@ -415,6 +440,46 @@ export default function TalentPool() {
     enabled: !!organizationId,
   });
 
+  const { data: jobs } = useQuery({
+    queryKey: ['recruiter-jobs', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
+  const startEngagementMutation = useMutation({
+    mutationFn: async ({ candidateId, jobId }: { candidateId: string; jobId: string }) => {
+      if (!organizationId || !user) throw new Error('Not authorized');
+      if (!jobId) throw new Error('Select a job');
+
+      const { error } = await supabase.from('candidate_engagements').upsert(
+        {
+          organization_id: organizationId,
+          candidate_id: candidateId,
+          job_id: jobId,
+          stage: 'outreach',
+          created_by: user.id,
+          owner_user_id: user.id,
+        } as any,
+        { onConflict: 'organization_id,candidate_id,job_id' }
+      );
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      toast.success('Engagement started');
+      setEngageOpen(false);
+      setEngageCandidateId(null);
+      setEngageJobId('');
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
+      navigate('/recruiter/engagements');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to start engagement'),
+  });
+
   // Fetch shortlists for this organization
   const { data: shortlists } = useQuery({
     queryKey: ['shortlists', organizationId],
@@ -431,6 +496,71 @@ export default function TalentPool() {
     enabled: !!organizationId,
   });
 
+  const shortlistsById = useMemo(() => {
+    const m = new Map<string, string>();
+    (shortlists || []).forEach((s: any) => {
+      if (s?.id) m.set(String(s.id), String(s.name || 'Shortlist'));
+    });
+    return m;
+  }, [shortlists]);
+
+  const openShortlistPage = (shortlistId: string) => {
+    if (!shortlistId) return;
+    navigate(`/recruiter/shortlists?shortlist=${encodeURIComponent(shortlistId)}`);
+  };
+
+  const addSingleToShortlistMutation = useMutation({
+    mutationFn: async ({ shortlistId, candidateId }: { shortlistId: string; candidateId: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('shortlist_candidates')
+        .insert({ shortlist_id: shortlistId, candidate_id: candidateId, added_by: user.id } as any);
+      if (error) {
+        if ((error as any)?.code === '23505') throw new Error('Candidate already in that shortlist');
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success('Added to shortlist');
+      setRowShortlistDialogOpen(false);
+      setRowShortlistCandidateId(null);
+      setRowSelectedShortlistId('');
+      setRowNewShortlistName('');
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-membership'], exact: false });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to add to shortlist'),
+  });
+
+  const createShortlistMutation = useMutation({
+    mutationFn: async ({ name }: { name: string }) => {
+      if (!organizationId) throw new Error('Missing organization');
+      if (!user?.id) throw new Error('Not authenticated');
+      const clean = String(name || '').trim();
+      if (!clean) throw new Error('Enter a shortlist name');
+      const { data, error } = await supabase
+        .from('candidate_shortlists')
+        .insert({ organization_id: organizationId, name: clean, created_by: user.id } as any)
+        .select('id, name')
+        .single();
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ['shortlists', organizationId] });
+      if (created?.id) setRowSelectedShortlistId(String(created.id));
+      setRowNewShortlistName('');
+      toast.success('Shortlist created');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to create shortlist'),
+  });
+
+  const openRowAddToShortlist = (candidateId: string) => {
+    setRowShortlistCandidateId(candidateId);
+    setRowSelectedShortlistId(shortlists?.[0]?.id ? String((shortlists as any[])[0].id) : '');
+    setRowShortlistDialogOpen(true);
+  };
+
   // Fetch campaigns for this organization
   const { data: campaigns } = useQuery({
     queryKey: ['campaigns', organizationId],
@@ -445,54 +575,6 @@ export default function TalentPool() {
       return data || [];
     },
     enabled: !!organizationId,
-  });
-
-  // Add to shortlist mutation
-  const addToShortlistMutation = useMutation({
-    mutationFn: async ({ shortlistId, candidateIds }: { shortlistId: string; candidateIds: string[] }) => {
-      const inserts = candidateIds.map((candidateId) => ({
-        shortlist_id: shortlistId,
-        candidate_id: candidateId,
-        added_by: user?.id || '',
-      }));
-      const { error } = await supabase.from('shortlist_candidates').insert(inserts);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success(`Added ${selectedIds.size} candidates to shortlist`);
-      setSelectedIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
-    },
-    onError: () => {
-      toast.error('Failed to add candidates to shortlist');
-    },
-  });
-
-  // Add to campaign mutation
-  const addToCampaignMutation = useMutation({
-    mutationFn: async ({ campaignId, candidateIds }: { campaignId: string; candidateIds: string[] }) => {
-      // Get emails for selected candidates
-      const selectedTalents = talents?.filter((t) => candidateIds.includes(t.id)) || [];
-      const inserts = selectedTalents
-        .filter((t) => t.email)
-        .map((t) => ({
-          campaign_id: campaignId,
-          candidate_id: t.id,
-          email: t.email!,
-        }));
-      if (inserts.length === 0) throw new Error('No candidates with email addresses');
-      const { error } = await supabase.from('campaign_recipients').insert(inserts);
-      if (error) throw error;
-      return inserts.length;
-    },
-    onSuccess: (count) => {
-      toast.success(`Added ${count} candidates to campaign`);
-      setSelectedIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ['campaign-recipients'] });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add candidates to campaign');
-    },
   });
 
   const deleteFromTalentPoolMutation = useMutation({
@@ -512,7 +594,6 @@ export default function TalentPool() {
       if (deleted > 0 && skipped === 0) toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
       else if (deleted > 0) toast.success(`Deleted ${deleted}, skipped ${skipped}`);
       else toast.error('Nothing was deleted');
-      setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
     },
@@ -532,7 +613,7 @@ export default function TalentPool() {
   const uniqueCompanies = useMemo(() => {
     if (!talents) return [];
     const companies = new Set<string>();
-    talents.forEach((t) => t.companies.forEach((c) => companies.add(c)));
+    talents.forEach((t) => (t.companies || []).forEach((c) => c && companies.add(c)));
     return Array.from(companies).sort();
   }, [talents]);
 
@@ -593,8 +674,8 @@ export default function TalentPool() {
       const headline = (t.headline || '').toLowerCase();
       const email = (t.email || '').toLowerCase();
       const notes = (t.recruiter_notes || '').toLowerCase();
-      const skillsText = t.skills.map((s) => s.skill_name.toLowerCase()).join(' ');
-      const companiesText = t.companies.map((c) => c.toLowerCase()).join(' ');
+      const skillsText = (t.skills || []).map((s) => ((s && s.skill_name) ? String(s.skill_name) : '').toLowerCase()).join(' ');
+      const companiesText = (t.companies || []).map((c) => (c ? String(c).toLowerCase() : '')).join(' ');
       const location = (t.location || '').toLowerCase();
       const searchableText = `${name} ${title} ${headline} ${email} ${notes} ${skillsText} ${companiesText} ${location}`;
 
@@ -608,7 +689,7 @@ export default function TalentPool() {
 
       // Company filter
       const matchesCompany =
-        !companyFilter || t.companies.some((c) => c.toLowerCase().includes(companyFilter.toLowerCase()));
+        !companyFilter || (t.companies || []).some((c) => (c ? String(c).toLowerCase().includes(companyFilter.toLowerCase()) : false));
 
       // Location filter
       const matchesLocation =
@@ -634,29 +715,19 @@ export default function TalentPool() {
       return matchesSearch && matchesCompany && matchesLocation && matchesStatus && matchesExperience;
     });
 
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'date_desc':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'date_asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'score_desc':
-          return (b.ats_score || 0) - (a.ats_score || 0);
-        case 'score_asc':
-          return (a.ats_score || 0) - (b.ats_score || 0);
-        case 'name_asc':
-          return (a.full_name || '').localeCompare(b.full_name || '');
-        default:
-          return 0;
-      }
-    });
-
-    return result;
+    // Sort by column
+    if (!Array.isArray(result) || result.length === 0) return result;
+    const sortState = tableSort?.sort;
+    if (!sortState?.key) return result;
+    const getValue = (t: TalentProfile, key: TalentPoolSortKey): unknown => {
+      const v = t[key as keyof TalentProfile];
+      return v ?? '';
+    };
+    return sortByUtil(result, sortState, getValue);
   }, [
     talents,
     searchQuery,
-    sortBy,
+    tableSort.sort,
     companyFilter,
     locationFilter,
     statusFilter,
@@ -664,6 +735,8 @@ export default function TalentPool() {
     activeView,
     recentViews,
   ]);
+
+  // (ATS Match Search lives on its dedicated page: /recruiter/talent-search)
 
   // Group filtered talents by email for visual grouping
   const groupedTalents = useMemo(() => {
@@ -695,7 +768,7 @@ export default function TalentPool() {
   // Reset page when filters/search/view/page-size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, companyFilter, locationFilter, statusFilter, experienceFilter, sortBy, activeView, itemsPerPage]);
+  }, [searchQuery, companyFilter, locationFilter, statusFilter, experienceFilter, tableSort.sort, activeView, itemsPerPage]);
 
   // Pagination calculations - now based on groups, not individual profiles
   const totalPages = Math.ceil(groupedTalents.length / itemsPerPage);
@@ -708,6 +781,53 @@ export default function TalentPool() {
   const paginatedTalents = useMemo(() => {
     return paginatedGroups.flat();
   }, [paginatedGroups]);
+
+  const paginatedCandidateIds = useMemo(() => {
+    return (paginatedTalents || []).map((t) => String(t.id)).filter(Boolean);
+  }, [paginatedTalents]);
+
+  const { data: shortlistMembership } = useQuery({
+    queryKey: ['shortlist-membership', organizationId, paginatedCandidateIds.join(','), (shortlists || []).length],
+    queryFn: async () => {
+      const shortlistIds = (shortlists || []).map((s: any) => String(s.id)).filter(Boolean);
+      if (!shortlistIds.length) return [];
+      if (!paginatedCandidateIds.length) return [];
+
+      const { data, error } = await supabase
+        .from('shortlist_candidates')
+        .select('shortlist_id, candidate_id')
+        .in('shortlist_id', shortlistIds)
+        .in('candidate_id', paginatedCandidateIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId && (shortlists || []).length > 0 && paginatedCandidateIds.length > 0,
+  });
+
+  const shortlistButtonByCandidateId = useMemo(() => {
+    const grouped = new Map<string, { shortlistId: string; name: string }[]>();
+    for (const row of shortlistMembership || []) {
+      const candidateId = String((row as any)?.candidate_id || '');
+      const shortlistId = String((row as any)?.shortlist_id || '');
+      if (!candidateId || !shortlistId) continue;
+      const name = shortlistsById.get(shortlistId) || 'Shortlist';
+      const arr = grouped.get(candidateId) || [];
+      if (!arr.some((x) => x.shortlistId === shortlistId)) arr.push({ shortlistId, name });
+      grouped.set(candidateId, arr);
+    }
+    const out: Record<string, { shortlistId: string; label: string; count: number }> = {};
+    for (const [candidateId, arr] of grouped.entries()) {
+      const sorted = [...arr].sort((a, b) => a.name.localeCompare(b.name));
+      const primary = sorted[0];
+      const count = sorted.length;
+      out[candidateId] = {
+        shortlistId: primary.shortlistId,
+        label: count > 1 ? `${primary.name} +${count - 1}` : primary.name,
+        count,
+      };
+    }
+    return out;
+  }, [shortlistMembership, shortlistsById]);
 
   // If the result set shrinks (e.g. after search), ensure we don't strand the user on an empty page.
   useEffect(() => {
@@ -740,46 +860,6 @@ export default function TalentPool() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Bulk selection handlers
-  const toggleSelection = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedTalents.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(paginatedTalents.map((t) => t.id)));
-    }
-  };
-
-  const handleAddToShortlist = (shortlistId: string) => {
-    addToShortlistMutation.mutate({
-      shortlistId,
-      candidateIds: Array.from(selectedIds),
-    });
-  };
-
-  const handleAddToCampaign = (campaignId: string) => {
-    addToCampaignMutation.mutate({
-      campaignId,
-      candidateIds: Array.from(selectedIds),
-    });
-  };
-
-  const handleRemoveSelected = () => {
-    requestRemove(Array.from(selectedIds));
-  };
-
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const pages: (number | 'ellipsis')[] = [];
@@ -801,7 +881,7 @@ export default function TalentPool() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -818,7 +898,7 @@ export default function TalentPool() {
       {/* Search row (hero) */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
           <Input
             placeholder='Search (boolean): "fannie and freddie", react or angular'
             value={searchQuery}
@@ -828,20 +908,6 @@ export default function TalentPool() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-            <SelectTrigger className="h-11 w-full sm:w-[180px]">
-              <ArrowUpDown className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Sort" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date_desc">Newest First</SelectItem>
-              <SelectItem value="date_asc">Oldest First</SelectItem>
-              <SelectItem value="score_desc">Highest Score</SelectItem>
-              <SelectItem value="score_asc">Lowest Score</SelectItem>
-              <SelectItem value="name_asc">Name A-Z</SelectItem>
-            </SelectContent>
-          </Select>
-
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-11 whitespace-nowrap">
@@ -978,64 +1044,33 @@ export default function TalentPool() {
       {/* Scroll to top button */}
       <ScrollToTop />
 
-      {/* Mobile: keep the existing top sheet header UX */}
-      {isMobile && (
-        <MobileListHeader
-          title="Talent Pool"
-          subtitle="Sourced profiles from bulk uploads and searches"
-          filterCount={filterCount}
-        >
-          {filtersContent}
-        </MobileListHeader>
-      )}
-
-      {/* Desktop: compact filter bar above results */}
-      {!isMobile && (
-        <Card className="mt-4">
-          <CardContent className="p-4">
-            {filtersContent}
-          </CardContent>
-        </Card>
-      )}
+      {/* Page heading + filters (same as other recruiter pages) */}
+      <MobileListHeader
+        title="Talent Pool"
+        subtitle="Sourced profiles from bulk uploads and searches"
+        filterCount={filterCount}
+        action={
+          <div className="flex items-center gap-2">
+            <Button asChild size="default">
+              <Link to="/recruiter/talent-search/uploads">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+              </Link>
+            </Button>
+            <Button asChild size="default">
+              <Link to="/recruiter/talent-search/search">
+                <Search className="h-4 w-4 mr-2" />
+                Search
+              </Link>
+            </Button>
+          </div>
+        }
+      >
+        {filtersContent}
+      </MobileListHeader>
 
       <Card className="mt-4">
-        <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
-          <div className="min-w-0">
-            <CardTitle>Talent Pool</CardTitle>
-            <CardDescription>
-              {groupedTalents.length > 0
-                ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length} candidates (${filteredTalents.length} profiles)`
-                : 'Sourced profiles from bulk uploads and searches'}
-            </CardDescription>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2">
-            <Select
-              value={String(itemsPerPage)}
-              onValueChange={(v) => {
-                const n = Number(v);
-                if (!Number.isFinite(n)) return;
-                setItemsPerPage(n);
-              }}
-            >
-              <SelectTrigger className="h-9 w-[140px]">
-                <SelectValue placeholder="Per page" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZE_OPTIONS.map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    {n} / page
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Badge variant="secondary">
-              {filteredTalents.length} profile{filteredTalents.length === 1 ? '' : 's'}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {!filteredTalents?.length ? (
             <EmptyState
               icon={Users}
@@ -1046,34 +1081,160 @@ export default function TalentPool() {
                   : 'Import candidates via Talent Sourcing to build your pool'
               }
             />
+          ) : isMobile ? (
+            <>
+            <div className="divide-y -mx-4">
+              {paginatedTalents.map((talent) => (
+                <div
+                  key={talent.id}
+                  className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 px-4 transition-colors"
+                  onClick={() => handleTalentClick(talent.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarFallback className="bg-accent text-accent-foreground">
+                        {(talent.full_name || 'U').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium truncate">{talent.full_name || 'Unknown'}</span>
+                        <StatusBadge status={talent.recruiter_status || 'new'} />
+                      </div>
+                      {(talent.current_title || talent.current_company) && (() => {
+                        const sub = talent.current_title
+                          ? (talent.current_company ? `${talent.current_title} at ${talent.current_company}` : talent.current_title)
+                          : (talent.current_company || '');
+                        const max = 60;
+                        const display = sub.length > max ? `${sub.slice(0, max)}…` : sub;
+                        return (
+                          <div className="text-sm line-clamp-2 break-words" title={sub}>
+                            {display}
+                          </div>
+                        );
+                      })()}
+                      <div className="flex items-center gap-3 mt-1 text-xs">
+                        {talent.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {talent.location}
+                          </span>
+                        )}
+                        {talent.years_of_experience !== null && (
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="h-3 w-3" />
+                            {talent.years_of_experience} yrs
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="mt-4 pt-4 border-t">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    {getPageNumbers().map((page, idx) => (
+                      <PaginationItem key={idx}>
+                        {page === 'ellipsis' ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink
+                            onClick={() => handlePageChange(page as number)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+            </>
           ) : (
             <>
-              {/* Select All Row */}
-              <div className="flex items-center gap-3 pb-3 mb-3 border-b">
-                <Checkbox
-                  checked={paginatedTalents.length > 0 && selectedIds.size === paginatedTalents.length}
-                  onCheckedChange={toggleSelectAll}
-                  aria-label="Select all on this page"
-                />
-                <span className="text-sm text-muted-foreground">
-                  {selectedIds.size > 0
-                    ? `${selectedIds.size} selected`
-                    : 'Select all on this page'}
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <span className="text-sm">
+                  {groupedTalents.length > 0
+                    ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}`
+                    : ''}
                 </span>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={String(itemsPerPage)}
+                    onValueChange={(v) => {
+                      const n = Number(v);
+                      if (!Number.isFinite(n)) return;
+                      setItemsPerPage(n);
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-[120px]">
+                      <SelectValue placeholder="Per page" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} / page
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="secondary">
+                    {filteredTalents.length} profile{filteredTalents.length === 1 ? '' : 's'}
+                  </Badge>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {paginatedGroups.map((group, idx) => (
-                  <TalentPoolGroupedRow
-                    key={group[0]?.email || group[0]?.id || idx}
-                    profiles={group}
-                    selectedIds={selectedIds}
-                    onToggleSelection={toggleSelection}
-                    onViewProfile={handleTalentClick}
-                    onRequestRemove={(candidateId) => requestRemove([candidateId])}
-                  />
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <SortableTableHead label="Candidate" sortKey="full_name" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 w-[200px]" />
+                    <SortableTableHead label="Title" sortKey="current_title" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 max-w-[200px]" />
+                    <SortableTableHead label="Location" sortKey="location" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 max-w-[120px]" />
+                    <SortableTableHead label="Experience" sortKey="years_of_experience" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3" />
+                    <SortableTableHead label="Status" sortKey="recruiter_status" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 w-[120px]" />
+                    <SortableTableHead label="ATS" sortKey="ats_score" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 w-14 text-center" title="Resume quality (ATS-friendly)" />
+                    <TableHead className="py-2 px-3">Contact</TableHead>
+                    <SortableTableHead label="Added" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3" />
+                    <TableHead className="py-2 px-3 w-[100px]">Shortlist</TableHead>
+                    <TableHead className="w-10 py-2 px-2"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedTalents.map((talent) => (
+                    <CompactTalentPoolRow
+                      key={talent.id}
+                      talent={talent}
+                      onViewProfile={handleTalentClick}
+                      onRequestRemove={(candidateId) => requestRemove([candidateId])}
+                      onAddToShortlist={openRowAddToShortlist}
+                      onOpenShortlist={openShortlistPage}
+                      shortlistButton={shortlistButtonByCandidateId?.[talent.id] ? { shortlistId: shortlistButtonByCandidateId[talent.id].shortlistId, label: shortlistButtonByCandidateId[talent.id].label } : null}
+                      onStartEngagement={(candidateId) => {
+                        setEngageCandidateId(candidateId);
+                        setEngageOpen(true);
+                      }}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
 
               {/* Pagination */}
               {totalPages > 1 && (
@@ -1116,117 +1277,146 @@ export default function TalentPool() {
         </CardContent>
       </Card>
 
-      {/* Floating Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground shadow-lg rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 flex flex-wrap items-center justify-center gap-2 sm:gap-4 animate-in slide-in-from-bottom-4 duration-300 w-[min(46rem,calc(100vw-1.5rem))] sm:w-auto">
-          <div className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5" />
-            <span className="font-medium">{selectedIds.size} selected</span>
-          </div>
-          <div className="h-6 w-px bg-primary-foreground/30" />
-          
-          {/* Add to Shortlist Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
-                disabled={!shortlists?.length || addToShortlistMutation.isPending}
-              >
-                {addToShortlistMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ListPlus className="h-4 w-4 mr-2" />
-                )}
-                Add to Shortlist
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-56">
-              <DropdownMenuLabel>Select Shortlist</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {shortlists?.length ? (
-                shortlists.map((s) => (
-                  <DropdownMenuItem
-                    key={s.id}
-                    onClick={() => handleAddToShortlist(s.id)}
-                  >
-                    {s.name}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                  No shortlists available
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Add to Campaign Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
-                disabled={!campaigns?.length || addToCampaignMutation.isPending}
-              >
-                {addToCampaignMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                Add to Campaign
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-56">
-              <DropdownMenuLabel>Select Campaign</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {campaigns?.length ? (
-                campaigns.map((c) => (
-                  <DropdownMenuItem
-                    key={c.id}
-                    onClick={() => handleAddToCampaign(c.id)}
-                  >
-                    {c.name}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                  No campaigns available
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
-            onClick={handleRemoveSelected}
-            disabled={selectedIds.size === 0 || deleteFromTalentPoolMutation.isPending}
-            title="Delete selected (hard delete)"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary-foreground hover:text-primary-foreground hover:bg-primary-foreground/20"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-
       <TalentDetailSheet
         talentId={selectedTalentId}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
+
+      <Dialog
+        open={engageOpen}
+        onOpenChange={(open) => {
+          setEngageOpen(open);
+          if (!open) {
+            setEngageCandidateId(null);
+            setEngageJobId('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Start engagement</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Job to submit for</Label>
+              <Select value={engageJobId} onValueChange={setEngageJobId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a job" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(jobs || []).map((j: any) => (
+                    <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
+                      <span className="block max-w-[300px] truncate">{j.title}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs">
+                Engagements are job-scoped so RTR/rate/offer can be tracked per submission.
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEngageOpen(false)} disabled={startEngagementMutation.isPending}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!engageCandidateId) return;
+                  startEngagementMutation.mutate({ candidateId: engageCandidateId, jobId: engageJobId });
+                }}
+                disabled={startEngagementMutation.isPending || !engageCandidateId || !engageJobId}
+              >
+                {startEngagementMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Start
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={rowShortlistDialogOpen}
+        onOpenChange={(open) => {
+          setRowShortlistDialogOpen(open);
+          if (!open) {
+            setRowShortlistCandidateId(null);
+            setRowSelectedShortlistId('');
+            setRowNewShortlistName('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add to shortlist</DialogTitle>
+            <DialogDescription>Select a shortlist (or create one) to add this candidate.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Select value={rowSelectedShortlistId} onValueChange={(v) => setRowSelectedShortlistId(v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose shortlist" />
+              </SelectTrigger>
+              <SelectContent>
+                {(shortlists || []).map((s: any) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex gap-2">
+              <Input
+                value={rowNewShortlistName}
+                onChange={(e) => setRowNewShortlistName(e.target.value)}
+                placeholder="Create new shortlist…"
+              />
+              <Button
+                variant="secondary"
+                onClick={() => createShortlistMutation.mutate({ name: rowNewShortlistName })}
+                disabled={createShortlistMutation.isPending || !rowNewShortlistName.trim()}
+              >
+                {createShortlistMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Create
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRowShortlistDialogOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!rowShortlistCandidateId) return;
+                if (!rowSelectedShortlistId) return toast.error('Select a shortlist');
+                addSingleToShortlistMutation.mutate({
+                  shortlistId: rowSelectedShortlistId,
+                  candidateId: rowShortlistCandidateId,
+                });
+              }}
+              disabled={addSingleToShortlistMutation.isPending}
+            >
+              {addSingleToShortlistMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
         <AlertDialogContent>

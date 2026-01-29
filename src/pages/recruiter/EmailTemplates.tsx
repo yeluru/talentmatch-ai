@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Mail, Edit2, Trash2, Copy, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,7 +51,7 @@ export default function EmailTemplates() {
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [form, setForm] = useState({ name: '', subject: '', body: '', category: 'general' });
 
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['email-templates', organizationId],
@@ -150,7 +151,7 @@ export default function EmailTemplates() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -162,7 +163,7 @@ export default function EmailTemplates() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Email Templates</h1>
-            <p className="text-muted-foreground">Create reusable email templates for outreach</p>
+            <p className="">Create reusable email templates for outreach</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
@@ -228,7 +229,7 @@ export default function EmailTemplates() {
                   />
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Available Variables:</Label>
+                  <Label className="text-sm">Available Variables:</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {TEMPLATE_VARIABLES.map(variable => (
                       <Badge
@@ -304,10 +305,10 @@ export default function EmailTemplates() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                  <p className="text-sm font-mediummb-2">
                     Subject: {template.subject}
                   </p>
-                  <p className="text-sm text-muted-foreground line-clamp-3">
+                  <p className="text-smline-clamp-3">
                     {template.body}
                   </p>
                 </CardContent>

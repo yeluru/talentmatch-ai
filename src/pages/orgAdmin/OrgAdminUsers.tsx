@@ -4,9 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Loader2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { sortBy } from "@/lib/sort";
+import { useTableSort } from "@/hooks/useTableSort";
 
 type Row = {
   user_id: string;
@@ -21,6 +24,7 @@ export default function OrgAdminUsers() {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
+  const tableSort = useTableSort<"full_name" | "user_type" | "roles">({ key: "full_name", dir: "asc" });
 
   useEffect(() => {
     if (authLoading) return;
@@ -64,14 +68,21 @@ export default function OrgAdminUsers() {
         user_type: "Staff",
       }));
 
-      // Candidates linked to this org: from candidate_profiles.org_id -> profiles
+      // Candidates linked to this org: via candidate_org_links -> candidate_profiles -> profiles
       const { data: candidateLinks, error: candErr } = await supabase
-        .from("candidate_profiles")
-        .select("user_id")
-        .eq("organization_id", organizationId);
+        .from("candidate_org_links")
+        .select("candidate_profiles:candidate_id(user_id)")
+        .eq("organization_id", organizationId)
+        .eq("status", "active");
       if (candErr) throw candErr;
 
-      const candidateUserIds = [...new Set((candidateLinks ?? []).map((c: any) => c.user_id).filter(Boolean))] as string[];
+      const candidateUserIds = [
+        ...new Set(
+          (candidateLinks ?? [])
+            .map((l: any) => l?.candidate_profiles?.user_id)
+            .filter(Boolean),
+        ),
+      ] as string[];
 
       const { data: candidateProfiles, error: candProfErr } = candidateUserIds.length
         ? await supabase.from("profiles").select("user_id, full_name, email").in("user_id", candidateUserIds)
@@ -82,7 +93,7 @@ export default function OrgAdminUsers() {
         .filter((p: any) => !rolesByUser[p.user_id]) // avoid dupes if candidate also has staff role
         .map((p: any) => ({
           user_id: p.user_id,
-          full_name: p.full_name,
+          full_name: p.full_name || (p.email ? String(p.email).split("@")[0] : "") || "Candidate",
           email: p.email,
           roles: ["candidate"],
           user_type: "Candidate",
@@ -106,6 +117,21 @@ export default function OrgAdminUsers() {
       );
     });
   }, [q, rows]);
+
+  const sorted = useMemo(() => {
+    return sortBy(filtered, tableSort.sort, (r, key) => {
+      switch (key) {
+        case "full_name":
+          return r.full_name;
+        case "user_type":
+          return r.user_type;
+        case "roles":
+          return (r.roles || []).join(", ");
+        default:
+          return r.full_name;
+      }
+    });
+  }, [filtered, tableSort.sort]);
 
   if (loading) {
     return (
@@ -136,7 +162,7 @@ export default function OrgAdminUsers() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold">Users</h1>
-            <p className="text-muted-foreground mt-1">Read-only list of users in your tenant (staff + candidates)</p>
+            <p className="mt-1">Read-only list of users in your tenant (staff + candidates)</p>
           </div>
           <div className="w-full max-w-sm">
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name / email / role…" />
@@ -155,25 +181,40 @@ export default function OrgAdminUsers() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Roles</TableHead>
+                    <SortableTableHead
+                      label="User"
+                      sortKey="full_name"
+                      sort={tableSort.sort}
+                      onToggle={tableSort.toggle}
+                    />
+                    <SortableTableHead
+                      label="Type"
+                      sortKey="user_type"
+                      sort={tableSort.sort}
+                      onToggle={tableSort.toggle}
+                    />
+                    <SortableTableHead
+                      label="Roles"
+                      sortKey="roles"
+                      sort={tableSort.sort}
+                      onToggle={tableSort.toggle}
+                    />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 ? (
+                  {sorted.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={3} className="text-center py-8">
                         No users found.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filtered.map((r) => (
+                    sorted.map((r) => (
                       <TableRow key={r.user_id}>
                         <TableCell>
                           <div>
                             <p className="font-medium">{r.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{r.email}</p>
+                            <p className="text-sm">{r.email}</p>
                           </div>
                         </TableCell>
                         <TableCell>

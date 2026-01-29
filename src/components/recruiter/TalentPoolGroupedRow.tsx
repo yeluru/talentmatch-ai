@@ -16,24 +16,16 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
-import { ChevronDown, ChevronRight, MapPin, Briefcase, Users, MessageSquare, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, MapPin, Briefcase, Users, MessageSquare, Trash2, Send, ListPlus } from 'lucide-react';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentPoolRow } from './TalentPoolRow';
 import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
 
-const CANDIDATE_STATUSES = [
-  { value: 'new', label: 'New' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'screening', label: 'Screening' },
-  { value: 'interviewing', label: 'Interviewing' },
-  { value: 'offered', label: 'Offered' },
-  { value: 'hired', label: 'Hired' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-];
+const CANDIDATE_STATUSES = TALENT_POOL_STATUS_OPTIONS;
 
 interface TalentProfile {
   id: string;
@@ -57,17 +49,27 @@ interface TalentProfile {
 interface TalentPoolGroupedRowProps {
   profiles: TalentProfile[];
   selectedIds: Set<string>;
+  zebra?: boolean;
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onViewProfile: (id: string) => void;
   onRequestRemove?: (candidateId: string) => void;
+  onStartEngagement?: (candidateId: string) => void;
+  onAddToShortlist?: (candidateId: string) => void;
+  onOpenShortlist?: (shortlistId: string) => void;
+  shortlistButtonByCandidateId?: Record<string, { shortlistId: string; label: string; count: number }>;
 }
 
 export function TalentPoolGroupedRow({
   profiles,
   selectedIds,
+  zebra = false,
   onToggleSelection,
   onViewProfile,
   onRequestRemove,
+  onStartEngagement,
+  onAddToShortlist,
+  onOpenShortlist,
+  shortlistButtonByCandidateId,
 }: TalentPoolGroupedRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const queryClient = useQueryClient();
@@ -78,9 +80,14 @@ export function TalentPoolGroupedRow({
       <TalentPoolRow
         talent={profiles[0]}
         isSelected={selectedIds.has(profiles[0].id)}
+        zebra={zebra}
         onToggleSelection={onToggleSelection}
         onViewProfile={onViewProfile}
         onRequestRemove={onRequestRemove}
+        onAddToShortlist={onAddToShortlist}
+        onOpenShortlist={onOpenShortlist}
+        shortlistButton={shortlistButtonByCandidateId?.[profiles[0].id] || null}
+        onStartEngagement={onStartEngagement}
       />
     );
   }
@@ -126,7 +133,7 @@ export function TalentPoolGroupedRow({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className="border rounded-lg bg-card hover:bg-muted/30 transition-colors">
+      <div className={`border rounded-lg transition-colors ${zebra ? 'bg-secondary/60 hover:bg-secondary/80' : 'bg-card hover:bg-muted/30'}`}>
         {/* Group Header */}
         <div className="p-4">
           {/* Top Section: Expand, Checkbox, Avatar, Name */}
@@ -180,7 +187,7 @@ export function TalentPoolGroupedRow({
                     title="Generic resume-quality score (not JD-based)"
                   >
                     <ScoreBadge score={bestScore} size="sm" showLabel={false} />
-                    <span className="text-[10px] text-muted-foreground">generic score</span>
+                    <span className="text-[10px]">generic score</span>
                   </div>
                 )}
               </div>
@@ -189,7 +196,7 @@ export function TalentPoolGroupedRow({
 
           {/* Middle Section: Title, Location */}
           <div className="ml-[84px] space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm">
               {primaryProfile.current_title && (
                 <span className="flex items-center gap-1.5">
                   <Briefcase className="h-3.5 w-3.5 shrink-0" />
@@ -240,8 +247,12 @@ export function TalentPoolGroupedRow({
         {/* Expanded Profiles */}
         <CollapsibleContent>
           <div className="border-t bg-muted/20 p-4">
-            <div className="text-xs font-medium text-muted-foreground mb-3">
-              All profiles for {primaryProfile.email || primaryProfile.full_name}:
+            <div className="text-xs font-mediummb-3 min-w-0">
+              All profiles for{' '}
+              <span className="break-all">
+                {primaryProfile.email || primaryProfile.full_name}
+              </span>
+              :
             </div>
             <div className="space-y-2">
               {profiles
@@ -255,6 +266,10 @@ export function TalentPoolGroupedRow({
                     onToggleSelection={onToggleSelection}
                     onViewProfile={onViewProfile}
                     onRequestRemove={onRequestRemove}
+                    onStartEngagement={onStartEngagement}
+                    onAddToShortlist={onAddToShortlist}
+                    onOpenShortlist={onOpenShortlist}
+                    shortlistButton={shortlistButtonByCandidateId?.[profile.id] || null}
                     queryClient={queryClient}
                   />
                 ))}
@@ -273,6 +288,10 @@ interface GroupedProfileRowProps {
   onToggleSelection: (id: string, e: React.MouseEvent) => void;
   onViewProfile: (id: string) => void;
   onRequestRemove?: (candidateId: string) => void;
+  onStartEngagement?: (candidateId: string) => void;
+  onAddToShortlist?: (candidateId: string) => void;
+  onOpenShortlist?: (shortlistId: string) => void;
+  shortlistButton?: { shortlistId: string; label: string; count?: number } | null;
   queryClient: ReturnType<typeof useQueryClient>;
 }
 
@@ -283,6 +302,10 @@ function GroupedProfileRow({
   onToggleSelection,
   onViewProfile,
   onRequestRemove,
+  onStartEngagement,
+  onAddToShortlist,
+  onOpenShortlist,
+  shortlistButton,
   queryClient,
 }: GroupedProfileRowProps) {
   const updateStatus = useMutation({
@@ -341,14 +364,14 @@ function GroupedProfileRow({
                 title="Generic resume-quality score (not JD-based)"
               >
                 <ScoreBadge score={profile.ats_score} size="sm" showLabel={false} />
-                <span className="text-[10px] text-muted-foreground">generic score</span>
+                <span className="text-[10px]">generic score</span>
               </div>
             )}
             {onRequestRemove && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                className="h-7 w-7hover:text-destructive"
                 title="Remove from Talent Pool"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -364,12 +387,58 @@ function GroupedProfileRow({
 
       {/* Bottom Row: Company, Date, Status, Notes */}
       <div className="ml-7 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-        <div className="text-xs text-muted-foreground flex-1 min-w-0">
+        <div className="text-xsflex-1 min-w-0">
           {profile.current_company && <span className="truncate">{profile.current_company} · </span>}
           Added {format(new Date(profile.created_at), 'MMM d, yyyy')}
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
+          {shortlistButton?.shortlistId && onOpenShortlist ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenShortlist(shortlistButton.shortlistId);
+              }}
+              title="Open shortlist"
+            >
+              <ListPlus className="h-3.5 w-3.5 mr-2" />
+              {shortlistButton.label}
+            </Button>
+          ) : onAddToShortlist ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToShortlist(profile.id);
+              }}
+              title="Add to shortlist"
+            >
+              <ListPlus className="h-3.5 w-3.5 mr-2" />
+              Shortlist
+            </Button>
+          ) : null}
+
+          {onStartEngagement ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEngagement(profile.id);
+              }}
+              title="Start engagement workflow"
+            >
+              <Send className="h-3.5 w-3.5 mr-2" />
+              Engage
+            </Button>
+          ) : null}
+
           <Select
             value={profile.recruiter_status || 'new'}
             onValueChange={(value) => updateStatus.mutate(value)}
@@ -401,16 +470,16 @@ function GroupedProfileRow({
                   onViewProfile(profile.id);
                 }}
               >
-                <MessageSquare className={`h-3.5 w-3.5 ${profile.recruiter_notes ? 'text-primary' : 'text-muted-foreground'}`} />
+                <MessageSquare className={`h-3.5 w-3.5 ${profile.recruiter_notes ? 'text-primary' : ''}`} />
               </Button>
             </HoverCardTrigger>
             <HoverCardContent className="w-72" align="end">
               {profile.recruiter_notes ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                <p className="text-smwhitespace-pre-wrap line-clamp-6">
                   {profile.recruiter_notes}
                 </p>
               ) : (
-                <p className="text-sm text-muted-foreground italic">No notes added</p>
+                <p className="text-smitalic">No notes added</p>
               )}
             </HoverCardContent>
           </HoverCard>
@@ -421,7 +490,7 @@ function GroupedProfileRow({
               title="Generic resume-quality score (not JD-based)"
             >
               <ScoreBadge score={profile.ats_score} size="sm" showLabel={false} />
-              <span className="text-[10px] text-muted-foreground">generic score</span>
+              <span className="text-[10px]">generic score</span>
             </div>
           )}
         </div>

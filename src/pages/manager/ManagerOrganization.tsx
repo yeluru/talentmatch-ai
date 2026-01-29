@@ -111,7 +111,7 @@ export default function ManagerOrganization() {
             <CardDescription>You need to be linked to a tenant to manage organization settings.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm">
               Ask a platform admin to re-invite you or reassign your account manager role to a tenant organization.
             </p>
           </CardContent>
@@ -125,7 +125,7 @@ export default function ManagerOrganization() {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">Organization Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage your organization's profile</p>
+          <p className="mt-1">Manage your organization's profile</p>
         </div>
 
         <Card>
@@ -162,7 +162,7 @@ export default function ManagerOrganization() {
               <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Globe className="absolute left-3 top-3 h-4 w-4" />
                   <Input
                     id="website"
                     className="pl-10"
@@ -176,7 +176,7 @@ export default function ManagerOrganization() {
               <div className="space-y-2">
                 <Label htmlFor="industry">Industry</Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Briefcase className="absolute left-3 top-3 h-4 w-4" />
                   <Input
                     id="industry"
                     className="pl-10"
@@ -191,7 +191,7 @@ export default function ManagerOrganization() {
             <div className="space-y-2">
               <Label htmlFor="size">Company Size</Label>
               <div className="relative">
-                <Users className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Users className="absolute left-3 top-3 h-4 w-4" />
                 <Input
                   id="size"
                   className="pl-10"

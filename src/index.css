@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,8 +10,8 @@
 
 @layer base {
   :root {
-    /* Corporate Theme - Navy & Gold */
-    --background: 0 0% 100%;
+    /* Ultrahire Theme (Ashby-inspired): crisp neutrals + restrained accent */
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%;
     
     --card: 0 0% 100%;
@@ -20,21 +20,21 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
     
-    /* Primary - Corporate Navy */
-    --primary: 222 47% 20%;
+    /* Primary - near-black */
+    --primary: 222 47% 11%;
     --primary-foreground: 0 0% 100%;
     
-    /* Secondary - Light Gray */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 20%;
+    /* Secondary - soft surface */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
     
     /* Muted tones */
-    --muted: 220 14% 96%;
+    --muted: 210 20% 96%;
     --muted-foreground: 220 9% 46%;
     
-    /* Accent - Corporate Gold */
-    --accent: 45 93% 47%;
-    --accent-foreground: 222 47% 11%;
+    /* Accent - restrained indigo/violet */
+    --accent: 255 85% 58%;
+    --accent-foreground: 0 0% 100%;
     
     /* Semantic colors */
     --destructive: 0 84% 60%;
@@ -50,11 +50,12 @@
     --info-foreground: 0 0% 100%;
     
     /* UI elements */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 222 47% 20%;
+    --border: 220 13% 90%;
+    --input: 220 13% 88%;
+    --ring: 255 85% 58%;
     
-    --radius: 0.5rem;
+    /* Slightly rounder than default shadcn */
+    --radius: 0.75rem;
     
     /* Role colors */
     --candidate: 199 89% 48%;
@@ -64,29 +65,29 @@
     --manager: 45 93% 47%;
     --manager-foreground: 222 47% 11%;
     
-    /* Gradients - Subtle corporate */
-    --gradient-primary: linear-gradient(135deg, hsl(222 47% 20%) 0%, hsl(222 40% 28%) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 40% 18%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 99%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(220 14% 98%) 0%, hsl(220 12% 96%) 100%);
-    --gradient-glass: linear-gradient(135deg, hsla(0, 0%, 100%, 0.95) 0%, hsla(220, 14%, 98%, 0.9) 100%);
+    /* Gradients - subtle, product-like */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(222 47% 16%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 99%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(210 20% 98%) 0%, hsl(210 20% 96%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsla(0, 0%, 100%, 0.9) 0%, hsla(210, 20%, 98%, 0.85) 100%);
     
     /* Audience gradients */
     --gradient-candidate: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 85% 55%) 100%);
     --gradient-recruiter: linear-gradient(135deg, hsl(271 81% 56%) 0%, hsl(280 75% 62%) 100%);
     --gradient-manager: linear-gradient(135deg, hsl(45 93% 47%) 0%, hsl(40 90% 52%) 100%);
     
-    /* Shadows - Clean corporate */
-    --shadow-xs: 0 1px 2px 0 hsl(222 47% 11% / 0.04);
-    --shadow-sm: 0 1px 3px 0 hsl(222 47% 11% / 0.06), 0 1px 2px -1px hsl(222 47% 11% / 0.06);
-    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.07), 0 2px 4px -2px hsl(222 47% 11% / 0.05);
-    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.08), 0 4px 6px -4px hsl(222 47% 11% / 0.05);
-    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.1), 0 8px 10px -6px hsl(222 47% 11% / 0.06);
-    --shadow-2xl: 0 25px 50px -12px hsl(222 47% 11% / 0.2);
-    --shadow-glow: 0 0 20px hsl(45 93% 47% / 0.15);
-    --shadow-glow-lg: 0 0 40px hsl(45 93% 47% / 0.2);
-    --shadow-card: 0 1px 3px hsl(222 47% 11% / 0.05), 0 1px 2px hsl(222 47% 11% / 0.04);
-    --shadow-card-hover: 0 10px 25px hsl(222 47% 11% / 0.12);
+    /* Shadows - lighter + “crisper” */
+    --shadow-xs: 0 1px 2px 0 hsl(222 47% 11% / 0.03);
+    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05), 0 1px 1px -1px hsl(222 47% 11% / 0.05);
+    --shadow-md: 0 6px 14px -10px hsl(222 47% 11% / 0.18);
+    --shadow-lg: 0 14px 28px -18px hsl(222 47% 11% / 0.22);
+    --shadow-xl: 0 24px 48px -24px hsl(222 47% 11% / 0.28);
+    --shadow-2xl: 0 40px 70px -36px hsl(222 47% 11% / 0.35);
+    --shadow-glow: 0 0 22px hsl(var(--accent) / 0.14);
+    --shadow-glow-lg: 0 0 46px hsl(var(--accent) / 0.18);
+    --shadow-card: 0 1px 2px hsl(222 47% 11% / 0.05);
+    --shadow-card-hover: 0 18px 40px -28px hsl(222 47% 11% / 0.35);
     
     /* Sidebar */
     /* Light mode sidebar should feel like the home page: clean, bright, and minimal. */
@@ -174,7 +175,7 @@
     @apply bg-background text-foreground antialiased overflow-x-hidden overflow-y-auto;
     width: 100%;
     max-width: 100%;
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
   }
 
   #root {
@@ -284,6 +285,8 @@
   /* Pipeline stages */
   .stage-applied { @apply bg-info/10 text-info border-info/20; }
   .stage-reviewed { @apply bg-primary/10 text-primary border-primary/20; }
+  .stage-reviewing { @apply bg-primary/10 text-primary border-primary/20; }
+  .stage-screening { @apply bg-warning/10 text-warning border-warning/20; }
   .stage-shortlisted { @apply bg-success/10 text-success border-success/20; }
   .stage-interviewing { @apply bg-warning/10 text-warning border-warning/20; }
   .stage-offered { @apply bg-accent/10 text-accent border-accent/20; }

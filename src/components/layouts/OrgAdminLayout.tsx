@@ -30,7 +30,7 @@ export function OrgAdminLayout({ children, title, subtitle, orgName }: Props) {
             </div>
             <div>
               <h1 className="font-display text-xl font-bold tracking-tight">{title ?? "Org Admin"}</h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm">
                 {subtitle ?? (orgName ? `Organization: ${orgName}` : profile?.email)}
               </p>
             </div>

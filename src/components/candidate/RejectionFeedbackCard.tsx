@@ -31,18 +31,18 @@ export function RejectionFeedbackCard({ reason, feedback }: RejectionFeedbackCar
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">Reason:</p>
+          <p className="text-sm font-medium">Reason:</p>
           <p className="text-sm">{reasonLabels[reason] || reason}</p>
         </div>
         
         {feedback && (
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Additional Feedback:</p>
+            <p className="text-sm font-medium">Additional Feedback:</p>
             <p className="text-sm">{feedback}</p>
           </div>
         )}
 
-        <div className="flex items-start gap-2 pt-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+        <div className="flex items-start gap-2 pt-2 text-xsbg-muted/50 p-3 rounded-lg">
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <p>
             This feedback is meant to help you improve future applications. 

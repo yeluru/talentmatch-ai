@@ -107,7 +107,7 @@ export function ExportCandidates({ candidates, selectedIds }: ExportCandidatesPr
           <DialogTitle>Export Candidates</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm">
             {selectedIds?.length 
               ? `Export ${selectedIds.length} selected candidates`
               : `Export all ${candidates.length} candidates`}

@@ -25,6 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Mail,
@@ -74,7 +75,7 @@ export default function OutreachCampaigns() {
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
   const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; body: string } | null>(null);
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
 
   // Fetch organization
   const { data: organization } = useQuery({
@@ -264,8 +265,8 @@ export default function OutreachCampaigns() {
     switch (status) {
       case 'active': return 'bg-success/10 text-success';
       case 'paused': return 'bg-warning/10 text-warning';
-      case 'completed': return 'bg-muted text-muted-foreground';
-      default: return 'bg-muted text-muted-foreground';
+      case 'completed': return 'bg-muted';
+      default: return 'bg-muted';
     }
   };
 
@@ -273,7 +274,7 @@ export default function OutreachCampaigns() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -288,7 +289,7 @@ export default function OutreachCampaigns() {
               <Mail className="h-8 w-8 text-accent" />
               Outreach Campaigns
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Create personalized email sequences to engage candidates
             </p>
           </div>
@@ -318,11 +319,11 @@ export default function OutreachCampaigns() {
                         </Badge>
                       </div>
                       {campaign.jobs && (
-                        <p className="text-sm text-muted-foreground mb-2">
+                        <p className="text-smmb-2">
                           For: {campaign.jobs.title}
                         </p>
                       )}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-4 text-sm">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
                           Created {format(new Date(campaign.created_at), 'MMM d, yyyy')}
@@ -331,25 +332,25 @@ export default function OutreachCampaigns() {
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-center">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        <div className="flex items-center gap-1">
                           <Send className="h-4 w-4" />
                           <span className="text-lg font-semibold">0</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Sent</p>
+                        <p className="text-xs">Sent</p>
                       </div>
                       <div className="text-center">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        <div className="flex items-center gap-1">
                           <Eye className="h-4 w-4" />
                           <span className="text-lg font-semibold">0</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Opened</p>
+                        <p className="text-xs">Opened</p>
                       </div>
                       <div className="text-center">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                        <div className="flex items-center gap-1">
                           <Reply className="h-4 w-4" />
                           <span className="text-lg font-semibold">0</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Replied</p>
+                        <p className="text-xs">Replied</p>
                       </div>
                       <Button variant="outline">Manage</Button>
                     </div>
@@ -448,7 +449,7 @@ export default function OutreachCampaigns() {
                     onChange={(e) => setEmailBody(e.target.value)}
                     rows={8}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs">
                     Use {'{{name}}'}, {'{{title}}'}, {'{{company}}'} as placeholders
                   </p>
                 </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,9 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { 
   Bot,
   Plus,
@@ -66,14 +68,23 @@ interface Recommendation {
   candidate_profiles?: {
     id: string;
     current_title: string | null;
-    user_id: string;
+    user_id: string | null;
+    full_name?: string | null;
+    email?: string | null;
   };
   profile?: { full_name: string };
+}
+
+function displayNameFromEmail(email?: string | null) {
+  const e = String(email || '').trim();
+  if (!e) return '';
+  return e.split('@')[0] || '';
 }
 
 export default function AIAgents() {
   const { user, roles } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [newAgentName, setNewAgentName] = useState('');
@@ -81,7 +92,19 @@ export default function AIAgents() {
   const [newAgentSkills, setNewAgentSkills] = useState('');
   const [autoOutreach, setAutoOutreach] = useState(false);
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
+  // Use an org-scoped key (stable across auth bootstrapping and browser tabs).
+  const SELECTED_AGENT_KEY = useMemo(() => `recruiter:agents:selected:${organizationId || 'no-org'}`, [organizationId]);
+
+  const persistSelectedAgentId = (agentId?: string | null) => {
+    if (!agentId) return;
+    try {
+      localStorage.setItem(SELECTED_AGENT_KEY, String(agentId));
+      sessionStorage.setItem(SELECTED_AGENT_KEY, String(agentId));
+    } catch {
+      // ignore
+    }
+  };
 
   // Fetch jobs
   const { data: jobs } = useQuery({
@@ -117,8 +140,47 @@ export default function AIAgents() {
     enabled: !!organizationId,
   });
 
+  // Persist/restore which agent was selected (so "last run" info stays visible after navigation).
+  useEffect(() => {
+    if (!organizationId) return;
+    try {
+      const raw = localStorage.getItem(SELECTED_AGENT_KEY) || sessionStorage.getItem(SELECTED_AGENT_KEY);
+      const savedId = raw ? String(raw) : '';
+      if (!savedId) return;
+      if (!agents?.length) return;
+      // Only set if current selection is empty.
+      setSelectedAgent((prev) => {
+        if (prev?.id) return prev;
+        return agents.find((a) => String(a.id) === savedId) || null;
+      });
+    } catch {
+      // ignore
+    }
+  }, [agents, organizationId, SELECTED_AGENT_KEY]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    if (!selectedAgent?.id) return;
+    persistSelectedAgentId(selectedAgent.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAgent?.id, organizationId]);
+
+  // If we have agents but nothing selected, default to most recently run (or first).
+  useEffect(() => {
+    if (!agents?.length) return;
+    setSelectedAgent((prev) => {
+      if (prev?.id) return prev;
+      const byLastRun = [...agents].sort((a, b) => {
+        const ta = a.last_run_at ? new Date(a.last_run_at).getTime() : 0;
+        const tb = b.last_run_at ? new Date(b.last_run_at).getTime() : 0;
+        return tb - ta;
+      });
+      return byLastRun[0] || null;
+    });
+  }, [agents]);
+
   // Fetch recommendations for selected agent
-  const { data: recommendations } = useQuery({
+  const { data: recommendations, isFetching: recommendationsFetching } = useQuery({
     queryKey: ['agent-recommendations', selectedAgent?.id],
     queryFn: async () => {
       if (!selectedAgent) return [];
@@ -126,14 +188,14 @@ export default function AIAgents() {
         .from('agent_recommendations')
         .select(`
           *,
-          candidate_profiles(id, current_title, user_id)
+          candidate_profiles(id, current_title, user_id, full_name, email)
         `)
         .eq('agent_id', selectedAgent.id)
         .order('match_score', { ascending: false });
       if (error) throw error;
 
       // Fetch profile names
-      const userIds = data?.map(r => r.candidate_profiles?.user_id).filter(Boolean) || [];
+      const userIds = Array.from(new Set(data?.map(r => r.candidate_profiles?.user_id).filter(Boolean) || []));
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
@@ -194,7 +256,11 @@ export default function AIAgents() {
 
       const result = profiles.map(p => ({
         id: p.id,
-        name: userProfiles?.find(up => up.user_id === p.user_id)?.full_name || 'Unknown Candidate',
+        name:
+          userProfiles?.find(up => up.user_id === p.user_id)?.full_name ||
+          (p as any)?.full_name ||
+          displayNameFromEmail((p as any)?.email) ||
+          'Candidate',
         title: p.current_title || 'No title specified',
         years_experience: p.years_of_experience || 0,
         summary: p.summary || 'No summary available',
@@ -235,7 +301,7 @@ export default function AIAgents() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-agents'], exact: false });
       setShowCreateDialog(false);
       setNewAgentName('');
       setNewAgentJobId('');
@@ -280,9 +346,11 @@ export default function AIAgents() {
       console.log('Agent results:', data);
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
-      queryClient.invalidateQueries({ queryKey: ['agent-recommendations'] });
+    onSuccess: (data, agent) => {
+      // Ensure we remember the agent you just ran.
+      persistSelectedAgentId(agent?.id);
+      queryClient.invalidateQueries({ queryKey: ['ai-agents'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['agent-recommendations'], exact: false });
       const matchCount = data?.recommendations?.length || 0;
       toast.success(`Agent found ${matchCount} candidate matches!`);
     },
@@ -301,7 +369,7 @@ export default function AIAgents() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-agents'], exact: false });
     },
   });
 
@@ -314,7 +382,7 @@ export default function AIAgents() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-agents'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-agents'], exact: false });
       setSelectedAgent(null);
       toast.success('Agent deleted');
     },
@@ -329,7 +397,7 @@ export default function AIAgents() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agent-recommendations'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-recommendations'], exact: false });
     },
   });
 
@@ -337,7 +405,7 @@ export default function AIAgents() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -352,7 +420,7 @@ export default function AIAgents() {
               <Bot className="h-8 w-8 text-accent" />
               AI Recruiting Agents
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Create agents to match candidates against your job criteria. Click <strong>"Run"</strong> to analyze.
             </p>
           </div>
@@ -363,15 +431,19 @@ export default function AIAgents() {
         </div>
 
         {/* Candidate Pool Status */}
-        <Card className="border-dashed">
+        <Card
+          className="border-dashed cursor-pointer hover:bg-muted/20 transition-colors"
+          onClick={() => navigate('/recruiter/talent-pool')}
+          role="button"
+        >
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Users className="h-5 w-5 text-muted-foreground" />
+                <Users className="h-5 w-5" />
                 <div>
                   <p className="font-medium">Talent Pool</p>
-                  <p className="text-sm text-muted-foreground">
-                    {candidatesLoading ? 'Loading...' : `${candidates?.length || 0} active candidates available`}
+                  <p className="text-sm">
+                    {candidatesLoading ? 'Loading...' : `${candidates?.length || 0} candidates available for matching`}
                   </p>
                 </div>
               </div>
@@ -379,7 +451,7 @@ export default function AIAgents() {
                 <Badge variant="destructive">No candidates</Badge>
               )}
               {!candidatesLoading && (candidates?.length || 0) > 0 && (
-                <Badge variant="default">{candidates?.length} ready</Badge>
+                <Badge variant="default">{candidates?.length} ready to match</Badge>
               )}
             </div>
           </CardContent>
@@ -406,7 +478,10 @@ export default function AIAgents() {
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                       selectedAgent?.id === agent.id ? 'border-accent bg-accent/5' : 'hover:bg-muted/30'
                     }`}
-                    onClick={() => setSelectedAgent(agent)}
+                    onClick={() => {
+                      persistSelectedAgentId(agent.id);
+                      setSelectedAgent(agent);
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -442,11 +517,11 @@ export default function AIAgents() {
                       </Button>
                     </div>
                     {agent.jobs && (
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p className="text-smmb-2">
                         For: {agent.jobs.title}
                       </p>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-4 text-xs">
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
                         {agent.candidates_found} found
@@ -480,6 +555,11 @@ export default function AIAgents() {
                     title="No agent selected"
                     description="Click an agent from the list to view recommendations"
                   />
+                ) : recommendationsFetching ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="ml-3 text-sm">Loading recommendations…</span>
+                  </div>
                 ) : !recommendations?.length ? (
                   <EmptyState
                     icon={Users}
@@ -490,23 +570,34 @@ export default function AIAgents() {
                   <div className="space-y-3">
                     {recommendations.map((rec) => (
                       <div key={rec.id} className="p-3 border rounded-lg">
+                        {(() => {
+                          const name =
+                            rec.profile?.full_name ||
+                            rec.candidate_profiles?.full_name ||
+                            displayNameFromEmail(rec.candidate_profiles?.email) ||
+                            'Candidate';
+                          const initial = (name?.[0] || 'C').toUpperCase();
+
+                          return (
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="bg-accent text-accent-foreground text-xs">
-                                {rec.profile?.full_name?.charAt(0) || 'C'}
+                                {initial}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium text-sm">{rec.profile?.full_name || 'Unknown'}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="font-medium text-sm">{name}</p>
+                              <p className="text-xs">
                                 {rec.candidate_profiles?.current_title || 'No title'}
                               </p>
                             </div>
                           </div>
                           <ScoreBadge score={rec.match_score || 0} size="sm" />
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">
+                          );
+                        })()}
+                        <p className="text-xsmb-2">
                           {rec.recommendation_reason}
                         </p>
                         {rec.status === 'pending' && (
@@ -587,7 +678,7 @@ export default function AIAgents() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto-outreach</Label>
-                  <p className="text-xs text-muted-foreground">Automatically send emails to matches</p>
+                  <p className="text-xs">Automatically send emails to matches</p>
                 </div>
                 <Switch checked={autoOutreach} onCheckedChange={setAutoOutreach} />
               </div>

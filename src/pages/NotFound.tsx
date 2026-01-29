@@ -27,14 +27,14 @@ const NotFound = () => {
               <Link to="/" className="flex items-center gap-3">
                 <img src={logo} alt="TalentMatch AI" className="h-10 w-auto" />
               </Link>
-              <span className="text-xs text-muted-foreground">Error 404</span>
+              <span className="text-xs">Error 404</span>
             </header>
 
             <div className="mt-8">
               <h1 className="font-display text-3xl md:text-4xl font-bold">
                 This page doesn’t exist
               </h1>
-              <p className="mt-3 text-muted-foreground">
+              <p className="mt-3">
                 We couldn’t find <span className="font-mono">{location.pathname}</span>.
               </p>
 
@@ -53,7 +53,7 @@ const NotFound = () => {
             </div>
           </div>
 
-          <p className="mt-4 text-center text-xs text-muted-foreground">
+          <p className="mt-4 text-center text-xs">
             If you typed the address manually, please double-check it.
           </p>
         </section>

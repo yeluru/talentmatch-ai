@@ -247,13 +247,16 @@ export default function PublicJobPage() {
 
         // Link candidate ↔ org for this application (so the candidate can see org ties)
         if (cpData?.id && job?.organization?.id) {
-          await supabase.from('candidate_org_links').upsert({
-            candidate_id: cpData.id,
-            organization_id: job.organization.id,
-            link_type: 'application',
-            status: 'active',
-            created_by: authData.user.id,
-          } as any);
+          await supabase.from('candidate_org_links').upsert(
+            {
+              candidate_id: cpData.id,
+              organization_id: job.organization.id,
+              link_type: 'application',
+              status: 'active',
+              created_by: authData.user.id,
+            } as any,
+            { onConflict: 'candidate_id,organization_id' }
+          );
         }
 
         if (cpData && resumeFile) {
@@ -309,7 +312,7 @@ export default function PublicJobPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <h1 className="text-2xl font-bold mb-4">Job Not Found</h1>
-        <p className="text-muted-foreground mb-6">This job posting may have been removed or is no longer available.</p>
+        <p className="mb-6">This job posting may have been removed or is no longer available.</p>
         <Button onClick={() => navigate('/')}>Go to Homepage</Button>
       </div>
     );
@@ -325,7 +328,7 @@ export default function PublicJobPage() {
               <img src={job.organization.logo_url} alt="" className="h-10 w-10 object-contain rounded" />
             ) : (
               <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
+                <Building2 className="h-5 w-5" />
               </div>
             )}
             <span className="font-semibold">{job.organization?.name}</span>
@@ -346,7 +349,7 @@ export default function PublicJobPage() {
             <Card>
               <CardContent className="pt-6">
                 <h1 className="font-display text-3xl font-bold mb-2">{job.title}</h1>
-                <p className="text-lg text-muted-foreground mb-4">{job.organization?.name}</p>
+                <p className="text-lgmb-4">{job.organization?.name}</p>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {job.location && (
@@ -430,7 +433,7 @@ export default function PublicJobPage() {
                 {/* Step: View */}
                 {step === 'view' && (
                   <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm">
                       Start by uploading your resume. We'll parse it automatically to speed up your application.
                     </p>
                     <Button className="w-full" onClick={() => setStep('upload')}>
@@ -438,7 +441,7 @@ export default function PublicJobPage() {
                       Start Application
                     </Button>
                     <div className="text-center">
-                      <span className="text-sm text-muted-foreground">Already have an account? </span>
+                      <span className="text-sm">Already have an account? </span>
                       <Link to="/auth" className="text-sm text-primary hover:underline">Sign in</Link>
                     </div>
                   </div>
@@ -463,11 +466,11 @@ export default function PublicJobPage() {
                           </div>
                         ) : (
                           <>
-                            <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground">
+                            <Upload className="h-8 w-8 mx-automb-2" />
+                            <p className="text-sm">
                               Click to upload or drag and drop
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xsmt-1">
                               PDF, DOC, DOCX, or TXT (max 10MB)
                             </p>
                           </>
@@ -490,7 +493,7 @@ export default function PublicJobPage() {
                   <div className="text-center py-6">
                     <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary mb-4" />
                     <p className="font-medium">Analyzing your resume...</p>
-                    <p className="text-sm text-muted-foreground">This may take a few seconds</p>
+                    <p className="text-sm">This may take a few seconds</p>
                   </div>
                 )}
 
@@ -525,7 +528,7 @@ export default function PublicJobPage() {
                   <div className="space-y-4">
                     {parsedData && (
                       <div className="bg-muted/50 rounded-lg p-3 mb-4">
-                        <p className="text-xs text-muted-foreground mb-1">Parsed from your resume</p>
+                        <p className="text-xsmb-1">Parsed from your resume</p>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-primary" />
                           <span className="text-sm font-medium">{parsedData.full_name}</span>
@@ -619,7 +622,7 @@ export default function PublicJobPage() {
                   <div className="text-center py-6">
                     <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
                     <h3 className="font-semibold text-lg mb-2">Application Submitted!</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-smmb-4">
                       Thank you for applying. Please check your email to verify your account and track your application status.
                     </p>
                     <Button asChild>
@@ -636,13 +639,13 @@ export default function PublicJobPage() {
                   <CardTitle>About {job.organization.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">{job.organization.description}</p>
+                  <p className="text-sm">{job.organization.description}</p>
                 </CardContent>
               </Card>
             )}
 
             {job.posted_at && (
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-smtext-center">
                 Posted {format(new Date(job.posted_at), 'MMMM d, yyyy')}
               </p>
             )}

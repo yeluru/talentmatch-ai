@@ -17,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Search, Sparkles, Briefcase, ArrowRight, Info } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { resumesObjectPath } from '@/lib/storagePaths';
+import { getSignedResumeUrl } from '@/lib/resumeLinks';
 
 interface Resume {
   id: string;
@@ -469,16 +469,9 @@ export default function AIAnalysis() {
       }
 
       // Otherwise, build a real resumeText from parse-resume extraction.
-      const objectPath = resumesObjectPath(selectedResume.file_url);
-      if (!objectPath) throw new Error('Could not resolve resume path');
+      const signedUrl = await getSignedResumeUrl(selectedResume.file_url, { expiresInSeconds: 900 });
 
-      const { data: signed, error: signedErr } = await supabase.storage
-        .from('resumes')
-        .createSignedUrl(objectPath, 900);
-      if (signedErr) throw signedErr;
-      if (!signed?.signedUrl) throw new Error('Could not create signed URL');
-
-      const resp = await fetch(signed.signedUrl);
+      const resp = await fetch(signedUrl);
       if (!resp.ok) throw new Error(`Failed to download resume (${resp.status})`);
       const buf = await resp.arrayBuffer();
       const fileBase64 = arrayBufferToBase64(buf);
@@ -634,7 +627,7 @@ export default function AIAnalysis() {
                 <Sparkles className="h-6 w-6 text-accent" />
                 <h1 className="font-display text-3xl font-bold">ATS Checkpoint</h1>
               </div>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1">
                 Optimize for ATS shortlisting. The canonical score comes from deterministic JD keyword coverage + a model estimate.
           </p>
         </div>
@@ -656,7 +649,7 @@ export default function AIAnalysis() {
                   
                   <TabsContent value="existing" className="space-y-3">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
                       <Input
                         placeholder="Search jobs by title or company..."
                         value={jobSearchQuery}
@@ -666,7 +659,7 @@ export default function AIAnalysis() {
                     </div>
                     <div className="max-h-[240px] overflow-y-auto space-y-2 border rounded-md p-2 bg-background">
                       {filteredJobs.length === 0 ? (
-                        <p className="text-muted-foreground text-sm text-center py-4">
+                        <p className="text-sm text-center py-4">
                           {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
                         </p>
                       ) : (
@@ -679,7 +672,7 @@ export default function AIAnalysis() {
                             onClick={() => handleJobSelect(job.id)}
                           >
                             <p className="font-medium text-sm">{job.title}</p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs">
                               {job.organization_name} {job.location && `• ${job.location}`}
                             </p>
                           </div>
@@ -720,7 +713,7 @@ export default function AIAnalysis() {
                     </SelectContent>
                   </Select>
                   {!resumes.length && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs">
                       No resumes yet. <a className="underline" href="/candidate/resumes">Upload one</a>.
                     </div>
                   )}
@@ -757,7 +750,7 @@ export default function AIAnalysis() {
                   <CardContent className="py-12">
                     <div className="max-w-xl mx-auto text-center space-y-2">
                       <div className="text-2xl font-semibold">Run a check</div>
-                      <div className="text-muted-foreground">
+                      <div className="">
                         Select your resume and paste/select a JD. We’ll show exactly what phrases to add to raise the canonical score.
                       </div>
                     </div>
@@ -769,12 +762,12 @@ export default function AIAnalysis() {
                     <CardContent className="pt-6">
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <div className="text-smflex items-center gap-2">
                             ATS match score (canonical)
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span className="inline-flex items-center">
-                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                  <Info className="h-4 w-4" />
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -792,7 +785,7 @@ export default function AIAnalysis() {
                         <div className="w-full md:max-w-[420px]">
                           <Progress value={analysisResult.match_score} className="h-2" />
                           {analysisResult.diagnostics?.scoring && (
-                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                               <div className="rounded-md border bg-background p-2">
                                 <div className="font-medium text-foreground">Keyword coverage</div>
                                 <div>
@@ -817,7 +810,7 @@ export default function AIAnalysis() {
                         <CardDescription>What the analysis thinks you should do next.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        <div className="text-smwhitespace-pre-wrap">
                           {analysisResult.summary}
                     </div>
                   </CardContent>
@@ -840,7 +833,7 @@ export default function AIAnalysis() {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-sm text-muted-foreground">No keyword gaps detected.</div>
+                          <div className="text-sm">No keyword gaps detected.</div>
                         )}
                       </CardContent>
                     </Card>
@@ -860,7 +853,7 @@ export default function AIAnalysis() {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-sm text-muted-foreground">No model skill gaps detected.</div>
+                          <div className="text-sm">No model skill gaps detected.</div>
                         )}
                       </CardContent>
                     </Card>
@@ -872,7 +865,7 @@ export default function AIAnalysis() {
                       </CardHeader>
                       <CardContent>
                         {topRecommendations.length ? (
-                          <ul className="space-y-2 text-sm text-muted-foreground">
+                          <ul className="space-y-2 text-sm">
                             {topRecommendations.map((rec, i) => (
                               <li key={i} className="flex items-start gap-2">
                                 <span className="mt-1">•</span>
@@ -881,7 +874,7 @@ export default function AIAnalysis() {
                             ))}
                           </ul>
                         ) : (
-                          <div className="text-sm text-muted-foreground">No recommendations available.</div>
+                          <div className="text-sm">No recommendations available.</div>
                         )}
                       </CardContent>
                     </Card>
@@ -904,7 +897,7 @@ export default function AIAnalysis() {
                             </ScrollArea>
                           </div>
                         ) : (
-                          <div className="text-sm text-muted-foreground">No keyword gaps detected.</div>
+                          <div className="text-sm">No keyword gaps detected.</div>
                         )}
                       </AccordionContent>
                     </AccordionItem>

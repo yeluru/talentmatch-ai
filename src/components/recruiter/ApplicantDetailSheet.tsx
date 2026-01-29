@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -23,7 +23,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
-import { resumesObjectPath } from '@/lib/storagePaths';
+import { openResumeInNewTab } from '@/lib/resumeLinks';
+import { APPLICATION_STAGE_OPTIONS } from '@/lib/statusOptions';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
   Mail,
@@ -74,16 +76,7 @@ interface ApplicationWithExtras {
   education?: Array<{ id: string; degree: string; institution: string; field_of_study: string | null }>;
 }
 
-const statusColors: Record<string, string> = {
-  applied: 'bg-blue-500/10 text-blue-500',
-  screening: 'bg-yellow-500/10 text-yellow-500',
-  interviewing: 'bg-purple-500/10 text-purple-500',
-  offered: 'bg-green-500/10 text-green-500',
-  hired: 'bg-emerald-500/10 text-emerald-500',
-  rejected: 'bg-red-500/10 text-red-500',
-};
-
-const statusOptions = ['applied', 'screening', 'interviewing', 'offered', 'hired', 'rejected'];
+const statusOptions = APPLICATION_STAGE_OPTIONS.filter((o) => o.value !== 'reviewed').map((o) => o.value);
 
 export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: ApplicantDetailSheetProps) {
   const isMobile = useIsMobile();
@@ -148,13 +141,12 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
     enabled: !!applicationId && open,
   });
 
-  // Set notes and rating when application loads
-  useState(() => {
-    if (application) {
-      setNotes(application.recruiter_notes || '');
-      setRating(application.recruiter_rating || 0);
-    }
-  });
+  // Set notes and rating when application loads / changes
+  useEffect(() => {
+    if (!application) return;
+    setNotes(application.recruiter_notes || '');
+    setRating(application.recruiter_rating || 0);
+  }, [application]);
 
   const updateApplication = useMutation({
     mutationFn: async (updates: { status?: string; recruiter_notes?: string; recruiter_rating?: number }) => {
@@ -167,7 +159,8 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application-detail', applicationId] });
-      queryClient.invalidateQueries({ queryKey: ['job-applicants'] });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
       toast.success('Application updated');
     },
     onError: () => {
@@ -187,16 +180,7 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
     if (!application?.resumes?.file_url) return;
     
     try {
-      const objectPath = resumesObjectPath(application.resumes.file_url);
-      if (!objectPath) {
-        throw new Error('Could not resolve resume storage path');
-      }
-      const { data, error } = await supabase.storage
-        .from('resumes')
-        .createSignedUrl(objectPath, 600, { download: true });
-      
-      if (error) throw error;
-      window.open(data.signedUrl, '_blank');
+      await openResumeInNewTab(application.resumes.file_url, { expiresInSeconds: 600, download: true });
     } catch (error) {
       console.error('Error downloading resume:', error);
       toast.error('Failed to download resume');
@@ -205,10 +189,10 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
 
   const content = isLoading ? (
     <div className="flex items-center justify-center h-48">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <Loader2 className="h-6 w-6 animate-spin" />
     </div>
   ) : !application ? (
-    <div className="flex items-center justify-center h-48 text-muted-foreground">
+    <div className="flex items-center justify-center h-48">
       Application not found
     </div>
   ) : (
@@ -226,14 +210,12 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
               {application.candidate_profiles?.full_name || 'Unknown'}
             </h2>
             {application.candidate_profiles?.headline && (
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-smmt-1">
                 {application.candidate_profiles.headline}
               </p>
             )}
             <div className="flex items-center gap-2 mt-2">
-              <Badge className={statusColors[application.status || 'applied']}>
-                {application.status || 'applied'}
-              </Badge>
+              <StatusBadge status={application.status || 'applied'} />
               {application.ai_match_score && (
                 <ScoreBadge score={application.ai_match_score} />
               )}
@@ -245,7 +227,7 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {application.candidate_profiles?.email && (
             <div className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Mail className="h-4 w-4shrink-0" />
               <a href={`mailto:${application.candidate_profiles.email}`} className="text-accent hover:underline truncate">
                 {application.candidate_profiles.email}
               </a>
@@ -253,31 +235,31 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
           )}
           {application.candidate_profiles?.phone && (
             <div className="flex items-center gap-2 text-sm">
-              <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Phone className="h-4 w-4shrink-0" />
               <span>{application.candidate_profiles.phone}</span>
             </div>
           )}
           {application.candidate_profiles?.location && (
             <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+              <MapPin className="h-4 w-4shrink-0" />
               <span>{application.candidate_profiles.location}</span>
             </div>
           )}
           {application.candidate_profiles?.current_company && (
             <div className="flex items-center gap-2 text-sm">
-              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Building2 className="h-4 w-4shrink-0" />
               <span>{application.candidate_profiles.current_company}</span>
             </div>
           )}
           {application.candidate_profiles?.current_title && (
             <div className="flex items-center gap-2 text-sm">
-              <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Briefcase className="h-4 w-4shrink-0" />
               <span>{application.candidate_profiles.current_title}</span>
             </div>
           )}
           {application.candidate_profiles?.years_of_experience && (
             <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Clock className="h-4 w-4shrink-0" />
               <span>{application.candidate_profiles.years_of_experience} years experience</span>
             </div>
           )}
@@ -285,9 +267,9 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
 
         {/* Applied For */}
         <div className="bg-muted/50 rounded-lg p-3">
-          <p className="text-sm text-muted-foreground">Applied for</p>
+          <p className="text-sm">Applied for</p>
           <p className="font-medium">{application.jobs?.title}</p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xsmt-1">
             {formatDistanceToNow(new Date(application.applied_at), { addSuffix: true })}
           </p>
         </div>
@@ -338,7 +320,7 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
         {application.candidate_profiles?.summary && (
           <div>
             <Label className="text-sm font-medium mb-2 block">Summary</Label>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+            <p className="text-smwhitespace-pre-wrap">
               {application.candidate_profiles.summary}
             </p>
           </div>
@@ -369,8 +351,8 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
               {application.experience.slice(0, 3).map((exp: any) => (
                 <div key={exp.id} className="bg-muted/30 rounded-lg p-3">
                   <p className="font-medium">{exp.job_title}</p>
-                  <p className="text-sm text-muted-foreground">{exp.company_name}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm">{exp.company_name}</p>
+                  <p className="text-xsmt-1">
                     {format(new Date(exp.start_date), 'MMM yyyy')} - 
                     {exp.is_current ? ' Present' : exp.end_date ? ` ${format(new Date(exp.end_date), 'MMM yyyy')}` : ''}
                   </p>
@@ -387,12 +369,12 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
             <div className="space-y-3">
               {application.education.map((edu: any) => (
                 <div key={edu.id} className="flex items-start gap-3">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+                  <GraduationCap className="h-4 w-4mt-1 shrink-0" />
                   <div>
                     <p className="font-medium">{edu.degree}</p>
-                    <p className="text-sm text-muted-foreground">{edu.institution}</p>
+                    <p className="text-sm">{edu.institution}</p>
                     {edu.field_of_study && (
-                      <p className="text-xs text-muted-foreground">{edu.field_of_study}</p>
+                      <p className="text-xs">{edu.field_of_study}</p>
                     )}
                   </div>
                 </div>
@@ -417,7 +399,7 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
                   className={`h-6 w-6 ${
                     star <= rating
                       ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-muted-foreground'
+                      : ''
                   }`}
                 />
               </button>

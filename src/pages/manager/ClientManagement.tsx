@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +18,8 @@ import {
   Mail, Phone, User, FileText, Briefcase 
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { sortBy } from '@/lib/sort';
+import { useTableSort } from '@/hooks/useTableSort';
 
 interface Client {
   id: string;
@@ -37,6 +40,10 @@ export default function ClientManagement() {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const tableSort = useTableSort<'name' | 'contact' | 'industry' | 'jobs_count' | 'status' | 'created_at'>({
+    key: 'name',
+    dir: 'asc',
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
@@ -55,6 +62,12 @@ export default function ClientManagement() {
     if (organizationId) fetchClients();
     else setIsLoading(false);
   }, [organizationId, authLoading]);
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    client.industry?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    client.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const fetchClients = async () => {
     try {
@@ -90,6 +103,27 @@ export default function ClientManagement() {
       setIsLoading(false);
     }
   };
+
+  const sortedClients = useMemo(() => {
+    return sortBy(filteredClients, tableSort.sort, (c, key) => {
+      switch (key) {
+        case 'name':
+          return c.name;
+        case 'contact':
+          return c.contact_name || c.contact_email || '';
+        case 'industry':
+          return c.industry || '';
+        case 'jobs_count':
+          return c.jobs_count ?? 0;
+        case 'status':
+          return c.status || '';
+        case 'created_at':
+          return c.created_at;
+        default:
+          return c.name;
+      }
+    });
+  }, [filteredClients, tableSort.sort]);
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
@@ -181,12 +215,6 @@ export default function ClientManagement() {
     });
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.industry?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'active': return 'default';
@@ -215,7 +243,7 @@ export default function ClientManagement() {
             <CardDescription>You need to be linked to a tenant to manage clients.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm">
               Ask a platform admin to re-invite you or reassign your account manager role to a tenant organization.
             </p>
           </CardContent>
@@ -230,7 +258,7 @@ export default function ClientManagement() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">Client Management</h1>
-            <p className="text-muted-foreground mt-1">Manage client companies and their requirements</p>
+            <p className="mt-1">Manage client companies and their requirements</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
@@ -350,7 +378,7 @@ export default function ClientManagement() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{clients.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Clients</p>
+                  <p className="text-sm">Total Clients</p>
                 </div>
               </div>
             </CardContent>
@@ -363,7 +391,7 @@ export default function ClientManagement() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{clients.filter(c => c.status === 'active').length}</p>
-                  <p className="text-sm text-muted-foreground">Active Clients</p>
+                  <p className="text-sm">Active Clients</p>
                 </div>
               </div>
             </CardContent>
@@ -376,7 +404,7 @@ export default function ClientManagement() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{clients.reduce((sum, c) => sum + (c.jobs_count || 0), 0)}</p>
-                  <p className="text-sm text-muted-foreground">Total Jobs</p>
+                  <p className="text-sm">Total Jobs</p>
                 </div>
               </div>
             </CardContent>
@@ -385,7 +413,7 @@ export default function ClientManagement() {
 
         {/* Search */}
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
           <Input
             placeholder="Search clients..."
             value={searchQuery}
@@ -400,32 +428,32 @@ export default function ClientManagement() {
             <CardTitle>All Clients</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredClients.length === 0 ? (
+            {sortedClients.length === 0 ? (
               <div className="text-center py-12">
-                <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <Building2 className="h-12 w-12 mx-automb-4" />
                 <h3 className="text-lg font-semibold mb-2">No clients yet</h3>
-                <p className="text-muted-foreground">Add your first client to get started</p>
+                <p className="">Add your first client to get started</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Industry</TableHead>
-                    <TableHead>Jobs</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <SortableTableHead label="Company" sortKey="name" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Contact" sortKey="contact" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Industry" sortKey="industry" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Jobs" sortKey="jobs_count" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Status" sortKey="status" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Created" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} />
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClients.map((client) => (
+                  {sortedClients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                            <Building2 className="h-5 w-5" />
                           </div>
                           <div>
                             <p className="font-medium">{client.name}</p>
@@ -448,11 +476,11 @@ export default function ClientManagement() {
                           <div className="space-y-1">
                             <p className="text-sm">{client.contact_name}</p>
                             {client.contact_email && (
-                              <p className="text-xs text-muted-foreground">{client.contact_email}</p>
+                              <p className="text-xs">{client.contact_email}</p>
                             )}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="">-</span>
                         )}
                       </TableCell>
                       <TableCell>{client.industry || '-'}</TableCell>
@@ -464,7 +492,7 @@ export default function ClientManagement() {
                           {client.status || 'active'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
+                      <TableCell className="text-sm">
                         {format(new Date(client.created_at), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell className="text-right">

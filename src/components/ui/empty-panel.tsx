@@ -18,9 +18,9 @@ export function EmptyPanel({
   return (
     <div className={cn("card-elevated border-dashed border-2 p-8", className)}>
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-        {icon ? <div className="mb-4 text-muted-foreground">{icon}</div> : null}
+        {icon ? <div className="mb-4">{icon}</div> : null}
         <h3 className="font-display text-lg font-semibold">{title}</h3>
-        {description ? <p className="mt-2 text-sm text-muted-foreground">{description}</p> : null}
+        {description ? <p className="mt-2 text-sm">{description}</p> : null}
         {action ? (
           <div className="mt-5">
             {action.href ? (

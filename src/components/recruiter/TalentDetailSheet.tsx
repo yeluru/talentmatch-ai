@@ -50,7 +50,8 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { resumesObjectPath } from '@/lib/storagePaths';
+import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { openResumeInNewTab } from '@/lib/resumeLinks';
 
 interface TalentDetailSheetProps {
   talentId: string | null;
@@ -58,14 +59,19 @@ interface TalentDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const STATUS_OPTIONS = [
-  { value: 'new', label: 'New', variant: 'default' as const },
-  { value: 'contacted', label: 'Contacted', variant: 'info' as const },
-  { value: 'interviewing', label: 'Interviewing', variant: 'warning' as const },
-  { value: 'offered', label: 'Offered', variant: 'success' as const },
-  { value: 'hired', label: 'Hired', variant: 'success' as const },
-  { value: 'rejected', label: 'Rejected', variant: 'destructive' as const },
-];
+const STATUS_OPTIONS = TALENT_POOL_STATUS_OPTIONS.map((s) => ({
+  ...s,
+  variant:
+    s.value === 'rejected'
+      ? ('destructive' as const)
+      : s.value === 'contacted'
+        ? ('info' as const)
+        : s.value === 'interviewing' || s.value === 'screening'
+          ? ('warning' as const)
+          : s.value === 'offered' || s.value === 'hired'
+            ? ('success' as const)
+            : ('default' as const),
+}));
 
 interface TalentData {
   id: string;
@@ -119,6 +125,13 @@ interface TalentDetailContentProps {
   isDownloading: boolean;
   isEditingNotes: boolean;
   editedNotes: string;
+  isEnriching: boolean;
+  linkedinPasteOpen: boolean;
+  linkedinPasteText: string;
+  onLinkedinPasteOpenChange: (open: boolean) => void;
+  onLinkedinPasteTextChange: (text: string) => void;
+  onEnrichFromLinkedIn: () => void;
+  onEnrichFromPastedText: () => void;
   onEditedNotesChange: (notes: string) => void;
   onStartEditNotes: () => void;
   onSaveNotes: () => void;
@@ -137,6 +150,13 @@ function TalentDetailContent({
   isDownloading,
   isEditingNotes,
   editedNotes,
+  isEnriching,
+  linkedinPasteOpen,
+  linkedinPasteText,
+  onLinkedinPasteOpenChange,
+  onLinkedinPasteTextChange,
+  onEnrichFromLinkedIn,
+  onEnrichFromPastedText,
   onEditedNotesChange,
   onStartEditNotes,
   onSaveNotes,
@@ -151,18 +171,32 @@ function TalentDetailContent({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   if (!talent) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
+      <div className="text-center py-12">
         Profile not found
       </div>
     );
   }
+
+  const normUrl = (u?: string | null) => String(u || '').trim().replace(/\/+$/, '').toLowerCase();
+  const websiteIsLinkedIn =
+    (() => {
+      try {
+        const u = new URL(String(talent.website || '').trim());
+        return u.hostname.toLowerCase().endsWith('linkedin.com');
+      } catch {
+        return false;
+      }
+    })();
+  const sourceIsRedundant =
+    Boolean(talent.website) &&
+    (websiteIsLinkedIn || normUrl(talent.website) === normUrl(talent.linkedin_url));
 
   const content = (
     <div className={isMobile ? "space-y-5" : "space-y-6"}>
@@ -179,15 +213,15 @@ function TalentDetailContent({
             {talent.ats_score !== null && talent.ats_score !== undefined && (
               <div className="flex flex-col items-start leading-tight" title="Generic resume-quality score (not JD-based)">
                 <ScoreBadge score={talent.ats_score} showLabel={false} />
-                <span className="text-[10px] text-muted-foreground">generic score</span>
+                <span className="text-[10px]">generic score</span>
               </div>
             )}
           </div>
           {talent.headline && (
-            <p className="text-sm text-muted-foreground line-clamp-2">{talent.headline}</p>
+            <p className="text-smline-clamp-2">{talent.headline}</p>
           )}
           {talent.current_title && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+            <p className="text-smflex items-center gap-1 mt-1">
               <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
               <span className="truncate">
                 {talent.current_title}
@@ -198,66 +232,125 @@ function TalentDetailContent({
         </div>
       </div>
 
+      {/* Enrichment */}
+      {talent.linkedin_url ? (
+        <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium">Enrich profile</div>
+              <div className="text-xs">
+                Pull richer experience/skills from LinkedIn to improve this profile.
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={onEnrichFromLinkedIn}
+              disabled={isEnriching}
+              className="shrink-0"
+            >
+              {isEnriching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Enrich
+            </Button>
+          </div>
+
+          {linkedinPasteOpen ? (
+            <div className="space-y-2">
+              <div className="text-xs">
+                LinkedIn may block automated fetch. Paste the profile text (copy/paste from LinkedIn) and we’ll extract structured details.
+              </div>
+              <Textarea
+                value={linkedinPasteText}
+                onChange={(e) => onLinkedinPasteTextChange(e.target.value)}
+                placeholder="Paste LinkedIn profile text here…"
+                className="min-h-[140px]"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onLinkedinPasteOpenChange(false)}
+                  disabled={isEnriching}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onEnrichFromPastedText}
+                  disabled={isEnriching || !linkedinPasteText.trim()}
+                >
+                  {isEnriching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Enrich from pasted text
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Contact Info */}
       <div className="space-y-2">
         {talent.email && (
-          <div className="flex items-center gap-2 text-sm">
-            <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <a href={`mailto:${talent.email}`} className="hover:underline truncate">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Mail className="h-4 w-4flex-shrink-0" />
+            <a href={`mailto:${talent.email}`} className="hover:underline min-w-0 truncate">
               {talent.email}
             </a>
           </div>
         )}
         {talent.phone && (
-          <div className="flex items-center gap-2 text-sm">
-            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Phone className="h-4 w-4flex-shrink-0" />
             <a href={`tel:${talent.phone}`} className="hover:underline">
               {talent.phone}
             </a>
           </div>
         )}
         {talent.location && (
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="truncate">{talent.location}</span>
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <MapPin className="h-4 w-4flex-shrink-0" />
+            <span className="min-w-0 truncate">{talent.location}</span>
           </div>
         )}
         {talent.linkedin_url && (
-          <div className="flex items-center gap-2 text-sm">
-            <Linkedin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Linkedin className="h-4 w-4flex-shrink-0" />
             <a
               href={talent.linkedin_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline text-primary truncate"
+              className="hover:underline text-primary min-w-0 truncate"
             >
-              LinkedIn Profile
+              LinkedIn
             </a>
           </div>
         )}
         {talent.github_url && (
-          <div className="flex items-center gap-2 text-sm">
-            <Github className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <Github className="h-4 w-4flex-shrink-0" />
             <a
               href={talent.github_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline text-primary truncate"
+              className="hover:underline text-primary min-w-0 truncate"
             >
               GitHub
             </a>
           </div>
         )}
-        {talent.website && (
-          <div className="flex items-center gap-2 text-sm">
-            <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        {talent.website && !sourceIsRedundant && (
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <ExternalLink className="h-4 w-4flex-shrink-0" />
             <a
               href={talent.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline text-primary truncate"
+              className="hover:underline text-primary min-w-0 truncate"
             >
-              Source link
+              Source
             </a>
           </div>
         )}
@@ -330,9 +423,9 @@ function TalentDetailContent({
               </div>
             </div>
           ) : talent.recruiter_notes ? (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{talent.recruiter_notes}</p>
+            <p className="text-smwhitespace-pre-wrap">{talent.recruiter_notes}</p>
           ) : (
-            <p className="text-sm text-muted-foreground italic">No notes yet</p>
+            <p className="text-smitalic">No notes yet</p>
           )}
         </div>
       </div>
@@ -343,7 +436,7 @@ function TalentDetailContent({
           <Separator />
           <div>
             <h3 className="font-semibold mb-2 text-sm sm:text-base">Summary</h3>
-            <p className="text-sm text-muted-foreground">{talent.summary}</p>
+            <p className="text-sm">{talent.summary}</p>
           </div>
         </>
       )}
@@ -375,20 +468,20 @@ function TalentDetailContent({
               {talent.experience.map((exp) => (
                 <div key={exp.id} className="space-y-1">
                   <div className="font-medium text-sm sm:text-base">{exp.job_title}</div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-1">
+                  <div className="text-smflex items-center gap-1">
                     <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="truncate">
                       {exp.company_name}
                       {exp.location && ` • ${exp.location}`}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <div className="text-xsflex items-center gap-1">
                     <Calendar className="h-3 w-3 flex-shrink-0" />
                     {format(new Date(exp.start_date), 'MMM yyyy')} -{' '}
                     {exp.is_current ? 'Present' : exp.end_date ? format(new Date(exp.end_date), 'MMM yyyy') : 'N/A'}
                   </div>
                   {exp.description && (
-                    <p className="text-sm text-muted-foreground mt-1">{exp.description}</p>
+                    <p className="text-smmt-1">{exp.description}</p>
                   )}
                 </div>
               ))}
@@ -407,7 +500,7 @@ function TalentDetailContent({
               {talent.education.map((edu) => (
                 <div key={edu.id} className="space-y-1">
                   <div className="font-medium text-sm sm:text-base">{edu.degree}</div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-1">
+                  <div className="text-smflex items-center gap-1">
                     <GraduationCap className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="truncate">
                       {edu.institution}
@@ -415,7 +508,7 @@ function TalentDetailContent({
                     </span>
                   </div>
                   {edu.end_date && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs">
                       {format(new Date(edu.end_date), 'yyyy')}
                     </div>
                   )}
@@ -439,7 +532,7 @@ function TalentDetailContent({
                 className="p-3 rounded-md bg-muted/50 space-y-2"
               >
                 <div className="flex items-start gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <FileText className="h-4 w-4flex-shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium break-words">
@@ -451,7 +544,7 @@ function TalentDetailContent({
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="text-xsmt-1">
                       {format(new Date(resume.created_at), 'MMM d, yyyy')}
                       {resume.ats_score && ` • ATS: ${resume.ats_score}%`}
                     </div>
@@ -483,7 +576,7 @@ function TalentDetailContent({
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
             No resumes found for this candidate.
           </div>
         )}
@@ -491,7 +584,7 @@ function TalentDetailContent({
 
       {/* Meta info */}
       <Separator />
-      <div className="text-xs text-muted-foreground pb-4">
+      <div className="text-xspb-4">
         Added {format(new Date(talent.created_at), 'MMMM d, yyyy')}
         {talent.years_of_experience !== null && talent.years_of_experience !== undefined && (
           <> • {talent.years_of_experience} years experience</>
@@ -523,6 +616,8 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
   const [isDownloading, setIsDownloading] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [editedNotes, setEditedNotes] = useState('');
+  const [linkedinPasteOpen, setLinkedinPasteOpen] = useState(false);
+  const [linkedinPasteText, setLinkedinPasteText] = useState('');
   const queryClient = useQueryClient();
 
   const { data: talent, isLoading } = useQuery({
@@ -615,6 +710,34 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     },
   });
 
+  const enrichLinkedinMutation = useMutation({
+    mutationFn: async (args: { candidateId: string; linkedinUrl?: string | null; pastedText?: string | null }) => {
+      const { data, error } = await supabase.functions.invoke('enrich-linkedin-profile', {
+        body: {
+          candidateId: args.candidateId,
+          linkedinUrl: args.linkedinUrl,
+          pastedText: args.pastedText,
+        }
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['talent-detail', talentId] });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      toast.success('Profile enriched');
+      setLinkedinPasteOpen(false);
+      setLinkedinPasteText('');
+    },
+    onError: (error: any) => {
+      const msg = error?.message || 'LinkedIn enrich failed';
+      if (String(msg).toLowerCase().includes('paste')) {
+        setLinkedinPasteOpen(true);
+      }
+      toast.error(msg);
+    }
+  });
+
   const handleStartEditNotes = () => {
     setEditedNotes(talent?.recruiter_notes || '');
     setIsEditingNotes(true);
@@ -629,31 +752,29 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     setEditedNotes('');
   };
 
-  const handleViewResume = async (fileUrl: string, fileName: string) => {
-    const tab = window.open('about:blank', '_blank');
+  const handleEnrichFromLinkedIn = () => {
+    if (!talentId) return;
+    const url = String(talent?.linkedin_url || '').trim();
+    if (!url) {
+      toast.error('Missing LinkedIn URL');
+      return;
+    }
+    enrichLinkedinMutation.mutate({ candidateId: talentId, linkedinUrl: url });
+  };
 
+  const handleEnrichFromPastedText = () => {
+    if (!talentId) return;
+    const text = linkedinPasteText.trim();
+    if (!text) return;
+    enrichLinkedinMutation.mutate({ candidateId: talentId, pastedText: text });
+  };
+
+  const handleViewResume = async (fileUrl: string, fileName: string) => {
     setIsDownloading(true);
     try {
-      const filePath = resumesObjectPath(fileUrl);
-
-      if (filePath) {
-        const { data: signedUrlData, error: signedUrlError } = await supabase
-          .storage
-          .from('resumes')
-          .createSignedUrl(filePath, 3600);
-
-        if (signedUrlError) throw signedUrlError;
-
-        const urlToOpen = signedUrlData?.signedUrl || fileUrl;
-        if (tab) tab.location.href = urlToOpen;
-        else window.open(urlToOpen, '_blank');
-      } else {
-        if (tab) tab.location.href = fileUrl;
-        else window.open(fileUrl, '_blank');
-      }
+      await openResumeInNewTab(fileUrl, { expiresInSeconds: 3600 });
     } catch (error) {
       console.error('Error viewing resume:', error);
-      if (tab) tab.close();
       toast.error(`Failed to open resume: ${fileName}`);
     } finally {
       setIsDownloading(false);
@@ -663,34 +784,8 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
   const handleDownloadResume = async (fileUrl: string, fileName: string) => {
     setIsDownloading(true);
     try {
-      const filePath = resumesObjectPath(fileUrl);
-      
-      if (filePath) {
-        const { data: signedUrlData, error: signedUrlError } = await supabase
-          .storage
-          .from('resumes')
-          .createSignedUrl(filePath, 3600, { download: true });
-
-        if (signedUrlError) throw signedUrlError;
-        
-        if (signedUrlData?.signedUrl) {
-          const link = document.createElement('a');
-          link.href = signedUrlData.signedUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          toast.success('Resume downloaded');
-        }
-      } else {
-        const link = document.createElement('a');
-        link.href = fileUrl;
-        link.download = fileName;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      await openResumeInNewTab(fileUrl, { expiresInSeconds: 3600, download: true });
+      toast.success('Resume download started');
     } catch (error) {
       console.error('Error downloading resume:', error);
       toast.error('Failed to download resume');
@@ -705,6 +800,13 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
     isDownloading,
     isEditingNotes,
     editedNotes,
+    isEnriching: enrichLinkedinMutation.isPending,
+    linkedinPasteOpen,
+    linkedinPasteText,
+    onLinkedinPasteOpenChange: setLinkedinPasteOpen,
+    onLinkedinPasteTextChange: setLinkedinPasteText,
+    onEnrichFromLinkedIn: handleEnrichFromLinkedIn,
+    onEnrichFromPastedText: handleEnrichFromPastedText,
     onEditedNotesChange: setEditedNotes,
     onStartEditNotes: handleStartEditNotes,
     onSaveNotes: handleSaveNotes,

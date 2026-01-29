@@ -171,7 +171,7 @@ export default function JobAlerts() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">Job Alerts</h1>
-            <p className="text-muted-foreground mt-1">Get notified when new jobs match your criteria</p>
+            <p className="mt-1">Get notified when new jobs match your criteria</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
@@ -237,9 +237,9 @@ export default function JobAlerts() {
         {alerts.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+              <Bell className="h-12 w-12mb-4" />
               <h3 className="text-lg font-semibold mb-2">No job alerts yet</h3>
-              <p className="text-muted-foreground text-center mb-4">
+              <p className="text-center mb-4">
                 Create an alert to get notified about new jobs that match your criteria
               </p>
             </CardContent>
@@ -268,7 +268,7 @@ export default function JobAlerts() {
                           </Badge>
                         ))}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">
+                      <p className="text-smmt-2">
                         {alert.frequency === 'instant' ? 'Instant notifications' : 
                          alert.frequency === 'daily' ? 'Daily digest' : 'Weekly digest'}
                       </p>

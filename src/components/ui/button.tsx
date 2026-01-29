@@ -9,14 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg",
+        default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md",
         destructive: "bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90",
-        outline: "border-2 border-border bg-background hover:bg-muted hover:border-muted-foreground/20",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        outline: "border border-border bg-background hover:bg-muted/60 hover:border-border/80",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
         ghost: "hover:bg-muted hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         // Premium variants
-        gradient: "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-md hover:shadow-glow",
+        gradient: "bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-sm hover:shadow-glow",
         glow: "bg-primary text-primary-foreground shadow-glow hover:shadow-glow-lg",
         // Audience-specific variants
         candidate: "bg-candidate text-candidate-foreground shadow-md hover:bg-candidate/90",
@@ -27,7 +27,7 @@ const buttonVariants = cva(
         "hero-secondary": "bg-white/10 text-white border-2 border-white/20 backdrop-blur-sm hover:bg-white/20",
       },
       size: {
-        default: "h-11 px-5 py-2",
+        default: "h-11 px-5 py-2.5",
         sm: "h-9 rounded-lg px-4 text-xs",
         lg: "h-12 rounded-xl px-8 text-base",
         xl: "h-14 rounded-2xl px-10 text-lg",

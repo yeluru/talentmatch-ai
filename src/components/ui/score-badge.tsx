@@ -16,10 +16,10 @@ export function ScoreBadge({ score, size = 'md', showLabel = true, className }: 
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 80) return 'Excellent Match';
-    if (score >= 60) return 'Good Match';
-    if (score >= 40) return 'Fair Match';
-    return 'Low Match';
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Low';
   };
 
   const sizeClasses = {
@@ -38,7 +38,7 @@ export function ScoreBadge({ score, size = 'md', showLabel = true, className }: 
         {score}%
       </span>
       {showLabel && (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm">
           {getScoreLabel(score)}
         </span>
       )}

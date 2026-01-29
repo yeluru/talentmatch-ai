@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { 
@@ -54,7 +55,7 @@ export default function RecruiterJobs() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const isMobile = useIsMobile();
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
@@ -103,7 +104,7 @@ export default function RecruiterJobs() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
       toast.success('Job status updated');
     },
     onError: () => {
@@ -120,7 +121,7 @@ export default function RecruiterJobs() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
       toast.success('Job visibility updated');
     },
     onError: () => {
@@ -142,7 +143,7 @@ export default function RecruiterJobs() {
       case 'draft':
         return <Badge variant="secondary">Draft</Badge>;
       case 'closed':
-        return <Badge variant="outline" className="text-muted-foreground">Closed</Badge>;
+        return <Badge variant="outline" className="">Closed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -152,7 +153,7 @@ export default function RecruiterJobs() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -176,7 +177,7 @@ export default function RecruiterJobs() {
       >
         <div className="flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
             <Input
               placeholder="Search jobs..."
               value={searchQuery}
@@ -218,8 +219,11 @@ export default function RecruiterJobs() {
               />
             ) : (
               <div className="divide-y">
-                {filteredJobs.map((job) => (
-                  <div key={job.id} className="py-4 first:pt-0 last:pb-0">
+                {filteredJobs.map((job, idx) => (
+                  <div
+                    key={job.id}
+                    className={`py-4 first:pt-0 last:pb-0 ${idx % 2 === 1 ? 'bg-secondary/60' : ''}`}
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -230,12 +234,12 @@ export default function RecruiterJobs() {
                               Public
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-muted-foreground">
+                            <Badge variant="outline" className="">
                               Private
                             </Badge>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-4 text-sm">
                           {job.location && (
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3.5 w-3.5" />
@@ -252,8 +256,10 @@ export default function RecruiterJobs() {
                             {job.views_count || 0} views
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Created {format(new Date(job.created_at), 'MMM d, yyyy')}
+                        <p className="text-xs mt-2">
+                          Created {job.created_at && !Number.isNaN(new Date(job.created_at).getTime())
+                            ? format(new Date(job.created_at), 'MMM d, yyyy')
+                            : '—'}
                         </p>
                       </div>
                       <DropdownMenu>

@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, Clock, XCircle, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { applicationStageColumnKey } from '@/lib/statusOptions';
 
 interface StatusHistory {
   id: string;
@@ -20,6 +22,8 @@ interface ApplicationTimelineProps {
 const statusIcons: Record<string, React.ElementType> = {
   applied: Clock,
   reviewing: Clock,
+  reviewed: Clock,
+  screening: Clock,
   shortlisted: CheckCircle2,
   interviewing: Clock,
   offered: CheckCircle2,
@@ -28,9 +32,11 @@ const statusIcons: Record<string, React.ElementType> = {
   withdrawn: XCircle,
 };
 
-const statusColors: Record<string, string> = {
+const statusDotColors: Record<string, string> = {
   applied: 'bg-blue-500',
-  reviewing: 'bg-yellow-500',
+  reviewing: 'bg-blue-500',
+  reviewed: 'bg-blue-500',
+  screening: 'bg-yellow-500',
   shortlisted: 'bg-green-500',
   interviewing: 'bg-purple-500',
   offered: 'bg-green-600',
@@ -67,7 +73,7 @@ export function ApplicationTimeline({ applicationId }: ApplicationTimelineProps)
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
@@ -79,7 +85,7 @@ export function ApplicationTimeline({ applicationId }: ApplicationTimelineProps)
           <CardTitle className="text-lg">Application Timeline</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">No status updates yet.</p>
+          <p className="text-sm">No status updates yet.</p>
         </CardContent>
       </Card>
     );
@@ -95,8 +101,10 @@ export function ApplicationTimeline({ applicationId }: ApplicationTimelineProps)
           <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
           <div className="space-y-6">
             {history.map((item, index) => {
-              const Icon = statusIcons[item.new_status] || Clock;
-              const colorClass = statusColors[item.new_status] || 'bg-gray-500';
+              const newKey = applicationStageColumnKey(item.new_status) || item.new_status;
+              const oldKey = applicationStageColumnKey(item.old_status) || item.old_status;
+              const Icon = statusIcons[String(newKey || '')] || Clock;
+              const colorClass = statusDotColors[String(newKey || '')] || 'bg-gray-500';
               
               return (
                 <div key={item.id} className="relative pl-10">
@@ -107,17 +115,13 @@ export function ApplicationTimeline({ applicationId }: ApplicationTimelineProps)
                     <div className="flex items-center gap-2 mb-1">
                       {item.old_status && (
                         <>
-                          <Badge variant="outline" className="capitalize text-xs">
-                            {item.old_status.replace('_', ' ')}
-                          </Badge>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <StatusBadge status={String(oldKey)} className="text-xs" />
+                          <ArrowRight className="h-3 w-3" />
                         </>
                       )}
-                      <Badge className="capitalize text-xs">
-                        {item.new_status.replace('_', ' ')}
-                      </Badge>
+                      <StatusBadge status={String(newKey)} className="text-xs" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs">
                       {format(new Date(item.created_at), 'MMM d, yyyy • h:mm a')}
                     </p>
                     {item.notes && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { 
   BarChart3,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
+import { DashboardAnalytics } from '@/components/recruiter/DashboardAnalytics';
 import {
   BarChart,
   Bar,
@@ -66,7 +68,47 @@ export default function TalentInsights() {
   const [selectedJob, setSelectedJob] = useState<string>('all');
   const [insights, setInsights] = useState<Insights | null>(null);
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
+  const STORAGE_KEY_PREFIX = useMemo(
+    () => `recruiter:talent-insights:last:${organizationId || 'no-org'}`,
+    [organizationId],
+  );
+
+  // Restore persisted selection + last generated insights (per job filter)
+  useEffect(() => {
+    if (!organizationId) return;
+    try {
+      const savedJob = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}:selectedJob`);
+      if (savedJob) setSelectedJob(savedJob);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY_PREFIX}:selectedJob`, selectedJob);
+    } catch {
+      // ignore
+    }
+  }, [STORAGE_KEY_PREFIX, organizationId, selectedJob]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    try {
+      const raw = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}:job:${selectedJob}`);
+      if (!raw) {
+        setInsights(null);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed?.insights) setInsights(parsed.insights as Insights);
+    } catch {
+      // ignore
+    }
+  }, [STORAGE_KEY_PREFIX, organizationId, selectedJob]);
 
   // Fetch jobs for filter
   const { data: jobs } = useQuery({
@@ -138,6 +180,14 @@ export default function TalentInsights() {
     },
     onSuccess: (data) => {
       setInsights(data);
+      try {
+        sessionStorage.setItem(
+          `${STORAGE_KEY_PREFIX}:job:${selectedJob}`,
+          JSON.stringify({ ts: Date.now(), job: selectedJob, insights: data }),
+        );
+      } catch {
+        // ignore
+      }
       toast.success('Insights generated successfully');
     },
     onError: (error: any) => {
@@ -154,9 +204,25 @@ export default function TalentInsights() {
             <BarChart3 className="h-8 w-8 text-accent" />
             Talent Insights
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1">
             Visualize your candidate pool with AI-powered analytics
           </p>
+        </div>
+
+        {/* Moved from Recruiter Dashboard: Pipeline Snapshot */}
+        <div className="card-elevated p-4 md:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Pipeline snapshot</h2>
+              <p className="text-sm">
+                Application trends, stage mix, and conversion funnel across your org’s jobs.
+              </p>
+            </div>
+            <Badge variant="secondary" className="bg-accent/10 text-accent">
+              Live
+            </Badge>
+          </div>
+          <DashboardAnalytics />
         </div>
 
         <Card>
@@ -191,7 +257,7 @@ export default function TalentInsights() {
                 Generate Insights
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm">
               {candidates?.length || 0} candidates available for analysis
             </p>
           </CardContent>
@@ -208,7 +274,7 @@ export default function TalentInsights() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">{insights.summary}</p>
+                <p className="">{insights.summary}</p>
                 <div className="flex items-center gap-2 mt-4">
                   <Badge variant="secondary" className="text-lg px-4 py-1">
                     <Users className="h-4 w-4 mr-2" />
@@ -310,7 +376,7 @@ export default function TalentInsights() {
                       {insights.recommendations.map((rec, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <span className="text-accent mt-1">•</span>
-                          <span className="text-muted-foreground">{rec}</span>
+                          <span className="">{rec}</span>
                         </li>
                       ))}
                     </ul>

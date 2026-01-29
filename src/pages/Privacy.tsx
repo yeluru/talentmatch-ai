@@ -14,7 +14,7 @@ export default function Privacy() {
           <CardHeader>
             <CardTitle className="font-display text-2xl">Privacy Policy</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <CardContent className="space-y-4 text-sm">
             <p>
               This is a placeholder privacy policy for local development. Replace this content before production.
             </p>

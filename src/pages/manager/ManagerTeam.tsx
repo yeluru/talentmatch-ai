@@ -26,10 +26,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Mail, Trash2, Clock, XCircle } from 'lucide-react';
+import { Loader2, Mail, Trash2, Clock, XCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface TeamMember {
   id: string;
@@ -56,6 +57,7 @@ export default function ManagerTeam() {
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [organizationName, setOrganizationName] = useState('');
+  const [assignedRecruiterIds, setAssignedRecruiterIds] = useState<Set<string>>(new Set());
   
   // Dialog states
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -112,13 +114,23 @@ export default function ManagerTeam() {
           const members = profiles.map(p => ({
             id: p.id,
             user_id: p.user_id,
-            full_name: p.full_name,
-            email: p.email,
+            full_name: p.full_name || 'User',
+            email: p.email || '',
             avatar_url: p.avatar_url || undefined,
             role: rolesData.find(r => r.user_id === p.user_id)?.role || 'unknown'
           }));
           setTeamMembers(members);
         }
+      }
+
+      // For account managers: limit recruiter list to those explicitly assigned.
+      if (user?.id) {
+        const { data: assigned } = await supabase
+          .from('account_manager_recruiter_assignments')
+          .select('recruiter_user_id')
+          .eq('organization_id', organizationId)
+          .eq('account_manager_user_id', user.id);
+        setAssignedRecruiterIds(new Set((assigned || []).map((a: any) => String(a.recruiter_user_id)).filter(Boolean)));
       }
 
       // Fetch pending invites
@@ -251,6 +263,13 @@ export default function ManagerTeam() {
     }
   };
 
+  // Derived data (must be above any early returns; no hooks used here)
+  const recruitersAll = teamMembers.filter((m) => m.role === 'recruiter');
+  const recruiters = assignedRecruiterIds.size
+    ? recruitersAll.filter((r) => assignedRecruiterIds.has(String(r.user_id)))
+    : [];
+  const managers = teamMembers.filter((m) => m.role === 'account_manager');
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -267,7 +286,7 @@ export default function ManagerTeam() {
         <main className="space-y-4">
           <header>
             <h1 className="font-display text-3xl font-bold">Team Management</h1>
-            <p className="text-muted-foreground mt-1">We couldn’t find an organization for this manager account.</p>
+            <p className="mt-1">We couldn’t find an organization for this manager account.</p>
           </header>
 
           <Card>
@@ -289,16 +308,13 @@ export default function ManagerTeam() {
     );
   }
 
-  const recruiters = teamMembers.filter(m => m.role === 'recruiter');
-  const managers = teamMembers.filter(m => m.role === 'account_manager');
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">Team Management</h1>
-            <p className="text-muted-foreground mt-1">Manage recruiters in your organization</p>
+            <p className="mt-1">Manage recruiters in your organization</p>
           </div>
           
           <Dialog open={isInviteOpen} onOpenChange={(open) => !open && setIsInviteOpen(false)}>
@@ -344,7 +360,7 @@ export default function ManagerTeam() {
                   </div>
                   {lastRecruiterInviteUrl && (
                     <div className="rounded-md border bg-muted/20 p-3">
-                      <p className="text-xs text-muted-foreground">Invite link (local email may be skipped)</p>
+                      <p className="text-xs">Invite link (local email may be skipped)</p>
                       <p className="mt-1 break-all text-sm font-medium">{lastRecruiterInviteUrl}</p>
                       <div className="mt-2 flex gap-2">
                         <Button
@@ -400,11 +416,11 @@ export default function ManagerTeam() {
                   <div key={invite.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <div>
                       <p className="font-medium">{invite.full_name || invite.email}</p>
-                      {invite.full_name && <p className="text-sm text-muted-foreground">{invite.email}</p>}
-                      <p className="mt-1 text-xs text-muted-foreground break-all">
+                      {invite.full_name && <p className="text-sm">{invite.email}</p>}
+                      <p className="mt-1 text-xs break-all">
                         Invite link: {buildInviteUrl(invite.invite_token)}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xsmt-1">
                         Expires {new Date(invite.expires_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -459,7 +475,7 @@ export default function ManagerTeam() {
             </CardHeader>
             <CardContent>
               {managers.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No managers found.</p>
+                <p className="text-sm">No managers found.</p>
               ) : (
                 <div className="space-y-3">
                   {managers.map((member) => (
@@ -467,12 +483,12 @@ export default function ManagerTeam() {
                       <Avatar>
                         <AvatarImage src={member.avatar_url} />
                         <AvatarFallback className="bg-manager/20 text-manager">
-                          {member.full_name.charAt(0)}
+                          {(member.full_name?.[0] || 'U').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <p className="text-sm">{member.email}</p>
                       </div>
                       <Badge className="bg-manager/10 text-manager">Manager</Badge>
                     </div>
@@ -489,7 +505,9 @@ export default function ManagerTeam() {
             </CardHeader>
             <CardContent>
               {recruiters.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No recruiters found. Add one using the buttons above.</p>
+                <p className="text-sm">
+                  No recruiters assigned to you yet. Ask an Org Admin to assign recruiters under your account.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {recruiters.map((member) => (
@@ -497,42 +515,22 @@ export default function ManagerTeam() {
                       <Avatar>
                         <AvatarImage src={member.avatar_url} />
                         <AvatarFallback className="bg-recruiter/20 text-recruiter">
-                          {member.full_name.charAt(0)}
+                          {(member.full_name?.[0] || 'U').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <p className="text-sm">{member.email}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className="bg-recruiter/10 text-recruiter">Recruiter</Badge>
-                        {member.user_id !== user?.id && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remove Recruiter</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to remove <strong>{member.full_name}</strong> from your organization? 
-                                  They will lose access to all organization data.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  onClick={() => handleRemoveRecruiter(member.user_id, member.full_name)}
-                                >
-                                  Remove
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+                        <Button asChild size="sm" variant="outline">
+                          <Link to={`/manager/team/recruiters/${member.user_id}`}>
+                            View progress
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Link>
+                        </Button>
+                        {/* Account managers oversee recruiters; org admins manage assignment/removal. */}
                       </div>
                     </div>
                   ))}

@@ -44,7 +44,7 @@ interface RecentApplication {
 }
 
 export default function ManagerDashboard() {
-  const { organizationId, currentRole, isLoading: authLoading } = useAuth();
+  const { organizationId, currentRole, user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState<OrgStats>({ openJobs: 0, totalRecruiters: 0, totalCandidates: 0, totalApplications: 0 });
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -82,7 +82,16 @@ export default function ManagerDashboard() {
         .select('user_id, role')
         .eq('organization_id', organizationId);
 
-      const recruitersCount = rolesData?.filter(r => r.role === 'recruiter').length || 0;
+      // For account managers, count only recruiters assigned to them.
+      let recruitersCount = rolesData?.filter(r => r.role === 'recruiter').length || 0;
+      if (currentRole === 'account_manager' && user?.id) {
+        const { data: assigned } = await supabase
+          .from('account_manager_recruiter_assignments')
+          .select('recruiter_user_id')
+          .eq('organization_id', organizationId)
+          .eq('account_manager_user_id', user.id);
+        recruitersCount = assigned?.length || 0;
+      }
       
       // Fetch team member profiles
       if (rolesData && rolesData.length > 0) {
@@ -257,7 +266,7 @@ export default function ManagerDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} href="/manager/jobs" />
           <StatCard title="Recruiters" value={stats.totalRecruiters.toString()} icon={Users} href="/manager/team" />
-          <StatCard title="Candidates" value={stats.totalCandidates.toString()} icon={Users} href="/manager/candidates" />
+          <StatCard title="Candidates" value={stats.totalCandidates.toString()} icon={Users} href="/recruiter/talent-pool" />
           <StatCard title="Applications" value={stats.totalApplications.toString()} icon={Clock} href="/manager/analytics" />
         </div>
 
@@ -284,7 +293,7 @@ export default function ManagerDashboard() {
             </CardHeader>
             <CardContent>
               {inviteCodes.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No invite codes yet. Create one to invite candidates.</p>
+                <p className="text-sm">No invite codes yet. Create one to invite candidates.</p>
               ) : (
                 <div className="space-y-3">
                   {inviteCodes.slice(0, 5).map((code) => (
@@ -296,7 +305,7 @@ export default function ManagerDashboard() {
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm">
                           {code.uses_count} uses
                         </span>
                         <Button variant="ghost" size="icon" onClick={() => copyCode(code.code)}>
@@ -318,14 +327,14 @@ export default function ManagerDashboard() {
             </CardHeader>
             <CardContent>
               {teamMembers.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No team members found.</p>
+                <p className="text-sm">No team members found.</p>
               ) : (
                 <div className="space-y-3">
                   {teamMembers.map((member) => (
                     <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                       <div>
                         <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <p className="text-sm">{member.email}</p>
                       </div>
                       <Badge variant="outline">
                         {member.role === 'recruiter' ? 'Recruiter' : 
@@ -347,18 +356,18 @@ export default function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             {recentApplications.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No applications yet.</p>
+              <p className="text-sm">No applications yet.</p>
             ) : (
               <div className="space-y-3">
                 {recentApplications.map((app) => (
                   <div key={app.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div>
                       <p className="font-medium">{app.candidate_name}</p>
-                      <p className="text-sm text-muted-foreground">Applied for: {app.job_title}</p>
+                      <p className="text-sm">Applied for: {app.job_title}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <Badge variant="outline">{app.status}</Badge>
-                      <span className="text-sm text-muted-foreground">{formatDate(app.applied_at)}</span>
+                      <span className="text-sm">{formatDate(app.applied_at)}</span>
                     </div>
                   </div>
                 ))}

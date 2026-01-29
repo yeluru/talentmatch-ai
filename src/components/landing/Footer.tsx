@@ -47,7 +47,7 @@ export function Footer() {
             <Link to="/" className="inline-block mb-4">
               <Logo />
             </Link>
-            <p className="text-sm text-muted-foreground max-w-xs">
+            <p className="text-smmax-w-xs">
               Connecting top talent with great opportunities through intelligent matching.
             </p>
           </div>
@@ -60,7 +60,7 @@ export function Footer() {
                 <li key={link.label}>
                   <Link
                     to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-smhover:text-foreground transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -77,7 +77,7 @@ export function Footer() {
                 <li key={link.label}>
                   <Link
                     to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-smhover:text-foreground transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -94,7 +94,7 @@ export function Footer() {
                 <li key={link.label}>
                   <Link
                     to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-smhover:text-foreground transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -106,7 +106,7 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t">
-          <p className="text-sm text-muted-foreground text-center">
+          <p className="text-smtext-center">
             © {currentYear} TalentMatch. All rights reserved.
           </p>
         </div>

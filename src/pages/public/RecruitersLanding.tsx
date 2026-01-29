@@ -96,7 +96,7 @@ export default function RecruitersLanding() {
                 <span className="text-recruiter">Not Harder</span>
               </h1>
               
-              <p className="text-lg text-muted-foreground mb-8 max-w-lg">
+              <p className="text-lgmb-8 max-w-lg">
                 Transform your recruitment process with intelligent matching, automated sourcing, 
                 and powerful pipeline management tools.
               </p>
@@ -124,7 +124,7 @@ export default function RecruitersLanding() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-muted-foreground mb-1">Active Candidates</div>
+                      <div className="text-smmb-1">Active Candidates</div>
                       <div className="text-3xl font-display font-bold">247</div>
                     </div>
                     <div className="h-12 w-12 rounded-xl bg-recruiter/10 flex items-center justify-center">
@@ -135,7 +135,7 @@ export default function RecruitersLanding() {
                   <div className="space-y-3">
                     {['Screening', 'Interview', 'Offer', 'Hired'].map((stage, i) => (
                       <div key={stage} className="flex items-center gap-3">
-                        <div className="text-sm text-muted-foreground w-20">{stage}</div>
+                        <div className="text-smw-20">{stage}</div>
                         <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-recruiter rounded-full" 
@@ -149,11 +149,11 @@ export default function RecruitersLanding() {
                   
                   <div className="pt-4 border-t flex items-center gap-4">
                     <div className="flex-1">
-                      <div className="text-sm text-muted-foreground">Avg. Time to Hire</div>
+                      <div className="text-sm">Avg. Time to Hire</div>
                       <div className="text-xl font-display font-bold text-recruiter">12 days</div>
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm text-muted-foreground">Fill Rate</div>
+                      <div className="text-sm">Fill Rate</div>
                       <div className="text-xl font-display font-bold text-success">94%</div>
                     </div>
                   </div>
@@ -171,7 +171,7 @@ export default function RecruitersLanding() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
               Powerful Recruiting Tools
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-lg max-w-2xl mx-auto">
               Everything you need to find, engage, and hire the best talent for your team.
             </p>
           </div>
@@ -183,7 +183,7 @@ export default function RecruitersLanding() {
                   <feature.icon className="h-6 w-6 text-recruiter" />
                 </div>
                 <h3 className="font-display text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -199,7 +199,7 @@ export default function RecruitersLanding() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
               Streamlined Hiring Process
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-lg">
               From job posting to offer acceptance in record time
             </p>
           </div>
@@ -215,7 +215,7 @@ export default function RecruitersLanding() {
                     {step.number}
                   </div>
                   <h3 className="font-display text-xl font-semibold mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm">{step.description}</p>
+                  <p className="text-sm">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -231,7 +231,7 @@ export default function RecruitersLanding() {
               <h2 className="font-display text-3xl sm:text-4xl font-bold mb-6">
                 Recruit Like a Pro
               </h2>
-              <p className="text-muted-foreground text-lg mb-8">
+              <p className="text-lg mb-8">
                 Join leading companies who have transformed their hiring with TalentMatch.
               </p>
               
@@ -254,7 +254,7 @@ export default function RecruitersLanding() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-sm">
                   Already have an account?{' '}
                   <Link to="/auth" className="text-recruiter hover:underline">
                     Sign in

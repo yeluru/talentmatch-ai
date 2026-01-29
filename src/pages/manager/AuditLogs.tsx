@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,6 +15,8 @@ import {
   Briefcase, Users, Settings, AlertTriangle, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { sortBy } from '@/lib/sort';
+import { useTableSort } from '@/hooks/useTableSort';
 
 interface AuditLog {
   id: string;
@@ -54,6 +57,10 @@ export default function AuditLogs() {
   const [entityFilter, setEntityFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
   const pageSize = 50;
+  const tableSort = useTableSort<'created_at' | 'user_name' | 'action' | 'entity_type' | 'details' | 'ip_address'>({
+    key: 'created_at',
+    dir: 'desc',
+  });
 
   useEffect(() => {
     if (authLoading) return;
@@ -110,6 +117,27 @@ export default function AuditLogs() {
     log.entity_type.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const sortedLogs = useMemo(() => {
+    return sortBy(filteredLogs, tableSort.sort, (r, key) => {
+      switch (key) {
+        case 'created_at':
+          return r.created_at;
+        case 'user_name':
+          return r.user_name || '';
+        case 'action':
+          return r.action;
+        case 'entity_type':
+          return r.entity_type;
+        case 'details':
+          return r.details ? JSON.stringify(r.details).slice(0, 200) : '';
+        case 'ip_address':
+          return r.ip_address || '';
+        default:
+          return r.created_at;
+      }
+    });
+  }, [filteredLogs, tableSort.sort]);
+
   const getEntityIcon = (entityType: string) => {
     return entityIcons[entityType] || entityIcons.default;
   };
@@ -134,7 +162,7 @@ export default function AuditLogs() {
             <CardTitle>Organization not assigned</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm">
               Tenant audit logs are only available when your account manager role is linked to an organization.
               Ask a platform admin to re-invite you or reassign you to a tenant.
             </p>
@@ -159,13 +187,13 @@ export default function AuditLogs() {
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-3xl font-bold">Audit Logs</h1>
-          <p className="text-muted-foreground mt-1">Track all system activity and changes</p>
+          <p className="mt-1">Track all system activity and changes</p>
         </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
             <Input
               placeholder="Search logs..."
               value={searchQuery}
@@ -211,34 +239,34 @@ export default function AuditLogs() {
           <CardContent>
             {filteredLogs.length === 0 ? (
               <div className="text-center py-12">
-                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <Clock className="h-12 w-12 mx-automb-4" />
                 <h3 className="text-lg font-semibold mb-2">No activity logs</h3>
-                <p className="text-muted-foreground">System activity will appear here</p>
+                <p className="">System activity will appear here</p>
               </div>
             ) : (
               <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Entity</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead>IP Address</TableHead>
+                      <SortableTableHead label="Timestamp" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                      <SortableTableHead label="User" sortKey="user_name" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                      <SortableTableHead label="Action" sortKey="action" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                      <SortableTableHead label="Entity" sortKey="entity_type" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                      <SortableTableHead label="Details" sortKey="details" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                      <SortableTableHead label="IP Address" sortKey="ip_address" sort={tableSort.sort} onToggle={tableSort.toggle} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredLogs.map((log) => {
+                    {sortedLogs.map((log) => {
                       const EntityIcon = getEntityIcon(log.entity_type);
                       return (
                         <TableRow key={log.id}>
-                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                          <TableCell className="whitespace-nowrap">
                             {format(new Date(log.created_at), 'MMM d, yyyy HH:mm:ss')}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-muted-foreground" />
+                              <User className="h-4 w-4" />
                               {log.user_name}
                             </div>
                           </TableCell>
@@ -249,7 +277,7 @@ export default function AuditLogs() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <EntityIcon className="h-4 w-4 text-muted-foreground" />
+                              <EntityIcon className="h-4 w-4" />
                               <span className="capitalize">{log.entity_type}</span>
                             </div>
                           </TableCell>
@@ -259,10 +287,10 @@ export default function AuditLogs() {
                                 {JSON.stringify(log.details).slice(0, 50)}...
                               </code>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
+                          <TableCell className="text-sm">
                             {log.ip_address || '-'}
                           </TableCell>
                         </TableRow>
@@ -273,7 +301,7 @@ export default function AuditLogs() {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm">
                     Showing {page * pageSize + 1} - {page * pageSize + filteredLogs.length} entries
                   </p>
                   <div className="flex gap-2">

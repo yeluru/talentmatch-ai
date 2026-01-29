@@ -37,7 +37,7 @@ export class RouteErrorBoundary extends React.Component<Props, State> {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm">
               Something crashed while rendering this page. Click Retry to try again.
             </p>
             <div className="flex gap-2">

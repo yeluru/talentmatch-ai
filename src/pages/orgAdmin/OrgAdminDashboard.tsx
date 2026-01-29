@@ -11,12 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Mail, Trash2, Users, Shield, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { format } from "date-fns";
 import { StatCard } from "@/components/ui/stat-card";
 import { useSearchParams } from "react-router-dom";
+import { sortBy, type SortState } from "@/lib/sort";
+import { useTableSort } from "@/hooks/useTableSort";
 
 type TeamMember = {
   user_id: string;
@@ -56,8 +60,13 @@ export default function OrgAdminDashboard() {
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [pendingRecruiterInvites, setPendingRecruiterInvites] = useState<PendingInvite[]>([]);
   const [orgCandidates, setOrgCandidates] = useState<CandidateRow[]>([]);
+  const [amByRecruiter, setAmByRecruiter] = useState<Record<string, string>>({});
 
   const [allUsersSearch, setAllUsersSearch] = useState("");
+  const usersSort = useTableSort<"full_name" | "user_type" | "roles" | "candidate_status">({
+    key: "full_name",
+    dir: "asc",
+  });
 
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -71,6 +80,11 @@ export default function OrgAdminDashboard() {
     () => ["invite_org_admin", "revoke_org_admin", "bootstrap_super_admin"],
     [],
   );
+
+  const auditTableSort = useTableSort<"created_at" | "user" | "action" | "entity" | "ip">({
+    key: "created_at",
+    dir: "desc",
+  });
 
   useEffect(() => {
     const next = (searchParams.get("tab") || "account_managers") as any;
@@ -105,6 +119,45 @@ export default function OrgAdminDashboard() {
     [teamMembers],
   );
 
+  const updateRecruiterAssignment = async (recruiterUserId: string, accountManagerUserId: string | null) => {
+    if (!organizationId || !user) return;
+    try {
+      if (!accountManagerUserId) {
+        await sb
+          .from("account_manager_recruiter_assignments")
+          .delete()
+          .eq("organization_id", organizationId)
+          .eq("recruiter_user_id", recruiterUserId);
+        setAmByRecruiter((prev) => {
+          const next = { ...prev };
+          delete next[recruiterUserId];
+          return next;
+        });
+        toast.success("Unassigned recruiter");
+        return;
+      }
+
+      const { error } = await sb
+        .from("account_manager_recruiter_assignments")
+        .upsert(
+          {
+            organization_id: organizationId,
+            recruiter_user_id: recruiterUserId,
+            account_manager_user_id: accountManagerUserId,
+            assigned_by: user.id,
+          },
+          { onConflict: "organization_id,recruiter_user_id" },
+        );
+      if (error) throw error;
+
+      setAmByRecruiter((prev) => ({ ...prev, [recruiterUserId]: accountManagerUserId }));
+      toast.success("Assigned recruiter");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Failed to update assignment");
+    }
+  };
+
   const buildInviteUrl = (token: string) =>
     `${window.location.origin}/auth?invite=${token}`;
 
@@ -130,7 +183,7 @@ export default function OrgAdminDashboard() {
       }));
 
     const staff = Object.values(staffById).map((s) => ({ ...s, candidate_status: null as string | null }));
-    const rows = [...staff, ...candidates].sort((a, b) => a.full_name.localeCompare(b.full_name));
+    const rows = [...staff, ...candidates];
 
     const q = allUsersSearch.trim().toLowerCase();
     if (!q) return rows;
@@ -142,6 +195,42 @@ export default function OrgAdminDashboard() {
       );
     });
   }, [allUsersSearch, orgCandidates, teamMembers]);
+
+  const sortedUsers = useMemo(() => {
+    return sortBy(combinedUsers, usersSort.sort, (row, key) => {
+      switch (key) {
+        case "full_name":
+          return row.full_name;
+        case "user_type":
+          return row.roles.includes("candidate") ? "Candidate" : "Staff";
+        case "roles":
+          return (row.roles || []).join(", ");
+        case "candidate_status":
+          return row.candidate_status || "";
+        default:
+          return row.full_name;
+      }
+    });
+  }, [combinedUsers, usersSort.sort]);
+
+  const sortedAuditLogs = useMemo(() => {
+    return sortBy(auditLogs, auditTableSort.sort, (r: any, key) => {
+      switch (key) {
+        case "created_at":
+          return r.created_at;
+        case "user":
+          return r.user_full_name || r.user_email || "";
+        case "action":
+          return r.action || "";
+        case "entity":
+          return `${r.entity_type || ""} ${r.entity_id || ""}`.trim();
+        case "ip":
+          return r.ip_address || "";
+        default:
+          return r.created_at;
+      }
+    });
+  }, [auditLogs, auditTableSort.sort]);
 
   useEffect(() => {
     const t = setTimeout(() => setAuditSearchDebounced(auditSearch.trim()), 300);
@@ -234,6 +323,19 @@ export default function OrgAdminDashboard() {
 
       setTeamMembers(combined);
 
+      // Account manager → recruiter assignments
+      const { data: assigns } = await sb
+        .from("account_manager_recruiter_assignments")
+        .select("recruiter_user_id, account_manager_user_id")
+        .eq("organization_id", organizationId);
+      const map: Record<string, string> = {};
+      (assigns ?? []).forEach((a: any) => {
+        if (a?.recruiter_user_id && a?.account_manager_user_id) {
+          map[String(a.recruiter_user_id)] = String(a.account_manager_user_id);
+        }
+      });
+      setAmByRecruiter(map);
+
       const { data: invites } = await sb
         .from("manager_invites")
         .select("*")
@@ -251,24 +353,34 @@ export default function OrgAdminDashboard() {
       setPendingRecruiterInvites((recruiterInvites ?? []) as PendingInvite[]);
 
       // Org candidates (linked to this org)
-      const { data: candidateProfiles } = await sb
-        .from("candidate_profiles")
-        .select("user_id, recruiter_status, recruiter_notes")
-        .eq("organization_id", organizationId);
+      // NOTE: org linking is many-to-many via candidate_org_links.
+      const { data: candidateLinks } = await sb
+        .from("candidate_org_links")
+        .select("candidate_profiles:candidate_id(user_id, recruiter_status, recruiter_notes)")
+        .eq("organization_id", organizationId)
+        .eq("status", "active");
 
-      const candidateUserIds = (candidateProfiles ?? []).map((c: any) => c.user_id).filter(Boolean) as string[];
-      const { data: candidateProfilesRows } = await sb
-        .from("profiles")
-        .select("user_id, email, full_name")
-        .in("user_id", candidateUserIds);
+      const candidateProfiles = (candidateLinks ?? [])
+        .map((l: any) => l.candidate_profiles)
+        .filter((cp: any) => Boolean(cp) && Boolean(cp.user_id)) as any[];
 
-      const combinedCandidates: CandidateRow[] = (candidateProfiles ?? []).map((c: any) => ({
-        user_id: c.user_id,
-        recruiter_status: c.recruiter_status ?? null,
-        recruiter_notes: c.recruiter_notes ?? null,
-        email: candidateProfilesRows?.find((p) => p.user_id === c.user_id)?.email || "",
-        full_name: candidateProfilesRows?.find((p) => p.user_id === c.user_id)?.full_name || "Candidate",
-      }));
+      const candidateUserIds = candidateProfiles.map((c: any) => c.user_id).filter(Boolean) as string[];
+      const { data: candidateProfilesRows } = candidateUserIds.length
+        ? await sb.from("profiles").select("user_id, email, full_name").in("user_id", candidateUserIds)
+        : { data: [] as any[] };
+
+      const combinedCandidates: CandidateRow[] = candidateProfiles.map((c: any) => {
+        const p = (candidateProfilesRows ?? []).find((x: any) => x.user_id === c.user_id);
+        const email = p?.email || "";
+        const fullName = p?.full_name || (email ? email.split("@")[0] : "") || "Candidate";
+        return {
+          user_id: c.user_id,
+          recruiter_status: c.recruiter_status ?? null,
+          recruiter_notes: c.recruiter_notes ?? null,
+          email,
+          full_name: fullName,
+        };
+      });
       setOrgCandidates(combinedCandidates);
     } catch (e) {
       console.error(e);
@@ -547,7 +659,7 @@ export default function OrgAdminDashboard() {
     return (
       <OrgAdminLayout orgName={organizationName}>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </OrgAdminLayout>
     );
@@ -615,7 +727,7 @@ export default function OrgAdminDashboard() {
               </div>
               {lastInviteUrl && (
                 <div className="rounded-md border bg-muted/20 p-3">
-                  <p className="text-xs text-muted-foreground">Invite link (local email may be skipped)</p>
+                  <p className="text-xs">Invite link (local email may be skipped)</p>
                   <p className="mt-1 break-all text-sm font-medium">{lastInviteUrl}</p>
                   <div className="mt-2 flex gap-2">
                     <Button
@@ -682,8 +794,8 @@ export default function OrgAdminDashboard() {
                     <div key={inv.id} className="flex items-center justify-between rounded-md border p-3">
                       <div>
                         <p className="font-medium">{inv.full_name || inv.email}</p>
-                        <p className="text-sm text-muted-foreground">{inv.email}</p>
-                        <p className="mt-1 text-xs text-muted-foreground break-all">
+                        <p className="text-sm">{inv.email}</p>
+                        <p className="mt-1 text-xs break-all">
                           Invite link: {buildInviteUrl(inv.invite_token)}
                         </p>
                       </div>
@@ -723,13 +835,13 @@ export default function OrgAdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {managers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No account managers yet.</p>
+                  <p className="text-sm">No account managers yet.</p>
                 ) : (
                   managers.map((m) => (
                     <div key={m.user_id} className="flex items-center justify-between rounded-md border p-3">
                       <div>
                         <p className="font-medium">{m.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{m.email}</p>
+                        <p className="text-sm">{m.email}</p>
                       </div>
                       {m.user_id !== user?.id ? (
                         <AlertDialog>
@@ -789,26 +901,46 @@ export default function OrgAdminDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Roles</TableHead>
-                        <TableHead>Candidate status</TableHead>
+                        <SortableTableHead
+                          label="User"
+                          sortKey="full_name"
+                          sort={usersSort.sort}
+                          onToggle={usersSort.toggle}
+                        />
+                        <SortableTableHead
+                          label="Type"
+                          sortKey="user_type"
+                          sort={usersSort.sort}
+                          onToggle={usersSort.toggle}
+                        />
+                        <SortableTableHead
+                          label="Roles"
+                          sortKey="roles"
+                          sort={usersSort.sort}
+                          onToggle={usersSort.toggle}
+                        />
+                        <SortableTableHead
+                          label="Candidate status"
+                          sortKey="candidate_status"
+                          sort={usersSort.sort}
+                          onToggle={usersSort.toggle}
+                        />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {combinedUsers.length === 0 ? (
+                      {sortedUsers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={4} className="text-center py-8">
                             No users found.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        combinedUsers.map((r) => (
+                        sortedUsers.map((r) => (
                           <TableRow key={r.user_id}>
                             <TableCell>
                               <div>
                                 <p className="font-medium">{r.full_name}</p>
-                                <p className="text-sm text-muted-foreground">{r.email}</p>
+                                <p className="text-sm">{r.email}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -825,7 +957,7 @@ export default function OrgAdminDashboard() {
                                 ))}
                               </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{r.candidate_status || "—"}</TableCell>
+                            <TableCell className="">{r.candidate_status || "—"}</TableCell>
                           </TableRow>
                         ))
                       )}
@@ -871,24 +1003,24 @@ export default function OrgAdminDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Time</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Entity</TableHead>
-                        <TableHead>IP</TableHead>
+                        <SortableTableHead label="Time" sortKey="created_at" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                        <SortableTableHead label="User" sortKey="user" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                        <SortableTableHead label="Action" sortKey="action" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                        <SortableTableHead label="Entity" sortKey="entity" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                        <SortableTableHead label="IP" sortKey="ip" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {auditLogs.length === 0 ? (
+                      {sortedAuditLogs.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={5} className="text-center py-8">
                             No audit logs found.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        auditLogs.map((log: any) => (
+                        sortedAuditLogs.map((log: any) => (
                           <TableRow key={log.id}>
-                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                            <TableCell className="whitespace-nowrap">
                               {format(new Date(log.created_at), "MMM d, yyyy HH:mm:ss")}
                             </TableCell>
                             <TableCell className="max-w-[220px]">
@@ -899,11 +1031,11 @@ export default function OrgAdminDashboard() {
                                 {log.action}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
+                            <TableCell className="">
                               {log.entity_type}
                               {log.entity_id ? ` (${String(log.entity_id).slice(0, 8)}…)` : ""}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{log.ip_address || "—"}</TableCell>
+                            <TableCell className="">{log.ip_address || "—"}</TableCell>
                           </TableRow>
                         ))
                       )}
@@ -912,7 +1044,7 @@ export default function OrgAdminDashboard() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs">
                     {!auditSearchDebounced && !auditExpanded ? "Showing last 4 hours" : "Showing full history (paged)"}
                   </div>
                   <div className="flex gap-2">
@@ -977,7 +1109,7 @@ export default function OrgAdminDashboard() {
                       </div>
                       {lastRecruiterInviteUrl && (
                         <div className="rounded-md border bg-muted/20 p-3">
-                          <p className="text-xs text-muted-foreground">Invite link (local email may be skipped)</p>
+                          <p className="text-xs">Invite link (local email may be skipped)</p>
                           <p className="mt-1 break-all text-sm font-medium">{lastRecruiterInviteUrl}</p>
                           <div className="mt-2 flex gap-2">
                             <Button type="button" variant="outline" size="sm" onClick={async () => {
@@ -1010,8 +1142,8 @@ export default function OrgAdminDashboard() {
                       <div key={inv.id} className="flex items-center justify-between rounded-md border p-3">
                         <div>
                           <p className="font-medium">{inv.full_name || inv.email}</p>
-                          <p className="text-sm text-muted-foreground">{inv.email}</p>
-                          <p className="mt-1 text-xs text-muted-foreground break-all">
+                          <p className="text-sm">{inv.email}</p>
+                          <p className="mt-1 text-xs break-all">
                             Invite link: {buildInviteUrl(inv.invite_token)}
                           </p>
                         </div>
@@ -1044,14 +1176,36 @@ export default function OrgAdminDashboard() {
                 )}
 
                 {recruiters.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No recruiters yet.</p>
+                  <p className="text-sm">No recruiters yet.</p>
                 ) : (
                   recruiters.map((r) => (
                     <div key={r.user_id} className="flex items-center justify-between rounded-md border p-3">
                       <div>
                         <p className="font-medium">{r.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{r.email}</p>
+                        <p className="text-sm">{r.email}</p>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-[260px]">
+                          <Select
+                            value={amByRecruiter[String(r.user_id)] || "unassigned"}
+                            onValueChange={(v) => updateRecruiterAssignment(String(r.user_id), v === "unassigned" ? null : String(v))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Assign account manager" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {managers.map((m) => (
+                                <SelectItem key={m.user_id} value={String(m.user_id)}>
+                                  {m.full_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="mt-1 text-[11px]">
+                            Each recruiter can be assigned to only one account manager.
+                          </div>
+                        </div>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive">
@@ -1077,6 +1231,7 @@ export default function OrgAdminDashboard() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      </div>
                     </div>
                   ))
                 )}
@@ -1107,15 +1262,15 @@ export default function OrgAdminDashboard() {
                 </div>
 
                 {orgCandidates.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No org-linked candidates yet.</p>
+                  <p className="text-sm">No org-linked candidates yet.</p>
                 ) : (
                   orgCandidates.map((c) => (
                     <div key={c.user_id} className="flex items-start justify-between rounded-md border p-3">
                       <div>
                         <p className="font-medium">{c.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{c.email}</p>
+                        <p className="text-sm">{c.email}</p>
                         {(c.recruiter_status || c.recruiter_notes) && (
-                          <p className="mt-2 text-xs text-muted-foreground">
+                          <p className="mt-2 text-xs">
                             {c.recruiter_status ? `Status: ${c.recruiter_status}` : ""}
                             {c.recruiter_status && c.recruiter_notes ? " • " : ""}
                             {c.recruiter_notes ? `Notes: ${c.recruiter_notes}` : ""}

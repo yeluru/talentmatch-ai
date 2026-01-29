@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useMutation } from '@tanstack/react-query';
+import { orgIdForRecruiterSuite } from '@/lib/org';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Wand2, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,8 +26,9 @@ import { toast } from 'sonner';
 export default function CreateJob() {
   const { user, roles } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
 
   const [mode, setMode] = useState<'paste' | 'manual'>('paste');
   const [jdText, setJdText] = useState('');
@@ -72,6 +74,7 @@ export default function CreateJob() {
         required_skills: formData.required_skills,
         nice_to_have_skills: formData.nice_to_have_skills,
         recruiter_id: user.id,
+        created_by: user.id,
         organization_id: organizationId,
         status,
         posted_at: status === 'published' ? new Date().toISOString() : null,
@@ -80,6 +83,7 @@ export default function CreateJob() {
       if (error) throw error;
     },
     onSuccess: (_, status) => {
+      queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
       toast.success(status === 'published' ? 'Job published!' : 'Job saved as draft');
       navigate('/recruiter/jobs');
     },
@@ -226,7 +230,7 @@ export default function CreateJob() {
           </Button>
           <div>
             <h1 className="font-display text-3xl font-bold">Post a New Job</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Create a job posting to attract top talent
             </p>
           </div>
@@ -259,7 +263,7 @@ export default function CreateJob() {
                     value={jdText}
                     onChange={(e) => setJdText(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs">
                     We’ll try to extract title, location, remote, job type, experience, salary (if present), and skills. You can edit everything after.
                   </p>
                 </div>
@@ -293,7 +297,7 @@ export default function CreateJob() {
               </TabsContent>
 
               <TabsContent value="manual" className="pt-3">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm">
                   Tip: you can paste a JD first, extract fields, then fine-tune below.
                 </p>
               </TabsContent>
@@ -379,7 +383,7 @@ export default function CreateJob() {
                   <SelectItem value="public">Public (marketplace)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs">
                 Private jobs are visible only to candidates linked to your organization. Public jobs are visible to all registered candidates.
               </p>
             </div>

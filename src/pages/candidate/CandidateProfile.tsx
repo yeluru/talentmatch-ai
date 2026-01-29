@@ -198,7 +198,7 @@ export default function CandidateProfile() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">My Profile</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1">
               Complete your profile to improve job matches
             </p>
           </div>
@@ -366,7 +366,7 @@ export default function CandidateProfile() {
                     </Badge>
                   ))}
                   {skills.filter((s) => (s.skill_type || 'technical') === 'technical').length === 0 && (
-                    <p className="text-sm text-muted-foreground">No technical skills yet</p>
+                    <p className="text-sm">No technical skills yet</p>
                   )}
                 </div>
 
@@ -383,11 +383,11 @@ export default function CandidateProfile() {
                     </Badge>
                   ))}
                   {skills.filter((s) => (s.skill_type || 'technical') === 'soft').length === 0 && (
-                    <p className="text-sm text-muted-foreground">No soft skills yet</p>
+                    <p className="text-sm">No soft skills yet</p>
                   )}
                 </div>
               </div>
-              {skills.length === 0 && <p className="text-sm text-muted-foreground">No skills added yet</p>}
+              {skills.length === 0 && <p className="text-sm">No skills added yet</p>}
             </CardContent>
           </Card>
 
@@ -403,7 +403,7 @@ export default function CandidateProfile() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Open to Remote Work</Label>
-                  <p className="text-sm text-muted-foreground">Consider remote positions</p>
+                  <p className="text-sm">Consider remote positions</p>
                 </div>
                 <Switch
                   checked={candidateProfile?.is_open_to_remote ?? true}
@@ -413,7 +413,7 @@ export default function CandidateProfile() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Actively Looking</Label>
-                  <p className="text-sm text-muted-foreground">Show recruiters you're available</p>
+                  <p className="text-sm">Show recruiters you're available</p>
                 </div>
                 <Switch
                   checked={candidateProfile?.is_actively_looking ?? true}

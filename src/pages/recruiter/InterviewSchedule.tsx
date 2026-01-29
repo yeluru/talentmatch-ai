@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Calendar as CalendarIcon, Clock, Video, MapPin, Loader2, Users, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
@@ -33,15 +34,13 @@ interface Interview {
   status: string;
   applications?: {
     id: string;
-    candidate_profiles: {
+    candidate_profiles?: {
       full_name: string | null;
       email: string | null;
       current_title: string | null;
     } | null;
-    jobs: {
-      title: string;
-    } | null;
-  };
+    jobs?: { title: string } | null;
+  } | null;
 }
 
 const INTERVIEW_TYPES = [
@@ -65,27 +64,65 @@ export default function InterviewSchedule() {
     notes: '',
   });
 
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
+  const DRAFT_KEY = useMemo(() => `interview_schedule:draft:${organizationId || 'no-org'}:${user?.id || 'no-user'}`, [organizationId, user?.id]);
 
   const { data: interviews, isLoading } = useQuery({
-    queryKey: ['interviews', user?.id],
+    queryKey: ['interviews', organizationId, user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('interview_schedules')
-        .select(`
-          *,
-          applications!inner(
+      if (!organizationId && !user?.id) return [];
+
+      // Load interviews for the org (more reliable than filtering only by interviewer_id).
+      // This avoids "scheduled but not visible" when interviewer_id filtering doesn't match,
+      // and makes the page useful for teams.
+      let orgApplicationIds: string[] = [];
+      if (organizationId) {
+        const { data: apps, error: appsErr } = await supabase
+          .from('applications')
+          .select('id, jobs!inner(organization_id)')
+          .eq('jobs.organization_id', organizationId)
+          .limit(5000);
+        if (appsErr) throw appsErr;
+        orgApplicationIds = Array.from(new Set((apps || []).map((a: any) => a?.id).filter(Boolean)));
+      }
+
+      let q = supabase.from('interview_schedules').select('*').order('scheduled_at', { ascending: true });
+      if (orgApplicationIds.length) q = q.in('application_id', orgApplicationIds);
+      else if (user?.id) q = q.eq('interviewer_id', user.id);
+
+      const { data: rows, error } = await q;
+      if (error) throw error;
+
+      const applicationIds = Array.from(new Set((rows || []).map((r: any) => r?.application_id).filter(Boolean)));
+      const appsById = new Map<string, any>();
+      if (applicationIds.length) {
+        const { data: apps, error: appErr } = await supabase
+          .from('applications')
+          .select(
+            `
             id,
             candidate_profiles(full_name, email, current_title),
             jobs(title)
+          `,
           )
-        `)
-        .eq('interviewer_id', user?.id)
-        .order('scheduled_at', { ascending: true });
-      if (error) throw error;
-      return data as unknown as Interview[];
+          .in('id', applicationIds);
+        if (appErr) {
+          // Don't fail the entire interviews list if we can't embed application details.
+          // We'll still render the interview rows (with "Unknown/No title" placeholders).
+          console.error('[InterviewSchedule] failed to load applications for interviews:', appErr);
+        } else {
+        (apps || []).forEach((a: any) => {
+          if (a?.id) appsById.set(String(a.id), a);
+        });
+        }
+      }
+
+      return (rows || []).map((r: any) => ({
+        ...r,
+        applications: appsById.get(String(r.application_id)) || null,
+      })) as Interview[];
     },
-    enabled: !!user?.id,
+    enabled: !!organizationId || !!user?.id,
   });
 
   const { data: applications } = useQuery({
@@ -96,11 +133,12 @@ export default function InterviewSchedule() {
         .from('applications')
         .select(`
           id,
-          candidate_profiles(full_name),
+          candidate_profiles(full_name, email),
           jobs!inner(title, organization_id)
         `)
         .eq('jobs.organization_id', organizationId)
-        .in('status', ['shortlisted', 'interviewing']);
+        // Allow scheduling interviews starting from screening stage.
+        .in('status', ['screening', 'shortlisted', 'interviewing']);
       if (error) throw error;
       return data;
     },
@@ -110,6 +148,7 @@ export default function InterviewSchedule() {
   const createInterview = useMutation({
     mutationFn: async () => {
       if (!selectedDate) throw new Error('Please select a date');
+      if (!form.application_id) throw new Error('Please select a candidate');
       const [hours, minutes] = form.time.split(':');
       const scheduledAt = new Date(selectedDate);
       scheduledAt.setHours(parseInt(hours), parseInt(minutes));
@@ -127,10 +166,16 @@ export default function InterviewSchedule() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['interviews'] });
+      // Query key includes interviewer id; invalidate broadly to refetch immediately.
+      queryClient.invalidateQueries({ queryKey: ['interviews'], exact: false });
       toast.success('Interview scheduled');
       setIsDialogOpen(false);
       resetForm();
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {
+        // ignore
+      }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Failed to schedule'),
   });
@@ -144,7 +189,7 @@ export default function InterviewSchedule() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['interviews'] });
+      queryClient.invalidateQueries({ queryKey: ['interviews'], exact: false });
       toast.success('Interview updated');
     },
   });
@@ -161,6 +206,40 @@ export default function InterviewSchedule() {
     });
     setSelectedDate(undefined);
   };
+
+  // Draft persistence (so navigating away doesn't lose the form)
+  useEffect(() => {
+    if (!organizationId || !user?.id) return;
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.form) setForm((prev) => ({ ...prev, ...parsed.form }));
+      if (parsed?.selectedDate) setSelectedDate(new Date(parsed.selectedDate));
+      if (typeof parsed?.isDialogOpen === 'boolean') setIsDialogOpen(parsed.isDialogOpen);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [DRAFT_KEY]);
+
+  useEffect(() => {
+    if (!organizationId || !user?.id) return;
+    if (!isDialogOpen) return;
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          ts: Date.now(),
+          isDialogOpen,
+          selectedDate: selectedDate ? selectedDate.toISOString() : null,
+          form,
+        }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [DRAFT_KEY, organizationId, user?.id, isDialogOpen, selectedDate, form]);
 
   const upcomingInterviews = interviews?.filter(i => 
     i.status === 'scheduled' && new Date(i.scheduled_at) >= new Date()
@@ -185,7 +264,7 @@ export default function InterviewSchedule() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -197,7 +276,7 @@ export default function InterviewSchedule() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Interview Schedule</h1>
-            <p className="text-muted-foreground">Manage your upcoming interviews</p>
+            <p className="">Manage your upcoming interviews</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -223,7 +302,7 @@ export default function InterviewSchedule() {
                     <SelectContent>
                       {applications?.map((app: any) => (
                         <SelectItem key={app.id} value={app.id}>
-                          {app.candidate_profiles?.full_name || 'Unknown'} - {app.jobs?.title}
+                          {app.candidate_profiles?.full_name || (app.candidate_profiles?.email ? String(app.candidate_profiles.email).split('@')[0] : '') || 'Candidate'} - {app.jobs?.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -235,7 +314,7 @@ export default function InterviewSchedule() {
                     <Label>Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start text-left", !selectedDate && "text-muted-foreground")}>
+                        <Button variant="outline" className={cn("w-full justify-start text-left", !selectedDate && "")}>
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
                         </Button>
@@ -355,10 +434,10 @@ export default function InterviewSchedule() {
                         <p className="font-medium">
                           {interview.applications?.candidate_profiles?.full_name || 'Unknown'}
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm">
                           {interview.applications?.jobs?.title}
                         </p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4 mt-2 text-sm">
                           <span className="flex items-center gap-1">
                             <CalendarIcon className="h-3 w-3" />
                             {format(new Date(interview.scheduled_at), 'MMM d, yyyy')}
@@ -415,7 +494,7 @@ export default function InterviewSchedule() {
                         <p className="font-medium text-sm">
                           {interview.applications?.candidate_profiles?.full_name || 'Unknown'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs">
                           {format(new Date(interview.scheduled_at), 'MMM d, yyyy')}
                         </p>
                       </div>

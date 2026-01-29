@@ -45,14 +45,14 @@ export function PullToRefreshIndicator({
             <Loader2
               className={cn(
                 "h-5 w-5",
-                isRefreshing ? "animate-spin text-primary" : "text-muted-foreground"
+                isRefreshing ? "animate-spin text-primary" : ""
               )}
             />
           </div>
           <span
             className={cn(
               "text-sm font-medium transition-colors",
-              isReady || isRefreshing ? "text-primary" : "text-muted-foreground"
+              isReady || isRefreshing ? "text-primary" : ""
             )}
           >
             {isRefreshing

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Sparkles,
@@ -24,6 +25,7 @@ import {
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
+import { TalentDetailSheet } from '@/components/recruiter/TalentDetailSheet';
 
 interface MatchResult {
   candidate_id: string;
@@ -37,9 +39,24 @@ interface ApplicantWithProfile {
   id: string;
   candidate_id: string;
   ai_match_score: number | null;
-  candidate_profiles: { id: string; current_title: string | null; years_of_experience: number | null; user_id: string } | null;
+  candidate_profiles: {
+    id: string;
+    current_title: string | null;
+    current_company?: string | null;
+    years_of_experience: number | null;
+    summary?: string | null;
+    email?: string | null;
+    full_name?: string | null;
+    user_id: string;
+  } | null;
   profile?: { user_id: string; full_name: string };
   skills?: string[];
+}
+
+function displayNameFromEmail(email?: string | null) {
+  const e = String(email || '').trim();
+  if (!e) return '';
+  return e.split('@')[0] || '';
 }
 
 export default function AIMatching() {
@@ -47,8 +64,57 @@ export default function AIMatching() {
   const queryClient = useQueryClient();
   const [selectedJob, setSelectedJob] = useState<string>('');
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
+  const [candidateSource, setCandidateSource] = useState<'talent_pool' | 'applicants'>('talent_pool');
+  const [detailTalentId, setDetailTalentId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   
-  const organizationId = roles.find(r => r.role === 'recruiter')?.organization_id;
+  const organizationId = orgIdForRecruiterSuite(roles);
+  const STORAGE_KEY_PREFIX = useMemo(
+    () => `recruiter:ai-matching:last:${organizationId || 'no-org'}`,
+    [organizationId],
+  );
+
+  // Restore last selected job on mount (per org)
+  useEffect(() => {
+    if (!organizationId) return;
+    try {
+      const savedJob = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}:selectedJob`);
+      if (savedJob) setSelectedJob(savedJob);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId]);
+
+  // Persist selected job (per org)
+  useEffect(() => {
+    if (!organizationId) return;
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY_PREFIX}:selectedJob`, selectedJob);
+    } catch {
+      // ignore
+    }
+  }, [STORAGE_KEY_PREFIX, organizationId, selectedJob]);
+
+  // Restore last match results for the selected job
+  useEffect(() => {
+    if (!organizationId) return;
+    if (!selectedJob) {
+      setMatchResults([]);
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(`${STORAGE_KEY_PREFIX}:job:${selectedJob}`);
+      if (!raw) {
+        setMatchResults([]);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed?.matchResults)) setMatchResults(parsed.matchResults as MatchResult[]);
+    } catch {
+      // ignore
+    }
+  }, [STORAGE_KEY_PREFIX, organizationId, selectedJob]);
 
   // Fetch jobs
   const { data: jobs, isLoading: jobsLoading } = useQuery({
@@ -78,10 +144,14 @@ export default function AIMatching() {
           id,
           candidate_id,
           ai_match_score,
-          candidate_profiles!inner(
+          candidate_profiles(
             id,
             current_title,
+            current_company,
             years_of_experience,
+            summary,
+            email,
+            full_name,
             user_id
           )
         `)
@@ -116,46 +186,169 @@ export default function AIMatching() {
     enabled: !!selectedJob,
   });
 
+  // Fetch org talent pool candidates (not just job applicants)
+  const { data: talentPoolCandidates, isLoading: talentPoolLoading } = useQuery<
+    Array<{
+      candidate_id: string;
+      candidate_profiles: ApplicantWithProfile['candidate_profiles'];
+      profile?: { user_id: string; full_name: string };
+      skills?: string[];
+    }>
+  >({
+    queryKey: ['org-talent-pool-candidates', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+
+      const { data, error } = await supabase
+        .from('candidate_org_links')
+        .select(
+          `
+          candidate_id,
+          candidate_profiles(
+            id,
+            current_title,
+            current_company,
+            years_of_experience,
+            summary,
+            email,
+            full_name,
+            user_id
+          )
+        `,
+        )
+        .eq('organization_id', organizationId)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      const rows =
+        (data || []).filter((r: any) => r?.candidate_id).map((r: any) => ({
+          candidate_id: String(r.candidate_id),
+          candidate_profiles: (r.candidate_profiles as any) || null,
+        })) || [];
+
+      // Deduplicate by candidate_id (in case multiple link types exist)
+      const byId = new Map<string, { candidate_id: string; candidate_profiles: any }>();
+      for (const r of rows) if (!byId.has(r.candidate_id)) byId.set(r.candidate_id, r);
+      const deduped = Array.from(byId.values());
+
+      // Fetch profile names (fallback)
+      const userIds = deduped.map((r) => r.candidate_profiles?.user_id).filter(Boolean);
+      const { data: profiles } =
+        userIds.length > 0
+          ? await supabase.from('profiles').select('user_id, full_name').in('user_id', userIds as any)
+          : { data: [] as any[] };
+
+      // Fetch skills
+      const candidateIds = deduped.map((r) => r.candidate_id);
+      const { data: skills } = await supabase
+        .from('candidate_skills')
+        .select('candidate_id, skill_name')
+        .in('candidate_id', candidateIds);
+
+      return deduped.map((c) => ({
+        ...c,
+        profile: profiles?.find((p: any) => p.user_id === c.candidate_profiles?.user_id),
+        skills: skills?.filter((s: any) => String(s.candidate_id) === String(c.candidate_id)).map((s: any) => s.skill_name) || [],
+      }));
+    },
+    enabled: !!organizationId && candidateSource === 'talent_pool',
+  });
+
+  const candidatesForMatching = useMemo(() => {
+    if (candidateSource === 'applicants') return applicants || [];
+    return talentPoolCandidates || [];
+  }, [applicants, candidateSource, talentPoolCandidates]);
+
   const runMatching = useMutation({
     mutationFn: async () => {
-      if (!selectedJob || !applicants?.length) throw new Error('No job or applicants selected');
+      if (!selectedJob) throw new Error('No job selected');
+      if (!candidatesForMatching?.length) throw new Error('No candidates available for matching');
       
       const job = jobs?.find(j => j.id === selectedJob);
       if (!job) throw new Error('Job not found');
 
-      const candidates = applicants.map(app => ({
-        id: app.candidate_id,
-        name: app.profile?.full_name || 'Unknown',
-        title: app.candidate_profiles?.current_title,
-        experience: app.candidate_profiles?.years_of_experience,
-        skills: app.skills || []
+      const requiredSkills: string[] = Array.isArray(job.required_skills) ? job.required_skills : [];
+
+      const candidates = candidatesForMatching.map((row: any) => ({
+        id: row.candidate_id,
+        full_name:
+          row.profile?.full_name ||
+          row.candidate_profiles?.full_name ||
+          displayNameFromEmail(row.candidate_profiles?.email) ||
+          'Candidate',
+        current_title: row.candidate_profiles?.current_title,
+        current_company: row.candidate_profiles?.current_company,
+        years_of_experience: row.candidate_profiles?.years_of_experience,
+        summary: row.candidate_profiles?.summary,
+        skills: row.skills || [],
       }));
 
       const { data, error } = await supabase.functions.invoke('match-candidates', {
-        body: { job, candidates }
+        body: {
+          jobTitle: job.title,
+          jobDescription: job.description,
+          requiredSkills,
+          candidates,
+        }
       });
 
       if (error) throw error;
       return data;
     },
     onSuccess: async (data) => {
-      setMatchResults(data.matches || []);
+      const requiredSkills = Array.isArray(selectedJobData?.required_skills) ? (selectedJobData?.required_skills as string[]) : [];
+
+      const rankings = (data?.rankings || []) as any[];
+      const matches: MatchResult[] = rankings.map((r: any) => {
+        const row = (candidatesForMatching as any[])?.find((a: any) => String(a.candidate_id) === String(r.candidate_id));
+        const candidateSkills = row?.skills || [];
+        const requiredLower = requiredSkills.map((s) => String(s).toLowerCase());
+        const candLower = candidateSkills.map((s) => String(s).toLowerCase());
+        const matched = requiredSkills.filter((s, i) => candLower.includes(requiredLower[i]));
+        const missing = requiredSkills.filter((s, i) => !candLower.includes(requiredLower[i]));
+
+        const points = Array.isArray(r?.matching_points) ? r.matching_points : [];
+        const concerns = Array.isArray(r?.concerns) ? r.concerns : [];
+        const rec = String(r?.recommendation || '').replace(/_/g, ' ');
+        const detail = points[0] || (concerns[0] ? `Concern: ${concerns[0]}` : '');
+
+        return {
+          candidate_id: String(r?.candidate_id),
+          match_score: Number(r?.match_score || 0),
+          matched_skills: matched,
+          missing_skills: missing,
+          recommendation: [rec, detail].filter(Boolean).join(' — '),
+        };
+      }).filter((m) => m.candidate_id);
+
+      setMatchResults(matches);
+      try {
+        sessionStorage.setItem(
+          `${STORAGE_KEY_PREFIX}:job:${selectedJob}`,
+          JSON.stringify({ ts: Date.now(), job: selectedJob, matchResults: matches }),
+        );
+      } catch {
+        // ignore
+      }
       
-      // Update application scores in database
-      for (const match of data.matches || []) {
-        const app = applicants?.find(a => a.candidate_id === match.candidate_id);
-        if (app) {
-          await supabase
-            .from('applications')
-            .update({ 
-              ai_match_score: match.match_score,
-              ai_match_details: {
-                matched_skills: match.matched_skills,
-                missing_skills: match.missing_skills,
-                recommendation: match.recommendation
-              }
-            })
-            .eq('id', app.id);
+      // Update application scores only when matching job applicants
+      if (candidateSource === 'applicants') {
+        for (const match of matches) {
+          const app = applicants?.find(a => a.candidate_id === match.candidate_id);
+          if (app) {
+            await supabase
+              .from('applications')
+              .update({ 
+                ai_match_score: match.match_score,
+                ai_match_details: {
+                  matched_skills: match.matched_skills,
+                  missing_skills: match.missing_skills,
+                  recommendation: match.recommendation
+                }
+              })
+              .eq('id', app.id);
+          }
         }
       }
       
@@ -182,7 +375,7 @@ export default function AIMatching() {
             <Sparkles className="h-8 w-8 text-accent" />
             AI Candidate Matching
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1">
             Use AI to score and rank candidates for your job openings
           </p>
         </div>
@@ -195,6 +388,7 @@ export default function AIMatching() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
             <Select value={selectedJob} onValueChange={setSelectedJob}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a job..." />
@@ -207,6 +401,16 @@ export default function AIMatching() {
                 ))}
               </SelectContent>
             </Select>
+              <Select value={candidateSource} onValueChange={(v) => setCandidateSource(v as any)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Candidate set" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="talent_pool">Talent Pool (all org candidates)</SelectItem>
+                  <SelectItem value="applicants">Applicants (this job only)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {selectedJobData && (
               <div className="p-4 bg-muted rounded-lg">
@@ -216,15 +420,17 @@ export default function AIMatching() {
                     <Badge key={skill} variant="secondary">{skill}</Badge>
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {applicants?.length || 0} applicants
+                <p className="text-sm">
+                  {candidateSource === 'applicants'
+                    ? `${applicants?.length || 0} applicant${(applicants?.length || 0) === 1 ? '' : 's'}`
+                    : `${talentPoolCandidates?.length || 0} candidate${(talentPoolCandidates?.length || 0) === 1 ? '' : 's'} in Talent Pool`}
                 </p>
               </div>
             )}
 
             <Button
               onClick={() => runMatching.mutate()}
-              disabled={!selectedJob || !applicants?.length || runMatching.isPending}
+              disabled={!selectedJob || !candidatesForMatching?.length || runMatching.isPending}
               className="w-full"
             >
               {runMatching.isPending ? (
@@ -256,60 +462,47 @@ export default function AIMatching() {
                 {matchResults
                   .sort((a, b) => b.match_score - a.match_score)
                   .map((result, index) => {
-                    const applicant = applicants?.find(a => a.candidate_id === result.candidate_id);
+                    const row = (candidatesForMatching as any[])?.find(
+                      (r: any) => String(r?.candidate_id) === String(result.candidate_id),
+                    );
+                    const displayName =
+                      row?.profile?.full_name ||
+                      row?.candidate_profiles?.full_name ||
+                      displayNameFromEmail(row?.candidate_profiles?.email) ||
+                      'Candidate';
+                    const subtitle = [
+                      row?.candidate_profiles?.current_title,
+                      row?.candidate_profiles?.current_company ? `at ${row.candidate_profiles.current_company}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ');
                     return (
-                      <div 
+                      <div
                         key={result.candidate_id}
-                        className="flex items-start gap-4 p-4 border rounded-lg"
+                        className={`flex items-center gap-3 py-2 px-3 border rounded-md cursor-pointer hover:bg-muted/40 transition-colors ${index % 2 === 1 ? 'bg-secondary/40' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          setDetailTalentId(result.candidate_id);
+                          setDetailOpen(true);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setDetailTalentId(result.candidate_id);
+                            setDetailOpen(true);
+                          }
+                        }}
                       >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted text-sm font-medium">
-                          #{index + 1}
-                        </div>
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-accent text-accent-foreground">
-                            {applicant?.profile?.full_name?.charAt(0) || 'C'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">
-                              {applicant?.profile?.full_name || 'Unknown'}
-                            </h4>
-                            <ScoreBadge score={result.match_score} />
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            {result.recommendation}
-                          </p>
-                          
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3 text-success" />
-                                Matched Skills
-                              </p>
-                              <div className="flex flex-wrap gap-1">
-                                {result.matched_skills?.map((skill) => (
-                                  <Badge key={skill} variant="secondary" className="text-xs bg-success/10 text-success border-success/20">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3 text-warning" />
-                                Missing Skills
-                              </p>
-                              <div className="flex flex-wrap gap-1">
-                                {result.missing_skills?.map((skill) => (
-                                  <Badge key={skill} variant="outline" className="text-xs">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <span className="text-xsw-6 shrink-0">#{index + 1}</span>
+                        <span className="font-medium truncate shrink-0 max-w-[120px]">{displayName}</span>
+                        <span className="text-smtruncate flex-1 min-w-0 max-w-[200px]" title={subtitle || undefined}>
+                          {subtitle || '—'}
+                        </span>
+                        <ScoreBadge score={result.match_score} size="sm" showLabel={false} />
+                        <span className="text-xstruncate max-w-[200px]" title={result.recommendation}>
+                          {result.recommendation ? String(result.recommendation).slice(0, 60) + (result.recommendation.length > 60 ? '…' : '') : '—'}
+                        </span>
                       </div>
                     );
                   })}
@@ -318,14 +511,35 @@ export default function AIMatching() {
           </Card>
         )}
 
-        {selectedJob && !applicants?.length && !applicantsLoading && (
+        {selectedJob && candidatesForMatching?.length && !runMatching.isPending && matchResults.length === 0 && (
+          <EmptyState
+            icon={AlertCircle}
+            title="No match results to display"
+            description="Run matching again to generate scores for this job."
+          />
+        )}
+
+        {selectedJob &&
+          !candidatesForMatching?.length &&
+          !applicantsLoading &&
+          !talentPoolLoading && (
           <EmptyState
             icon={Users}
-            title="No applicants yet"
-            description="Wait for candidates to apply before running AI matching"
+            title={candidateSource === 'applicants' ? 'No applicants yet' : 'No candidates in Talent Pool'}
+            description={
+              candidateSource === 'applicants'
+                ? 'Wait for candidates to apply (or switch to Talent Pool matching).'
+                : 'Upload/import candidates or link candidates to your organization.'
+            }
           />
         )}
       </div>
+
+      <TalentDetailSheet
+        talentId={detailTalentId}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </DashboardLayout>
   );
 }

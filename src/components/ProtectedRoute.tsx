@@ -17,7 +17,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="">Loading...</p>
         </div>
       </div>
     );
@@ -29,7 +29,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="max-w-md rounded-lg border bg-card p-6 text-center">
           <h1 className="text-lg font-semibold text-foreground">We couldn’t load your access</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm">
             Your session is active, but your role/permissions couldn’t be loaded. Please sign out and sign in again.
           </p>
           <div className="mt-4 flex items-center justify-center gap-3">
@@ -61,7 +61,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-md rounded-lg border bg-card p-6 text-center">
           <h1 className="text-lg font-semibold text-foreground">Account suspended</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm">
             Your account has been suspended. Please contact support if you believe this is a mistake.
           </p>
           <div className="mt-4 flex items-center justify-center gap-3">

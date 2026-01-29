@@ -19,6 +19,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,8 @@ import {
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { sortBy } from '@/lib/sort';
+import { useTableSort } from '@/hooks/useTableSort';
 
 interface UserWithRoles {
   user_id: string;
@@ -114,6 +117,11 @@ export default function SuperAdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const usersTableSort = useTableSort<'full_name' | 'tenant_label' | 'roles' | 'created_at'>({
+    key: 'full_name',
+    dir: 'asc',
+  });
+
   // Global audit logs (read-only)
   const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -123,8 +131,18 @@ export default function SuperAdminDashboard() {
   const [auditSearch, setAuditSearch] = useState('');
   const [auditSearchDebounced, setAuditSearchDebounced] = useState('');
 
+  const auditTableSort = useTableSort<'created_at' | 'org_name' | 'user_name' | 'action' | 'entity_type' | 'ip_address'>({
+    key: 'created_at',
+    dir: 'desc',
+  });
+
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [tenantsLoading, setTenantsLoading] = useState(false);
+
+  const tenantsTableSort = useTableSort<'organization_name' | 'org_admin' | 'status'>({
+    key: 'organization_name',
+    dir: 'asc',
+  });
 
   // Invite / Re-invite Org Admin for existing tenant
   const [tenantInviteDialogOpen, setTenantInviteDialogOpen] = useState(false);
@@ -581,6 +599,68 @@ export default function SuperAdminDashboard() {
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const sortedUsers = useMemo(() => {
+    return sortBy(filteredUsers, usersTableSort.sort, (u, key) => {
+      switch (key) {
+        case 'full_name':
+          return u.full_name;
+        case 'tenant_label':
+          return u.tenant_label || '';
+        case 'roles':
+          return (u.roles || []).join(', ');
+        case 'created_at':
+          return u.created_at;
+        default:
+          return u.full_name;
+      }
+    });
+  }, [filteredUsers, usersTableSort.sort]);
+
+  const sortedTenants = useMemo(() => {
+    return sortBy(tenants, tenantsTableSort.sort, (t, key) => {
+      const pending = t.pending_org_admin_invites[0];
+      const hasAdmin = t.org_admin_users.length > 0;
+      const status = hasAdmin ? 'Active' : pending ? 'Invited' : 'No org admin';
+      const orgAdmin = hasAdmin
+        ? `${t.org_admin_users[0]?.full_name || ''} ${t.org_admin_users[0]?.email || ''}`.trim()
+        : pending
+          ? `${pending.full_name || ''} ${pending.email || ''}`.trim()
+          : '';
+
+      switch (key) {
+        case 'organization_name':
+          return t.organization_name;
+        case 'org_admin':
+          return orgAdmin;
+        case 'status':
+          return status;
+        default:
+          return t.organization_name;
+      }
+    });
+  }, [tenants, tenantsTableSort.sort]);
+
+  const sortedAuditLogs = useMemo(() => {
+    return sortBy(auditLogs, auditTableSort.sort, (r, key) => {
+      switch (key) {
+        case 'created_at':
+          return r.created_at;
+        case 'org_name':
+          return r.org_name || '';
+        case 'user_name':
+          return r.user_name || '';
+        case 'action':
+          return r.action;
+        case 'entity_type':
+          return r.entity_type;
+        case 'ip_address':
+          return r.ip_address || '';
+        default:
+          return r.created_at;
+      }
+    });
+  }, [auditLogs, auditTableSort.sort]);
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'super_admin': return 'destructive';
@@ -676,7 +756,7 @@ export default function SuperAdminDashboard() {
               </div>
               <div>
                 <h1 className="font-display text-xl font-bold tracking-tight">Platform Admin</h1>
-                <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                <p className="text-sm">{profile?.email}</p>
               </div>
             </div>
             <Button variant="outline" onClick={handleLogout}>
@@ -781,7 +861,7 @@ export default function SuperAdminDashboard() {
                         </Button>
                         {tenantInviteUrl && (
                           <div className="flex-1 rounded-md border bg-card p-3">
-                            <p className="text-xs text-muted-foreground">Invite link</p>
+                            <p className="text-xs">Invite link</p>
                             <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
                             <div className="mt-2 flex gap-2">
                               <Button
@@ -840,15 +920,15 @@ export default function SuperAdminDashboard() {
                             {candidateSupport.marketplace_opt_in ? (
                               <Badge variant="outline" className="text-xs">Discoverable</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs text-muted-foreground">Not discoverable</Badge>
+                              <Badge variant="outline" className="text-xs">Not discoverable</Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs">
                             Tip: use the “Candidate support” tab for full actions (link/unlink/suspend).
                           </p>
                         </div>
                       ) : (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs">
                           Search for a candidate to see status and open full tools.
                         </div>
                       )}
@@ -881,9 +961,14 @@ export default function SuperAdminDashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Organization</TableHead>
-                            <TableHead>Org Admin</TableHead>
-                            <TableHead>Status</TableHead>
+                            <SortableTableHead
+                              label="Organization"
+                              sortKey="organization_name"
+                              sort={tenantsTableSort.sort}
+                              onToggle={tenantsTableSort.toggle}
+                            />
+                            <SortableTableHead label="Org Admin" sortKey="org_admin" sort={tenantsTableSort.sort} onToggle={tenantsTableSort.toggle} />
+                            <SortableTableHead label="Status" sortKey="status" sort={tenantsTableSort.sort} onToggle={tenantsTableSort.toggle} />
                             <TableHead className="w-[340px]">Invite / Reactivate</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -896,12 +981,12 @@ export default function SuperAdminDashboard() {
                             </TableRow>
                           ) : tenants.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                              <TableCell colSpan={4} className="text-center py-8">
                                 No tenants found.
                               </TableCell>
                             </TableRow>
                           ) : (
-                            tenants.map((t) => {
+                            sortedTenants.map((t) => {
                               const pending = t.pending_org_admin_invites[0];
                               const inviteUrl = pending ? `${window.location.origin}/auth?invite=${pending.invite_token}` : null;
                               const hasAdmin = t.org_admin_users.length > 0;
@@ -912,7 +997,7 @@ export default function SuperAdminDashboard() {
                                   <TableCell>
                                     <div className="space-y-0.5">
                                       <p className="font-medium">{t.organization_name}</p>
-                                      <p className="text-xs text-muted-foreground">{t.organization_id}</p>
+                                      <p className="text-xs">{t.organization_id}</p>
                                     </div>
                                   </TableCell>
                                   <TableCell>
@@ -921,17 +1006,17 @@ export default function SuperAdminDashboard() {
                                         {t.org_admin_users.map((u) => (
                                           <div key={u.user_id}>
                                             <p className="font-medium">{u.full_name}</p>
-                                            <p className="text-sm text-muted-foreground">{u.email}</p>
+                                            <p className="text-sm">{u.email}</p>
                                           </div>
                                         ))}
                                       </div>
                                     ) : pending ? (
                                       <div>
                                         <p className="font-medium">{pending.full_name || pending.email}</p>
-                                        <p className="text-sm text-muted-foreground">{pending.email}</p>
+                                        <p className="text-sm">{pending.email}</p>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-muted-foreground">—</span>
+                                      <span className="text-sm">—</span>
                                     )}
                                   </TableCell>
                                   <TableCell>
@@ -999,7 +1084,7 @@ export default function SuperAdminDashboard() {
                       }
                       right={
                         <div className="relative flex-1 max-w-sm">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
                           <Input
                             placeholder="Search users..."
                             value={searchQuery}
@@ -1015,10 +1100,10 @@ export default function SuperAdminDashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>User</TableHead>
-                            <TableHead>Tenant</TableHead>
-                            <TableHead>Roles</TableHead>
-                            <TableHead>Joined</TableHead>
+                            <SortableTableHead label="User" sortKey="full_name" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                            <SortableTableHead label="Tenant" sortKey="tenant_label" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                            <SortableTableHead label="Roles" sortKey="roles" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                            <SortableTableHead label="Joined" sortKey="created_at" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
                             <TableHead className="w-[160px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1031,17 +1116,17 @@ export default function SuperAdminDashboard() {
                             </TableRow>
                           ) : filteredUsers.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                              <TableCell colSpan={5} className="text-center py-8">
                                 No users found
                               </TableCell>
                             </TableRow>
                           ) : (
-                            filteredUsers.map((user) => (
+                            sortedUsers.map((user) => (
                               <TableRow key={user.user_id}>
                                 <TableCell>
                                   <div>
                                     <p className="font-medium">{user.full_name}</p>
-                                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                                    <p className="text-sm">{user.email}</p>
                                   </div>
                                 </TableCell>
                                 <TableCell>
@@ -1058,7 +1143,7 @@ export default function SuperAdminDashboard() {
                                     ))}
                                   </div>
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">
+                                <TableCell className="">
                                   {new Date(user.created_at).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell>
@@ -1067,7 +1152,7 @@ export default function SuperAdminDashboard() {
                                       Revoke Org Admin
                                     </Button>
                                   ) : (
-                                    <span className="text-sm text-muted-foreground">Read-only</span>
+                                    <span className="text-sm">Read-only</span>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -1123,10 +1208,10 @@ export default function SuperAdminDashboard() {
                               {candidateSupport.marketplace_opt_in ? (
                                 <Badge variant="outline" className="text-xs">Discoverable</Badge>
                               ) : (
-                                <Badge variant="outline" className="text-xs text-muted-foreground">Not discoverable</Badge>
+                                <Badge variant="outline" className="text-xs">Not discoverable</Badge>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs">
                               user_id: <span className="font-mono">{candidateSupport.user_id}</span>
                               {candidateSupport.candidate_profile_id ? (
                                 <> · candidate_id: <span className="font-mono">{candidateSupport.candidate_profile_id}</span></>
@@ -1219,7 +1304,7 @@ export default function SuperAdminDashboard() {
                             </Button>
                           </div>
 
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs">
                             Current org links:
                             <ul className="mt-1 list-disc pl-5 space-y-1">
                               {candidateSupport.org_links.length === 0 ? (
@@ -1282,12 +1367,12 @@ export default function SuperAdminDashboard() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Org</TableHead>
-                            <TableHead>User</TableHead>
-                            <TableHead>Action</TableHead>
-                            <TableHead>Entity</TableHead>
-                            <TableHead>IP</TableHead>
+                            <SortableTableHead label="Time" sortKey="created_at" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                            <SortableTableHead label="Org" sortKey="org_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                            <SortableTableHead label="User" sortKey="user_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                            <SortableTableHead label="Action" sortKey="action" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                            <SortableTableHead label="Entity" sortKey="entity_type" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                            <SortableTableHead label="IP" sortKey="ip_address" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1299,26 +1384,26 @@ export default function SuperAdminDashboard() {
                             </TableRow>
                           ) : auditLogs.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                              <TableCell colSpan={6} className="text-center py-8">
                                 No audit logs found (or access not granted yet).
                               </TableCell>
                             </TableRow>
                           ) : (
-                            auditLogs.map((log) => (
+                            sortedAuditLogs.map((log) => (
                               <TableRow key={log.id}>
-                                <TableCell className="text-muted-foreground">
+                                <TableCell className="">
                                   {new Date(log.created_at).toLocaleString()}
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-0.5">
                                     <p className="font-medium">{log.org_name || 'Unknown org'}</p>
-                                    <p className="text-xs text-muted-foreground">{log.organization_id}</p>
+                                    <p className="text-xs">{log.organization_id}</p>
                                   </div>
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-0.5">
                                     <p className="font-medium">{log.user_name || 'Unknown user'}</p>
-                                    <p className="text-xs text-muted-foreground">{log.user_id}</p>
+                                    <p className="text-xs">{log.user_id}</p>
                                   </div>
                                 </TableCell>
                                 <TableCell>
@@ -1326,10 +1411,10 @@ export default function SuperAdminDashboard() {
                                     {log.action}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">
+                                <TableCell className="">
                                   {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">
+                                <TableCell className="">
                                   {log.ip_address || '-'}
                                 </TableCell>
                               </TableRow>
@@ -1339,7 +1424,7 @@ export default function SuperAdminDashboard() {
                       </Table>
                     </div>
                     <div className="mt-4 flex items-center justify-between">
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs">
                         {!auditSearchDebounced && !auditExpanded ? (
                           <span>Showing last 4 hours</span>
                         ) : auditSearchDebounced ? (

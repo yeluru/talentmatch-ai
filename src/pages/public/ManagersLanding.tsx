@@ -103,7 +103,7 @@ export default function ManagersLanding() {
                 <span className="text-manager">Data-Driven</span> Insights
               </h1>
               
-              <p className="text-lg text-muted-foreground mb-8 max-w-lg">
+              <p className="text-lgmb-8 max-w-lg">
                 Get complete visibility into your hiring operations. Track performance, 
                 optimize processes, and make strategic decisions with confidence.
               </p>
@@ -130,7 +130,7 @@ export default function ManagersLanding() {
               <div className="relative bg-card rounded-3xl border shadow-2xl p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-display text-lg font-semibold">Hiring Overview</h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm">
                     <Clock className="h-4 w-4" />
                     <span>Last 30 days</span>
                   </div>
@@ -139,7 +139,7 @@ export default function ManagersLanding() {
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   {metrics.map((metric) => (
                     <div key={metric.label} className="bg-muted/50 rounded-xl p-4">
-                      <div className="text-sm text-muted-foreground mb-1">{metric.label}</div>
+                      <div className="text-smmb-1">{metric.label}</div>
                       <div className="flex items-end gap-2">
                         <span className="text-2xl font-display font-bold">{metric.value}</span>
                         <span className="text-xs text-success font-medium pb-1">{metric.trend}</span>
@@ -151,7 +151,7 @@ export default function ManagersLanding() {
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium">Team Performance</span>
-                    <span className="text-xs text-muted-foreground">View all</span>
+                    <span className="text-xs">View all</span>
                   </div>
                   <div className="space-y-2">
                     {[
@@ -187,7 +187,7 @@ export default function ManagersLanding() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
               Complete Hiring Visibility
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-lg max-w-2xl mx-auto">
               Monitor, measure, and optimize every aspect of your recruitment operation.
             </p>
           </div>
@@ -199,7 +199,7 @@ export default function ManagersLanding() {
                   <feature.icon className="h-6 w-6 text-manager" />
                 </div>
                 <h3 className="font-display text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -215,7 +215,7 @@ export default function ManagersLanding() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
               Set Up in Minutes
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-lg">
               Get your team up and running quickly with our intuitive platform
             </p>
           </div>
@@ -231,7 +231,7 @@ export default function ManagersLanding() {
                     {step.number}
                   </div>
                   <h3 className="font-display text-xl font-semibold mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm">{step.description}</p>
+                  <p className="text-sm">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -247,7 +247,7 @@ export default function ManagersLanding() {
               <h2 className="font-display text-3xl sm:text-4xl font-bold mb-6">
                 Make Better Hiring Decisions
               </h2>
-              <p className="text-muted-foreground text-lg mb-8">
+              <p className="text-lg mb-8">
                 Empower your team with the insights they need to build world-class organizations.
               </p>
               
@@ -270,7 +270,7 @@ export default function ManagersLanding() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-sm">
                   Already have an account?{' '}
                   <Link to="/auth" className="text-manager hover:underline">
                     Sign in
