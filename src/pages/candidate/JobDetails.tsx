@@ -180,142 +180,153 @@ export default function JobDetails() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             {/* Job Header */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
-                    {job.organization?.logo_url ? (
-                      <img src={job.organization.logo_url} alt="" className="h-12 w-12 object-contain" />
-                    ) : (
-                      <Building2 className="h-8 w-8" />
+            <div className="glass-panel p-8 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-50">
+                <Building2 className="h-48 w-48 text-muted-foreground/5 -rotate-12" />
+              </div>
+              <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
+                <div className="h-24 w-24 rounded-2xl bg-white dark:bg-slate-800 shadow-lg flex items-center justify-center p-2 border border-white/10">
+                  {job.organization?.logo_url ? (
+                    <img src={job.organization.logo_url} alt="" className="h-full w-full object-contain" />
+                  ) : (
+                    <Building2 className="h-10 w-10 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium leading-tight">{job.title}</h1>
+                  <p className="text-xl text-muted-foreground font-medium">{job.organization?.name}</p>
+
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {job.location && (
+                      <Badge variant="outline" className="text-sm py-1 px-3 border-white/10 bg-background/30 backdrop-blur-md">
+                        <MapPin className="mr-1.5 h-3.5 w-3.5" />
+                        {job.location}
+                      </Badge>
+                    )}
+                    {(job as any).work_mode && (job as any).work_mode !== 'unknown' ? (
+                      <Badge variant="secondary" className="capitalize text-sm py-1 px-3 bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm">
+                        {(job as any).work_mode}
+                      </Badge>
+                    ) : job.is_remote ? (
+                      <Badge variant="secondary" className="text-sm py-1 px-3 bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm">Remote</Badge>
+                    ) : null}
+                    {job.job_type && (
+                      <Badge variant="outline" className="capitalize text-sm py-1 px-3 border-white/10 bg-background/30 backdrop-blur-md">
+                        {job.job_type.replace('_', ' ')}
+                      </Badge>
+                    )}
+                    {job.experience_level && (
+                      <Badge variant="outline" className="capitalize text-sm py-1 px-3 border-white/10 bg-background/30 backdrop-blur-md">
+                        {job.experience_level}
+                      </Badge>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h1 className="font-display text-2xl font-bold">{job.title}</h1>
-                    <p className="text-lg">{job.organization?.name}</p>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {job.location && (
-                        <Badge variant="outline">
-                          <MapPin className="mr-1 h-3 w-3" />
-                          {job.location}
-                        </Badge>
-                      )}
-                      {(job as any).work_mode && (job as any).work_mode !== 'unknown' ? (
-                        <Badge variant="secondary" className="capitalize">
-                          {(job as any).work_mode}
-                        </Badge>
-                      ) : job.is_remote ? (
-                        <Badge variant="secondary">Remote</Badge>
-                      ) : null}
-                      {job.job_type && (
-                        <Badge variant="outline" className="capitalize">
-                          {job.job_type}
-                        </Badge>
-                      )}
-                      {job.experience_level && (
-                        <Badge variant="outline" className="capitalize">
-                          {job.experience_level}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Job Description */}
-            <Card>
-              <CardHeader>
-                <CardTitle>About this role</CardTitle>
-              </CardHeader>
-              <CardContent className="text-baseleading-relaxed">
-                <div className="whitespace-pre-wrap">{job.description}</div>
-              </CardContent>
-            </Card>
+            <div className="glass-panel p-8">
+              <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-accent" />
+                About this role
+              </h2>
+              <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {job.description}
+              </div>
+            </div>
 
             {/* NOTE: responsibilities/requirements may contain internal recruiter notes; do not render in candidate view. */}
 
             {/* Skills */}
             {(job.required_skills?.length || job.nice_to_have_skills?.length) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Skills</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+              <div className="glass-panel p-8">
+                <h2 className="font-display text-2xl font-bold mb-6">Skills & Requirements</h2>
+                <div className="space-y-6">
                   {job.required_skills && job.required_skills.length > 0 && (
                     <div>
-                      <h4 className="text-base font-medium mb-2">Required</h4>
+                      <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Required</h4>
                       <div className="flex flex-wrap gap-2">
                         {job.required_skills.map((skill, i) => (
-                          <Badge key={i} variant="default">{skill}</Badge>
+                          <Badge key={i} variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 px-3 py-1.5 transition-colors">
+                            {skill}
+                          </Badge>
                         ))}
                       </div>
                     </div>
                   )}
                   {job.nice_to_have_skills && job.nice_to_have_skills.length > 0 && (
                     <div>
-                      <h4 className="text-base font-medium mb-2">Nice to have</h4>
+                      <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Nice to have</h4>
                       <div className="flex flex-wrap gap-2">
                         {job.nice_to_have_skills.map((skill, i) => (
-                          <Badge key={i} variant="secondary">{skill}</Badge>
+                          <Badge key={i} variant="outline" className="border-dashed border-muted-foreground/30 text-muted-foreground px-3 py-1.5">
+                            {skill}
+                          </Badge>
                         ))}
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+            <div className="glass-panel p-6 sticky top-6">
+              <div className="space-y-6">
                 {/* Salary removed (contracting-first product) */}
-                {job.posted_at && (
-                  <div>
-                    <p className="text-base">Posted</p>
-                    <p className="font-medium">{format(new Date(job.posted_at), 'MMMM d, yyyy')}</p>
-                  </div>
-                )}
-                {job.closes_at && (
-                  <div>
-                    <p className="text-base">Closes</p>
-                    <p className="font-medium">{format(new Date(job.closes_at), 'MMMM d, yyyy')}</p>
-                  </div>
-                )}
+                <div className="grid grid-cols-2 gap-4">
+                  {job.posted_at && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Posted</p>
+                      <p className="font-semibold mt-1">{format(new Date(job.posted_at), 'MMM d, yyyy')}</p>
+                    </div>
+                  )}
+                  {job.closes_at && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Closes</p>
+                      <p className="font-semibold mt-1">{format(new Date(job.closes_at), 'MMM d, yyyy')}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-white/5 my-4" />
 
                 {hasApplied ? (
-                  <Button className="w-full" disabled>
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Applied
+                  <Button className="w-full h-12 text-base bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20" disabled>
+                    <CheckCircle className="mr-2 h-5 w-5" />
+                    Application Submitted
                   </Button>
                 ) : (
                   <Dialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
                     <DialogTrigger asChild>
-                      <Button className="w-full">
-                        <Send className="mr-2 h-4 w-4" />
+                      <Button className="w-full h-12 text-base btn-primary-glow font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                        <Send className="mr-2 h-5 w-5" />
                         Apply Now
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-xl glass-panel border-white/10">
                       <DialogHeader>
-                        <DialogTitle>Apply for {job.title}</DialogTitle>
+                        <DialogTitle className="text-2xl font-display">Apply for {job.title}</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div>
-                          <Label>Select Resume</Label>
+                      <div className="space-y-6 py-6">
+                        <div className="space-y-2">
+                          <Label className="text-base">Select Resume</Label>
                           {resumes.length === 0 ? (
-                            <p className="text-basemt-2">
-                              No resumes uploaded.{' '}
-                              <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/candidate/resumes')}>
-                                Upload one
+                            <div className="p-4 border border-dashed rounded-lg bg-muted/30 text-center">
+                              <p className="text-sm text-muted-foreground mb-3">
+                                No resumes found. Please upload one to apply.
+                              </p>
+                              <Button variant="outline" size="sm" onClick={() => navigate('/candidate/resumes')}>
+                                Upload Resume
                               </Button>
-                            </p>
+                            </div>
                           ) : (
                             <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                              <SelectTrigger className="mt-2">
-                                <SelectValue placeholder="Choose a resume" />
+                              <SelectTrigger className="h-12 bg-background/50 border-white/10">
+                                <SelectValue placeholder="Choose a resume to submit" />
                               </SelectTrigger>
                               <SelectContent>
                                 {resumes.map((resume) => (
@@ -327,22 +338,22 @@ export default function JobDetails() {
                             </Select>
                           )}
                         </div>
-                        <div>
-                          <Label>Cover Letter (Optional)</Label>
+                        <div className="space-y-2">
+                          <Label className="text-base">Cover Letter (Optional)</Label>
                           <Textarea
-                            placeholder="Tell the employer why you're a great fit..."
-                            rows={5}
+                            placeholder="Tell the employer why you're a perfect fit..."
+                            rows={6}
                             value={coverLetter}
                             onChange={(e) => setCoverLetter(e.target.value)}
-                            className="mt-2"
+                            className="bg-background/50 border-white/10 resize-none focus:ring-accent"
                           />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowApplyDialog(false)}>
+                        <Button variant="ghost" onClick={() => setShowApplyDialog(false)}>
                           Cancel
                         </Button>
-                        <Button onClick={handleApply} disabled={isApplying || !selectedResumeId}>
+                        <Button onClick={handleApply} disabled={isApplying || !selectedResumeId} className="btn-primary-glow">
                           {isApplying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Submit Application
                         </Button>
@@ -350,18 +361,14 @@ export default function JobDetails() {
                     </DialogContent>
                   </Dialog>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {job.organization?.description && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>About {job.organization.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-base">{job.organization.description}</p>
-                </CardContent>
-              </Card>
+              <div className="glass-panel p-6">
+                <h3 className="font-display font-bold text-lg mb-3">About {job.organization.name}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{job.organization.description}</p>
+              </div>
             )}
           </div>
         </div>

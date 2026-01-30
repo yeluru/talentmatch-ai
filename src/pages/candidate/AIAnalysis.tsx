@@ -385,7 +385,7 @@ export default function AIAnalysis() {
     }
   };
 
-  const filteredJobs = jobs.filter(job => 
+  const filteredJobs = jobs.filter(job =>
     job.title.toLowerCase().includes(jobSearchQuery.toLowerCase()) ||
     job.organization_name.toLowerCase().includes(jobSearchQuery.toLowerCase())
   );
@@ -619,60 +619,63 @@ export default function AIAnalysis() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-      <div className="space-y-6">
+        <div className="space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
-        <div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-accent" />
-                <h1 className="font-display text-3xl font-bold">ATS Checkpoint</h1>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-accent/10 text-accent">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium">ATS Checkpoint</h1>
               </div>
-          <p className="mt-1">
+              <p className="text-lg text-muted-foreground/80 max-w-3xl">
                 Optimize for ATS shortlisting. The canonical score comes from deterministic JD keyword coverage + a model estimate.
-          </p>
-        </div>
-                  </div>
+              </p>
+            </div>
+          </div>
 
           {/* Inputs (top panel) */}
-          <Card className="bg-gradient-to-br from-primary/5 via-background to-background">
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Briefcase className="h-4 w-4" />
+          <div className="glass-panel p-6 border-l-4 border-l-accent">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2 text-base font-semibold">
+                  <Briefcase className="h-5 w-5 text-accent" />
                   Job Description
                 </Label>
                 <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="existing">Select Job</TabsTrigger>
-                    <TabsTrigger value="custom">Paste JD</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1">
+                    <TabsTrigger value="existing" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">Select Job</TabsTrigger>
+                    <TabsTrigger value="custom" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">Paste JD</TabsTrigger>
                   </TabsList>
-                  
-                  <TabsContent value="existing" className="space-y-3">
+
+                  <TabsContent value="existing" className="space-y-3 mt-4">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search jobs by title or company..."
                         value={jobSearchQuery}
                         onChange={(e) => setJobSearchQuery(e.target.value)}
-                        className="pl-9"
+                        className="pl-10 h-10 bg-background/50 border-white/10"
                       />
                     </div>
-                    <div className="max-h-[240px] overflow-y-auto space-y-2 border rounded-md p-2 bg-background">
+                    <div className="max-h-[240px] overflow-y-auto space-y-2 border border-white/10 rounded-xl p-2 bg-background/30 backdrop-blur-sm">
                       {filteredJobs.length === 0 ? (
-                        <p className="text-sm text-center py-4">
+                        <p className="text-sm text-center py-8 text-muted-foreground">
                           {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
                         </p>
                       ) : (
                         filteredJobs.slice(0, 20).map((job) => (
                           <div
                             key={job.id}
-                            className={`p-3 rounded-md cursor-pointer transition-colors ${
-                              selectedJobId === job.id ? 'bg-primary/10 border border-primary' : 'bg-muted/50 hover:bg-muted'
-                            }`}
+                            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 border ${selectedJobId === job.id
+                              ? 'bg-accent/10 border-accent/30 ring-1 ring-accent/30'
+                              : 'bg-transparent border-transparent hover:bg-muted/50'
+                              }`}
                             onClick={() => handleJobSelect(job.id)}
                           >
-                            <p className="font-medium text-sm">{job.title}</p>
-                            <p className="text-xs">
+                            <p className="font-bold text-sm text-foreground">{job.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
                               {job.organization_name} {job.location && `• ${job.location}`}
                             </p>
                           </div>
@@ -680,24 +683,25 @@ export default function AIAnalysis() {
                       )}
                     </div>
                   </TabsContent>
-                  
-                  <TabsContent value="custom">
+
+                  <TabsContent value="custom" className="mt-4">
                     <Textarea
-                      placeholder="Paste the job description here..."
+                      placeholder="Paste the full job description here..."
                       rows={10}
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
+                      className="resize-none bg-background/50 border-white/10 focus:ring-accent font-mono text-sm leading-relaxed"
                     />
                   </TabsContent>
                 </Tabs>
               </div>
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div className="w-full md:max-w-[520px] space-y-2">
-                  <Label>Resume</Label>
+              <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between pt-2">
+                <div className="w-full md:max-w-[520px] space-y-3">
+                  <Label className="text-base font-semibold">Resume Profile</Label>
                   <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a resume" />
+                    <SelectTrigger className="h-11 bg-background/50 border-white/10">
+                      <SelectValue placeholder="Select a resume version" />
                     </SelectTrigger>
                     <SelectContent>
                       {resumes.map((resume) => (
@@ -713,220 +717,217 @@ export default function AIAnalysis() {
                     </SelectContent>
                   </Select>
                   {!resumes.length && (
-                    <div className="text-xs">
-                      No resumes yet. <a className="underline" href="/candidate/resumes">Upload one</a>.
+                    <div className="text-xs text-muted-foreground pl-1">
+                      No resumes yet. <a className="text-accent hover:underline font-medium" href="/candidate/resumes">Upload one</a>.
                     </div>
                   )}
                 </div>
 
                 <div className="w-full md:w-auto">
-            <Button 
-              onClick={handleAnalyze} 
-              disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
-                    className="w-full md:w-auto"
-                    size="default"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Running...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                        Run check
-                </>
-              )}
-            </Button>
-          </div>
+                  <Button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
+                    className="w-full md:w-auto btn-primary-glow h-11 px-8 text-base font-semibold shadow-lg"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Running Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-5 w-5" />
+                        Run Analysis
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Results (bottom panel) */}
           <div className="space-y-6">
-              {!analysisResult ? (
-                <Card>
-                  <CardContent className="py-12">
-                    <div className="max-w-xl mx-auto text-center space-y-2">
-                      <div className="text-2xl font-semibold">Run a check</div>
-                      <div className="">
-                        Select your resume and paste/select a JD. We’ll show exactly what phrases to add to raise the canonical score.
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  <Card className="border-primary bg-gradient-to-br from-primary/5 via-background to-background">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <div className="text-smflex items-center gap-2">
-                            ATS match score (canonical)
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="inline-flex items-center">
-                                  <Info className="h-4 w-4" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Canonical score = deterministic JD keyword coverage blended with a model estimate.
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          <div className={`text-5xl font-bold tracking-tight ${getScoreColor(analysisResult.match_score)}`}>
-                            {analysisResult.match_score}%
-                          </div>
-                          <div className="mt-1 text-sm font-medium text-foreground">{getScoreLabel(analysisResult.match_score)}</div>
-                        {/* ATS Checkpoint is for findings; edits happen in Resume Workspace */}
+            {!analysisResult ? (
+              <div className="glass-panel p-12 flex flex-col items-center justify-center text-center">
+                <div className="max-w-xl mx-auto space-y-2">
+                  <div className="text-2xl font-semibold">Run a check</div>
+                  <div className="text-muted-foreground">
+                    Select your resume and paste/select a JD. We’ll show exactly what phrases to add to raise the canonical score.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Card className="border-primary bg-gradient-to-br from-primary/5 via-background to-background">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <div className="text-smflex items-center gap-2">
+                          ATS match score (canonical)
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex items-center">
+                                <Info className="h-4 w-4" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Canonical score = deterministic JD keyword coverage blended with a model estimate.
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
+                        <div className={`text-5xl font-bold tracking-tight ${getScoreColor(analysisResult.match_score)}`}>
+                          {analysisResult.match_score}%
+                        </div>
+                        <div className="mt-1 text-sm font-medium text-foreground">{getScoreLabel(analysisResult.match_score)}</div>
+                        {/* ATS Checkpoint is for findings; edits happen in Resume Workspace */}
+                      </div>
 
-                        <div className="w-full md:max-w-[420px]">
-                          <Progress value={analysisResult.match_score} className="h-2" />
-                          {analysisResult.diagnostics?.scoring && (
-                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                              <div className="rounded-md border bg-background p-2">
-                                <div className="font-medium text-foreground">Keyword coverage</div>
-                                <div>
-                                  {analysisResult.diagnostics.scoring.keyword_coverage_score}% · {matchedPhraseCount}/{totalPhraseCount} phrases
-                                </div>
-                              </div>
-                              <div className="rounded-md border bg-background p-2">
-                                <div className="font-medium text-foreground">Model estimate</div>
-                                <div>{analysisResult.diagnostics.scoring.model_score}%</div>
+                      <div className="w-full md:max-w-[420px]">
+                        <Progress value={analysisResult.match_score} className="h-2" />
+                        {analysisResult.diagnostics?.scoring && (
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div className="rounded-md border bg-background p-2">
+                              <div className="font-medium text-foreground">Keyword coverage</div>
+                              <div>
+                                {analysisResult.diagnostics.scoring.keyword_coverage_score}% · {matchedPhraseCount}/{totalPhraseCount} phrases
                               </div>
                             </div>
-                          )}
-                        </div>
+                            <div className="rounded-md border bg-background p-2">
+                              <div className="font-medium text-foreground">Model estimate</div>
+                              <div>{analysisResult.diagnostics.scoring.model_score}%</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                  </CardContent>
-                </Card>
-
-                  {String(analysisResult.summary || '').trim() ? (
-                    <Card className="card-elevated">
-                  <CardHeader>
-                        <CardTitle className="text-base">Summary</CardTitle>
-                        <CardDescription>What the analysis thinks you should do next.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                        <div className="text-smwhitespace-pre-wrap">
-                          {analysisResult.summary}
                     </div>
                   </CardContent>
                 </Card>
-                  ) : null}
 
-                  <div className="grid gap-6 lg:grid-cols-3">
-                    <Card className="card-elevated">
-                      <CardHeader>
-                        <CardTitle className="text-base">Top keyword gaps (verbatim)</CardTitle>
-                        <CardDescription>Top phrases not found verbatim in your resume text.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {topKeywordGaps.length ? (
-                          <div className="flex flex-wrap gap-2">
-                            {topKeywordGaps.map((k, i) => (
-                              <Badge key={`${k}-${i}`} variant="secondary">
-                                {k}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm">No keyword gaps detected.</div>
-                        )}
-                      </CardContent>
-                    </Card>
+                {String(analysisResult.summary || '').trim() ? (
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base">Summary</CardTitle>
+                      <CardDescription>What the analysis thinks you should do next.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-smwhitespace-pre-wrap">
+                        {analysisResult.summary}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
 
-                    <Card className="card-elevated">
-                      <CardHeader>
-                        <CardTitle className="text-base">Top skill gaps (model)</CardTitle>
-                        <CardDescription>Model-inferred skills to consider adding (only if true).</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {topSkillGaps.length ? (
-                          <div className="flex flex-wrap gap-2">
-                            {topSkillGaps.map((s, i) => (
-                              <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
-                                {s}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-sm">No model skill gaps detected.</div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card className="card-elevated">
-                      <CardHeader>
-                        <CardTitle className="text-base">Top recommendations</CardTitle>
-                        <CardDescription>Highest impact edits suggested by the analysis.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {topRecommendations.length ? (
-                          <ul className="space-y-2 text-sm">
-                            {topRecommendations.map((rec, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <span className="mt-1">•</span>
-                                <span>{rec}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="text-sm">No recommendations available.</div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <Accordion type="multiple" className="w-full" defaultValue={['matched']}>
-                    <AccordionItem value="keywords">
-                      <AccordionTrigger>All keyword gaps (verbatim)</AccordionTrigger>
-                      <AccordionContent>
-                        {missingPhrases.length ? (
-                          <div className="rounded-md border bg-background p-3">
-                            <ScrollArea className="h-[260px]">
-                              <div className="flex flex-wrap gap-2">
-                                {missingPhrases.slice(0, 120).map((k, i) => (
-                                  <Badge key={`${k}-${i}`} variant="secondary">
-                                    {k}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </ScrollArea>
-                          </div>
-                        ) : (
-                          <div className="text-sm">No keyword gaps detected.</div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="matched">
-                      <AccordionTrigger>Matched skills</AccordionTrigger>
-                      <AccordionContent>
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base">Top keyword gaps (verbatim)</CardTitle>
+                      <CardDescription>Top phrases not found verbatim in your resume text.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {topKeywordGaps.length ? (
                         <div className="flex flex-wrap gap-2">
-                          {analysisResult.matched_skills.slice(0, 60).map((s, i) => (
-                            <Badge key={`${s}-${i}`} variant="outline">
-                              {s}
+                          {topKeywordGaps.map((k, i) => (
+                            <Badge key={`${k}-${i}`} variant="secondary">
+                              {k}
                             </Badge>
                           ))}
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="missing">
-                      <AccordionTrigger>Missing skills (model)</AccordionTrigger>
-                      <AccordionContent>
+                      ) : (
+                        <div className="text-sm">No keyword gaps detected.</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base">Top skill gaps (model)</CardTitle>
+                      <CardDescription>Model-inferred skills to consider adding (only if true).</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {topSkillGaps.length ? (
                         <div className="flex flex-wrap gap-2">
-                          {analysisResult.missing_skills.slice(0, 60).map((s, i) => (
+                          {topSkillGaps.map((s, i) => (
                             <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
                               {s}
                             </Badge>
                           ))}
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </>
+                      ) : (
+                        <div className="text-sm">No model skill gaps detected.</div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base">Top recommendations</CardTitle>
+                      <CardDescription>Highest impact edits suggested by the analysis.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {topRecommendations.length ? (
+                        <ul className="space-y-2 text-sm">
+                          {topRecommendations.map((rec, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="mt-1">•</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-sm">No recommendations available.</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Accordion type="multiple" className="w-full" defaultValue={['matched']}>
+                  <AccordionItem value="keywords">
+                    <AccordionTrigger>All keyword gaps (verbatim)</AccordionTrigger>
+                    <AccordionContent>
+                      {missingPhrases.length ? (
+                        <div className="rounded-md border bg-background p-3">
+                          <ScrollArea className="h-[260px]">
+                            <div className="flex flex-wrap gap-2">
+                              {missingPhrases.slice(0, 120).map((k, i) => (
+                                <Badge key={`${k}-${i}`} variant="secondary">
+                                  {k}
+                                </Badge>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      ) : (
+                        <div className="text-sm">No keyword gaps detected.</div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="matched">
+                    <AccordionTrigger>Matched skills</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="flex flex-wrap gap-2">
+                        {analysisResult.matched_skills.slice(0, 60).map((s, i) => (
+                          <Badge key={`${s}-${i}`} variant="outline">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="missing">
+                    <AccordionTrigger>Missing skills (model)</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="flex flex-wrap gap-2">
+                        {analysisResult.missing_skills.slice(0, 60).map((s, i) => (
+                          <Badge key={`${s}-${i}`} variant="outline" className="border-destructive/20 text-destructive">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </>
             )}
           </div>
         </div>

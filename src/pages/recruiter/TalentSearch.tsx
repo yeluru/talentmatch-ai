@@ -10,8 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, 
+import {
+  Search,
   Sparkles,
   Loader2,
   Users,
@@ -73,7 +73,7 @@ export default function TalentSearch() {
   const [shortlistTargetId, setShortlistTargetId] = useState<string | null>(null);
   const [selectedShortlistId, setSelectedShortlistId] = useState<string>('');
   const [newShortlistName, setNewShortlistName] = useState('');
-  
+
   const organizationId = orgIdForRecruiterSuite(roles);
   const STORAGE_KEY = `talent_search:last:${organizationId || 'no-org'}`;
 
@@ -284,40 +284,42 @@ export default function TalentSearch() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-            <Search className="h-8 w-8 text-accent" />
-            ATS Match Search
+          <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Search className="h-8 w-8 text-primary" />
+            </div>
+            <span className="text-gradient-premium">ATS Match Search</span>
           </h1>
-          <p className="mt-1">
+          <p className="mt-2 text-muted-foreground text-lg">
             ATS-style matching for candidates in your org
           </p>
         </div>
 
-        <Card>
+        <Card className="glass-panel border-white/20">
           <CardHeader>
-            <CardTitle>What are you looking for?</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl">What are you looking for?</CardTitle>
+            <CardDescription className="text-base text-muted-foreground/80">
               Search by skills, title, location, or a short description. Example: "React developer, 5+ years, fintech"
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   placeholder="Senior software engineer in San Francisco with startup experience..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="pl-10"
+                  className="pl-12 h-12 glass-input text-lg"
                 />
               </div>
-              <Button onClick={handleSearch} disabled={searchMutation.isPending}>
+              <Button onClick={handleSearch} disabled={searchMutation.isPending} size="lg" className="h-12 px-8 shadow-lg shadow-primary/20">
                 {searchMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4 mr-2" />
+                    <Sparkles className="h-5 w-5 mr-2" />
                     Search
                   </>
                 )}
@@ -325,15 +327,15 @@ export default function TalentSearch() {
             </div>
 
             {parsedQuery && (
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-smmb-2">Interpreted search criteria:</p>
+              <div className="p-4 bg-white/5 border border-white/10 rounded-xl mt-4">
+                <p className="text-sm text-muted-foreground mb-3 font-medium uppercase tracking-wider">Interpreted search criteria:</p>
                 <div className="flex flex-wrap gap-2">
-                  {parsedQuery.role && <Badge variant="secondary">Role: {parsedQuery.role}</Badge>}
-                  {parsedQuery.location && <Badge variant="secondary">Location: {parsedQuery.location}</Badge>}
-                  {parsedQuery.experience_level && <Badge variant="secondary">Level: {parsedQuery.experience_level}</Badge>}
-                  {parsedQuery.industry && <Badge variant="secondary">Industry: {parsedQuery.industry}</Badge>}
+                  {parsedQuery.role && <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 px-3 py-1">Role: {parsedQuery.role}</Badge>}
+                  {parsedQuery.location && <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20 px-3 py-1">Location: {parsedQuery.location}</Badge>}
+                  {parsedQuery.experience_level && <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20 px-3 py-1">Level: {parsedQuery.experience_level}</Badge>}
+                  {parsedQuery.industry && <Badge variant="secondary" className="bg-purple-500/10 text-purple-500 border-purple-500/20 hover:bg-purple-500/20 px-3 py-1">Industry: {parsedQuery.industry}</Badge>}
                   {parsedQuery.skills?.map(skill => (
-                    <Badge key={skill} variant="outline">{skill}</Badge>
+                    <Badge key={skill} variant="outline" className="border-white/20 px-3 py-1">{skill}</Badge>
                   ))}
                 </div>
               </div>
@@ -343,23 +345,23 @@ export default function TalentSearch() {
 
         {/* Results - compact table, one row per candidate */}
         {results.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+          <Card className="glass-card border-none overflow-hidden">
+            <CardHeader className="bg-white/5 border-b border-white/10">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Users className="h-5 w-5 text-primary" />
                 Search Results ({results.length} candidates)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">#</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="max-w-[160px]">Title</TableHead>
-                    <TableHead className="max-w-[100px] hidden sm:table-cell">Location</TableHead>
-                    <TableHead className="w-16 text-right" title="Resume quality (ATS-friendly)">ATS</TableHead>
-                    <TableHead className="w-[120px]">Shortlist</TableHead>
+                <TableHeader className="bg-white/5">
+                  <TableRow className="hover:bg-transparent border-white/10">
+                    <TableHead className="w-12 text-center text-muted-foreground font-semibold">#</TableHead>
+                    <TableHead className="py-4 font-semibold text-foreground/80">Name</TableHead>
+                    <TableHead className="max-w-[160px] py-4 font-semibold text-foreground/80">Title</TableHead>
+                    <TableHead className="max-w-[100px] hidden sm:table-cell py-4 font-semibold text-foreground/80">Location</TableHead>
+                    <TableHead className="w-20 text-center py-4 font-semibold text-foreground/80" title="Resume quality (ATS-friendly)">Match</TableHead>
+                    <TableHead className="w-[140px] py-4 font-semibold text-foreground/80">Shortlist</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -372,26 +374,26 @@ export default function TalentSearch() {
                       return (
                         <TableRow
                           key={result.candidate_id ?? result.candidate?.id ?? idx}
-                          className="cursor-pointer"
+                          className="cursor-pointer hover:bg-white/5 border-white/10 transition-colors"
                           onClick={() => openTalent(candidate.id)}
                         >
-                          <TableCell className="text-xs py-2">{idx + 1}</TableCell>
-                          <TableCell className="font-medium truncate max-w-[120px] py-2">{candidate.name ?? '—'}</TableCell>
-                          <TableCell className="truncate max-w-[160px] py-2" title={candidate.title || undefined}>
+                          <TableCell className="text-xs py-4 text-center text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-medium truncate max-w-[120px] py-4 text-base">{candidate.name ?? '—'}</TableCell>
+                          <TableCell className="truncate max-w-[160px] py-4 text-muted-foreground" title={candidate.title || undefined}>
                             {candidate.title || '—'}
                           </TableCell>
-                          <TableCell className="truncate max-w-[100px] hidden sm:table-cell py-2" title={candidate.location || undefined}>
+                          <TableCell className="truncate max-w-[100px] hidden sm:table-cell py-4 text-muted-foreground" title={candidate.location || undefined}>
                             {candidate.location || '—'}
                           </TableCell>
-                          <TableCell className="text-right py-2">
-                            <ScoreBadge score={result.match_score} size="sm" showLabel={false} />
+                          <TableCell className="text-center py-4">
+                            <ScoreBadge score={result.match_score} size="md" showLabel={false} />
                           </TableCell>
-                          <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                             {memberships.length ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 text-xs"
+                                className="h-8 text-xs bg-white/5 hover:bg-white/10 border border-white/10"
                                 onClick={() => openShortlistPage(memberships[0].id)}
                               >
                                 {memberships[0].name}
@@ -401,7 +403,7 @@ export default function TalentSearch() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 text-xs"
+                                className="h-8 text-xs hover:bg-primary/20 hover:text-primary hover:border-primary/30"
                                 onClick={() => openAddToShortlist(candidate.id)}
                               >
                                 <UserPlus className="h-3.5 w-3.5 mr-1" />
@@ -426,7 +428,7 @@ export default function TalentSearch() {
       <TalentDetailSheet talentId={selectedTalentId} open={sheetOpen} onOpenChange={setSheetOpen} />
 
       <Dialog open={shortlistDialogOpen} onOpenChange={setShortlistDialogOpen}>
-        <DialogContent>
+        <DialogContent className="glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Add to shortlist</DialogTitle>
             <DialogDescription>Select a shortlist to add this candidate to.</DialogDescription>
@@ -434,7 +436,7 @@ export default function TalentSearch() {
 
           <div className="space-y-4">
             <Select value={selectedShortlistId} onValueChange={(v) => setSelectedShortlistId(v)}>
-              <SelectTrigger>
+              <SelectTrigger className="glass-input">
                 <SelectValue placeholder="Choose shortlist" />
               </SelectTrigger>
               <SelectContent>
@@ -451,6 +453,7 @@ export default function TalentSearch() {
                 value={newShortlistName}
                 onChange={(e) => setNewShortlistName(e.target.value)}
                 placeholder="Create new shortlist…"
+                className="glass-input"
               />
               <Button
                 variant="secondary"
@@ -470,6 +473,7 @@ export default function TalentSearch() {
                 setShortlistDialogOpen(false);
                 setShortlistTargetId(null);
               }}
+              className="hover:bg-white/5"
             >
               Cancel
             </Button>

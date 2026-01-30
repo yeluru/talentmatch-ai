@@ -460,11 +460,11 @@ export default function CandidateResumes() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">My Resumes</h1>
-            <p className="mt-1">
-              Manage your resume documents
+            <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium">My Resumes</h1>
+            <p className="mt-2 text-lg text-muted-foreground/80">
+              Manage your resume documents and track their ATS scores.
             </p>
           </div>
           <div>
@@ -475,52 +475,65 @@ export default function CandidateResumes() {
               onChange={handleFileUpload}
               className="hidden"
             />
-            <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="btn-primary-glow shadow-lg h-12 px-6"
+            >
               {isUploading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               ) : (
-                <Upload className="mr-2 h-4 w-4" />
+                <Upload className="mr-2 h-5 w-5" />
               )}
-              Upload Resume
+              Upload New Resume
             </Button>
           </div>
         </div>
 
         {resumes.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No resumes uploaded</h3>
-              <p className="text-center mb-4">
-                Upload your resume to start applying for jobs
-              </p>
-              <Button onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Your First Resume
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="glass-panel p-12 border-dashed border-2 border-white/20 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
+            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+              <Upload className="h-10 w-10 text-primary" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">No resumes uploaded yet</h3>
+            <p className="text-muted-foreground mb-8 max-w-md text-lg">
+              Upload your resume to start matching with jobs and getting AI-powered feedback.
+            </p>
+            <Button variant="outline" className="border-primary/20 hover:bg-primary/10 hover:text-primary">
+              <Upload className="mr-2 h-4 w-4" />
+              Select File to Upload
+            </Button>
+          </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {resumes.map((resume) => (
-              <Card key={resume.id} className={resume.is_primary ? 'border-primary' : ''}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      {resume.is_primary && (
-                        <Badge variant="default" className="text-xs">Primary</Badge>
-                      )}
+              <div
+                key={resume.id}
+                className={`glass-panel p-0 overflow-hidden relative group hover-card-premium ${resume.is_primary ? 'ring-2 ring-primary/50 shadow-primary/10' : ''
+                  }`}
+              >
+                {resume.is_primary && (
+                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-lg z-10">
+                    Primary
+                  </div>
+                )}
+
+                <div className="p-6 pb-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-lg bg-white/5 group-hover:bg-primary/10 transition-colors">
+                      <FileText className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                    <div className="flex gap-1">
+
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleSetPrimary(resume.id)}
+                        onClick={(e) => { e.stopPropagation(); handleSetPrimary(resume.id); }}
+                        className="h-8 w-8 hover:bg-primary/20 hover:text-primary"
                         title={resume.is_primary ? 'Primary resume' : 'Set as primary'}
                       >
                         {resume.is_primary ? (
-                          <Star className="h-4 w-4 text-warning fill-warning" />
+                          <Star className="h-4 w-4 text-primary fill-primary" />
                         ) : (
                           <StarOff className="h-4 w-4" />
                         )}
@@ -528,32 +541,40 @@ export default function CandidateResumes() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteResume(resume.id, resume.file_url)}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteResume(resume.id, resume.file_url); }}
+                        className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  <CardTitle className="text-base truncate">{resume.file_name}</CardTitle>
-                  <CardDescription>
+
+                  <h3 className="font-bold text-lg truncate mb-1" title={resume.file_name}>{resume.file_name}</h3>
+                  <p className="text-sm text-muted-foreground">
                     Uploaded {format(new Date(resume.created_at), 'MMM d, yyyy')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {resume.ats_score && (
-                    <div className="mb-3">
-                      <span className="text-sm">ATS Score: </span>
-                      <span className="font-semibold text-primary">{resume.ats_score}%</span>
+                  </p>
+                </div>
+
+                <div className="px-6 py-4 bg-black/20 border-t border-white/5 flex items-center justify-between">
+                  {resume.ats_score ? (
+                    <div className="flex items-center gap-2">
+                      <div className={`text-2xl font-bold ${resume.ats_score >= 80 ? 'text-emerald-500' :
+                        resume.ats_score >= 60 ? 'text-amber-500' : 'text-red-500'
+                        }`}>
+                        {resume.ats_score}
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ATS Score</span>
                     </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">No score yet</span>
                   )}
-                  <Button variant="outline" className="w-full" asChild>
-                    <button onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
-                    </button>
+
+                  <Button variant="ghost" size="sm" className="hover:bg-white/10" onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}

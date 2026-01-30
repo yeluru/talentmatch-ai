@@ -1,15 +1,18 @@
+
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowRight, 
-  BarChart3, 
-  Users, 
-  TrendingUp, 
+import {
+  ArrowRight,
+  BarChart3,
+  Users,
+  TrendingUp,
   Shield,
   CheckCircle2,
   Sparkles,
   PieChart,
-  Clock
+  Clock,
+  Zap,
+  Briefcase
 } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { Navbar } from '@/components/landing/Navbar';
@@ -21,21 +24,29 @@ export default function ManagersLanding() {
       icon: BarChart3,
       title: 'Team Analytics',
       description: 'Track recruiter performance, hiring metrics, and team productivity with real-time dashboards.',
+      bg: 'bg-orange-500/10',
+      color: 'text-orange-500'
     },
     {
       icon: TrendingUp,
       title: 'Hiring Metrics',
       description: 'Monitor time-to-fill, cost-per-hire, and quality-of-hire across all positions and departments.',
+      bg: 'bg-amber-500/10',
+      color: 'text-amber-500'
     },
     {
       icon: PieChart,
       title: 'Pipeline Visibility',
       description: 'Get a bird\'s eye view of all active searches, bottlenecks, and opportunities for improvement.',
+      bg: 'bg-rose-500/10',
+      color: 'text-rose-500'
     },
     {
       icon: Shield,
       title: 'Compliance & Security',
       description: 'Ensure hiring practices meet regulatory requirements with audit trails and compliance reporting.',
+      bg: 'bg-emerald-500/10',
+      color: 'text-emerald-500'
     },
   ];
 
@@ -74,106 +85,117 @@ export default function ManagersLanding() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <SEOHead 
+    <div className="min-h-screen bg-background font-sans selection:bg-orange-500/30">
+      <SEOHead
         title="For Account Managers | TalentMatch"
         description="Get complete visibility into your hiring operations with analytics, team management, and performance insights. Make data-driven recruitment decisions."
         keywords="hiring manager, recruitment analytics, team management, hiring metrics, HR dashboard"
       />
-      
+
       <Navbar />
 
       {/* Hero */}
-      <section className="relative min-h-[80vh] flex items-center pt-24">
-        {/* Background with manager accent */}
-        <div className="absolute inset-0 bg-gradient-to-br from-manager/5 via-background to-manager/10 -z-10" />
-        <div className="absolute top-1/3 right-0 w-[600px] h-[600px] bg-manager/10 rounded-full blur-3xl -z-10" />
-        
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-manager/10 text-manager mb-6">
-                <Sparkles className="h-4 w-4" />
-                <span className="text-sm font-medium">For Account Managers</span>
+      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden border-b border-white/5">
+        <div className="absolute inset-0 mesh-gradient-bg opacity-30 dark:opacity-20 select-none pointer-events-none" style={{ filter: 'hue-rotate(-45deg)' }} />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
+
+        <div className="container relative mx-auto px-4 z-10">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="text-center lg:text-left animate-fade-in-up">
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/5 px-4 py-1.5 text-sm font-medium text-orange-500 backdrop-blur-md mb-8 shadow-sm">
+                <BarChart3 className="h-4 w-4" />
+                For Account Managers
               </div>
-              
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-[1.1]">
-                Lead with{' '}
-                <span className="text-manager">Data-Driven</span> Insights
+
+              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
+                Lead with <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">Data-Driven Insights.</span>
               </h1>
-              
-              <p className="text-lgmb-8 max-w-lg">
-                Get complete visibility into your hiring operations. Track performance, 
+
+              <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10">
+                Get complete visibility into your hiring operations. Track performance,
                 optimize processes, and make strategic decisions with confidence.
               </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" variant="manager" asChild>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Button size="xl" className="h-14 px-8 text-lg rounded-full btn-primary-glow font-semibold" asChild>
                   <Link to="/auth">
                     Get Started
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
+                <Button size="xl" variant="ghost" className="h-14 px-8 text-lg rounded-full hover:bg-muted/50" asChild>
                   <Link to="/auth">
-                    <BarChart3 className="mr-2 h-5 w-5" />
+                    <PieChart className="mr-2 h-5 w-5" />
                     View Demo
                   </Link>
                 </Button>
               </div>
             </div>
-            
+
             {/* Visual element - Dashboard preview */}
-            <div className="relative hidden lg:block">
-              <div className="absolute inset-0 bg-gradient-to-br from-manager/20 to-manager/5 rounded-3xl blur-2xl" />
-              <div className="relative bg-card rounded-3xl border shadow-2xl p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-display text-lg font-semibold">Hiring Overview</h3>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4" />
+            <div className="relative mx-auto w-full max-w-[500px] lg:max-w-none perspective-1000">
+              <div className="absolute -top-20 -right-20 w-80 h-80 bg-orange-500/20 rounded-full blur-3xl animate-pulse-subtle" />
+              <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse-subtle animation-delay-500" />
+
+              <div className="relative glass-card rounded-[2.5rem] p-8 shadow-xl animate-float border border-white/10">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="font-display text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-600 to-amber-600">Hiring Overview</h3>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                    <Clock className="h-3.5 w-3.5" />
                     <span>Last 30 days</span>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4 mb-6">
+
+                <div className="grid grid-cols-2 gap-4 mb-8">
                   {metrics.map((metric) => (
-                    <div key={metric.label} className="bg-muted/50 rounded-xl p-4">
-                      <div className="text-smmb-1">{metric.label}</div>
+                    <div key={metric.label} className="bg-background/50 border border-white/5 rounded-2xl p-5 hover:bg-background/80 transition-colors">
+                      <div className="text-sm text-muted-foreground mb-2">{metric.label}</div>
                       <div className="flex items-end gap-2">
-                        <span className="text-2xl font-display font-bold">{metric.value}</span>
-                        <span className="text-xs text-success font-medium pb-1">{metric.trend}</span>
+                        <span className="text-3xl font-display font-bold text-foreground">{metric.value}</span>
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${metric.trend.startsWith('+') ? 'bg-green-500/10 text-green-500' : 'bg-green-500/10 text-green-500'}`}>{metric.trend}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">Team Performance</span>
-                    <span className="text-xs">View all</span>
+
+                <div className="border-t border-white/10 pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Team Performance</span>
+                    <span className="text-xs text-orange-500 font-medium cursor-pointer hover:underline">View Details</span>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {[
-                      { name: 'Sarah Chen', hires: 8, color: 'bg-manager' },
-                      { name: 'Marcus Johnson', hires: 6, color: 'bg-manager/80' },
-                      { name: 'Emily Rodriguez', hires: 5, color: 'bg-manager/60' },
+                      { name: 'Sarah Chen', hires: 8, color: 'bg-orange-500' },
+                      { name: 'Marcus Johnson', hires: 6, color: 'bg-orange-400' },
+                      { name: 'Emily Rodriguez', hires: 5, color: 'bg-amber-400' },
                     ].map((recruiter) => (
-                      <div key={recruiter.name} className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                      <div key={recruiter.name} className="flex items-center gap-4">
+                        <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-xs font-bold text-orange-600 dark:text-orange-400">
                           {recruiter.name.split(' ').map(n => n[0]).join('')}
                         </div>
                         <div className="flex-1">
-                          <div className="text-sm font-medium">{recruiter.name}</div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-                            <div className={`h-full ${recruiter.color} rounded-full`} style={{ width: `${recruiter.hires * 12}%` }} />
+                          <div className="flex justify-between mb-1.5">
+                            <span className="text-sm font-medium">{recruiter.name}</span>
+                            <span className="text-xs font-bold text-muted-foreground">{recruiter.hires} hires</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div className={`h-full ${recruiter.color} rounded-full`} style={{ width: `${recruiter.hires * 10}%` }} />
                           </div>
                         </div>
-                        <span className="text-sm font-medium">{recruiter.hires} hires</span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {/* Floating Elements */}
+                <div className="absolute -right-8 top-20 glass-panel p-4 rounded-xl shadow-lg animate-float-delayed hidden sm:block border-l-4 border-l-orange-500">
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-muted-foreground uppercase">Hiring Velocity</p>
+                    <p className="text-2xl font-display font-bold text-foreground">+24%</p>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -181,25 +203,26 @@ export default function ManagersLanding() {
       </section>
 
       {/* Features */}
-      <section className="section-container">
+      <section className="py-24 bg-muted/20 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
-              Complete Hiring Visibility
-            </h2>
-            <p className="text-lg max-w-2xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-20 animate-in-view">
+            <h2 className="text-sm font-bold text-orange-500 tracking-widest uppercase mb-4">Complete Visibility</h2>
+            <h3 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
+              Complete Hiring <span className="text-gradient-premium">Visibility.</span>
+            </h3>
+            <p className="text-xl text-muted-foreground">
               Monitor, measure, and optimize every aspect of your recruitment operation.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature) => (
-              <div key={feature.title} className="feature-card">
-                <div className="h-12 w-12 rounded-xl bg-manager/10 flex items-center justify-center mb-4">
-                  <feature.icon className="h-6 w-6 text-manager" />
+              <div key={feature.title} className="group p-8 rounded-[2rem] border bg-card hover:bg-card/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="h-7 w-7" />
                 </div>
-                <h3 className="font-display text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-sm leading-relaxed">
+                <h3 className="font-display text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -209,30 +232,26 @@ export default function ManagersLanding() {
       </section>
 
       {/* How it works */}
-      <section className="section-container bg-muted/30">
+      <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
-              Set Up in Minutes
-            </h2>
-            <p className="text-lg">
-              Get your team up and running quickly with our intuitive platform
-            </p>
+          <div className="text-center mb-20">
+            <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">Set Up in Minutes</h2>
+            <p className="text-xl text-muted-foreground">Get your team up and running quickly with our intuitive platform</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto relative z-10">
             {steps.map((step, index) => (
-              <div key={step.number} className="relative">
+              <div key={step.number} className="relative group text-center">
                 {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-manager/50 to-transparent -translate-x-1/2" />
+                  <div className="hidden md:block absolute top-10 left-1/2 w-full h-[2px] bg-gradient-to-r from-orange-500/20 to-transparent z-0" />
                 )}
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-manager text-white font-display text-xl font-bold mb-4">
-                    {step.number}
-                  </div>
-                  <h3 className="font-display text-xl font-semibold mb-2">{step.title}</h3>
-                  <p className="text-sm">{step.description}</p>
+
+                <div className="relative z-10 inline-flex items-center justify-center h-20 w-20 rounded-3xl bg-white dark:bg-slate-800 shadow-xl border border-orange-100 dark:border-orange-900/30 mb-8 group-hover:scale-110 transition-transform duration-500">
+                  <span className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-br from-orange-600 to-amber-500">{step.number}</span>
                 </div>
+
+                <h3 className="font-display text-2xl font-bold mb-4">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed px-4">{step.description}</p>
               </div>
             ))}
           </div>
@@ -240,42 +259,57 @@ export default function ManagersLanding() {
       </section>
 
       {/* Benefits */}
-      <section className="section-container">
+      <section className="py-24 bg-muted/20">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className="font-display text-3xl sm:text-4xl font-bold mb-6">
-                Make Better Hiring Decisions
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 text-xs font-bold uppercase tracking-wider mb-6">
+                Strategic Hiring
+              </div>
+              <h2 className="font-display text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                Make Better <span className="text-orange-500">Decisions.</span>
               </h2>
-              <p className="text-lg mb-8">
+              <p className="text-xl text-muted-foreground mb-8">
                 Empower your team with the insights they need to build world-class organizations.
               </p>
-              
+
               <ul className="space-y-4">
                 {benefits.map((benefit) => (
-                  <li key={benefit} className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
-                    <span>{benefit}</span>
+                  <li key={benefit} className="flex items-start gap-4 p-4 rounded-xl bg-background border border-border/50 hover:border-orange-500/30 transition-colors">
+                    <div className="p-1 rounded-full bg-green-500/10 text-green-500 mb-auto mt-0.5">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                    <span className="font-medium">{benefit}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            
-            <div className="bg-card rounded-3xl border p-8 shadow-lg">
-              <h3 className="font-display text-xl font-semibold mb-6">Get Started as a Manager</h3>
-              <div className="space-y-4">
-                <Button size="lg" variant="manager" className="w-full" asChild>
-                  <Link to="/auth">
-                    Create Manager Account
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <p className="text-center text-sm">
-                  Already have an account?{' '}
-                  <Link to="/auth" className="text-manager hover:underline">
-                    Sign in
-                  </Link>
-                </p>
+
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-orange-600 to-amber-600 rounded-[2.5rem] rotate-3 opacity-20 blur-2xl" />
+              <div className="relative glass-card rounded-[2.5rem] p-10 border border-white/20 shadow-2xl text-center">
+                <div className="mb-8">
+                  <div className="h-20 w-20 mx-auto rounded-full bg-orange-500/10 flex items-center justify-center mb-6">
+                    <Shield className="h-10 w-10 text-orange-500" />
+                  </div>
+                  <h3 className="font-display text-3xl font-bold mb-4">Start Leading Now</h3>
+                  <p className="text-muted-foreground text-lg">Create your account and take control of your hiring pipeline.</p>
+                </div>
+
+                <div className="space-y-4 max-w-sm mx-auto">
+                  <Button size="xl" className="w-full h-14 rounded-full btn-primary-glow text-lg font-bold" asChild>
+                    <Link to="/auth">
+                      Create Manager Account
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Already have an account?{' '}
+                    <Link to="/auth" className="text-foreground font-semibold hover:underline">
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -286,3 +320,4 @@ export default function ManagersLanding() {
     </div>
   );
 }
+

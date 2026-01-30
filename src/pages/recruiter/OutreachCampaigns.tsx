@@ -27,7 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   Mail,
   Plus,
   Send,
@@ -74,7 +74,7 @@ export default function OutreachCampaigns() {
   const [emailBody, setEmailBody] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
   const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; body: string } | null>(null);
-  
+
   const organizationId = orgIdForRecruiterSuite(roles);
 
   // Fetch organization
@@ -148,7 +148,7 @@ export default function OutreachCampaigns() {
     queryKey: ['org-candidates-outreach', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      
+
       const { data: profiles } = await supabase
         .from('candidate_profiles')
         .select('id, current_title, current_company, user_id')
@@ -195,7 +195,7 @@ export default function OutreachCampaigns() {
         })
         .select()
         .single();
-      
+
       if (error) throw error;
 
       // Create default email sequence
@@ -234,9 +234,9 @@ export default function OutreachCampaigns() {
   const generateEmail = useMutation({
     mutationFn: async () => {
       if (!selectedCandidate) throw new Error('No candidate selected');
-      
+
       const job = jobs?.find(j => j.id === newCampaignJobId);
-      
+
       const { data, error } = await supabase.functions.invoke('generate-email', {
         body: {
           candidate: selectedCandidate,
@@ -308,55 +308,55 @@ export default function OutreachCampaigns() {
         ) : (
           <div className="grid gap-4">
             {campaigns.map((campaign) => (
-              <Card key={campaign.id} className="hover:bg-muted/30 transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{campaign.name}</h3>
-                        <Badge className={getStatusColor(campaign.status)}>
-                          {campaign.status}
-                        </Badge>
-                      </div>
-                      {campaign.jobs && (
-                        <p className="text-smmb-2">
-                          For: {campaign.jobs.title}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          Created {format(new Date(campaign.created_at), 'MMM d, yyyy')}
-                        </span>
-                      </div>
+              <div key={campaign.id} className="glass-panel p-6 hover-card-premium group rounded-xl">
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold text-lg">{campaign.name}</h3>
+                      <Badge className={getStatusColor(campaign.status)}>
+                        {campaign.status}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <Send className="h-4 w-4" />
-                          <span className="text-lg font-semibold">0</span>
-                        </div>
-                        <p className="text-xs">Sent</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" />
-                          <span className="text-lg font-semibold">0</span>
-                        </div>
-                        <p className="text-xs">Opened</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center gap-1">
-                          <Reply className="h-4 w-4" />
-                          <span className="text-lg font-semibold">0</span>
-                        </div>
-                        <p className="text-xs">Replied</p>
-                      </div>
-                      <Button variant="outline">Manage</Button>
+                    {campaign.jobs && (
+                      <p className="text-smmb-2">
+                        For: {campaign.jobs.title}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        Created {format(new Date(campaign.created_at), 'MMM d, yyyy')}
+                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="flex items-center gap-1">
+                        <Send className="h-4 w-4" />
+                        <span className="text-lg font-semibold">0</span>
+                      </div>
+                      <p className="text-xs">Sent</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" />
+                        <span className="text-lg font-semibold">0</span>
+                      </div>
+                      <p className="text-xs">Opened</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center gap-1">
+                        <Reply className="h-4 w-4" />
+                        <span className="text-lg font-semibold">0</span>
+                      </div>
+                      <p className="text-xs">Replied</p>
+                    </div>
+                    <Button variant="outline">Manage</Button>
+                  </div>
+                </div>
+
+              </div>
             ))}
           </div>
         )}
@@ -370,13 +370,13 @@ export default function OutreachCampaigns() {
                 Set up a personalized email campaign to engage candidates
               </DialogDescription>
             </DialogHeader>
-            
+
             <Tabs defaultValue="setup" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="setup">Campaign Setup</TabsTrigger>
                 <TabsTrigger value="email">Email Template</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="setup" className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label>Campaign Name</Label>
@@ -400,13 +400,13 @@ export default function OutreachCampaigns() {
                   </Select>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="email" className="space-y-4 py-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="space-y-2 flex-1 mr-4">
                     <Label>Select Candidate for Preview</Label>
-                    <Select 
-                      value={selectedCandidate?.id || ''} 
+                    <Select
+                      value={selectedCandidate?.id || ''}
                       onValueChange={(val) => setSelectedCandidate(candidates?.find(c => c.id === val))}
                     >
                       <SelectTrigger>
@@ -432,7 +432,7 @@ export default function OutreachCampaigns() {
                     Generate with AI
                   </Button>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label>Email Subject</Label>
                   <Input
@@ -455,10 +455,10 @@ export default function OutreachCampaigns() {
                 </div>
               </TabsContent>
             </Tabs>
-            
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-              <Button 
+              <Button
                 onClick={() => createCampaign.mutate()}
                 disabled={!newCampaignName || createCampaign.isPending}
               >

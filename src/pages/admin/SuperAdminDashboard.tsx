@@ -11,13 +11,13 @@ import { StatCard } from '@/components/ui/stat-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageShell } from '@/components/ui/page-shell';
 import { Toolbar } from '@/components/ui/toolbar';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import {
@@ -39,15 +39,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { 
-  Shield, 
-  Users, 
-  Building2, 
-  Briefcase, 
+import {
+  Shield,
+  Users,
+  Building2,
+  Briefcase,
   Search,
   CheckCircle,
   LogOut,
+  Loader2,
 } from 'lucide-react';
+import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -254,9 +256,9 @@ export default function SuperAdminDashboard() {
       const userIds = (profilesData || []).map((p) => p.user_id);
       const { data: candidateOrgLinks } = userIds.length
         ? await supabase
-            .from('candidate_profiles')
-            .select('user_id, organization_id')
-            .in('user_id', userIds)
+          .from('candidate_profiles')
+          .select('user_id, organization_id')
+          .in('user_id', userIds)
         : { data: [] as Array<{ user_id: string; organization_id: string | null }> };
 
       const candidateOrgByUserId: Record<string, string> = {};
@@ -410,10 +412,10 @@ export default function SuperAdminDashboard() {
       // Pending org admin invites per org (show invite link until accepted)
       const { data: invites, error: invitesErr } = orgIds.length
         ? await (supabase as any)
-            .from('org_admin_invites')
-            .select('id, created_at, organization_id, email, full_name, status, expires_at, invite_token')
-            .in('organization_id', orgIds)
-            .order('created_at', { ascending: false })
+          .from('org_admin_invites')
+          .select('id, created_at, organization_id, email, full_name, status, expires_at, invite_token')
+          .in('organization_id', orgIds)
+          .order('created_at', { ascending: false })
         : { data: [] as any[], error: null };
 
       if (invitesErr) throw invitesErr;
@@ -423,10 +425,10 @@ export default function SuperAdminDashboard() {
       // Org admin users (actual accepted accounts)
       const { data: orgAdminRoles, error: rolesErr } = orgIds.length
         ? await supabase
-            .from('user_roles')
-            .select('user_id, organization_id, role')
-            .in('organization_id', orgIds)
-            .eq('role', 'org_admin')
+          .from('user_roles')
+          .select('user_id, organization_id, role')
+          .in('organization_id', orgIds)
+          .eq('role', 'org_admin')
         : { data: [] as any[], error: null };
 
       if (rolesErr) throw rolesErr;
@@ -434,9 +436,9 @@ export default function SuperAdminDashboard() {
       const adminUserIds = [...new Set((orgAdminRoles ?? []).map((r: any) => r.user_id).filter(Boolean))] as string[];
       const { data: adminProfiles, error: profilesErr } = adminUserIds.length
         ? await supabase
-            .from('profiles')
-            .select('user_id, email, full_name')
-            .in('user_id', adminUserIds)
+          .from('profiles')
+          .select('user_id, email, full_name')
+          .in('user_id', adminUserIds)
         : { data: [] as any[], error: null };
 
       if (profilesErr) throw profilesErr;
@@ -594,7 +596,7 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -698,10 +700,10 @@ export default function SuperAdminDashboard() {
 
       const { data: links } = cpId
         ? await (supabase as any)
-            .from('candidate_org_links')
-            .select('organization_id, status, link_type, organizations(name)')
-            .eq('candidate_id', cpId)
-            .order('created_at', { ascending: false })
+          .from('candidate_org_links')
+          .select('organization_id, status, link_type, organizations(name)')
+          .eq('candidate_id', cpId)
+          .order('created_at', { ascending: false })
         : { data: [] as any[] };
 
       setCandidateSupport({
@@ -742,8 +744,8 @@ export default function SuperAdminDashboard() {
 
   return (
     <>
-      <SEOHead 
-        title="Super Admin Dashboard" 
+      <SEOHead
+        title="Super Admin Dashboard"
         description="Platform administration and user management"
       />
       <div className="min-h-screen bg-[var(--gradient-subtle)]">
@@ -813,59 +815,63 @@ export default function SuperAdminDashboard() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => e.key === 'Enter' && setActiveTab('users')}
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
+                    className="focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
                   >
-                    <StatCard title="Total users" value={stats.totalUsers} icon={Users} className="cursor-pointer hover:border-accent/50 transition-colors" />
+                    <StatCard title="Total users" value={stats.totalUsers} icon={Users} className="cursor-pointer" />
                   </div>
                   <div
                     onClick={() => setActiveTab('tenants')}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => e.key === 'Enter' && setActiveTab('tenants')}
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
+                    className="focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
                   >
-                    <StatCard title="Organizations" value={stats.totalOrganizations} icon={Building2} className="cursor-pointer hover:border-accent/50 transition-colors" />
+                    <StatCard title="Organizations" value={stats.totalOrganizations} icon={Building2} className="cursor-pointer" />
                   </div>
                   <StatCard title="Jobs posted" value={stats.totalJobs} icon={Briefcase} />
                   <StatCard title="Applications" value={stats.totalApplications} icon={CheckCircle} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle>Create tenant</CardTitle>
-                      <CardDescription>Create an organization and generate an Org Admin invite link.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                  <div className="glass-panel p-6 rounded-xl hover-card-premium">
+                    <div className="mb-6">
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        Create tenant
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Create an organization and generate an Org Admin invite link.</p>
+                    </div>
+                    <div className="space-y-3">
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div className="space-y-2">
                           <Label>Organization name</Label>
-                          <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" />
+                          <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" className="bg-transparent border-white/10" />
                         </div>
                         <div className="space-y-2">
                           <Label>Org admin full name</Label>
-                          <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" />
+                          <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" className="bg-transparent border-white/10" />
                         </div>
                         <div className="space-y-2">
                           <Label>Org admin email</Label>
-                          <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" />
+                          <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" className="bg-transparent border-white/10" />
                         </div>
                       </div>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
                         <Button
                           variant="default"
                           onClick={handleCreateTenantAndInviteOrgAdmin}
                           disabled={tenantCreateLoading || !tenantOrgName.trim() || !tenantAdminName.trim() || !tenantAdminEmail.trim()}
+                          className="w-full sm:w-auto"
                         >
                           {tenantCreateLoading ? 'Creating…' : 'Create tenant + generate invite'}
                         </Button>
                         {tenantInviteUrl && (
-                          <div className="flex-1 rounded-md border bg-card p-3">
-                            <p className="text-xs">Invite link</p>
+                          <div className="flex-1 rounded-xl border border-white/10 bg-black/20 p-3 ml-0 sm:ml-4">
+                            <p className="text-xs text-muted-foreground mb-1">Invite link</p>
                             <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
                             <div className="mt-2 flex gap-2">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={async () => {
                                   await navigator.clipboard.writeText(tenantInviteUrl);
@@ -874,22 +880,25 @@ export default function SuperAdminDashboard() {
                               >
                                 Copy
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
+                              <Button variant="ghost" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
                                 Open
                               </Button>
                             </div>
                           </div>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
 
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle>Candidate support</CardTitle>
-                      <CardDescription>Lookup by email; link/unlink org; toggle discoverable; suspend.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                  <div className="glass-panel p-6 rounded-xl hover-card-premium">
+                    <div className="mb-6">
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        Candidate support
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Lookup by email; link/unlink org; toggle discoverable; suspend.</p>
+                    </div>
+                    <div className="space-y-3">
                       <div className="flex flex-col gap-3 md:flex-row md:items-end">
                         <div className="flex-1 space-y-2">
                           <Label>Candidate email</Label>
@@ -897,6 +906,7 @@ export default function SuperAdminDashboard() {
                             value={candidateEmail}
                             onChange={(e) => setCandidateEmail(e.target.value)}
                             placeholder="candidate@example.com"
+                            className="bg-transparent border-white/10"
                           />
                         </div>
                         <Button
@@ -908,261 +918,257 @@ export default function SuperAdminDashboard() {
                         </Button>
                       </div>
                       {candidateSupport ? (
-                        <div className="rounded-md border bg-muted/10 p-3 space-y-2">
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium">{candidateSupport.full_name || '—'}</span>
-                            <Badge variant="outline" className="text-xs">{candidateSupport.email}</Badge>
+                            <Badge variant="outline" className="text-xs border-white/10 bg-white/5">{candidateSupport.email}</Badge>
                             {candidateSupport.is_suspended ? (
                               <Badge variant="destructive" className="text-xs">Suspended</Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-xs">Active</Badge>
+                              <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20">Active</Badge>
                             )}
                             {candidateSupport.marketplace_opt_in ? (
-                              <Badge variant="outline" className="text-xs">Discoverable</Badge>
+                              <Badge variant="outline" className="text-xs border-white/10 text-blue-400 bg-blue-400/10">Discoverable</Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs">Not discoverable</Badge>
+                              <Badge variant="outline" className="text-xs border-white/10 text-muted-foreground">Not discoverable</Badge>
                             )}
                           </div>
-                          <p className="text-xs">
+                          <p className="text-xs text-muted-foreground">
                             Tip: use the “Candidate support” tab for full actions (link/unlink/suspend).
                           </p>
                         </div>
                       ) : (
-                        <div className="text-xs">
+                        <div className="text-xs text-muted-foreground">
                           Search for a candidate to see status and open full tools.
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="tenants" className="mt-4 space-y-4">
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <Toolbar
-                      left={
-                        <div>
-                          <CardTitle>Tenants</CardTitle>
-                          <CardDescription>
-                            Each tenant is an organization. Pending Org Admin invites show here until accepted.
-                          </CardDescription>
-                        </div>
-                      }
-                      right={
-                        <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
-                          {tenantsLoading ? 'Refreshing…' : 'Refresh'}
-                        </Button>
-                      }
-                    />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <SortableTableHead
-                              label="Organization"
-                              sortKey="organization_name"
-                              sort={tenantsTableSort.sort}
-                              onToggle={tenantsTableSort.toggle}
-                            />
-                            <SortableTableHead label="Org Admin" sortKey="org_admin" sort={tenantsTableSort.sort} onToggle={tenantsTableSort.toggle} />
-                            <SortableTableHead label="Status" sortKey="status" sort={tenantsTableSort.sort} onToggle={tenantsTableSort.toggle} />
-                            <TableHead className="w-[340px]">Invite / Reactivate</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {tenantsLoading ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-8">
-                                Loading tenants...
-                              </TableCell>
-                            </TableRow>
-                          ) : tenants.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="text-center py-8">
-                                No tenants found.
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            sortedTenants.map((t) => {
-                              const pending = t.pending_org_admin_invites[0];
-                              const inviteUrl = pending ? `${window.location.origin}/auth?invite=${pending.invite_token}` : null;
-                              const hasAdmin = t.org_admin_users.length > 0;
-                              const status = hasAdmin ? 'Active' : pending ? 'Invited' : 'No org admin';
-
-                              return (
-                                <TableRow key={t.organization_id}>
-                                  <TableCell>
-                                    <div className="space-y-0.5">
-                                      <p className="font-medium">{t.organization_name}</p>
-                                      <p className="text-xs">{t.organization_id}</p>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    {hasAdmin ? (
-                                      <div className="space-y-1">
-                                        {t.org_admin_users.map((u) => (
-                                          <div key={u.user_id}>
-                                            <p className="font-medium">{u.full_name}</p>
-                                            <p className="text-sm">{u.email}</p>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : pending ? (
-                                      <div>
-                                        <p className="font-medium">{pending.full_name || pending.email}</p>
-                                        <p className="text-sm">{pending.email}</p>
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm">—</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-xs">
-                                      {status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex flex-wrap gap-2">
-                                      {inviteUrl ? (
-                                        <>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={async () => {
-                                              await navigator.clipboard.writeText(inviteUrl);
-                                              toast.success('Copied invite link');
-                                            }}
-                                          >
-                                            Copy
-                                          </Button>
-                                          <Button variant="outline" size="sm" onClick={() => window.open(inviteUrl, '_blank')}>
-                                            Open
-                                          </Button>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() =>
-                                              openTenantInviteDialog(t, {
-                                                email: pending?.email,
-                                                fullName: pending?.full_name || '',
-                                              })
-                                            }
-                                          >
-                                            Re-invite
-                                          </Button>
-                                        </>
-                                      ) : (
-                                        <Button variant="outline" size="sm" onClick={() => openTenantInviteDialog(t)}>
-                                          {hasAdmin ? 'Invite another org admin' : 'Invite org admin'}
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })
-                          )}
-                        </TableBody>
-                      </Table>
+                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
+                  <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        Tenants
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Each tenant is an organization. Pending Org Admin invites show here until accepted.</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                    <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
+                      {tenantsLoading ? 'Refreshing…' : 'Refresh'}
+                    </Button>
+                  </div>
 
-              <TabsContent value="users" className="mt-4 space-y-4">
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <Toolbar
-                      left={
-                        <div>
-                          <CardTitle>Users</CardTitle>
-                          <CardDescription>Platform-wide directory. Most actions are intentionally read-only.</CardDescription>
-                        </div>
-                      }
-                      right={
-                        <div className="relative flex-1 max-w-sm">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-                          <Input
-                            placeholder="Search users..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
+                  <div className="p-0">
+                    <Table>
+                      <TableHeader className="bg-white/5">
+                        <TableRow className="hover:bg-white/5 border-white/5">
+                          <SortableTableHead
+                            label="Organization"
+                            sortKey="organization_name"
+                            sort={tenantsTableSort.sort}
+                            onToggle={tenantsTableSort.toggle}
                           />
-                        </div>
-                      }
-                    />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
+                          <SortableTableHead label="Org Admin" sortKey="org_admin" sort={tenantsTableSort.sort} onToggle={tenantsTableSort.toggle} />
+                          <SortableTableHead label="Status" sortKey="status" sort={tenantsTableSort.sort} onToggle={tenantsTableSort.toggle} />
+                          <TableHead className="w-[340px]">Invite / Reactivate</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tenantsLoading ? (
                           <TableRow>
-                            <SortableTableHead label="User" sortKey="full_name" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
-                            <SortableTableHead label="Tenant" sortKey="tenant_label" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
-                            <SortableTableHead label="Roles" sortKey="roles" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
-                            <SortableTableHead label="Joined" sortKey="created_at" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
-                            <TableHead className="w-[160px]">Actions</TableHead>
+                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                              <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+                              Loading tenants...
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {isLoading ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8">
-                                Loading users...
-                              </TableCell>
-                            </TableRow>
-                          ) : filteredUsers.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8">
-                                No users found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            sortedUsers.map((user) => (
-                              <TableRow key={user.user_id}>
+                        ) : tenants.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                              No tenants found.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          sortedTenants.map((t) => {
+                            const pending = t.pending_org_admin_invites[0];
+                            const inviteUrl = pending ? `${window.location.origin}/auth?invite=${pending.invite_token}` : null;
+                            const hasAdmin = t.org_admin_users.length > 0;
+                            const status = hasAdmin ? 'Active' : pending ? 'Invited' : 'No org admin';
+
+                            return (
+                              <TableRow key={t.organization_id} className="hover:bg-white/5 border-white/5 transition-colors">
                                 <TableCell>
-                                  <div>
-                                    <p className="font-medium">{user.full_name}</p>
-                                    <p className="text-sm">{user.email}</p>
+                                  <div className="space-y-0.5">
+                                    <p className="font-medium text-foreground">{t.organization_name}</p>
+                                    <p className="text-xs text-muted-foreground font-mono opacity-70">{t.organization_id}</p>
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="outline" className="text-xs">
-                                    {user.tenant_label || '—'}
+                                  {hasAdmin ? (
+                                    <div className="space-y-1">
+                                      {t.org_admin_users.map((u) => (
+                                        <div key={u.user_id}>
+                                          <p className="font-medium text-sm">{u.full_name}</p>
+                                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : pending ? (
+                                    <div>
+                                      <p className="font-medium text-sm">{pending.full_name || pending.email}</p>
+                                      <p className="text-xs text-muted-foreground">{pending.email}</p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={cn(
+                                    "text-xs border-white/10",
+                                    status === 'Active' && "bg-emerald-500/10 text-emerald-400",
+                                    status === 'Invited' && "bg-blue-500/10 text-blue-400",
+                                    status === 'No org admin' && "bg-amber-500/10 text-amber-400"
+                                  )}>
+                                    {status}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {user.roles.map((role) => (
-                                      <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-xs">
-                                        {role.replace('_', ' ')}
-                                      </Badge>
-                                    ))}
+                                  <div className="flex flex-wrap gap-2">
+                                    {inviteUrl ? (
+                                      <>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={async () => {
+                                            await navigator.clipboard.writeText(inviteUrl);
+                                            toast.success('Copied invite link');
+                                          }}
+                                        >
+                                          Copy
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={() => window.open(inviteUrl, '_blank')}>
+                                          Open
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() =>
+                                            openTenantInviteDialog(t, {
+                                              email: pending?.email,
+                                              fullName: pending?.full_name || '',
+                                            })
+                                          }
+                                        >
+                                          Re-invite
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <Button variant="outline" size="sm" onClick={() => openTenantInviteDialog(t)} className="bg-transparent border-white/10 hover:bg-white/10">
+                                        {hasAdmin ? 'Invite another org admin' : 'Invite org admin'}
+                                      </Button>
+                                    )}
                                   </div>
                                 </TableCell>
-                                <TableCell className="">
-                                  {new Date(user.created_at).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  {user.roles.includes('org_admin') ? (
-                                    <Button variant="destructive" size="sm" onClick={() => openRevokeDialog(user)}>
-                                      Revoke Org Admin
-                                    </Button>
-                                  ) : (
-                                    <span className="text-sm">Read-only</span>
-                                  )}
-                                </TableCell>
                               </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="users" className="mt-4 space-y-4">
+                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
+                  <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        Users
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Platform-wide directory.</p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search users..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 bg-black/20 border-white/10"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-0">
+                    <Table>
+                      <TableHeader className="bg-white/5">
+                        <TableRow className="hover:bg-white/5 border-white/5">
+                          <SortableTableHead label="User" sortKey="full_name" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                          <SortableTableHead label="Tenant" sortKey="tenant_label" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                          <SortableTableHead label="Roles" sortKey="roles" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                          <SortableTableHead label="Joined" sortKey="created_at" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
+                          <TableHead className="w-[160px]">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                              <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+                              Loading users...
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredUsers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                              No users found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          sortedUsers.map((user) => (
+                            <TableRow key={user.user_id} className="hover:bg-white/5 border-white/5 transition-colors">
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium text-foreground">{user.full_name}</p>
+                                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
+                                  {user.tenant_label || '—'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {user.roles.map((role) => (
+                                    <Badge key={role} variant={getRoleBadgeVariant(role) as any} className="text-xs border-white/10">
+                                      {role.replace('_', ' ')}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {new Date(user.created_at).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                {user.roles.includes('org_admin') ? (
+                                  <Button variant="destructive" size="sm" onClick={() => openRevokeDialog(user)}>
+                                    Revoke Org Admin
+                                  </Button>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground italic">Read-only</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="candidates" className="mt-4 space-y-4">
@@ -1327,185 +1333,179 @@ export default function SuperAdminDashboard() {
               </TabsContent>
 
               <TabsContent value="audit" className="mt-4 space-y-4">
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <Toolbar
-                      left={
-                        <div>
-                          <CardTitle>Audit Logs (platform-wide)</CardTitle>
-                          <CardDescription>
-                            Default view shows the last 4 hours. Use search to query the full history, or load older logs in pages of 100.
-                          </CardDescription>
-                        </div>
-                      }
-                      right={
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={auditSearch}
-                            onChange={(e) => setAuditSearch(e.target.value)}
-                            placeholder="Search audit logs…"
-                            className="w-[260px]"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setAuditCursor(null);
-                              setAuditExpanded(false);
-                              fetchAuditLogs(true);
-                            }}
-                            disabled={auditLoading}
-                          >
-                            {auditLoading ? 'Refreshing…' : 'Refresh'}
-                          </Button>
-                        </div>
-                      }
-                    />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
+                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
+                  <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-primary" />
+                        Audit Logs (platform-wide)
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Default view shows the last 4 hours.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={auditSearch}
+                        onChange={(e) => setAuditSearch(e.target.value)}
+                        placeholder="Search audit logs…"
+                        className="w-[200px] bg-black/20 border-white/10"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAuditCursor(null);
+                          setAuditExpanded(false);
+                          fetchAuditLogs(true);
+                        }}
+                        disabled={auditLoading}
+                      >
+                        {auditLoading ? 'Refreshing…' : 'Refresh'}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="p-0">
+                    <Table>
+                      <TableHeader className="bg-white/5">
+                        <TableRow className="hover:bg-white/5 border-white/5">
+                          <SortableTableHead label="Time" sortKey="created_at" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                          <SortableTableHead label="Org" sortKey="org_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                          <SortableTableHead label="User" sortKey="user_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                          <SortableTableHead label="Action" sortKey="action" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                          <SortableTableHead label="Entity" sortKey="entity_type" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                          <SortableTableHead label="IP" sortKey="ip_address" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {auditLoading ? (
                           <TableRow>
-                            <SortableTableHead label="Time" sortKey="created_at" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                            <SortableTableHead label="Org" sortKey="org_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                            <SortableTableHead label="User" sortKey="user_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                            <SortableTableHead label="Action" sortKey="action" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                            <SortableTableHead label="Entity" sortKey="entity_type" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                            <SortableTableHead label="IP" sortKey="ip_address" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                            <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                              <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+                              Loading audit logs...
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {auditLoading ? (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8">
-                                Loading audit logs...
-                              </TableCell>
-                            </TableRow>
-                          ) : auditLogs.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8">
-                                No audit logs found (or access not granted yet).
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            sortedAuditLogs.map((log) => (
-                              <TableRow key={log.id}>
-                                <TableCell className="">
-                                  {new Date(log.created_at).toLocaleString()}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="space-y-0.5">
-                                    <p className="font-medium">{log.org_name || 'Unknown org'}</p>
-                                    <p className="text-xs">{log.organization_id}</p>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="space-y-0.5">
-                                    <p className="font-medium">{log.user_name || 'Unknown user'}</p>
-                                    <p className="text-xs">{log.user_id}</p>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="text-xs">
-                                    {log.action}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="">
-                                  {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
-                                </TableCell>
-                                <TableCell className="">
-                                  {log.ip_address || '-'}
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="text-xs">
-                        {!auditSearchDebounced && !auditExpanded ? (
-                          <span>Showing last 4 hours</span>
-                        ) : auditSearchDebounced ? (
-                          <span>Search mode (full history)</span>
+                        ) : auditLogs.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                              No audit logs found (or access not granted yet).
+                            </TableCell>
+                          </TableRow>
                         ) : (
-                          <span>Showing full history (paged)</span>
+                          sortedAuditLogs.map((log) => (
+                            <TableRow key={log.id} className="hover:bg-white/5 border-white/5 transition-colors">
+                              <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                                {new Date(log.created_at).toLocaleString()}
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-0.5">
+                                  <p className="font-medium text-sm">{log.org_name || 'Unknown org'}</p>
+                                  <p className="text-xs text-muted-foreground font-mono opacity-70">{String(log.organization_id).slice(0, 8)}...</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-0.5">
+                                  <p className="font-medium text-sm">{log.user_name || 'Unknown user'}</p>
+                                  <p className="text-xs text-muted-foreground font-mono opacity-70">{String(log.user_id).slice(0, 8)}...</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
+                                  {log.action}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground font-mono">
+                                {log.ip_address || '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))
                         )}
-                      </div>
-                      <div className="flex gap-2">
-                        {!auditSearchDebounced && !auditExpanded && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setAuditExpanded(true);
-                              fetchAuditLogs(false);
-                            }}
-                            disabled={auditLoading || !auditHasMore}
-                          >
-                            Load older logs (100)
-                          </Button>
-                        )}
-                        {(auditSearchDebounced || auditExpanded) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => fetchAuditLogs(false)}
-                            disabled={auditLoading || !auditHasMore}
-                          >
-                            Load more (100)
-                          </Button>
-                        )}
-                      </div>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="p-4 border-t border-white/5 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      {!auditSearchDebounced && !auditExpanded ? (
+                        <span>Showing last 4 hours</span>
+                      ) : auditSearchDebounced ? (
+                        <span>Search mode (full history)</span>
+                      ) : (
+                        <span>Showing full history (paged)</span>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex gap-2">
+                      {!auditSearchDebounced && !auditExpanded && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setAuditExpanded(true);
+                            fetchAuditLogs(false);
+                          }}
+                          disabled={auditLoading || !auditHasMore}
+                        >
+                          Load older logs (100)
+                        </Button>
+                      )}
+                      {(auditSearchDebounced || auditExpanded) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => fetchAuditLogs(false)}
+                          disabled={auditLoading || !auditHasMore}
+                        >
+                          Load more (100)
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
 
-          {/* Tenants moved into the Tenants tab */}
+            {/* Tenants moved into the Tenants tab */}
 
-          {/* Invite / Re-invite Org Admin dialog */}
-          <Dialog open={tenantInviteDialogOpen} onOpenChange={setTenantInviteDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invite Org Admin</DialogTitle>
-                <DialogDescription>
-                  Generate an invite link for an existing tenant. Any previous pending invites for this tenant will be expired.
-                </DialogDescription>
-              </DialogHeader>
+            {/* Invite / Re-invite Org Admin dialog */}
+            <Dialog open={tenantInviteDialogOpen} onOpenChange={setTenantInviteDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Invite Org Admin</DialogTitle>
+                  <DialogDescription>
+                    Generate an invite link for an existing tenant. Any previous pending invites for this tenant will be expired.
+                  </DialogDescription>
+                </DialogHeader>
 
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label>Organization</Label>
-                  <Input value={tenantInviteTarget?.organization_name || ''} disabled />
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Organization</Label>
+                    <Input value={tenantInviteTarget?.organization_name || ''} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Org admin full name</Label>
+                    <Input value={tenantInviteFullName} onChange={(e) => setTenantInviteFullName(e.target.value)} placeholder="Uma Mokkarala" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Org admin email</Label>
+                    <Input value={tenantInviteEmail} onChange={(e) => setTenantInviteEmail(e.target.value)} placeholder="admin@acme.com" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Org admin full name</Label>
-                  <Input value={tenantInviteFullName} onChange={(e) => setTenantInviteFullName(e.target.value)} placeholder="Uma Mokkarala" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Org admin email</Label>
-                  <Input value={tenantInviteEmail} onChange={(e) => setTenantInviteEmail(e.target.value)} placeholder="admin@acme.com" />
-                </div>
-              </div>
 
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setTenantInviteDialogOpen(false)} disabled={tenantInviteSubmitting}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleInviteOrgAdminForExistingTenant}
-                  disabled={tenantInviteSubmitting || !tenantInviteEmail.trim() || !tenantInviteFullName.trim() || !tenantInviteTarget}
-                >
-                  {tenantInviteSubmitting ? 'Generating…' : 'Generate invite'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setTenantInviteDialogOpen(false)} disabled={tenantInviteSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleInviteOrgAdminForExistingTenant}
+                    disabled={tenantInviteSubmitting || !tenantInviteEmail.trim() || !tenantInviteFullName.trim() || !tenantInviteTarget}
+                  >
+                    {tenantInviteSubmitting ? 'Generating…' : 'Generate invite'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-          {/* Audit logs moved into the Audit logs tab */}
+            {/* Audit logs moved into the Audit logs tab */}
           </PageShell>
         </main>
 

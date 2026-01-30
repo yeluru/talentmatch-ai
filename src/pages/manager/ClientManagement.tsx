@@ -13,9 +13,9 @@ import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { 
-  Loader2, Plus, Building2, Edit2, Trash2, Search, Globe, 
-  Mail, Phone, User, FileText, Briefcase 
+import {
+  Loader2, Plus, Building2, Edit2, Trash2, Search, Globe,
+  Mail, Phone, User, FileText, Briefcase
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { sortBy } from '@/lib/sort';
@@ -186,7 +186,7 @@ export default function ClientManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this client?')) return;
-    
+
     try {
       const { error } = await supabase
         .from('clients')
@@ -314,7 +314,7 @@ export default function ClientManagement() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3">Primary Contact</h4>
                   <div className="grid grid-cols-2 gap-4">
@@ -422,96 +422,98 @@ export default function ClientManagement() {
           />
         </div>
 
-        {/* Clients Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Clients</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sortedClients.length === 0 ? (
-              <div className="text-center py-12">
-                <Building2 className="h-12 w-12 mx-automb-4" />
+        {/* Clients List */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold font-display ml-1">All Clients</h2>
+          </div>
+
+          {!sortedClients.length ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
                 <h3 className="text-lg font-semibold mb-2">No clients yet</h3>
-                <p className="">Add your first client to get started</p>
+                <p className="text-muted-foreground">Add your first client to get started</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                <div className="flex-1">Company</div>
+                <div className="w-1/4">Contact</div>
+                <div className="w-32">Industry</div>
+                <div className="w-20 text-center">Jobs</div>
+                <div className="w-24 text-center">Status</div>
+                <div className="w-24 text-right">Actions</div>
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead label="Company" sortKey="name" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                    <SortableTableHead label="Contact" sortKey="contact" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                    <SortableTableHead label="Industry" sortKey="industry" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                    <SortableTableHead label="Jobs" sortKey="jobs_count" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                    <SortableTableHead label="Status" sortKey="status" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                    <SortableTableHead label="Created" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedClients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Building2 className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{client.name}</p>
-                            {client.website && (
-                              <a 
-                                href={client.website} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline flex items-center gap-1"
-                              >
-                                <Globe className="h-3 w-3" />
-                                Website
-                              </a>
-                            )}
-                          </div>
+
+              <div className="space-y-3">
+                {sortedClients.map((client) => (
+                  <div key={client.id} className="glass-panel p-4 hover-card-premium flex items-center gap-4 group">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <Building2 className="h-5 w-5" />
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {client.contact_name ? (
-                          <div className="space-y-1">
-                            <p className="text-sm">{client.contact_name}</p>
-                            {client.contact_email && (
-                              <p className="text-xs">{client.contact_email}</p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{client.industry || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{client.jobs_count || 0}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusColor(client.status)} className="capitalize">
-                          {client.status || 'active'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {format(new Date(client.created_at), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(client)}>
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(client.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        <div>
+                          <p className="font-bold text-foreground truncate">{client.name}</p>
+                          {client.website && (
+                            <a
+                              href={client.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Globe className="h-3 w-3" />
+                              Website
+                            </a>
+                          )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                      </div>
+                    </div>
+
+                    <div className="w-1/4 hidden md:block">
+                      {client.contact_name ? (
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium">{client.contact_name}</p>
+                          {client.contact_email && (
+                            <p className="text-xs text-muted-foreground truncate">{client.contact_email}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </div>
+
+                    <div className="w-32 hidden md:block text-sm text-muted-foreground truncate">
+                      {client.industry || '-'}
+                    </div>
+
+                    <div className="w-20 hidden md:flex justify-center">
+                      <Badge variant="outline" className="bg-muted/50">{client.jobs_count || 0}</Badge>
+                    </div>
+
+                    <div className="w-24 hidden md:flex justify-center">
+                      <Badge variant={getStatusColor(client.status)} className="capitalize">
+                        {client.status || 'active'}
+                      </Badge>
+                    </div>
+
+                    <div className="w-24 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(client)} className="h-8 w-8 hover:bg-primary/10 hover:text-primary">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(client.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

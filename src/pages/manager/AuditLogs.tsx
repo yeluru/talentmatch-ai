@@ -1,18 +1,17 @@
 import { useMemo, useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { 
-  Loader2, Search, Filter, Clock, User, FileText, 
-  Briefcase, Users, Settings, AlertTriangle, ChevronLeft, ChevronRight 
+import {
+  Loader2, Search, Filter, Clock, User, FileText,
+  Briefcase, Users, Settings, AlertTriangle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { sortBy } from '@/lib/sort';
@@ -157,17 +156,13 @@ export default function AuditLogs() {
   if (!authLoading && !organizationId) {
     return (
       <DashboardLayout>
-        <Card>
-          <CardHeader>
-            <CardTitle>Organization not assigned</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Tenant audit logs are only available when your account manager role is linked to an organization.
-              Ask a platform admin to re-invite you or reassign you to a tenant.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="glass-panel p-6 rounded-xl">
+          <h2 className="text-lg font-semibold mb-2">Organization not assigned</h2>
+          <p className="text-sm text-muted-foreground">
+            Tenant audit logs are only available when your account manager role is linked to an organization.
+            Ask a platform admin to re-invite you or reassign you to a tenant.
+          </p>
+        </div>
       </DashboardLayout>
     );
   }
@@ -185,24 +180,26 @@ export default function AuditLogs() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Audit Logs</h1>
-          <p className="mt-1">Track all system activity and changes</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-gradient-premium">Audit Logs</h1>
+            <p className="mt-1 text-muted-foreground">Track all system activity and changes</p>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 glass-panel p-4 rounded-xl">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 bg-transparent border-white/10"
             />
           </div>
           <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40 bg-transparent border-white/10">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Action" />
             </SelectTrigger>
@@ -215,7 +212,7 @@ export default function AuditLogs() {
             </SelectContent>
           </Select>
           <Select value={entityFilter} onValueChange={setEntityFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40 bg-transparent border-white/10">
               <SelectValue placeholder="Entity" />
             </SelectTrigger>
             <SelectContent>
@@ -228,69 +225,73 @@ export default function AuditLogs() {
           </Select>
         </div>
 
-        {/* Logs Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Activity Log
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredLogs.length === 0 ? (
-              <div className="text-center py-12">
-                <Clock className="h-12 w-12 mx-automb-4" />
-                <h3 className="text-lg font-semibold mb-2">No activity logs</h3>
-                <p className="">System activity will appear here</p>
-              </div>
-            ) : (
-              <>
+        {/* Logs List - Premium Table */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Activity Log</h2>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Showing {page * pageSize + 1}-{Math.min((page + 1) * pageSize, page * pageSize + filteredLogs.length)} of recent
+            </div>
+          </div>
+
+          {!filteredLogs.length ? (
+            <div className="text-center py-12 glass-panel rounded-xl border-dashed border-2 border-white/10">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-semibold mb-2">No activity logs</h3>
+              <p className="text-muted-foreground">System activity will appear here</p>
+            </div>
+          ) : (
+            <div className="glass-panel p-0 rounded-xl overflow-hidden border border-white/10 shadow-sm relative z-0">
+              <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <SortableTableHead label="Timestamp" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                  <TableHeader className="bg-primary/5">
+                    <TableRow className="hover:bg-transparent border-b border-white/10">
+                      <SortableTableHead label="Timestamp" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} className="pl-6" />
                       <SortableTableHead label="User" sortKey="user_name" sort={tableSort.sort} onToggle={tableSort.toggle} />
                       <SortableTableHead label="Action" sortKey="action" sort={tableSort.sort} onToggle={tableSort.toggle} />
                       <SortableTableHead label="Entity" sortKey="entity_type" sort={tableSort.sort} onToggle={tableSort.toggle} />
                       <SortableTableHead label="Details" sortKey="details" sort={tableSort.sort} onToggle={tableSort.toggle} />
-                      <SortableTableHead label="IP Address" sortKey="ip_address" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                      <SortableTableHead label="IP" sortKey="ip_address" sort={tableSort.sort} onToggle={tableSort.toggle} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedLogs.map((log) => {
                       const EntityIcon = getEntityIcon(log.entity_type);
                       return (
-                        <TableRow key={log.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {format(new Date(log.created_at), 'MMM d, yyyy HH:mm:ss')}
+                        <TableRow key={log.id} className="hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors group">
+                          <TableCell className="pl-6 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(log.created_at), 'MMM d, HH:mm:ss')}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              {log.user_name}
+                              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-3 w-3 text-primary" />
+                              </div>
+                              <span className="font-medium text-sm">{log.user_name}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getActionColor(log.action)}>
+                            <Badge variant={getActionColor(log.action)} className="text-[10px] px-2 py-0.5 min-w-[60px] justify-center">
                               {formatAction(log.action)}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <EntityIcon className="h-4 w-4" />
+                            <div className="flex items-center gap-2 text-sm text-foreground/80">
+                              <EntityIcon className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="capitalize">{log.entity_type}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="max-w-xs">
+                          <TableCell className="max-w-[200px]">
                             {log.details ? (
-                              <code className="text-xs bg-muted px-2 py-1 rounded truncate block">
-                                {JSON.stringify(log.details).slice(0, 50)}...
+                              <code className="text-[10px] bg-black/20 px-1.5 py-0.5 rounded inline-block max-w-full truncate font-mono text-muted-foreground" title={JSON.stringify(log.details)}>
+                                {JSON.stringify(log.details)}
                               </code>
-                            ) : (
-                              <span className="">-</span>
-                            )}
+                            ) : <span className="text-muted-foreground">-</span>}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-xs text-muted-foreground font-mono">
                             {log.ip_address || '-'}
                           </TableCell>
                         </TableRow>
@@ -298,37 +299,39 @@ export default function AuditLogs() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            </div>
+          )}
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm">
-                    Showing {page * pageSize + 1} - {page * pageSize + filteredLogs.length} entries
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      disabled={page === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => p + 1)}
-                      disabled={filteredLogs.length < pageSize}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-muted-foreground">
+              {/* Pagination info above */}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="glass-panel hover:bg-white/10"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="glass-panel hover:bg-white/10"
+                onClick={() => setPage(p => p + 1)}
+                disabled={filteredLogs.length < pageSize}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

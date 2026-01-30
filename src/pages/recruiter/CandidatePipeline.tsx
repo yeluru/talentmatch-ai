@@ -44,6 +44,7 @@ const PIPELINE_STAGES = [
   { id: 'offered', label: 'Offered', dot: 'bg-green-500', border: 'border-green-500/40' },
   { id: 'hired', label: 'Hired', dot: 'bg-emerald-600', border: 'border-emerald-600/40' },
   { id: 'rejected', label: 'Rejected', dot: 'bg-red-500', border: 'border-red-500/40' },
+  { id: 'withdrawn', label: 'Withdrawn', dot: 'bg-gray-500', border: 'border-gray-500/40' },
 ] as const;
 
 export default function CandidatePipeline() {
@@ -54,7 +55,7 @@ export default function CandidatePipeline() {
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  
+
   const organizationId = orgIdForRecruiterSuite(roles);
 
   const { data: jobs } = useQuery({
@@ -84,11 +85,11 @@ export default function CandidatePipeline() {
         `)
         .eq('jobs.organization_id', organizationId)
         .order('applied_at', { ascending: false });
-      
+
       if (selectedJob !== 'all') {
         query = query.eq('job_id', selectedJob);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
       return data as unknown as Application[];
@@ -178,18 +179,21 @@ export default function CandidatePipeline() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 min-w-0">
-          <div className="min-w-0">
-            <h1 className="text-3xl font-bold">Candidate Pipeline</h1>
-            <p className="">
-              Showing: <span className="text-foreground">{selectedJobTitle}</span> ·{' '}
-              <span className="text-foreground">{totalVisible}</span> candidate{totalVisible === 1 ? '' : 's'}
-              {isFetching ? <span className="ml-2">(Updating…)</span> : null}
+      <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+          <div>
+            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Users className="h-8 w-8 text-primary" />
+              </div>
+              <span className="text-gradient-premium">Candidate Pipeline</span>
+            </h1>
+            <p className="mt-2 text-muted-foreground text-lg">
+              Manage and track candidate progress through stages.
             </p>
           </div>
           <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="w-64 glass-panel border-white/20">
               <SelectValue placeholder="Filter by job" />
             </SelectTrigger>
             <SelectContent>
@@ -203,130 +207,111 @@ export default function CandidatePipeline() {
           </Select>
         </div>
 
-        {/* Wrap stages into a responsive grid (no horizontal scrolling needed) */}
-        <ScrollArea className="w-full">
-          <div className="grid gap-3 pb-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {/* Kanban Board */}
+        <ScrollArea className="flex-1 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-6">
             {PIPELINE_STAGES.map(stage => (
               <div
                 key={stage.id}
-                className="min-w-0"
+                className="flex flex-col h-full"
                 onDragOver={(e) => handleDragOver(e, stage.id)}
                 onDrop={(e) => handleDrop(e, stage.id)}
                 onDragLeave={() => {
                   if (dragOverStage === stage.id) setDragOverStage(null);
                 }}
               >
-                <Card
-                  className={`h-full overflow-hidden rounded-2xl border bg-card/70 shadow-sm ${
-                    dragOverStage === stage.id ? 'ring-2 ring-primary/20 border-primary/30' : ''
-                  }`}
-                >
-                  <CardHeader className={`py-3 px-4 bg-background/70 backdrop-blur-sm border-b ${stage.border}`}>
-                    <div className="flex items-start justify-between gap-2 min-w-0">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`h-2.5 w-2.5 rounded-full ${stage.dot} shrink-0`} />
-                          <CardTitle className="text-sm font-semibold truncate">{stage.label}</CardTitle>
-                        </div>
-                        {draggedApp ? (
-                          <div className="text-xsmt-1">Drop here to move</div>
-                        ) : null}
-                      </div>
-                      <Badge variant="secondary" className="shrink-0">
-                        {(appsByStage.get(stage.id)?.length || 0)}
-                      </Badge>
+                {/* Column Header */}
+                <div className={`mb-3 flex items-center justify-between p-3 rounded-xl bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 ${dragOverStage === stage.id ? 'ring-2 ring-primary/50' : ''
+                  }`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-3 w-3 rounded-full ${stage.dot} shadow-[0_0_10px_currentColor]`} />
+                    <span className="font-bold text-sm tracking-tight">{stage.label}</span>
+                  </div>
+                  <Badge variant="secondary" className="bg-black/5 dark:bg-white/10 text-foreground font-mono">
+                    {appsByStage.get(stage.id)?.length || 0}
+                  </Badge>
+                </div>
+
+                {/* Drop Zone / List */}
+                <div className={`h-[320px] overflow-y-auto rounded-2xl p-1.5 space-y-2 border transition-colors duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${dragOverStage === stage.id
+                  ? 'bg-primary/10 border-primary/20'
+                  : 'bg-slate-100/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800'
+                  }`}>
+                  {(appsByStage.get(stage.id)?.length || 0) === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl m-1 opacity-50">
+                      <p className="text-xs font-medium">Empty</p>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-3 bg-muted/10">
-                    <div className="space-y-2 min-h-[160px]">
-                      {(appsByStage.get(stage.id)?.length || 0) === 0 ? (
-                        <div
-                          className={`rounded-xl border border-dashed p-6 ${
-                            draggedApp || dragOverStage === stage.id
-                              ? 'bg-primary/5 border-primary/30 text-foreground'
-                              : 'bg-background/50 border-muted-foreground/15'
-                          }`}
-                        >
-                          <div className="flex flex-col items-center gap-2 text-center">
-                            <Users className="h-4 w-4 opacity-70" />
-                            <div className="text-sm font-medium">
-                              {draggedApp || dragOverStage === stage.id ? 'Drop candidates here' : 'No candidates'}
-                            </div>
-                            <div className="text-xs">
-                              {draggedApp ? 'Release to move into this stage.' : 'Drag a card here to move it.'}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        (appsByStage.get(stage.id) || []).map((app, idx) => (
-                          <div
-                            key={app.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, app.id)}
-                            onDragEnd={handleDragEnd}
-                            onClick={() => openApplication(app.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') openApplication(app.id);
-                            }}
-                            className={`group p-3 rounded-xl border cursor-pointer transition-colors ${
-                              draggedApp === app.id
-                                ? 'opacity-50'
-                                : idx % 2 === 1
-                                  ? 'bg-secondary/40 hover:bg-secondary/60 hover:border-primary/20'
-                                  : 'bg-background hover:bg-muted/50 hover:border-primary/20'
-                            }`}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <div className="flex items-start gap-3 min-w-0">
-                              <div className="mt-0.5 shrink-0group-hover:text-foreground/80">
+                  ) : (
+                    (appsByStage.get(stage.id) || []).map((app, idx) => (
+                      <div
+                        key={app.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, app.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => openApplication(app.id)}
+                        className={`
+                          group relative p-3 rounded-xl border border-slate-200 dark:border-slate-700
+                          bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5
+                          transition-all duration-200 cursor-grab active:cursor-grabbing
+                          border-l-[3px] border-l-primary
+                          ${draggedApp === app.id ? 'opacity-40 rotate-2 scale-95 ring-2 ring-primary/50' : ''}
+                        `}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-9 w-9 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold">
+                              {(app.candidate_profiles?.full_name || 'U').charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-1">
+                              <div>
+                                <p className="font-bold text-sm leading-tight text-slate-800 dark:text-slate-100">
+                                  {app.candidate_profiles?.full_name || 'Unknown'}
+                                </p>
+                                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
+                                  {app.candidate_profiles?.current_title || 'No Title'}
+                                </p>
+                              </div>
+                              <div className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-grab text-slate-400 hover:text-slate-600">
                                 <GripVertical className="h-4 w-4" />
                               </div>
+                            </div>
 
-                              <Avatar className="h-9 w-9 shrink-0">
-                                <AvatarFallback className="text-xs bg-accent/25 text-accent-foreground">
-                                  {(app.candidate_profiles?.full_name || 'U').charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="font-semibold text-sm truncate">
-                                      {app.candidate_profiles?.full_name || 'Unknown'}
-                                    </p>
-                                    <p className="text-xstruncate">
-                                      {app.candidate_profiles?.current_title || 'No title'}
-                                    </p>
-                                  </div>
-                                  <ArrowUpRight className="h-4 w-4opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            {app.ai_match_score !== null && (
+                              <div className="mt-3 mb-2">
+                                <div className="flex items-center justify-between text-[10px] mb-1">
+                                  <span className="text-slate-500 font-medium">Match Score</span>
+                                  <span className={`font-bold ${app.ai_match_score > 80 ? 'text-green-600' : app.ai_match_score > 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {app.ai_match_score}%
+                                  </span>
                                 </div>
-
-                                <div className="mt-2 flex items-center gap-2 flex-wrap">
-                                  {app.ai_match_score ? (
-                                    <Badge variant="outline" className="text-xs">
-                                      {app.ai_match_score}% match
-                                    </Badge>
-                                  ) : null}
-                                  {app.jobs?.title ? (
-                                    <span className="text-xstruncate max-w-[220px]">
-                                      {app.jobs.title}
-                                    </span>
-                                  ) : null}
+                                <div className="h-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${app.ai_match_score > 80 ? 'bg-green-500' : app.ai_match_score > 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                    style={{ width: `${app.ai_match_score}%` }}
+                                  />
                                 </div>
                               </div>
+                            )}
+
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                              <span className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                                {app.jobs?.title}
+                              </span>
+                              <ArrowUpRight className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             ))}
           </div>
-        </ScrollArea>
-      </div>
+        </ScrollArea >
+      </div >
 
       <ApplicantDetailSheet
         applicationId={selectedApplicationId}
@@ -336,6 +321,6 @@ export default function CandidatePipeline() {
           if (!open) setSelectedApplicationId(null);
         }}
       />
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

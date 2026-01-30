@@ -21,10 +21,10 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  Loader2, 
-  Search, 
+import {
+  ArrowLeft,
+  Loader2,
+  Search,
   MoreVertical,
   Mail,
   Eye,
@@ -33,6 +33,7 @@ import {
   FileText,
   Briefcase,
   MapPin,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -157,13 +158,13 @@ export default function JobApplicants() {
   };
 
   const filteredApplications = applications?.filter(app => {
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       app.candidate_profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.candidate_profiles?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.candidate_profiles?.current_title?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   }) || [];
 
@@ -182,33 +183,39 @@ export default function JobApplicants() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-display text-2xl font-bold">{job?.title}</h1>
-            <p className="">
-              {applications?.length || 0} applicant{applications?.length !== 1 ? 's' : ''}
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-white/10">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="font-display text-2xl font-bold text-foreground">
+                {job?.title}
+              </h1>
+              <p className="text-muted-foreground flex items-center gap-2">
+                <Users className="h-4 w-4 opacity-70" />
+                {applications?.length || 0} applicant{applications?.length !== 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => navigate(`/recruiter/jobs/${jobId}/edit`)}>
+          <Button variant="outline" onClick={() => navigate(`/recruiter/jobs/${jobId}/edit`)} className="glass-panel border-white/20 hover:bg-white/10">
             Edit Job
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 glass-panel p-3 rounded-xl border border-white/10">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search applicants..."
-              className="pl-9"
+              className="pl-9 bg-transparent border-white/10 focus:bg-background/50 transition-colors"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40">
+            <SelectTrigger className="w-full sm:w-40 bg-transparent border-white/10">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -226,114 +233,116 @@ export default function JobApplicants() {
           <EmptyState
             icon={Briefcase}
             title="No applicants yet"
-            description={searchQuery || statusFilter !== 'all' 
-              ? "No applicants match your filters" 
+            description={searchQuery || statusFilter !== 'all'
+              ? "No applicants match your filters"
               : "Applications will appear here when candidates apply"}
           />
         ) : (
-          <div className="space-y-3">
-            {filteredApplications.map((application, idx) => (
-              <Card 
-                key={application.id} 
-                className={`hover:border-primary/30 transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-secondary/60' : ''}`}
+          <div className="grid gap-3">
+            {filteredApplications.map((application) => (
+              <div
+                key={application.id}
+                className="glass-panel p-4 hover-card-premium group relative flex items-start gap-4 transition-all duration-300 cursor-pointer overflow-hidden mb-3"
                 onClick={() => handleOpenDetail(application.id)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12 shrink-0">
-                      <AvatarFallback className="bg-accent text-accent-foreground">
-                        {application.candidate_profiles?.full_name?.charAt(0) || 'C'}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold">
-                            {application.candidate_profiles?.full_name || 'Unknown'}
-                          </h3>
-                          <p className="text-sm">
-                            {application.candidate_profiles?.current_title}
-                            {application.candidate_profiles?.current_company && 
-                              ` at ${application.candidate_profiles.current_company}`}
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 shrink-0">
-                          {application.ai_match_score && (
-                            <ScoreBadge score={application.ai_match_score} />
-                          )}
-                          <StatusBadge status={application.status || 'applied'} />
-                        </div>
+                <div className="relative z-10 flex items-start gap-4 flex-1">
+                  <Avatar className="h-12 w-12 shrink-0 border border-white/10">
+                    <AvatarFallback className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300 font-bold">
+                      {application.candidate_profiles?.full_name?.charAt(0) || 'C'}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-semibold text-lg text-foreground/90 group-hover:text-primary transition-colors">
+                          {application.candidate_profiles?.full_name || 'Unknown'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {application.candidate_profiles?.current_title}
+                          {application.candidate_profiles?.current_company &&
+                            ` at ${application.candidate_profiles.current_company}`}
+                        </p>
                       </div>
-                      
-                      <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
-                        {application.candidate_profiles?.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {application.candidate_profiles.email}
-                          </span>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {application.ai_match_score && (
+                          <ScoreBadge score={application.ai_match_score} />
                         )}
-                        {application.candidate_profiles?.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {application.candidate_profiles.location}
-                          </span>
-                        )}
-                        <span>
-                          Applied {formatDistanceToNow(new Date(application.applied_at), { addSuffix: true })}
-                        </span>
+                        <StatusBadge status={application.status || 'applied'} />
                       </div>
                     </div>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        {application.resumes && (Array.isArray(application.resumes) ? application.resumes.length > 0 : true) ? (
-                          <DropdownMenuItem
-                            onClick={async () => { await openResume(application.resumes); }}
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            View Resume
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem
-                          onClick={() => updateStatus.mutate({ 
-                            applicationId: application.id, 
-                            status: 'screening' 
-                          })}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Move to Screening
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => updateStatus.mutate({ 
-                            applicationId: application.id, 
-                            status: 'interviewing' 
-                          })}
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          Move to Interviewing
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => updateStatus.mutate({ 
-                            applicationId: application.id, 
-                            status: 'rejected' 
-                          })}
-                          className="text-destructive"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Reject
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+
+                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
+                      {application.candidate_profiles?.email && (
+                        <span className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                          <Mail className="h-3.5 w-3.5 opacity-70" />
+                          {application.candidate_profiles.email}
+                        </span>
+                      )}
+                      {application.candidate_profiles?.location && (
+                        <span className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                          <MapPin className="h-3.5 w-3.5 opacity-70" />
+                          {application.candidate_profiles.location}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5 opacity-70" />
+                        Applied {formatDistanceToNow(new Date(application.applied_at), { addSuffix: true })}
+                      </span>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 glass-panel border-white/20">
+                      {application.resumes && (Array.isArray(application.resumes) ? application.resumes.length > 0 : true) ? (
+                        <DropdownMenuItem
+                          onClick={async () => { await openResume(application.resumes); }}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          View Resume
+                        </DropdownMenuItem>
+                      ) : null}
+
+                      <div className="h-px bg-border my-1" />
+
+                      <DropdownMenuItem
+                        onClick={() => updateStatus.mutate({
+                          applicationId: application.id,
+                          status: 'screening'
+                        })}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Move to Screening
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => updateStatus.mutate({
+                          applicationId: application.id,
+                          status: 'interviewing'
+                        })}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        Move to Interviewing
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => updateStatus.mutate({
+                          applicationId: application.id,
+                          status: 'rejected'
+                        })}
+                        className="text-red-500 focus:text-red-600"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Reject
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             ))}
           </div>
         )}

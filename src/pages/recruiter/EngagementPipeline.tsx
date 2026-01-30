@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -158,7 +159,7 @@ export default function EngagementPipeline() {
     queryFn: async (): Promise<EngagementRow[]> => {
       if (!organizationId) return [];
       let q = supabase
-        .from('candidate_engagements')
+        .from('candidate_engagements' as any)
         .select(
           `
           id, stage, updated_at, notes, job_id,
@@ -199,7 +200,7 @@ export default function EngagementPipeline() {
 
   const updateStageOnly = useMutation({
     mutationFn: async ({ engagementId, stage }: { engagementId: string; stage: string }) => {
-      const { error } = await supabase.from('candidate_engagements').update({ stage } as any).eq('id', engagementId);
+      const { error } = await supabase.from('candidate_engagements' as any).update({ stage } as any).eq('id', engagementId);
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -221,7 +222,7 @@ export default function EngagementPipeline() {
 
       // Create request row
       const { data: reqRow, error: insErr } = await supabase
-        .from('candidate_engagement_requests')
+        .from('candidate_engagement_requests' as any)
         .insert({
           engagement_id: moveEngagement.id,
           request_type: cfg.requestType,
@@ -247,7 +248,7 @@ export default function EngagementPipeline() {
 
       // Advance stage after send (or just update if override)
       await supabase
-        .from('candidate_engagements')
+        .from('candidate_engagements' as any)
         .update({ stage: moveToStage } as any)
         .eq('id', moveEngagement.id);
     },
@@ -273,21 +274,22 @@ export default function EngagementPipeline() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title={<>Engagement <span className="text-accent">Pipeline</span></>}
-          description="Engage internal candidates for submission: outreach → rate → RTR → screening → submission → offer → onboarding."
-        />
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
-          <div className="min-w-0">
-            <div className="text-sm">
-              Showing: <span className="text-foreground">{selectedJobTitle}</span> ·{' '}
-              <span className="text-foreground">{(data || []).length}</span> engagement{(data || []).length === 1 ? '' : 's'}
-            </div>
+      <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+          <div>
+            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Users className="h-8 w-8 text-primary" />
+              </div>
+              <span className="text-gradient-premium">Engagement Pipeline</span>
+            </h1>
+            <p className="mt-2 text-muted-foreground text-lg">
+              Engage internal candidates for submission: outreach → rate → RTR → screening → submission → offer → onboarding.
+            </p>
           </div>
           <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="w-64 glass-panel border-white/20 h-11">
               <SelectValue placeholder="Filter by job" />
             </SelectTrigger>
             <SelectContent>
@@ -301,17 +303,19 @@ export default function EngagementPipeline() {
           </Select>
         </div>
 
+        {/* Content */}
         {isLoading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : (
-          <ScrollArea className="w-full">
-            <div className="grid gap-3 pb-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <ScrollArea className="flex-1 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+            {/* Premium Kanban Board - Responsive Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-6">
               {PIPELINE_STAGES.map((stage) => (
                 <div
                   key={stage.id}
-                  className="min-w-0"
+                  className="flex flex-col h-full"
                   onDragOver={(e) => {
                     e.preventDefault();
                     if (dragOverStage !== stage.id) setDragOverStage(stage.id);
@@ -348,82 +352,90 @@ export default function EngagementPipeline() {
                     if (dragOverStage === stage.id) setDragOverStage(null);
                   }}
                 >
-                  <Card className={`h-full overflow-hidden rounded-2xl border bg-card/70 shadow-sm ${dragOverStage === stage.id ? 'ring-2 ring-primary/20 border-primary/30' : ''}`}>
-                    <CardHeader className={`py-3 px-4 bg-background/70 backdrop-blur-sm border-b ${stage.border}`}>
-                      <div className="flex items-start justify-between gap-2 min-w-0">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className={`h-2.5 w-2.5 rounded-full ${stage.dot} shrink-0`} />
-                            <CardTitle className="text-sm font-semibold truncate">{stage.label}</CardTitle>
-                          </div>
-                          {STAGE_EMAIL_CONFIG[stage.id] ? (
-                            <div className="text-xsmt-1 flex items-center gap-1">
-                              <Mail className="h-3.5 w-3.5" />
-                              Move triggers email
-                            </div>
-                          ) : null}
-                        </div>
-                        <Badge variant="secondary" className="shrink-0">
-                          {(appsByStage.get(stage.id)?.length || 0)}
-                        </Badge>
+                  {/* Column Header */}
+                  <div className={`mb-3 flex items-center justify-between p-3 rounded-xl bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 ${dragOverStage === stage.id ? 'ring-2 ring-primary/50' : ''
+                    }`}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-3 w-3 rounded-full ${stage.dot} shadow-[0_0_10px_currentColor]`} />
+                        <span className="font-bold text-sm tracking-tight">{stage.label}</span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="p-3 bg-muted/10">
-                      <div className="space-y-2 min-h-[160px]">
-                        {(appsByStage.get(stage.id)?.length || 0) === 0 ? (
-                          <div className={`rounded-xl border border-dashed p-6 ${dragOverStage === stage.id ? 'bg-primary/5 border-primary/30 text-foreground' : 'bg-background/50 border-muted-foreground/15'}`}>
-                            <div className="flex flex-col items-center gap-2 text-center">
-                              <Users className="h-4 w-4 opacity-70" />
-                              <div className="text-sm font-medium">No engagements</div>
-                              <div className="text-xs">Drag a card here to move it.</div>
-                            </div>
-                          </div>
-                        ) : (
-                          (appsByStage.get(stage.id) || []).map((r, idx) => (
-                            <div
-                              key={r.id}
-                              draggable
-                              onDragStart={() => setDraggedId(r.id)}
-                              onDragEnd={() => {
-                                setDraggedId(null);
-                                setDragOverStage(null);
-                              }}
-                              className={`group p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-colors ${
-                                idx % 2 === 1
-                                  ? 'bg-secondary/40 hover:bg-secondary/60 hover:border-primary/20'
-                                  : 'bg-background hover:bg-muted/50 hover:border-primary/20'
-                              } ${draggedId === r.id ? 'opacity-50' : ''}`}
-                            >
-                              <div className="flex items-start gap-3 min-w-0">
-                                <div className="mt-0.5 shrink-0group-hover:text-foreground/80">
+                      {STAGE_EMAIL_CONFIG[stage.id] ? (
+                        <div className="text-[10px] opacity-70 flex items-center gap-1 mt-1 pl-5">
+                          <Mail className="h-3 w-3" />
+                          Auto-email
+                        </div>
+                      ) : null}
+                    </div>
+                    <Badge variant="secondary" className="bg-white/5 text-foreground/80 font-mono shrink-0 border-white/10">
+                      {(appsByStage.get(stage.id)?.length || 0)}
+                    </Badge>
+                  </div>
+
+                  {/* Drop Zone / List */}
+                  <div className={`h-[320px] overflow-y-auto rounded-2xl p-1.5 space-y-2 border transition-colors duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${dragOverStage === stage.id
+                    ? 'bg-primary/10 border-primary/20'
+                    : 'bg-slate-100/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800'
+                    }`}>
+                    {(appsByStage.get(stage.id)?.length || 0) === 0 ? (
+                      <div className="h-full max-h-32 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl m-2 opacity-50">
+                        <p className="text-xs font-medium">Empty</p>
+                      </div>
+                    ) : (
+                      (appsByStage.get(stage.id) || []).map((r, idx) => (
+                        <div
+                          key={r.id}
+                          draggable
+                          onDragStart={() => setDraggedId(r.id)}
+                          onDragEnd={() => {
+                            setDraggedId(null);
+                            setDragOverStage(null);
+                          }}
+                          className={`
+                            group relative p-3 rounded-xl border border-slate-200 dark:border-slate-700
+                            bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5
+                            transition-all duration-200 cursor-grab active:cursor-grabbing
+                            border-l-[3px] border-l-primary
+                            ${draggedId === r.id ? 'opacity-40 rotate-2 scale-95 ring-2 ring-primary/50' : ''}
+                          `}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-9 w-9 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
+                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold">
+                                {(r.candidate_profiles?.full_name || 'C').slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-1">
+                                <span className="font-bold text-sm truncate text-slate-800 dark:text-slate-100 leading-tight">
+                                  {r.candidate_profiles?.full_name || 'Candidate'}
+                                </span>
+                                <div className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-grab text-slate-400 hover:text-slate-600">
                                   <GripVertical className="h-4 w-4" />
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <div className="font-semibold text-sm truncate">{r.candidate_profiles?.full_name || 'Candidate'}</div>
-                                      <div className="text-xstruncate">
-                                        {[
-                                          r.candidate_profiles?.current_title,
-                                          r.candidate_profiles?.current_company,
-                                          r.candidate_profiles?.location,
-                                        ]
-                                          .filter(Boolean)
-                                          .join(' • ') || '—'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {r.jobs?.title ? (
-                                    <div className="mt-2 text-xstruncate">{r.jobs.title}</div>
-                                  ) : null}
-                                </div>
                               </div>
+                              <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5 truncate">
+                                {[
+                                  r.candidate_profiles?.current_title,
+                                  r.candidate_profiles?.current_company,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' • ') || '—'}
+                              </div>
+                              {r.jobs?.title && (
+                                <div className="mt-2 text-[10px] font-medium truncate bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-md inline-block max-w-full">
+                                  {r.jobs.title}
+                                </div>
+                              )}
                             </div>
-                          ))
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                          </div>
+
+                          {/* Hover Glow Effect */}
+                          <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-transparent group-hover:ring-primary/10 pointer-events-none transition-all" />
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -432,7 +444,7 @@ export default function EngagementPipeline() {
       </div>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Send email to move stage</DialogTitle>
           </DialogHeader>
@@ -441,17 +453,21 @@ export default function EngagementPipeline() {
             <div className="text-sm">Select an engagement to move.</div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="text-sm font-medium">
-                  {moveEngagement.candidate_profiles?.full_name || 'Candidate'} ·{' '}
-                  <span className="">{moveEngagement.jobs?.title || 'No job'}</span>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="text-sm font-medium flex items-center gap-2">
+                  <span className="text-primary font-bold">{moveEngagement.candidate_profiles?.full_name || 'Candidate'}</span>
+                  <span className="text-muted-foreground">in relation to</span>
+                  <span className="font-medium">{moveEngagement.jobs?.title || 'No job'}</span>
                 </div>
-                <div className="text-xsmt-1">
-                  Moving to: <span className="text-foreground">{PIPELINE_STAGES.find((s) => s.id === moveToStage)?.label || moveToStage}</span>
+                <div className="text-xs mt-2 flex items-center gap-2">
+                  <span className="text-muted-foreground">Moving to:</span>
+                  <Badge className={`${PIPELINE_STAGES.find((s) => s.id === moveToStage)?.dot.replace('bg-', 'bg-') || 'bg-primary'} text-white border-0`}>
+                    {PIPELINE_STAGES.find((s) => s.id === moveToStage)?.label || moveToStage}
+                  </Badge>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Email template</Label>
                   <Select
@@ -469,16 +485,16 @@ export default function EngagementPipeline() {
 
                       const replaceVars = (s: string) =>
                         String(s || '')
-                          .replaceAll('{{candidate_name}}', candidateName)
-                          .replaceAll('{{job_title}}', jobTitle)
-                          .replaceAll('{{company_name}}', companyName)
-                          .replaceAll('{{recruiter_name}}', recruiterName);
+                          .replace(/{{candidate_name}}/g, candidateName)
+                          .replace(/{{job_title}}/g, jobTitle)
+                          .replace(/{{company_name}}/g, companyName)
+                          .replace(/{{recruiter_name}}/g, recruiterName);
 
                       setDraftSubject(replaceVars(t.subject || ''));
                       setDraftBody(replaceVars(t.body || ''));
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="glass-input">
                       <SelectValue placeholder="Select a template" />
                     </SelectTrigger>
                     <SelectContent>
@@ -500,27 +516,28 @@ export default function EngagementPipeline() {
 
                 <div className="space-y-2">
                   <Label>To</Label>
-                  <Input value={String((moveEngagement.candidate_profiles as any)?.email || '')} readOnly />
+                  <Input value={String((moveEngagement.candidate_profiles as any)?.email || '')} readOnly className="glass-input bg-white/5" />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Subject</Label>
-                <Input value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} />
+                <Input value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} className="glass-input" />
               </div>
 
               <div className="space-y-2">
                 <Label>Message</Label>
-                <Textarea value={draftBody} onChange={(e) => setDraftBody(e.target.value)} className="min-h-[200px]" />
-                <div className="text-xs">
+                <Textarea value={draftBody} onChange={(e) => setDraftBody(e.target.value)} className="min-h-[200px] glass-input" />
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                   The email will include a secure “Review & respond” link. Candidates will be prompted to login/signup.
                 </div>
               </div>
 
               {can(currentRole, 'engagement.override') ? (
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <div className="text-sm font-medium">Account manager override</div>
-                  <div className="text-xsmt-1">
+                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                  <div className="text-sm font-medium text-red-500">Account manager override</div>
+                  <div className="text-xs mt-1 text-muted-foreground">
                     Use only if you must move stages without sending an email (this will be audited later).
                   </div>
                   <div className="mt-2 flex items-center gap-2">
@@ -529,23 +546,24 @@ export default function EngagementPipeline() {
                       type="checkbox"
                       checked={skipEmailOverride}
                       onChange={(e) => setSkipEmailOverride(e.target.checked)}
+                      className="accent-red-500"
                     />
-                    <Label htmlFor="skip-email-override">Skip email and force move</Label>
+                    <Label htmlFor="skip-email-override" className="cursor-pointer">Skip email and force move</Label>
                   </div>
                 </div>
               ) : null}
 
-              <div className="flex items-center justify-end gap-2">
-                <Button variant="outline" onClick={() => setMoveOpen(false)} disabled={createAndSendRequest.isPending}>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setMoveOpen(false)} disabled={createAndSendRequest.isPending} className="hover:bg-white/5">
                   Cancel
                 </Button>
-                <Button onClick={() => createAndSendRequest.mutate()} disabled={createAndSendRequest.isPending || !draftSubject.trim() || !draftBody.trim()}>
+                <Button onClick={() => createAndSendRequest.mutate()} disabled={createAndSendRequest.isPending || !draftSubject.trim() || !draftBody.trim()} className="shadow-lg shadow-primary/20">
                   {createAndSendRequest.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
                   Send & move
                 </Button>
                 {can(currentRole, 'engagement.override') && skipEmailOverride ? (
                   <Button
-                    variant="secondary"
+                    variant="destructive"
                     onClick={() => {
                       if (!moveEngagement || !moveToStage) return;
                       updateStageOnly.mutate({ engagementId: moveEngagement.id, stage: moveToStage });

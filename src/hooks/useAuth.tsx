@@ -39,6 +39,7 @@ interface AuthContextType {
     role: AppRole,
     organizationName?: string,
     inviteCode?: string,
+    marketplaceOptIn?: boolean,
     emailRedirectToOverride?: string,
   ) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; role?: AppRole }>;
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Everything else (TOKEN_REFRESHED, USER_UPDATED, etc.) should be silent.
-        fetchUserData(session.user.id, { silent: true }).catch(() => {});
+        fetchUserData(session.user.id, { silent: true }).catch(() => { });
       }
     );
 
@@ -188,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const redirectUrl = emailRedirectToOverride || `${window.location.origin}/`;
       const isInviteStaffSignup =
         role !== 'candidate' && (!organizationName || organizationName.trim().length === 0);
-      
+
       // If candidate with invite code, validate it first
       let candidateOrgId: string | null = null;
       if (role === 'candidate' && inviteCode) {
@@ -196,13 +197,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: orgId, error: codeError } = await supabase.rpc('validate_invite_code', {
           invite_code: inviteCode
         });
-        
+
         if (codeError || !orgId) {
           throw new Error('Invalid or expired invite code');
         }
         candidateOrgId = orgId;
       }
-      
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -331,14 +332,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) throw error;
-      
+
       // Fetch user role to determine redirect
       if (data.user) {
         const { data: rolesData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', data.user.id);
-        
+
         if (rolesData && rolesData.length > 0) {
           return { error: null, role: rolesData[0].role as AppRole };
         }
@@ -423,7 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: null, role: 'candidate' as AppRole };
         }
       }
-      
+
       return { error: null };
     } catch (error) {
       console.error('Sign in error:', error);

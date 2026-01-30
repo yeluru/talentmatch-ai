@@ -79,7 +79,7 @@ export default function CandidateProfile() {
           .eq('candidate_id', cp.id);
 
         if (skillsError) throw skillsError;
-        setSkills(skillsData || []);
+        setSkills((skillsData || []) as any as Skill[]);
       }
     } catch (error) {
       console.error('Error fetching candidate data:', error);
@@ -138,7 +138,7 @@ export default function CandidateProfile() {
         .single();
 
       if (error) throw error;
-      setSkills([...skills, data]);
+      setSkills([...skills, data as any as Skill]);
       setNewSkill('');
       toast.success('Skill added');
     } catch (error) {
@@ -195,133 +195,142 @@ export default function CandidateProfile() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">My Profile</h1>
-            <p className="mt-1">
-              Complete your profile to improve job matches
+            <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium">My Profile</h1>
+            <p className="mt-2 text-lg text-muted-foreground/80">
+              Complete your profile to improve job matches and visibility.
             </p>
           </div>
-          <Button onClick={handleSaveProfile} disabled={isSaving}>
+          <Button onClick={handleSaveProfile} disabled={isSaving} className="btn-primary-glow shadow-lg">
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save Changes
           </Button>
         </div>
 
         {/* Contact Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <div className="glass-panel p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <User className="h-5 w-5" />
-              Contact Info
-            </CardTitle>
-            <CardDescription>
-              How recruiters can reach you. Keep this accurate.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Name</Label>
-                <Input
-                  id="full_name"
-                  placeholder="Your full name"
-                  value={candidateProfile?.full_name || ''}
-                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, full_name: e.target.value } : null)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  placeholder="e.g., +1 (555) 123-4567"
-                  value={candidateProfile?.phone || ''}
-                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="linkedin_url">LinkedIn</Label>
-                <Input
-                  id="linkedin_url"
-                  placeholder="https://linkedin.com/in/..."
-                  value={candidateProfile?.linkedin_url || ''}
-                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, linkedin_url: e.target.value } : null)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="github_url">GitHub</Label>
-                <Input
-                  id="github_url"
-                  placeholder="https://github.com/..."
-                  value={candidateProfile?.github_url || ''}
-                  onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, github_url: e.target.value } : null)}
-                />
-              </div>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <h3 className="font-display text-xl font-bold">Contact Info</h3>
+              <p className="text-sm text-muted-foreground">How recruiters can reach you. Keep this accurate.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name" className="text-base">Name</Label>
+              <Input
+                id="full_name"
+                placeholder="Your full name"
+                value={candidateProfile?.full_name || ''}
+                onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, full_name: e.target.value } : null)}
+                className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-base">Phone</Label>
+              <Input
+                id="phone"
+                placeholder="e.g., +1 (555) 123-4567"
+                value={candidateProfile?.phone || ''}
+                onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkedin_url" className="text-base">LinkedIn</Label>
+              <Input
+                id="linkedin_url"
+                placeholder="https://linkedin.com/in/..."
+                value={candidateProfile?.linkedin_url || ''}
+                onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, linkedin_url: e.target.value } : null)}
+                className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="github_url" className="text-base">GitHub</Label>
+              <Input
+                id="github_url"
+                placeholder="https://github.com/..."
+                value={candidateProfile?.github_url || ''}
+                onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, github_url: e.target.value } : null)}
+                className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
+              />
+            </div>
+          </div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Basic Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="glass-panel p-6 md:p-8 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                 <User className="h-5 w-5" />
-                Basic Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="headline">Professional Headline</Label>
+              </div>
+              <h3 className="font-display text-xl font-bold">Basic Information</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="headline" className="text-base">Professional Headline</Label>
                 <Input
                   id="headline"
                   placeholder="e.g., Senior Software Engineer | React Expert"
                   value={candidateProfile?.headline || ''}
                   onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, headline: e.target.value } : null)}
+                  className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
                 />
               </div>
-              <div>
-                <Label htmlFor="summary">Professional Summary</Label>
+              <div className="space-y-2">
+                <Label htmlFor="summary" className="text-base">Professional Summary</Label>
                 <Textarea
                   id="summary"
                   placeholder="Tell employers about your experience and career goals..."
                   rows={4}
                   value={candidateProfile?.summary || ''}
                   onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, summary: e.target.value } : null)}
+                  className="bg-background/50 border-white/10 resize-none focus:ring-accent transition-all leading-relaxed"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Current Role */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="glass-panel p-6 md:p-8 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                 <Briefcase className="h-5 w-5" />
-                Current Role
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="current_title">Current Job Title</Label>
+              </div>
+              <h3 className="font-display text-xl font-bold">Current Role</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current_title" className="text-base">Current Job Title</Label>
                 <Input
                   id="current_title"
                   placeholder="e.g., Software Engineer"
                   value={candidateProfile?.current_title || ''}
                   onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, current_title: e.target.value } : null)}
+                  className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
                 />
               </div>
-              <div>
-                <Label htmlFor="current_company">Current Company</Label>
+              <div className="space-y-2">
+                <Label htmlFor="current_company" className="text-base">Current Company</Label>
                 <Input
                   id="current_company"
                   placeholder="e.g., Tech Corp"
                   value={candidateProfile?.current_company || ''}
                   onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, current_company: e.target.value } : null)}
+                  className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
                 />
               </div>
-              <div>
-                <Label htmlFor="years_experience">Years of Experience</Label>
+              <div className="space-y-2">
+                <Label htmlFor="years_experience" className="text-base">Years of Experience</Label>
                 <Input
                   id="years_experience"
                   type="number"
@@ -329,99 +338,111 @@ export default function CandidateProfile() {
                   placeholder="5"
                   value={candidateProfile?.years_of_experience || ''}
                   onChange={(e) => setCandidateProfile(prev => prev ? { ...prev, years_of_experience: parseInt(e.target.value) || 0 } : null)}
+                  className="bg-background/50 border-white/10 h-11 focus:ring-accent transition-all"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Skills */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Skills</CardTitle>
-              <CardDescription>Add your technical and professional skills</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="glass-panel p-6 md:p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="font-display text-xl font-bold">Skills</h3>
+                <p className="text-sm text-muted-foreground">Add your technical and professional skills</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Add a skill (e.g., React, Python)"
+                  placeholder="Add a new skill (e.g., React, Python)"
                   value={newSkill}
                   onChange={(e) => setNewSkill(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddSkill()}
+                  className="bg-background/50 border-white/10 h-11 focus:ring-accent"
                 />
-                <Button onClick={handleAddSkill} size="icon">
-                  <Plus className="h-4 w-4" />
+                <Button onClick={handleAddSkill} size="icon" className="h-11 w-11 shrink-0 btn-primary-glow">
+                  <Plus className="h-5 w-5" />
                 </Button>
               </div>
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {skills.filter((s) => (s.skill_type || 'technical') === 'technical').map((skill) => (
-                    <Badge key={skill.id} variant="secondary" className="px-3 py-1">
-                      {skill.skill_name}
-                      <button
-                        onClick={() => handleRemoveSkill(skill.id)}
-                        className="ml-2 hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                  {skills.filter((s) => (s.skill_type || 'technical') === 'technical').length === 0 && (
-                    <p className="text-sm">No technical skills yet</p>
-                  )}
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Technical Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.filter((s) => (s.skill_type || 'technical') === 'technical').map((skill) => (
+                      <Badge key={skill.id} variant="secondary" className="px-3 py-1.5 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
+                        {skill.skill_name}
+                        <button
+                          onClick={() => handleRemoveSkill(skill.id)}
+                          className="ml-2 hover:text-destructive opacity-70 hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    {skills.filter((s) => (s.skill_type || 'technical') === 'technical').length === 0 && (
+                      <p className="text-sm text-muted-foreground italic">No technical skills added yet</p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {skills.filter((s) => (s.skill_type || 'technical') === 'soft').map((skill) => (
-                    <Badge key={skill.id} variant="outline" className="px-3 py-1">
-                      {skill.skill_name}
-                      <button
-                        onClick={() => handleRemoveSkill(skill.id)}
-                        className="ml-2 hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                  {skills.filter((s) => (s.skill_type || 'technical') === 'soft').length === 0 && (
-                    <p className="text-sm">No soft skills yet</p>
-                  )}
+                <div className="space-y-2">
+                  <h4 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Soft Skills</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.filter((s) => (s.skill_type || 'technical') === 'soft').map((skill) => (
+                      <Badge key={skill.id} variant="outline" className="px-3 py-1.5 border-dashed border-white/20">
+                        {skill.skill_name}
+                        <button
+                          onClick={() => handleRemoveSkill(skill.id)}
+                          className="ml-2 hover:text-destructive opacity-70 hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    {skills.filter((s) => (s.skill_type || 'technical') === 'soft').length === 0 && (
+                      <p className="text-sm text-muted-foreground italic">No soft skills added yet</p>
+                    )}
+                  </div>
                 </div>
               </div>
-              {skills.length === 0 && <p className="text-sm">No skills added yet</p>}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="glass-panel p-6 md:p-8 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
                 <MapPin className="h-5 w-5" />
-                Job Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              </div>
+              <h3 className="font-display text-xl font-bold">Preferences</h3>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-background/30 border border-white/5">
                 <div>
-                  <Label>Open to Remote Work</Label>
-                  <p className="text-sm">Consider remote positions</p>
+                  <Label className="text-base font-semibold">Open to Remote Work</Label>
+                  <p className="text-sm text-muted-foreground">Consider remote positions</p>
                 </div>
                 <Switch
                   checked={candidateProfile?.is_open_to_remote ?? true}
                   onCheckedChange={(checked) => setCandidateProfile(prev => prev ? { ...prev, is_open_to_remote: checked } : null)}
                 />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-background/30 border border-white/5">
                 <div>
-                  <Label>Actively Looking</Label>
-                  <p className="text-sm">Show recruiters you're available</p>
+                  <Label className="text-base font-semibold">Actively Looking</Label>
+                  <p className="text-sm text-muted-foreground">Show recruiters you're available</p>
                 </div>
                 <Switch
                   checked={candidateProfile?.is_actively_looking ?? true}
                   onCheckedChange={(checked) => setCandidateProfile(prev => prev ? { ...prev, is_actively_looking: checked } : null)}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
         </div>
       </div>

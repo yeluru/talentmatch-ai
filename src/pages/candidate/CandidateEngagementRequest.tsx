@@ -74,7 +74,7 @@ export default function CandidateEngagementRequest() {
   useEffect(() => {
     (async () => {
       try {
-        await supabase.rpc('claim_candidate_profile_by_email');
+        await (supabase.rpc as any)('claim_candidate_profile_by_email');
       } catch {
         // ignore
       }
@@ -87,7 +87,7 @@ export default function CandidateEngagementRequest() {
       const id = String(requestId || '').trim();
       if (!id) return null;
       const { data, error } = await supabase
-        .from('candidate_engagement_requests')
+        .from('candidate_engagement_requests' as any)
         .select(
           `
           id, request_type, status, subject, body, created_at, sent_at, responded_at, payload,
@@ -124,7 +124,7 @@ export default function CandidateEngagementRequest() {
       };
 
       const { error: updErr } = await supabase
-        .from('candidate_engagement_requests')
+        .from('candidate_engagement_requests' as any)
         .update({
           status: resp,
           responded_at: new Date().toISOString(),
@@ -135,9 +135,9 @@ export default function CandidateEngagementRequest() {
 
       const next = nextStageForResponse(String(data.request_type || ''), resp);
       if (next) {
-        await supabase.from('candidate_engagements').update({ stage: next, last_activity_at: new Date().toISOString() } as any).eq('id', engagementId);
+        await supabase.from('candidate_engagements' as any).update({ stage: next, last_activity_at: new Date().toISOString() } as any).eq('id', engagementId);
       } else {
-        await supabase.from('candidate_engagements').update({ last_activity_at: new Date().toISOString() } as any).eq('id', engagementId);
+        await supabase.from('candidate_engagements' as any).update({ last_activity_at: new Date().toISOString() } as any).eq('id', engagementId);
       }
     },
     onSuccess: async () => {
@@ -184,66 +184,68 @@ export default function CandidateEngagementRequest() {
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-3xl mx-auto">
-        <Card className="card-elevated">
-          <CardHeader className="space-y-2">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <CardTitle className="text-2xl">Action required</CardTitle>
-                <div className="text-smmt-1">
-                  {labelForType(String(data.request_type || ''))} for <span className="text-foreground">{jobTitle}</span> ·{' '}
-                  <span className="text-foreground">{orgName}</span>
+        <div className="glass-panel p-8 border-l-4 border-l-accent animate-in-view">
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="font-display text-3xl font-bold tracking-tight">Action Required</h1>
+                <div className="text-base text-muted-foreground mt-2">
+                  {labelForType(String(data.request_type || ''))} for <span className="font-semibold text-foreground">{jobTitle}</span> at <span className="font-semibold text-foreground">{orgName}</span>
                 </div>
               </div>
-              <Badge variant="secondary" className="shrink-0">
+              <Badge variant={data.status === 'sent' || data.status === 'queued' ? 'default' : 'secondary'} className="text-sm px-3 py-1 uppercase tracking-wider">
                 {String(data.status || '').toUpperCase()}
               </Badge>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.subject ? (
-              <div className="space-y-1">
-                <div className="text-xs">Subject</div>
-                <div className="font-medium">{data.subject}</div>
+
+            <Separator className="bg-white/10" />
+
+            <div className="space-y-4">
+              {data.subject && (
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Subject</div>
+                  <div className="text-lg font-medium">{data.subject}</div>
+                </div>
+              )}
+
+              <div className="space-y-2 bg-muted/30 p-4 rounded-xl border border-white/5">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Message from Recruiter</div>
+                <div className="whitespace-pre-wrap text-base leading-relaxed">{data.body || '—'}</div>
               </div>
-            ) : null}
-
-            <Separator />
-
-            <div className="space-y-2">
-              <div className="text-xs">Message</div>
-              <div className="whitespace-pre-wrap text-sm">{data.body || '—'}</div>
             </div>
 
-            <Separator />
+            <Separator className="bg-white/10" />
 
             {!canRespond ? (
-              <div className="rounded-lg border bg-muted/20 p-3 text-sm">
-                You’ve already responded to this request.
+              <div className="rounded-xl border bg-emerald-500/10 border-emerald-500/20 p-4 flex items-center gap-3 text-emerald-500">
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="font-medium">You’ve already responded to this request.</span>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-6 pt-2">
                 {(data.request_type === 'rate_confirmation' || data.request_type === 'offer') ? (
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium flex items-center gap-2 text-foreground">
+                      <MessageSquare className="h-4 w-4 text-accent" />
                       Optional counter / message
                     </div>
                     <Textarea
                       value={counterMessage}
                       onChange={(e) => setCounterMessage(e.target.value)}
                       placeholder="Add details (e.g., rate expectation, availability, questions)…"
-                      className="min-h-[90px]"
+                      className="min-h-[120px] bg-background/50 border-white/10 resize-none focus:ring-accent"
                     />
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2 justify-end">
+                <div className="flex flex-wrap gap-3 justify-end">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => navigate('/candidate')}
                     disabled={respond.isPending}
+                    className="hover:bg-white/5"
                   >
-                    Later
+                    Decide Later
                   </Button>
 
                   {(data.request_type === 'rate_confirmation' || data.request_type === 'offer') ? (
@@ -251,9 +253,10 @@ export default function CandidateEngagementRequest() {
                       variant="secondary"
                       onClick={() => respond.mutate('countered')}
                       disabled={respond.isPending || !String(counterMessage || '').trim()}
+                      className="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20"
                     >
                       {respond.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                      Counter
+                      Counter Offer
                     </Button>
                   ) : null}
 
@@ -261,6 +264,7 @@ export default function CandidateEngagementRequest() {
                     variant="destructive"
                     onClick={() => respond.mutate('rejected')}
                     disabled={respond.isPending}
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 shadow-none"
                   >
                     {respond.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
                     Reject
@@ -269,15 +273,16 @@ export default function CandidateEngagementRequest() {
                   <Button
                     onClick={() => respond.mutate('accepted')}
                     disabled={respond.isPending}
+                    className="btn-primary-glow px-8"
                   >
                     {respond.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                    Accept
+                    Accept Request
                   </Button>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

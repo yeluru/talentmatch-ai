@@ -251,7 +251,7 @@ export default function TalentPool() {
   const [engageOpen, setEngageOpen] = useState(false);
   const [engageCandidateId, setEngageCandidateId] = useState<string | null>(null);
   const [engageJobId, setEngageJobId] = useState<string>('');
-  
+
   // Bulk selection state
   const [recentViews, setRecentViews] = useState<{ id: string; ts: number }[]>(() =>
     loadRecentViews(organizationId || '')
@@ -776,7 +776,7 @@ export default function TalentPool() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return groupedTalents.slice(startIndex, startIndex + itemsPerPage);
   }, [groupedTalents, currentPage, itemsPerPage]);
-  
+
   // Flatten paginated groups for selection logic
   const paginatedTalents = useMemo(() => {
     return paginatedGroups.flat();
@@ -894,98 +894,112 @@ export default function TalentPool() {
     (experienceFilter ? 1 : 0);
 
   const filtersContent = (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Search row (hero) */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center glass-panel p-1 rounded-xl border border-white/10">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder='Search (boolean): "fannie and freddie", react or angular'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-11"
+            className="pl-10 h-11 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pr-1">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="h-11 whitespace-nowrap">
-                <Filter className="h-4 w-4 mr-2" />
-                More filters
+              <Button variant="ghost" className="h-9 gap-2 hover:bg-white/10">
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filters</span>
                 {filterCount > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-1 px-1.5 h-5 min-w-5 justify-center">
                     {filterCount}
                   </Badge>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[340px]">
-              <div className="space-y-3">
-                <div className="text-sm font-medium">Filters</div>
+            <PopoverContent align="end" className="w-[340px] glass-panel border-white/20">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold">Filters</div>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 px-2 text-xs hover:bg-white/10">
+                      Clear all
+                    </Button>
+                  )}
+                </div>
 
-                <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Companies</SelectItem>
-                    {uniqueCompanies.map((company) => (
-                      <SelectItem key={company} value={company}>
-                        {company}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Company</Label>
+                    <Select value={companyFilter || "all"} onValueChange={(v) => setCompanyFilter(v === "all" ? "" : v)}>
+                      <SelectTrigger className="glass-input">
+                        <SelectValue placeholder="All Companies" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Companies</SelectItem>
+                        {uniqueCompanies.map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {uniqueLocations.map((location) => (
-                      <SelectItem key={location} value={location}>
-                        {location}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Location</Label>
+                    <Select value={locationFilter || "all"} onValueChange={(v) => setLocationFilter(v === "all" ? "" : v)}>
+                      <SelectTrigger className="glass-input">
+                        <SelectValue placeholder="All Locations" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {uniqueLocations.map((location) => (
+                          <SelectItem key={location} value={location}>
+                            {location}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {statusFilterOptions.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+                      <SelectTrigger className="glass-input">
+                        <SelectValue placeholder="All Statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {statusFilterOptions.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Experience" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Levels</SelectItem>
-                    {EXPERIENCE_LEVELS.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full justify-start">
-                    <X className="h-4 w-4 mr-2" />
-                    Clear filters
-                  </Button>
-                )}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Experience</Label>
+                    <Select value={experienceFilter || "all"} onValueChange={(v) => setExperienceFilter(v === "all" ? "" : v)}>
+                      <SelectTrigger className="glass-input">
+                        <SelectValue placeholder="All Levels" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Levels</SelectItem>
+                        {EXPERIENCE_LEVELS.map((level) => (
+                          <SelectItem key={level.value} value={level.value}>
+                            {level.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
@@ -994,23 +1008,23 @@ export default function TalentPool() {
 
       {/* Views row */}
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 overflow-x-auto">
+        <div className="min-w-0 overflow-x-auto no-scrollbar">
           <ToggleGroup
             type="single"
             value={activeView}
             onValueChange={(v) => setActiveView((v as TalentPoolView) || 'all')}
-            className="justify-start"
+            className="justify-start gap-1 bg-muted/20 p-1 rounded-lg border border-white/5"
           >
-            <ToggleGroupItem value="all" aria-label="All">
+            <ToggleGroupItem value="all" aria-label="All" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
               All
             </ToggleGroupItem>
-            <ToggleGroupItem value="new" aria-label="New">
+            <ToggleGroupItem value="new" aria-label="New" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
               New
             </ToggleGroupItem>
-            <ToggleGroupItem value="high_score" aria-label="High score">
+            <ToggleGroupItem value="high_score" aria-label="High score" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
               High score
             </ToggleGroupItem>
-            <ToggleGroupItem value="recent" aria-label="Recently viewed">
+            <ToggleGroupItem value="recent" aria-label="Recently viewed" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
               Recently viewed
             </ToggleGroupItem>
           </ToggleGroup>
@@ -1024,9 +1038,9 @@ export default function TalentPool() {
               setSearchQuery('');
               clearFilters();
             }}
-            className="whitespace-nowrap"
+            className="whitespace-nowrap h-8 text-xs hover:bg-destructive/10 hover:text-destructive"
           >
-            <X className="h-4 w-4 mr-1" />
+            <X className="h-3 w-3 mr-1" />
             Reset
           </Button>
         )}
@@ -1040,184 +1054,187 @@ export default function TalentPool() {
       {isMobile && (
         <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       )}
-      
+
       {/* Scroll to top button */}
       <ScrollToTop />
 
       {/* Page heading + filters (same as other recruiter pages) */}
-      <MobileListHeader
-        title="Talent Pool"
-        subtitle="Sourced profiles from bulk uploads and searches"
-        filterCount={filterCount}
-        action={
-          <div className="flex items-center gap-2">
-            <Button asChild size="default">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Users className="h-8 w-8 text-primary" />
+              </div>
+              <span className="text-gradient-premium">Talent Pool</span>
+            </h1>
+            <p className="mt-2 text-muted-foreground text-lg">
+              Sourced profiles from bulk uploads and searches
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button asChild variant="outline" className="shadow-sm glass-panel border-white/20 hover:bg-white/10">
               <Link to="/recruiter/talent-search/uploads">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload
               </Link>
             </Button>
-            <Button asChild size="default">
+            <Button asChild className="shadow-lg shadow-primary/20">
               <Link to="/recruiter/talent-search/search">
                 <Search className="h-4 w-4 mr-2" />
-                Search
+                Find Talent
               </Link>
             </Button>
           </div>
-        }
-      >
-        {filtersContent}
-      </MobileListHeader>
+        </div>
 
-      <Card className="mt-4">
-        <CardContent className="pt-6">
-          {!filteredTalents?.length ? (
-            <EmptyState
-              icon={Users}
-              title={hasActiveFilters || searchQuery.trim() ? 'No matches found' : 'No profiles in talent pool'}
-              description={
-                hasActiveFilters || searchQuery.trim()
-                  ? 'Try adjusting your search or filters'
-                  : 'Import candidates via Talent Sourcing to build your pool'
-              }
-            />
-          ) : isMobile ? (
-            <>
-            <div className="divide-y -mx-4">
-              {paginatedTalents.map((talent) => (
-                <div
-                  key={talent.id}
-                  className="py-4 first:pt-0 last:pb-0 cursor-pointer hover:bg-muted/50 px-4 transition-colors"
-                  onClick={() => handleTalentClick(talent.id)}
-                >
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarFallback className="bg-accent text-accent-foreground">
-                        {(talent.full_name || 'U').charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium truncate">{talent.full_name || 'Unknown'}</span>
-                        <StatusBadge status={talent.recruiter_status || 'new'} />
-                      </div>
-                      {(talent.current_title || talent.current_company) && (() => {
-                        const sub = talent.current_title
-                          ? (talent.current_company ? `${talent.current_title} at ${talent.current_company}` : talent.current_title)
-                          : (talent.current_company || '');
-                        const max = 60;
-                        const display = sub.length > max ? `${sub.slice(0, max)}…` : sub;
-                        return (
-                          <div className="text-sm line-clamp-2 break-words" title={sub}>
-                            {display}
+        {filtersContent}
+
+        <Card className="glass-card border-none overflow-hidden">
+          <CardContent className="p-0">
+            {!filteredTalents?.length ? (
+              <EmptyState
+                icon={Users}
+                title={hasActiveFilters || searchQuery.trim() ? 'No matches found' : 'No profiles in talent pool'}
+                description={
+                  hasActiveFilters || searchQuery.trim()
+                    ? 'Try adjusting your search or filters'
+                    : 'Import candidates via Talent Sourcing to build your pool'
+                }
+              />
+            ) : isMobile ? (
+              <>
+                <div className="divide-y divide-white/10">
+                  {paginatedTalents.map((talent) => (
+                    <div
+                      key={talent.id}
+                      className="p-4 cursor-pointer hover:bg-white/5 transition-colors active:bg-white/10"
+                      onClick={() => handleTalentClick(talent.id)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-12 w-12 shrink-0 border border-white/10">
+                          <AvatarFallback className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300 font-bold">
+                            {(talent.full_name || 'U').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-semibold text-lg text-foreground truncate">{talent.full_name || 'Unknown'}</span>
+                            <StatusBadge status={talent.recruiter_status || 'new'} />
                           </div>
-                        );
-                      })()}
-                      <div className="flex items-center gap-3 mt-1 text-xs">
-                        {talent.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {talent.location}
-                          </span>
-                        )}
-                        {talent.years_of_experience !== null && (
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="h-3 w-3" />
-                            {talent.years_of_experience} yrs
-                          </span>
-                        )}
+                          {(talent.current_title || talent.current_company) && (() => {
+                            const sub = talent.current_title
+                              ? (talent.current_company ? `${talent.current_title} at ${talent.current_company}` : talent.current_title)
+                              : (talent.current_company || '');
+                            const max = 60;
+                            const display = sub.length > max ? `${sub.slice(0, max)}…` : sub;
+                            return (
+                              <div className="text-sm text-muted-foreground line-clamp-2 break-words leading-snug" title={sub}>
+                                {display}
+                              </div>
+                            );
+                          })()}
+                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground/80">
+                            {talent.location && (
+                              <span className="flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5" />
+                                {talent.location}
+                              </span>
+                            )}
+                            {talent.years_of_experience !== null && (
+                              <span className="flex items-center gap-1.5">
+                                <Briefcase className="h-3.5 w-3.5" />
+                                {talent.years_of_experience} yrs
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="p-4 border-t border-white/10 bg-black/20">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-white/10'}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((page, idx) => (
+                          <PaginationItem key={idx}>
+                            {page === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                onClick={() => handlePageChange(page as number)}
+                                isActive={currentPage === page}
+                                className="cursor-pointer hover:bg-white/10"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-white/10'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2 p-4 border-b border-white/10 bg-white/5 backdrop-blur-sm">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {groupedTalents.length > 0
+                      ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}`
+                      : ''}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <Select
+                      value={String(itemsPerPage)}
+                      onValueChange={(v) => {
+                        const n = Number(v);
+                        if (!Number.isFinite(n)) return;
+                        setItemsPerPage(n);
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-[120px] bg-transparent border-white/10 text-xs">
+                        <SelectValue placeholder="Per page" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZE_OPTIONS.map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n} / page
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              ))}
-            </div>
-            {totalPages > 1 && (
-              <div className="mt-4 pt-4 border-t">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                    {getPageNumbers().map((page, idx) => (
-                      <PaginationItem key={idx}>
-                        {page === 'ellipsis' ? (
-                          <PaginationEllipsis />
-                        ) : (
-                          <PaginationLink
-                            onClick={() => handlePageChange(page as number)}
-                            isActive={currentPage === page}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        )}
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <span className="text-sm">
-                  {groupedTalents.length > 0
-                    ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}`
-                    : ''}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={String(itemsPerPage)}
-                    onValueChange={(v) => {
-                      const n = Number(v);
-                      if (!Number.isFinite(n)) return;
-                      setItemsPerPage(n);
-                    }}
-                  >
-                    <SelectTrigger className="h-9 w-[120px]">
-                      <SelectValue placeholder="Per page" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAGE_SIZE_OPTIONS.map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n} / page
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Badge variant="secondary">
-                    {filteredTalents.length} profile{filteredTalents.length === 1 ? '' : 's'}
-                  </Badge>
-                </div>
-              </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <SortableTableHead label="Candidate" sortKey="full_name" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 w-[200px]" />
-                    <SortableTableHead label="Title" sortKey="current_title" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 max-w-[200px]" />
-                    <SortableTableHead label="Location" sortKey="location" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 max-w-[120px]" />
-                    <SortableTableHead label="Experience" sortKey="years_of_experience" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3" />
-                    <SortableTableHead label="Status" sortKey="recruiter_status" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 w-[120px]" />
-                    <SortableTableHead label="ATS" sortKey="ats_score" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3 w-14 text-center" title="Resume quality (ATS-friendly)" />
-                    <TableHead className="py-2 px-3">Contact</TableHead>
-                    <SortableTableHead label="Added" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} className="py-2 px-3" />
-                    <TableHead className="py-2 px-3 w-[100px]">Shortlist</TableHead>
-                    <TableHead className="w-10 py-2 px-2"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                {/* Header Row */}
+                <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
+                  <div className="flex-1">Candidate</div>
+                  <div className="w-[180px] hidden xl:block">Title</div>
+                  <div className="w-[120px] hidden 2xl:block">Location</div>
+                  <div className="w-20 hidden 2xl:block">Exp</div>
+                  <div className="w-[140px]">Status</div>
+                  <div className="w-16 text-center" title="Resume quality (ATS-friendly)">ATS</div>
+                  <div className="w-12 text-center">Contact</div>
+                  <div className="w-24 hidden 2xl:block text-right">Added</div>
+                  <div className="w-[100px] text-right">Shortlist</div>
+                  <div className="w-10"></div>
+                </div>
+
+                <div className="space-y-3 px-1">
                   {paginatedTalents.map((talent) => (
                     <CompactTalentPoolRow
                       key={talent.id}
@@ -1233,49 +1250,49 @@ export default function TalentPool() {
                       }}
                     />
                   ))}
-                </TableBody>
-              </Table>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="mt-6 pt-4 border-t">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {getPageNumbers().map((page, idx) => (
-                        <PaginationItem key={idx}>
-                          {page === 'ellipsis' ? (
-                            <PaginationEllipsis />
-                          ) : (
-                            <PaginationLink
-                              onClick={() => handlePageChange(page)}
-                              isActive={currentPage === page}
-                              className="cursor-pointer"
-                            >
-                              {page}
-                            </PaginationLink>
-                          )}
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
                 </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="p-4 border-t border-white/10 bg-black/20">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-white/10'}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((page, idx) => (
+                          <PaginationItem key={idx}>
+                            {page === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                onClick={() => handlePageChange(page as number)}
+                                isActive={currentPage === page}
+                                className="cursor-pointer hover:bg-white/10"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-white/10'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <TalentDetailSheet
         talentId={selectedTalentId}
@@ -1293,7 +1310,7 @@ export default function TalentPool() {
           }
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Start engagement</DialogTitle>
           </DialogHeader>
@@ -1302,7 +1319,7 @@ export default function TalentPool() {
             <div className="space-y-2">
               <Label>Job to submit for</Label>
               <Select value={engageJobId} onValueChange={setEngageJobId}>
-                <SelectTrigger>
+                <SelectTrigger className="glass-input">
                   <SelectValue placeholder="Select a job" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1313,13 +1330,13 @@ export default function TalentPool() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="text-xs">
+              <div className="text-xs text-muted-foreground">
                 Engagements are job-scoped so RTR/rate/offer can be tracked per submission.
               </div>
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEngageOpen(false)} disabled={startEngagementMutation.isPending}>
+              <Button variant="outline" onClick={() => setEngageOpen(false)} disabled={startEngagementMutation.isPending} className="hover:bg-white/5">
                 Cancel
               </Button>
               <Button
@@ -1348,7 +1365,7 @@ export default function TalentPool() {
           }
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Add to shortlist</DialogTitle>
             <DialogDescription>Select a shortlist (or create one) to add this candidate.</DialogDescription>
@@ -1356,7 +1373,7 @@ export default function TalentPool() {
 
           <div className="space-y-4">
             <Select value={rowSelectedShortlistId} onValueChange={(v) => setRowSelectedShortlistId(v)}>
-              <SelectTrigger>
+              <SelectTrigger className="glass-input">
                 <SelectValue placeholder="Choose shortlist" />
               </SelectTrigger>
               <SelectContent>
@@ -1373,6 +1390,7 @@ export default function TalentPool() {
                 value={rowNewShortlistName}
                 onChange={(e) => setRowNewShortlistName(e.target.value)}
                 placeholder="Create new shortlist…"
+                className="glass-input"
               />
               <Button
                 variant="secondary"
@@ -1395,6 +1413,7 @@ export default function TalentPool() {
               onClick={() => {
                 setRowShortlistDialogOpen(false);
               }}
+              className="hover:bg-white/5"
             >
               Cancel
             </Button>
@@ -1419,7 +1438,7 @@ export default function TalentPool() {
       </Dialog>
 
       <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="glass-panel border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete candidate profile?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1428,9 +1447,9 @@ export default function TalentPool() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteFromTalentPoolMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteFromTalentPoolMutation.isPending} className="hover:bg-white/5">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-none border-0"
               disabled={deleteFromTalentPoolMutation.isPending}
               onClick={() => {
                 deleteFromTalentPoolMutation.mutate(removeCandidateIds);

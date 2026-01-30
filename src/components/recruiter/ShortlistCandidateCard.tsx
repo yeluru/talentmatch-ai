@@ -32,11 +32,11 @@ import {
 } from '@/components/ui/hover-card';
 import { SwipeableRow } from '@/components/ui/swipeable-row';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { 
-  Briefcase, 
-  MoreVertical, 
-  Copy, 
-  MoveRight, 
+import {
+  Briefcase,
+  MoreVertical,
+  Copy,
+  MoveRight,
   Trash2,
   ChevronDown,
   MessageSquare,
@@ -276,7 +276,7 @@ export function ShortlistCandidateCard({
 
   const cardContent = (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-      <div className={`rounded-lg bg-background w-full min-w-0 ${isMobile ? '' : 'border'}`}>
+      <div className={`glass-panel hover-card-premium w-full min-w-0 transition-all duration-300`}>
         <div
           className={`flex p-3 gap-2 min-w-0 ${isMobile ? 'flex-col items-stretch' : 'items-center justify-between'}`}
         >

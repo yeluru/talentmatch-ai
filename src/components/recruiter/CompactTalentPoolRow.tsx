@@ -95,41 +95,43 @@ export function CompactTalentPoolRow({
   const experience = talent.years_of_experience != null ? `${talent.years_of_experience} years` : '—';
 
   return (
-    <TableRow
-      className="cursor-pointer hover:bg-muted/50"
+    <div
+      className="glass-panel p-4 hover-card-premium flex items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
       onClick={() => onViewProfile(talent.id)}
     >
-      <TableCell className="py-2 px-3">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8 shrink-0">
-            <AvatarFallback className="bg-accent text-accent-foreground text-sm">
-              {(name || 'U').charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <div className="font-medium truncate">{name}</div>
-            {company && company !== '—' && (
-              <div className="text-xs truncate">{company}</div>
-            )}
-          </div>
+      <div className="flex-1 min-w-0 flex items-center gap-3">
+        <Avatar className="h-10 w-10 shrink-0">
+          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
+            {(name || 'U').charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <div className="font-bold text-foreground truncate">{name}</div>
+          {company && company !== '—' && (
+            <div className="text-xs text-muted-foreground truncate">{company}</div>
+          )}
         </div>
-      </TableCell>
-      <TableCell className="py-2 px-3 max-w-[200px]" title={rawTitle}>
-        <span className="line-clamp-2 break-words text-sm">{title}</span>
-      </TableCell>
-      <TableCell className="py-2 px-3 max-w-[120px] truncate" title={location}>
+      </div>
+
+      <div className="w-[180px] hidden xl:block" title={rawTitle}>
+        <span className="text-sm text-foreground/80 truncate block">{title}</span>
+      </div>
+
+      <div className="w-[120px] hidden 2xl:block truncate text-sm text-muted-foreground" title={location}>
         {location}
-      </TableCell>
-      <TableCell className="py-2 px-3 text-sm">
+      </div>
+
+      <div className="w-20 hidden 2xl:block text-sm text-muted-foreground">
         {experience}
-      </TableCell>
-      <TableCell className="py-2 px-3 w-[120px]" onClick={(e) => e.stopPropagation()}>
+      </div>
+
+      <div className="w-[140px] hidden lg:block" onClick={(e) => e.stopPropagation()}>
         <Select
           value={talent.recruiter_status || 'new'}
           onValueChange={(value) => updateStatus.mutate(value)}
           disabled={updateStatus.isPending}
         >
-          <SelectTrigger className="h-8 text-xs w-full" onClick={(e) => e.stopPropagation()}>
+          <SelectTrigger className="h-8 text-xs w-full bg-white/5 border-white/10" onClick={(e) => e.stopPropagation()}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -140,34 +142,36 @@ export function CompactTalentPoolRow({
             ))}
           </SelectContent>
         </Select>
-      </TableCell>
-      <TableCell className="py-2 px-3 w-14 text-center">
+      </div>
+
+      <div className="w-16 hidden lg:flex justify-center text-center">
         {talent.ats_score != null ? (
           <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
         ) : (
-          '—'
+          <span className="text-muted-foreground">—</span>
         )}
-      </TableCell>
-      <TableCell className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1">
-          {talent.email && (
-            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-              <a href={`mailto:${talent.email}`} title={talent.email}>
-                <Mail className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="py-2 px-3text-sm whitespace-nowrap">
-        {talent.created_at ? format(new Date(talent.created_at), 'MMM d, yyyy') : '—'}
-      </TableCell>
-      <TableCell className="py-2 px-3 w-[100px]" onClick={(e) => e.stopPropagation()}>
+      </div>
+
+      <div className="w-12 flex justify-center" onClick={(e) => e.stopPropagation()}>
+        {talent.email && (
+          <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:bg-white/10">
+            <a href={`mailto:${talent.email}`} title={talent.email}>
+              <Mail className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+            </a>
+          </Button>
+        )}
+      </div>
+
+      <div className="w-24 hidden 2xl:block text-sm text-muted-foreground whitespace-nowrap text-right">
+        {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
+      </div>
+
+      <div className="w-[100px] hidden md:flex justify-end" onClick={(e) => e.stopPropagation()}>
         {shortlistButton?.shortlistId && onOpenShortlist ? (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-xs"
+            className="h-8 gap-1 text-xs hover:bg-white/10"
             onClick={(e) => {
               e.stopPropagation();
               onOpenShortlist(shortlistButton.shortlistId);
@@ -180,7 +184,7 @@ export function CompactTalentPoolRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-xs"
+            className="h-8 gap-1 text-xs hover:bg-white/10"
             onClick={(e) => {
               e.stopPropagation();
               onAddToShortlist(talent.id);
@@ -190,21 +194,22 @@ export function CompactTalentPoolRow({
             Shortlist
           </Button>
         ) : (
-          '—'
+          <span className="text-muted-foreground">—</span>
         )}
-      </TableCell>
-      <TableCell className="py-2 px-2 w-10" onClick={(e) => e.stopPropagation()}>
+      </div>
+
+      <div className="w-10 flex justify-end" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
               <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">Actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="glass-panel border-white/20">
             {onRequestRemove && (
               <DropdownMenuItem
-                className="text-destructive"
+                className="text-destructive focus:bg-destructive/10"
                 onClick={() => onRequestRemove(talent.id)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -225,7 +230,7 @@ export function CompactTalentPoolRow({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 }

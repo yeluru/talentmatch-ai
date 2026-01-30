@@ -111,9 +111,9 @@ export default function InterviewSchedule() {
           // We'll still render the interview rows (with "Unknown/No title" placeholders).
           console.error('[InterviewSchedule] failed to load applications for interviews:', appErr);
         } else {
-        (apps || []).forEach((a: any) => {
-          if (a?.id) appsById.set(String(a.id), a);
-        });
+          (apps || []).forEach((a: any) => {
+            if (a?.id) appsById.set(String(a.id), a);
+          });
         }
       }
 
@@ -241,11 +241,11 @@ export default function InterviewSchedule() {
     }
   }, [DRAFT_KEY, organizationId, user?.id, isDialogOpen, selectedDate, form]);
 
-  const upcomingInterviews = interviews?.filter(i => 
+  const upcomingInterviews = interviews?.filter(i =>
     i.status === 'scheduled' && new Date(i.scheduled_at) >= new Date()
   ) || [];
 
-  const pastInterviews = interviews?.filter(i => 
+  const pastInterviews = interviews?.filter(i =>
     i.status !== 'scheduled' || new Date(i.scheduled_at) < new Date()
   ) || [];
 
@@ -424,7 +424,7 @@ export default function InterviewSchedule() {
               ) : (
                 <div className="space-y-4">
                   {upcomingInterviews.map(interview => (
-                    <div key={interview.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                    <div key={interview.id} className="glass-panel p-4 hover-card-premium group rounded-xl flex items-start gap-4">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-accent text-accent-foreground">
                           {(interview.applications?.candidate_profiles?.full_name || 'U').charAt(0)}
@@ -489,7 +489,7 @@ export default function InterviewSchedule() {
               ) : (
                 <div className="space-y-3">
                   {pastInterviews.slice(0, 5).map(interview => (
-                    <div key={interview.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={interview.id} className="glass-panel p-3 hover-card-premium group rounded-xl flex items-center justify-between">
                       <div>
                         <p className="font-medium text-sm">
                           {interview.applications?.candidate_profiles?.full_name || 'Unknown'}

@@ -1027,11 +1027,11 @@ function buildDocxParagraphsForResume(doc: ResumeDocContent, opts?: { targetTitl
     new Paragraph({
       children: roleTopRight
         ? [
-            run(headerName, { bold: true, size: 36, color: '000000' }),
-            new TextRun({ text: '\t', font: 'Outfit' }),
-            // +1pt (2 half-points)
-            run(roleTopRight, { bold: true, size: 20, color: '000000' }),
-          ]
+          run(headerName, { bold: true, size: 36, color: '000000' }),
+          new TextRun({ text: '\t', font: 'Outfit' }),
+          // +1pt (2 half-points)
+          run(roleTopRight, { bold: true, size: 20, color: '000000' }),
+        ]
         : [run(headerName, { bold: true, size: 36, color: '000000' })],
       tabStops: roleTopRight ? [{ type: TabStopType.RIGHT, position: convertInchesToTwip(7.0) }] : undefined,
       spacing: { after: 60 },
@@ -2858,7 +2858,7 @@ export default function ResumeWorkspace() {
     };
     const { data, error } = await supabase
       .from('resume_documents' as any)
-        .insert({ candidate_id: candidateId, title: 'Untitled Resume', template_id: 'ats_single', content_json: initial })
+      .insert({ candidate_id: candidateId, title: 'Untitled Resume', template_id: 'ats_single', content_json: initial })
       .select('*');
     if (error) throw error;
     const created = ((data as any) || [])[0] as any;
@@ -3029,1047 +3029,1047 @@ export default function ResumeWorkspace() {
     <DashboardLayout>
       <TooltipProvider>
         <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold">Resume Workspace</h1>
-            <p className="mt-1">
-              Tailor a resume for a specific job description with minimal friction. Your generated resume can be saved back into “My Resumes”.
-            </p>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+              <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium">Resume Workspace</h1>
+              <p className="mt-2 text-lg text-muted-foreground/80">
+                Tailor a resume for a specific job description with minimal friction.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={createNewDoc} className="border-white/10 hover:bg-white/5">
+                <Plus className="mr-2 h-4 w-4" />
+                New
+              </Button>
+              <Button onClick={saveDoc} disabled={isSaving || !selected} className="btn-primary-glow shadow-lg">
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={createNewDoc}>
-              <Plus className="mr-2 h-4 w-4" />
-              New
-            </Button>
-            <Button onClick={saveDoc} disabled={isSaving || !selected}>
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? 'Saving…' : 'Save Changes'}
-            </Button>
-          </div>
-        </div>
 
-        {/* Tailoring wizard */}
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-accent" />
-              Tailor your resume
-            </CardTitle>
-              <CardDescription>Choose a base resume + a JD, generate a version you can edit and save.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {resumes.length === 0 ? (
-              <div className="text-sm">
-                You don’t have any uploaded resumes yet. Upload one first, then come back here to tailor it for a job.
-                <div className="mt-3">
-                  <Button onClick={() => navigate('/candidate/resumes')}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Upload a resume
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Briefcase className="h-4 w-4" />
-                      Job Description
-                    </CardTitle>
-                    <CardDescription>Select an existing job or paste a custom description</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
-                      <TabsList className="grid w-full grid-cols-2 mb-4">
-                        <TabsTrigger value="existing">Select Job</TabsTrigger>
-                        <TabsTrigger value="custom">Paste JD</TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="existing" className="space-y-3">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-                          <Input
-                            placeholder="Search jobs by title or company..."
-                            value={jobSearchQuery}
-                            onChange={(e) => setJobSearchQuery(e.target.value)}
-                            className="pl-9"
-                          />
-                        </div>
-                        <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-md p-2">
-                          {filteredJobs.length === 0 ? (
-                            <p className="text-sm text-center py-4">
-                              {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
-                            </p>
-                          ) : (
-                            filteredJobs.slice(0, 20).map((job) => (
-                              <div
-                                key={job.id}
-                                className={`p-3 rounded-md cursor-pointer transition-colors ${
-                                  selectedJobId === job.id ? 'bg-primary/10 border border-primary' : 'bg-muted/50 hover:bg-muted'
-                                }`}
-                                onClick={() => handleJobSelect(job.id)}
-                              >
-                                <p className="font-medium text-sm">{job.title}</p>
-                                <p className="text-xs">
-                                  {job.organization_name} {job.location && `• ${job.location}`}
-                                </p>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                        <div className="text-xs">Tip: you can edit the JD in “Paste JD” after selecting a job.</div>
-                      </TabsContent>
-
-                      <TabsContent value="custom">
-                        <Textarea
-                          placeholder="Paste the job description here..."
-                          rows={10}
-                          value={jdText}
-                          onChange={(e) => setJdText(e.target.value)}
-                        />
-                      </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label>Base resume</Label>
-                    <Select value={selectedBaseResumeId} onValueChange={(v) => setSelectedBaseResumeId(v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a base resume" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {resumes.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {(r.is_primary ? '★ ' : '') + String(r.file_name || 'Resume')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="link" className="px-0" onClick={() => navigate('/candidate/resumes')}>
-                      Manage uploads in My Resumes →
+          {/* Tailoring wizard */}
+          {/* Tailoring wizard */}
+          <div className="glass-panel p-6 md:p-8 animate-in-view">
+            <div className="mb-6">
+              <h3 className="font-display text-2xl font-bold flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-accent" />
+                Tailor your resume
+              </h3>
+              <p className="text-muted-foreground mt-2 text-lg">Choose a base resume + a JD, generate a version you can edit and save.</p>
+            </div>
+            <div className="space-y-6">
+              {resumes.length === 0 ? (
+                <div className="text-sm">
+                  You don’t have any uploaded resumes yet. Upload one first, then come back here to tailor it for a job.
+                  <div className="mt-3">
+                    <Button onClick={() => navigate('/candidate/resumes')}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Upload a resume
                     </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Target role/title (required)</Label>
-                    <Input
-                      value={targetTitle}
-                      onChange={(e) => setTargetTitle(e.target.value)}
-                      placeholder="e.g., Senior Director of Engineering"
-                    />
-                    <div className="text-xs">This becomes the saved resume name.</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Additional preferences (optional)</Label>
-                    <Input
-                      value={additionalNotes}
-                      onChange={(e) => setAdditionalNotes(e.target.value)}
-                      placeholder="e.g., emphasize platform scaling, people leadership, cloud architecture…"
-                    />
-                  </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Button onClick={generateTailoredResume} disabled={isGenerating}>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {isGenerating ? 'Generating…' : 'Generate tailored resume'}
-                  </Button>
-                </div>
-                {generateError ? <div className="text-sm text-destructive">{generateError}</div> : null}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 lg:grid-cols-12 lg:min-h-[calc(100vh-360px)]">
-          {/* Left: docs list */}
-          <Card className="lg:col-span-4 card-elevated flex flex-col">
-            <CardHeader>
-              <CardTitle className="text-base">My Resumes</CardTitle>
-              <CardDescription>Saved, editable resumes from this workspace</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0">
-              <ScrollArea className="h-full pr-2">
-                <div className="space-y-2">
-                  {docs.map((d) => (
-                    <div
-                      key={d.id}
-                      className={`group w-full rounded-md border p-3 transition ${
-                        d.id === selectedDocId ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedDocId(d.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && setSelectedDocId(d.id)}
-                    >
-                      <div className="min-w-0">
-                        <div className="text-[15px] font-semibold leading-5 line-clamp-1">{d.title}</div>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <div className="text-xsflex items-center gap-2 min-w-0">
-                            <Clock className="h-3 w-3" />
-                            <span className="truncate">{new Date(d.updated_at).toLocaleString()}</span>
-                          </div>
-                          <div
-                            className={`flex items-center gap-0.5 transition-opacity ${
-                              d.id === selectedDocId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-                            }`}
-                          >
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  void saveWorkspaceDocToMyResumes(d);
-                                }}
-                              >
-                                <Save className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Save to My Resumes</TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  void downloadWorkspaceDocPdf(d);
-                                }}
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Download PDF</TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  void downloadWorkspaceDocDocx(d);
-                                }}
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Download DOCX</TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  void deleteWorkspaceDoc(d);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete</TooltipContent>
-                          </Tooltip>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {docs.length === 0 && (
-                    <div className="text-sm">
-                      No resume documents yet. Click “New” to create your first one.
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          {/* Center: editor */}
-          <Card className="lg:col-span-8 card-elevated flex flex-col">
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <CardTitle className="text-base">Editor</CardTitle>
-                  <CardDescription className="line-clamp-1">
-                    {selected ? 'Edit sections and save. Use checkpoints for version history.' : 'Select a resume document'}
-                  </CardDescription>
-                </div>
-                {/* Delete moved to My Resumes list row actions */}
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0">
-              {!selected ? (
-                <div className="text-sm">Select a document from the left.</div>
               ) : (
                 <>
-                  <div className="mb-2 text-sm">
-                    <span className="">Document:</span>{' '}
-                    <span className="font-medium text-foreground">{selected.title}</span>
-                    <span className="ml-3 text-xs">
-                      {isAutoSaving ? 'Saving…' : autoSaveError ? `Autosave failed: ${autoSaveError}` : lastAutoSavedAt ? 'Autosaved' : ''}
-                    </span>
-                  </div>
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Briefcase className="h-4 w-4" />
+                        Job Description
+                      </CardTitle>
+                      <CardDescription>Select an existing job or paste a custom description</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
+                        <TabsList className="grid w-full grid-cols-2 mb-4">
+                          <TabsTrigger value="existing">Select Job</TabsTrigger>
+                          <TabsTrigger value="custom">Paste JD</TabsTrigger>
+                        </TabsList>
 
-                  <Separator className="my-4" />
-
-                  <Tabs defaultValue="summary">
-                    <TabsList className="flex flex-wrap justify-start">
-                      <TabsTrigger value="contact">Contact</TabsTrigger>
-                      <TabsTrigger value="summary">Summary</TabsTrigger>
-                      <TabsTrigger value="skills">Skills</TabsTrigger>
-                      <TabsTrigger value="experience">Experience</TabsTrigger>
-                      <TabsTrigger value="education">Education</TabsTrigger>
-                      <TabsTrigger value="certs">Certifications</TabsTrigger>
-                      <TabsTrigger value="changes">Changes</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="contact" className="space-y-4 mt-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2 md:col-span-2">
-                          <Label>Applying title (saved resume name)</Label>
-                          <Input
-                            value={selected.title}
-                            onChange={(e) => updateSelected({ title: e.target.value })}
-                            placeholder="e.g., Senior Data Scientist"
-                          />
-                          <div className="text-xs">
-                            This is the workspace resume name and the export file name.
+                        <TabsContent value="existing" className="space-y-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                            <Input
+                              placeholder="Search jobs by title or company..."
+                              value={jobSearchQuery}
+                              onChange={(e) => setJobSearchQuery(e.target.value)}
+                              className="pl-9"
+                            />
                           </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Full name</Label>
-                          <Input
-                            value={String(selected.content_json?.contact?.full_name || '')}
-                            onChange={(e) => updateContactField('full_name', e.target.value)}
-                            placeholder="Full name"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Location</Label>
-                          <Input
-                            value={String(selected.content_json?.contact?.location || '')}
-                            onChange={(e) => updateContactField('location', e.target.value)}
-                            placeholder="City, State"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Phone</Label>
-                          <Input
-                            value={String(selected.content_json?.contact?.phone || '')}
-                            onChange={(e) => updateContactField('phone', e.target.value)}
-                            placeholder="Phone"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Email</Label>
-                          <Input
-                            value={String(selected.content_json?.contact?.email || '')}
-                            onChange={(e) => updateContactField('email', e.target.value)}
-                            placeholder="Email"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>LinkedIn URL</Label>
-                          <Input
-                            value={String(selected.content_json?.contact?.linkedin_url || '')}
-                            onChange={(e) => updateContactField('linkedin_url', e.target.value)}
-                            placeholder="linkedin.com/in/…"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>GitHub URL</Label>
-                          <Input
-                            value={String(selected.content_json?.contact?.github_url || '')}
-                            onChange={(e) => updateContactField('github_url', e.target.value)}
-                            placeholder="github.com/…"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="text-xs">
-                        Note: generating a new tailored resume overwrites contact info from the base resume facts. You can always edit here after
-                        generating.
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="summary" className="space-y-3 mt-4">
-                      <Label>Professional Summary</Label>
-                      <Textarea
-                        className="min-h-[280px] lg:min-h-[360px]"
-                        value={selected.content_json.summary || ''}
-                        onChange={(e) => updateContent({ summary: e.target.value })}
-                        placeholder="Write a concise summary of your background and strengths…"
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="skills" className="space-y-4 mt-4">
-                      <SkillChipsEditor
-                        label="Technical Skills (ATS keywords)"
-                        values={selected.content_json.skills?.technical || []}
-                        max={80}
-                        placeholder="Add technical/platform skills (comma separated)…"
-                        onChange={(next) =>
-                          updateContent({
-                            skills: {
-                              ...(selected.content_json.skills || {}),
-                              technical: next.slice(0, 80),
-                            },
-                          })
-                        }
-                      />
-                      <Separator />
-                      <SkillChipsEditor
-                        label="Leadership & Execution Skills (ATS keywords)"
-                        values={selected.content_json.skills?.soft || []}
-                        max={60}
-                        placeholder="Add leadership/soft skills (comma separated)…"
-                        onChange={(next) =>
-                          updateContent({
-                            skills: {
-                              ...(selected.content_json.skills || {}),
-                              soft: next.slice(0, 60),
-                            },
-                          })
-                        }
-                      />
-                      <CardDescription>
-                        Tip: if a JD keyword can’t be honestly shown in Experience bullets, keep it in Skills so ATS still matches it.
-                      </CardDescription>
-                    </TabsContent>
-
-                    <TabsContent value="experience" className="space-y-3 mt-4">
-                      <Textarea
-                        className="min-h-[360px] lg:min-h-[520px]"
-                        value={experienceDraft}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setExperienceDraft(next);
-                          if (expDraftTimerRef.current) window.clearTimeout(expDraftTimerRef.current);
-                          expDraftTimerRef.current = window.setTimeout(() => {
-                            // Minimal parser: split blocks by blank line, treat first line as header, rest as bullets.
-                            // We only update bullets; header edits are ignored to avoid accidental company/title rewrites.
-                            const blocks = String(next)
-                              .split(/\n\s*\n/g)
-                              .map((b) => b.trim())
-                              .filter(Boolean);
-                            const parsedBullets = blocks.map((b) => {
-                              const lines = b.split('\n').map((l) => l.trim()).filter(Boolean);
-                              const bullets = lines
-                                .slice(1)
-                                .map((l) => l.replace(/^[•\-\*]+\s*/, '').trim())
-                                .filter(Boolean);
-                              return bullets;
-                            });
-                            const current = Array.isArray(selected.content_json.experience) ? selected.content_json.experience : [];
-                            const merged = current.map((role, idx) => ({
-                              ...role,
-                              bullets: parsedBullets[idx] || role.bullets || [],
-                            }));
-                            updateContent({ experience: merged });
-                          }, 500);
-                        }}
-                        placeholder={`Director of Engineering — Walmart\n- Led ...\n- Built ...\n\nEngineering Manager — Fannie Mae\n- ...`}
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="education" className="space-y-2 mt-4">
-                      <Textarea
-                        className="min-h-[200px] lg:min-h-[260px]"
-                        value={educationDraft}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setEducationDraft(next);
-                          if (eduDraftTimerRef.current) window.clearTimeout(eduDraftTimerRef.current);
-                          eduDraftTimerRef.current = window.setTimeout(() => {
-                            const rows = String(next)
-                              .split('\n')
-                              .map((r) => r.trim())
-                              // Keep empty lines out of stored structure, but allow typing freely in the draft.
-                              .filter(Boolean)
-                              .slice(0, 30)
-                              .map((r) => ({ school: r }));
-                            updateContent({ education: rows });
-                          }, 500);
-                        }}
-                        placeholder="Executive MBA • George Mason University • 2020"
-                      />
-                      <CardDescription>Paste each education line on a new line.</CardDescription>
-                    </TabsContent>
-
-                    <TabsContent value="certs" className="space-y-2 mt-4">
-                      <Textarea
-                        className="min-h-[200px] lg:min-h-[260px]"
-                        value={certsDraft}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          setCertsDraft(next);
-                          if (certDraftTimerRef.current) window.clearTimeout(certDraftTimerRef.current);
-                          certDraftTimerRef.current = window.setTimeout(() => {
-                            updateContent({
-                              certifications: String(next)
-                                .split('\n')
-                                .map((r) => r.trim())
-                                .filter(Boolean)
-                                .slice(0, 50),
-                            });
-                          }, 500);
-                        }}
-                        placeholder="AWS Certified Solutions Architect\n…"
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="changes" className="space-y-4 mt-4">
-                      {!diffBaseResumeId ? (
-                        <div className="text-sm">
-                          Select a <span className="font-medium text-foreground">base resume</span> in the tailor section to compare changes.
-                        </div>
-                      ) : diffBaseLoading ? (
-                        <div className="text-sm">Loading base resume…</div>
-                      ) : !diff ? (
-                        <div className="text-sm">
-                          Could not compute changes (base resume text unavailable).
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm">
-                              Comparing <span className="font-medium text-foreground">{diffBaseLabel || 'Base resume'}</span> →{' '}
-                              <span className="font-medium text-foreground">{selected?.title || 'Current document'}</span>
-                            </div>
-                            <Button
-                              variant="outline"
-                              onClick={async () => {
-                                if (!selected) return;
-                                const blob = await generateDiffPdfBlob({
-                                  title: selected.title || 'Resume',
-                                  beforeText: diffBaseText,
-                                  afterText: diffAfterText,
-                                });
-                                downloadBlob(`${selected.title || 'resume'}-change-report.pdf`, blob);
-                                toast.success('Downloaded change report');
-                              }}
-                            >
-                              Download Change Report (PDF)
-                            </Button>
+                          <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-md p-2">
+                            {filteredJobs.length === 0 ? (
+                              <p className="text-sm text-center py-4">
+                                {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
+                              </p>
+                            ) : (
+                              filteredJobs.slice(0, 20).map((job) => (
+                                <div
+                                  key={job.id}
+                                  className={`p-3 rounded-md cursor-pointer transition-colors ${selectedJobId === job.id ? 'bg-primary/10 border border-primary' : 'bg-muted/50 hover:bg-muted'
+                                    }`}
+                                  onClick={() => handleJobSelect(job.id)}
+                                >
+                                  <p className="font-medium text-sm">{job.title}</p>
+                                  <p className="text-xs">
+                                    {job.organization_name} {job.location && `• ${job.location}`}
+                                  </p>
+                                </div>
+                              ))
+                            )}
                           </div>
+                          <div className="text-xs">Tip: you can edit the JD in “Paste JD” after selecting a job.</div>
+                        </TabsContent>
 
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <Card className="dash-card">
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base">Added</CardTitle>
-                                <CardDescription>{diff.added.length} lines</CardDescription>
-                              </CardHeader>
-                              <CardContent>
-                                <ScrollArea className="h-[240px]">
-                                  <div className="space-y-2">
-                                    {(diff.added.length ? diff.added : ['No additions detected.']).slice(0, 120).map((l, i) => (
-                                      <div key={i} className="text-sm">
-                                        <span className="text-success font-medium">+ </span>
-                                        <span className="">{l}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </ScrollArea>
-                              </CardContent>
-                            </Card>
+                        <TabsContent value="custom">
+                          <Textarea
+                            placeholder="Paste the job description here..."
+                            rows={10}
+                            value={jdText}
+                            onChange={(e) => setJdText(e.target.value)}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
 
-                            <Card className="dash-card">
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base">Removed</CardTitle>
-                                <CardDescription>{diff.removed.length} lines</CardDescription>
-                              </CardHeader>
-                              <CardContent>
-                                <ScrollArea className="h-[240px]">
-                                  <div className="space-y-2">
-                                    {(diff.removed.length ? diff.removed : ['No removals detected.']).slice(0, 120).map((l, i) => (
-                                      <div key={i} className="text-sm">
-                                        <span className="text-destructive font-medium">- </span>
-                                        <span className="">{l}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </ScrollArea>
-                              </CardContent>
-                            </Card>
-                          </div>
-
-                          <div className="text-xs">
-                            Note: this compares your current workspace document against the selected base resume. It’s not a PDF-to-PDF pixel diff.
-                          </div>
-                        </>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {(analysisScore != null ||
-          atsEstimate != null ||
-          missingVerbatimPhrases.length > 0 ||
-          keywordsMissing.length > 0 ||
-          defendWithLearning.length > 0 ||
-          visibleImprovements.length > 0 ||
-          Boolean(jdSkillExtraction) ||
-          notesAddedPhrases.length > 0) && (
-          <div className="space-y-6">
-            {/* Keep both panels the same compact height; list expands to fill whitespace but still scrolls */}
-            <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
-              <Card className="card-elevated lg:col-span-5 lg:h-[520px] flex flex-col">
-                <CardHeader>
-                  <CardTitle className="text-base">ATS outcomes</CardTitle>
-                  <CardDescription>What to change next to raise the canonical score.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
-                  <div>
-                    <div className="text-sm">Canonical score</div>
-                    <div className="text-4xl font-bold tracking-tight">{analysisScore != null ? `${Math.round(analysisScore)}%` : '—'}</div>
-                    <div className="mt-2">
-                      <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2" />
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Base resume</Label>
+                      <Select value={selectedBaseResumeId} onValueChange={(v) => setSelectedBaseResumeId(v)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a base resume" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {resumes.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {(r.is_primary ? '★ ' : '') + String(r.file_name || 'Resume')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="link" className="px-0" onClick={() => navigate('/candidate/resumes')}>
+                        Manage uploads in My Resumes →
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="">Keyword coverage</div>
-                      <div className="font-medium text-foreground">
-                        {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
-                        {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="">Model estimate</div>
-                      <div className="font-medium text-foreground">{atsEstimate != null ? `${Math.round(atsEstimate)}%` : '—'}</div>
-                    </div>
-                  </div>
-
-                  {(notesBaseMatchedCount != null || notesTailoredMatchedCount != null) && (
-                    <div className="text-sm">
-                      <span className="font-medium text-foreground">Coverage change:</span>{' '}
-                      Base {notesBaseMatchedCount ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'} → Tailored{' '}
-                      {notesTailoredMatchedCount ?? derivedKeywordMatched ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'}
-                    </div>
-                  )}
-
-                  <div className="text-sm">
-                    <div className="font-medium">3-step boost plan</div>
-                    <ol className="mt-2 list-decimal pl-5space-y-1">
-                      <li>Copy missing JD phrases (right panel) and paste them verbatim.</li>
-                      <li>Place them in Skills first; Summary second; bullets only if you can defend them.</li>
-                      <li>Regenerate (or run ATS Checkpoint) and repeat until you’re happy with coverage.</li>
-                    </ol>
-                  </div>
-
-                  <div className="rounded-md border bg-background p-3 text-sm">
-                    <div className="font-medium">Quick tips (high impact)</div>
-                    <ul className="mt-2 space-y-1">
-                      <li>
-                        <span className="text-foreground font-medium">Don’t add unverifiable claims.</span> If you can’t explain it in 60
-                        seconds with proof, skip it.
-                      </li>
-                      <li>
-                        <span className="text-foreground font-medium">Put phrases where recruiters expect them.</span> Skills first, Summary
-                        second, only then add to your most recent role bullets.
-                      </li>
-                      <li>
-                        <span className="text-foreground font-medium">Turn 1–2 phrases into evidence.</span> Add one concrete bullet with a
-                        metric (latency, cost, accuracy, volume, revenue).
-                      </li>
-                      <li>
-                        <span className="text-foreground font-medium">Re-run after edits.</span> Iterate until coverage is “good enough” for
-                        the jobs you’re targeting.
-                      </li>
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-elevated lg:col-span-7 lg:h-[520px] flex flex-col">
-                <CardHeader>
-                  <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
-                  <CardDescription>
-                    These phrases were not found verbatim in the resume text used for analysis. Add them naturally (best place: Skills).
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="relative w-full sm:max-w-[420px]">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                    <div className="space-y-2">
+                      <Label>Target role/title (required)</Label>
                       <Input
-                        value={missingPhraseQuery}
-                        onChange={(e) => setMissingPhraseQuery(e.target.value)}
-                        placeholder="Search missing phrases..."
-                        className="pl-9"
+                        value={targetTitle}
+                        onChange={(e) => setTargetTitle(e.target.value)}
+                        placeholder="e.g., Senior Director of Engineering"
+                      />
+                      <div className="text-xs">This becomes the saved resume name.</div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Additional preferences (optional)</Label>
+                      <Input
+                        value={additionalNotes}
+                        onChange={(e) => setAdditionalNotes(e.target.value)}
+                        placeholder="e.g., emphasize platform scaling, people leadership, cloud architecture…"
                       />
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => copyToClipboard(filteredMissingVerbatim.slice(0, 15).join('\n'))}
-                      disabled={filteredMissingVerbatim.length === 0}
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copy top 15
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button onClick={generateTailoredResume} disabled={isGenerating}>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      {isGenerating ? 'Generating…' : 'Generate tailored resume'}
                     </Button>
                   </div>
+                  {generateError ? <div className="text-sm text-destructive">{generateError}</div> : null}
+                </>
+              )}
+            </div>
+          </div>
 
-                  {filteredMissingVerbatim.length > 0 ? (
-                    <div className="flex flex-col flex-1 min-h-0 rounded-md border bg-background overflow-hidden">
-                      <ScrollArea className="flex-1 min-h-0 p-2">
-                        <div className="space-y-1">
-                          {filteredMissingVerbatim.slice(0, 60).map((p) => (
-                            <div key={p} className="flex items-start justify-between gap-3">
-                              <div className="text-[13px] leading-5">{p}</div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 p-0"
-                                onClick={() => copyToClipboard(p)}
-                                title="Copy"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
+          <div className="grid gap-6 lg:grid-cols-12 lg:min-h-[calc(100vh-360px)]">
+            {/* Left: docs list */}
+            {/* Left: docs list */}
+            <div className="glass-panel lg:col-span-4 flex flex-col p-0 overflow-hidden h-[600px] lg:h-auto border-white/10">
+              <div className="p-4 md:p-6 border-b border-white/10 bg-white/5">
+                <h3 className="font-display text-xl font-bold">My Resumes</h3>
+                <p className="text-sm text-muted-foreground">Saved, editable resumes from this workspace</p>
+              </div>
+              <div className="flex-1 min-h-0 bg-background/20 p-4">
+                <ScrollArea className="h-full pr-2">
+                  <div className="space-y-2">
+                    {docs.map((d) => (
+                      <div
+                        key={d.id}
+                        className={`group w-full rounded-md border p-3 transition ${d.id === selectedDocId ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'
+                          }`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedDocId(d.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && setSelectedDocId(d.id)}
+                      >
+                        <div className="min-w-0">
+                          <div className="text-[15px] font-semibold leading-5 line-clamp-1">{d.title}</div>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <div className="text-xsflex items-center gap-2 min-w-0">
+                              <Clock className="h-3 w-3" />
+                              <span className="truncate">{new Date(d.updated_at).toLocaleString()}</span>
                             </div>
-                          ))}
+                            <div
+                              className={`flex items-center gap-0.5 transition-opacity ${d.id === selectedDocId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                                }`}
+                            >
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void saveWorkspaceDocToMyResumes(d);
+                                    }}
+                                  >
+                                    <Save className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Save to My Resumes</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void downloadWorkspaceDocPdf(d);
+                                    }}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download PDF</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void downloadWorkspaceDocDocx(d);
+                                    }}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download DOCX</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void deleteWorkspaceDoc(d);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete</TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </div>
                         </div>
-                      </ScrollArea>
-                      <div className="border-t p-3 text-xs">
-                        Tip: add to Skills first; only add to bullets if you can defend it in interview.
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-sm">No missing phrases found.</div>
-                  )}
-                </CardContent>
-              </Card>
+                    ))}
+                    {docs.length === 0 && (
+                      <div className="text-sm">
+                        No resume documents yet. Click “New” to create your first one.
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
 
-            {(addedPhrasesClean.length > 0 ||
-              highRiskClaims.length > 0 ||
-              (analysisMatched.length + analysisMissing.length > 0) ||
-              responsibilityMap.length > 0) && (
-              <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle className="text-base">JD deconstruction + interview readiness</CardTitle>
-                  <CardDescription>
-                    Built from the JD + your tailored resume. Use this to improve ATS and prep stories before interviews.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue="deconstruct">
-                    <TabsList className="flex flex-wrap justify-start">
-                      <TabsTrigger value="deconstruct">1) JD deconstruction</TabsTrigger>
-                      <TabsTrigger value="ats">2) ATS gaps</TabsTrigger>
-                      <TabsTrigger value="resp">3) Responsibilities</TabsTrigger>
-                      <TabsTrigger value="delta">4) Delta skills</TabsTrigger>
-                      <TabsTrigger value="metrics">5) Metrics & red flags</TabsTrigger>
-                      <TabsTrigger value="prep">6) Interview prep</TabsTrigger>
-                    </TabsList>
+            {/* Center: editor */}
+            {/* Center: editor */}
+            <div className="glass-panel lg:col-span-8 flex flex-col p-6 border-white/10">
+              <div className="mb-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="font-display text-xl font-bold">Editor</h3>
+                    <p className="text-muted-foreground mt-1 line-clamp-1">
+                      {selected ? 'Edit sections and save. Use checkpoints for version history.' : 'Select a resume document'}
+                    </p>
+                  </div>
+                  {/* Delete moved to My Resumes list row actions */}
+                </div>
+              </div>
+              <div className="flex-1 min-h-0">
+                {!selected ? (
+                  <div className="text-sm">Select a document from the left.</div>
+                ) : (
+                  <>
+                    <div className="mb-2 text-sm">
+                      <span className="">Document:</span>{' '}
+                      <span className="font-medium text-foreground">{selected.title}</span>
+                      <span className="ml-3 text-xs">
+                        {isAutoSaving ? 'Saving…' : autoSaveError ? `Autosave failed: ${autoSaveError}` : lastAutoSavedAt ? 'Autosaved' : ''}
+                      </span>
+                    </div>
 
-                    <TabsContent value="deconstruct" className="mt-4 space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="rounded-md border bg-background p-3">
-                          <div className="text-sm font-medium">Hard skills (ATS keywords)</div>
-                          <div className="mt-2 space-y-2">
-                            {keywordInventory.must.length > 0 && (
-                              <div className="text-sm">
-                                <div className="font-medium text-foreground">Must-have</div>
-                                <div className="">{keywordInventory.must.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
-                              </div>
-                            )}
-                            {keywordInventory.nice.length > 0 && (
-                              <div className="text-sm">
-                                <div className="font-medium text-foreground">Nice-to-have</div>
-                                <div className="">{keywordInventory.nice.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
-                              </div>
-                            )}
+                    <Separator className="my-4" />
+
+                    <Tabs defaultValue="summary">
+                      <TabsList className="flex flex-wrap justify-start">
+                        <TabsTrigger value="contact">Contact</TabsTrigger>
+                        <TabsTrigger value="summary">Summary</TabsTrigger>
+                        <TabsTrigger value="skills">Skills</TabsTrigger>
+                        <TabsTrigger value="experience">Experience</TabsTrigger>
+                        <TabsTrigger value="education">Education</TabsTrigger>
+                        <TabsTrigger value="certs">Certifications</TabsTrigger>
+                        <TabsTrigger value="changes">Changes</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="contact" className="space-y-4 mt-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2 md:col-span-2">
+                            <Label>Applying title (saved resume name)</Label>
+                            <Input
+                              value={selected.title}
+                              onChange={(e) => updateSelected({ title: e.target.value })}
+                              placeholder="e.g., Senior Data Scientist"
+                            />
+                            <div className="text-xs">
+                              This is the workspace resume name and the export file name.
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Full name</Label>
+                            <Input
+                              value={String(selected.content_json?.contact?.full_name || '')}
+                              onChange={(e) => updateContactField('full_name', e.target.value)}
+                              placeholder="Full name"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Location</Label>
+                            <Input
+                              value={String(selected.content_json?.contact?.location || '')}
+                              onChange={(e) => updateContactField('location', e.target.value)}
+                              placeholder="City, State"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Phone</Label>
+                            <Input
+                              value={String(selected.content_json?.contact?.phone || '')}
+                              onChange={(e) => updateContactField('phone', e.target.value)}
+                              placeholder="Phone"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Email</Label>
+                            <Input
+                              value={String(selected.content_json?.contact?.email || '')}
+                              onChange={(e) => updateContactField('email', e.target.value)}
+                              placeholder="Email"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>LinkedIn URL</Label>
+                            <Input
+                              value={String(selected.content_json?.contact?.linkedin_url || '')}
+                              onChange={(e) => updateContactField('linkedin_url', e.target.value)}
+                              placeholder="linkedin.com/in/…"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>GitHub URL</Label>
+                            <Input
+                              value={String(selected.content_json?.contact?.github_url || '')}
+                              onChange={(e) => updateContactField('github_url', e.target.value)}
+                              placeholder="github.com/…"
+                            />
                           </div>
                         </div>
-                        <div className="rounded-md border bg-background p-3">
-                          <div className="text-sm font-medium">Seniority signals (what the JD implies)</div>
-                          <div className="mt-2 text-smspace-y-1">
-                            <div>Dial up: scope, decision-making, cross-functional leadership, scale/ownership.</div>
-                            <div>Dial down: vague buzzwords and org-specific claims that aren’t yours.</div>
-                            <div>Ensure Summary + most recent role reflect the JD’s level (strategy vs hands-on).</div>
+
+                        <div className="text-xs">
+                          Note: generating a new tailored resume overwrites contact info from the base resume facts. You can always edit here after
+                          generating.
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="summary" className="space-y-3 mt-4">
+                        <Label>Professional Summary</Label>
+                        <Textarea
+                          className="min-h-[280px] lg:min-h-[360px]"
+                          value={selected.content_json.summary || ''}
+                          onChange={(e) => updateContent({ summary: e.target.value })}
+                          placeholder="Write a concise summary of your background and strengths…"
+                        />
+                      </TabsContent>
+
+                      <TabsContent value="skills" className="space-y-4 mt-4">
+                        <SkillChipsEditor
+                          label="Technical Skills (ATS keywords)"
+                          values={selected.content_json.skills?.technical || []}
+                          max={80}
+                          placeholder="Add technical/platform skills (comma separated)…"
+                          onChange={(next) =>
+                            updateContent({
+                              skills: {
+                                ...(selected.content_json.skills || {}),
+                                technical: next.slice(0, 80),
+                              },
+                            })
+                          }
+                        />
+                        <Separator />
+                        <SkillChipsEditor
+                          label="Leadership & Execution Skills (ATS keywords)"
+                          values={selected.content_json.skills?.soft || []}
+                          max={60}
+                          placeholder="Add leadership/soft skills (comma separated)…"
+                          onChange={(next) =>
+                            updateContent({
+                              skills: {
+                                ...(selected.content_json.skills || {}),
+                                soft: next.slice(0, 60),
+                              },
+                            })
+                          }
+                        />
+                        <CardDescription>
+                          Tip: if a JD keyword can’t be honestly shown in Experience bullets, keep it in Skills so ATS still matches it.
+                        </CardDescription>
+                      </TabsContent>
+
+                      <TabsContent value="experience" className="space-y-3 mt-4">
+                        <Textarea
+                          className="min-h-[360px] lg:min-h-[520px]"
+                          value={experienceDraft}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setExperienceDraft(next);
+                            if (expDraftTimerRef.current) window.clearTimeout(expDraftTimerRef.current);
+                            expDraftTimerRef.current = window.setTimeout(() => {
+                              // Minimal parser: split blocks by blank line, treat first line as header, rest as bullets.
+                              // We only update bullets; header edits are ignored to avoid accidental company/title rewrites.
+                              const blocks = String(next)
+                                .split(/\n\s*\n/g)
+                                .map((b) => b.trim())
+                                .filter(Boolean);
+                              const parsedBullets = blocks.map((b) => {
+                                const lines = b.split('\n').map((l) => l.trim()).filter(Boolean);
+                                const bullets = lines
+                                  .slice(1)
+                                  .map((l) => l.replace(/^[•\-\*]+\s*/, '').trim())
+                                  .filter(Boolean);
+                                return bullets;
+                              });
+                              const current = Array.isArray(selected.content_json.experience) ? selected.content_json.experience : [];
+                              const merged = current.map((role, idx) => ({
+                                ...role,
+                                bullets: parsedBullets[idx] || role.bullets || [],
+                              }));
+                              updateContent({ experience: merged });
+                            }, 500);
+                          }}
+                          placeholder={`Director of Engineering — Walmart\n- Led ...\n- Built ...\n\nEngineering Manager — Fannie Mae\n- ...`}
+                        />
+                      </TabsContent>
+
+                      <TabsContent value="education" className="space-y-2 mt-4">
+                        <Textarea
+                          className="min-h-[200px] lg:min-h-[260px]"
+                          value={educationDraft}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setEducationDraft(next);
+                            if (eduDraftTimerRef.current) window.clearTimeout(eduDraftTimerRef.current);
+                            eduDraftTimerRef.current = window.setTimeout(() => {
+                              const rows = String(next)
+                                .split('\n')
+                                .map((r) => r.trim())
+                                // Keep empty lines out of stored structure, but allow typing freely in the draft.
+                                .filter(Boolean)
+                                .slice(0, 30)
+                                .map((r) => ({ school: r }));
+                              updateContent({ education: rows });
+                            }, 500);
+                          }}
+                          placeholder="Executive MBA • George Mason University • 2020"
+                        />
+                        <CardDescription>Paste each education line on a new line.</CardDescription>
+                      </TabsContent>
+
+                      <TabsContent value="certs" className="space-y-2 mt-4">
+                        <Textarea
+                          className="min-h-[200px] lg:min-h-[260px]"
+                          value={certsDraft}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setCertsDraft(next);
+                            if (certDraftTimerRef.current) window.clearTimeout(certDraftTimerRef.current);
+                            certDraftTimerRef.current = window.setTimeout(() => {
+                              updateContent({
+                                certifications: String(next)
+                                  .split('\n')
+                                  .map((r) => r.trim())
+                                  .filter(Boolean)
+                                  .slice(0, 50),
+                              });
+                            }, 500);
+                          }}
+                          placeholder="AWS Certified Solutions Architect\n…"
+                        />
+                      </TabsContent>
+
+                      <TabsContent value="changes" className="space-y-4 mt-4">
+                        {!diffBaseResumeId ? (
+                          <div className="text-sm">
+                            Select a <span className="font-medium text-foreground">base resume</span> in the tailor section to compare changes.
                           </div>
+                        ) : diffBaseLoading ? (
+                          <div className="text-sm">Loading base resume…</div>
+                        ) : !diff ? (
+                          <div className="text-sm">
+                            Could not compute changes (base resume text unavailable).
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="text-sm">
+                                Comparing <span className="font-medium text-foreground">{diffBaseLabel || 'Base resume'}</span> →{' '}
+                                <span className="font-medium text-foreground">{selected?.title || 'Current document'}</span>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={async () => {
+                                  if (!selected) return;
+                                  const blob = await generateDiffPdfBlob({
+                                    title: selected.title || 'Resume',
+                                    beforeText: diffBaseText,
+                                    afterText: diffAfterText,
+                                  });
+                                  downloadBlob(`${selected.title || 'resume'}-change-report.pdf`, blob);
+                                  toast.success('Downloaded change report');
+                                }}
+                              >
+                                Download Change Report (PDF)
+                              </Button>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <Card className="dash-card">
+                                <CardHeader className="pb-3">
+                                  <CardTitle className="text-base">Added</CardTitle>
+                                  <CardDescription>{diff.added.length} lines</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                  <ScrollArea className="h-[240px]">
+                                    <div className="space-y-2">
+                                      {(diff.added.length ? diff.added : ['No additions detected.']).slice(0, 120).map((l, i) => (
+                                        <div key={i} className="text-sm">
+                                          <span className="text-success font-medium">+ </span>
+                                          <span className="">{l}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </ScrollArea>
+                                </CardContent>
+                              </Card>
+
+                              <Card className="dash-card">
+                                <CardHeader className="pb-3">
+                                  <CardTitle className="text-base">Removed</CardTitle>
+                                  <CardDescription>{diff.removed.length} lines</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                  <ScrollArea className="h-[240px]">
+                                    <div className="space-y-2">
+                                      {(diff.removed.length ? diff.removed : ['No removals detected.']).slice(0, 120).map((l, i) => (
+                                        <div key={i} className="text-sm">
+                                          <span className="text-destructive font-medium">- </span>
+                                          <span className="">{l}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </ScrollArea>
+                                </CardContent>
+                              </Card>
+                            </div>
+
+                            <div className="text-xs">
+                              Note: this compares your current workspace document against the selected base resume. It’s not a PDF-to-PDF pixel diff.
+                            </div>
+                          </>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {(analysisScore != null ||
+            atsEstimate != null ||
+            missingVerbatimPhrases.length > 0 ||
+            keywordsMissing.length > 0 ||
+            defendWithLearning.length > 0 ||
+            visibleImprovements.length > 0 ||
+            Boolean(jdSkillExtraction) ||
+            notesAddedPhrases.length > 0) && (
+              <div className="space-y-6">
+                {/* Keep both panels the same compact height; list expands to fill whitespace but still scrolls */}
+                <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
+                  <Card className="card-elevated lg:col-span-5 lg:h-[520px] flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-base">ATS outcomes</CardTitle>
+                      <CardDescription>What to change next to raise the canonical score.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
+                      <div>
+                        <div className="text-sm">Canonical score</div>
+                        <div className="text-4xl font-bold tracking-tight">{analysisScore != null ? `${Math.round(analysisScore)}%` : '—'}</div>
+                        <div className="mt-2">
+                          <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2" />
                         </div>
                       </div>
-                    </TabsContent>
 
-                    <TabsContent value="ats" className="mt-4 space-y-3">
-                      <div className="rounded-md border bg-background p-3">
+                      <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className="text-sm font-medium">Keyword coverage</div>
-                            <div className="text-xs">Use exact JD wording; replace synonyms where possible.</div>
-                          </div>
-                          <div className="text-sm font-medium text-foreground">
+                          <div className="">Keyword coverage</div>
+                          <div className="font-medium text-foreground">
                             {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
                             {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
                           </div>
                         </div>
-                      </div>
-                      <div className="rounded-md border bg-background p-3 text-sm">
-                        <div className="font-medium">Keyword placement guidance</div>
-                        <ul className="mt-2 list-disc pl-5space-y-1">
-                          <li>Skills: tools/platforms/acronyms (verbatim)</li>
-                          <li>Summary: role-level responsibilities + domain</li>
-                          <li>Recent bullets: keywords tied to outcomes/metrics (recency bias)</li>
-                        </ul>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="resp" className="mt-4 space-y-3">
-                      <div className="text-sm font-medium">Responsibility coverage map</div>
-                      {responsibilityMap.length > 0 ? (
-                        <div className="rounded-md border bg-background overflow-auto">
-                          <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/30">
-                              <tr>
-                                <th className="text-left font-medium p-3 w-[45%]">JD responsibility</th>
-                                <th className="text-left font-medium p-3 w-[12%]">Coverage</th>
-                                <th className="text-left font-medium p-3">Resume evidence (best match)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {responsibilityMap.slice(0, 10).map((r) => (
-                                <tr key={r.responsibility} className="border-b last:border-b-0">
-                                  <td className="p-3 align-top">{r.responsibility}</td>
-                                  <td className="p-3 align-top">
-                                    <Badge
-                                      variant={r.status === 'Yes' ? 'default' : r.status === 'Partial' ? 'secondary' : 'outline'}
-                                    >
-                                      {r.status}
-                                    </Badge>
-                                  </td>
-                                  <td className="p-3 align-top">{r.evidence || '—'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="">Model estimate</div>
+                          <div className="font-medium text-foreground">{atsEstimate != null ? `${Math.round(atsEstimate)}%` : '—'}</div>
                         </div>
-                      ) : (
-                        <div className="rounded-md border bg-muted/20 p-3 text-sm">
-                          No responsibilities could be extracted yet. Paste a fuller JD (with responsibilities) and regenerate the tailored resume.
+                      </div>
+
+                      {(notesBaseMatchedCount != null || notesTailoredMatchedCount != null) && (
+                        <div className="text-sm">
+                          <span className="font-medium text-foreground">Coverage change:</span>{' '}
+                          Base {notesBaseMatchedCount ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'} → Tailored{' '}
+                          {notesTailoredMatchedCount ?? derivedKeywordMatched ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'}
                         </div>
                       )}
-                      <div className="text-xs">
-                        Use this table to decide what to expand in the most recent role, and which “Missing” items need an interview story (or should be
-                        removed).
-                      </div>
-                    </TabsContent>
 
-                    <TabsContent value="delta" className="mt-4 space-y-3">
-                      <div className="text-sm font-medium">Delta skills (what the JD emphasizes that isn’t verbatim in your resume)</div>
-                      <div className="rounded-md border bg-background overflow-auto">
-                        <table className="w-full text-sm">
-                          <thead className="border-b bg-muted/30">
-                            <tr>
-                              <th className="text-left font-medium p-3">Delta skill/phrase</th>
-                              <th className="text-left font-medium p-3 w-[16%]">Closeness</th>
-                              <th className="text-left font-medium p-3 w-[20%]">Placement</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {deltaSkills.slice(0, 12).map((d) => (
-                              <tr key={d.skill} className="border-b last:border-b-0">
-                                <td className="p-3">{d.skill}</td>
-                                <td className="p-3">
-                                  <Badge variant={d.closeness === 'Direct' ? 'default' : d.closeness === 'Adjacent' ? 'secondary' : 'outline'}>
-                                    {d.closeness}
-                                  </Badge>
-                                </td>
-                                <td className="p-3">{d.suggestedPlacement}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <div className="text-sm">
+                        <div className="font-medium">3-step boost plan</div>
+                        <ol className="mt-2 list-decimal pl-5space-y-1">
+                          <li>Copy missing JD phrases (right panel) and paste them verbatim.</li>
+                          <li>Place them in Skills first; Summary second; bullets only if you can defend them.</li>
+                          <li>Regenerate (or run ATS Checkpoint) and repeat until you’re happy with coverage.</li>
+                        </ol>
                       </div>
-                    </TabsContent>
 
-                    <TabsContent value="metrics" className="mt-4 space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="rounded-md border bg-background p-3">
-                          <div className="text-sm font-medium">Metrics strength</div>
-                          <div className="mt-2 text-sm">
-                            Metrics present: <span className="font-medium text-foreground">{metricsStrength.withM}</span>/
-                            <span className="font-medium text-foreground">{metricsStrength.total}</span> bullets (
-                            <span className="font-medium text-foreground">{metricsStrength.pct}%</span>)
-                          </div>
-                          {metricsStrength.weakRecent.length > 0 && (
-                            <div className="mt-3 text-sm">
-                              <div className="font-medium">Add metrics to these recent bullets</div>
-                              <ul className="mt-2 list-disc pl-5space-y-1">
-                                {metricsStrength.weakRecent.map((b, i) => (
-                                  <li key={i}>{String(b).slice(0, 180)}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                        <div className="rounded-md border bg-background p-3">
-                          <div className="text-sm font-medium">Red flags (ATS + human)</div>
-                          {redFlags.length > 0 ? (
-                            <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
-                              {redFlags.map((r, i) => (
-                                <li key={i}>{r}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="mt-2 text-sm">No obvious red flags detected.</div>
-                          )}
-                        </div>
+                      <div className="rounded-md border bg-background p-3 text-sm">
+                        <div className="font-medium">Quick tips (high impact)</div>
+                        <ul className="mt-2 space-y-1">
+                          <li>
+                            <span className="text-foreground font-medium">Don’t add unverifiable claims.</span> If you can’t explain it in 60
+                            seconds with proof, skip it.
+                          </li>
+                          <li>
+                            <span className="text-foreground font-medium">Put phrases where recruiters expect them.</span> Skills first, Summary
+                            second, only then add to your most recent role bullets.
+                          </li>
+                          <li>
+                            <span className="text-foreground font-medium">Turn 1–2 phrases into evidence.</span> Add one concrete bullet with a
+                            metric (latency, cost, accuracy, volume, revenue).
+                          </li>
+                          <li>
+                            <span className="text-foreground font-medium">Re-run after edits.</span> Iterate until coverage is “good enough” for
+                            the jobs you’re targeting.
+                          </li>
+                        </ul>
                       </div>
-                    </TabsContent>
+                    </CardContent>
+                  </Card>
 
-                    <TabsContent value="prep" className="mt-4 space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="rounded-md border bg-background p-3">
-                          <div className="text-sm font-medium">Responsibility-to-story map (what to prep)</div>
-                          <div className="text-xsmt-1">Prep STAR stories for Partial/Missing responsibilities you keep in the resume.</div>
-                          <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
-                            {responsibilityMap
-                              .filter((r) => r.status !== 'Yes')
-                              .slice(0, 8)
-                              .map((r) => (
-                                <li key={r.responsibility}>
-                                  <span className="font-medium text-foreground">{r.status}:</span> {r.responsibility}
-                                </li>
-                              ))}
-                          </ul>
+                  <Card className="card-elevated lg:col-span-7 lg:h-[520px] flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
+                      <CardDescription>
+                        These phrases were not found verbatim in the resume text used for analysis. Add them naturally (best place: Skills).
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="relative w-full sm:max-w-[420px]">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                          <Input
+                            value={missingPhraseQuery}
+                            onChange={(e) => setMissingPhraseQuery(e.target.value)}
+                            placeholder="Search missing phrases..."
+                            className="pl-9"
+                          />
                         </div>
-                        <div className="rounded-md border bg-background p-3">
-                          <div className="text-sm font-medium">Edits you must be able to defend (added vs base)</div>
-                          <div className="text-xsmt-1">If anything below isn’t true, remove it before exporting.</div>
-                          {addedPhrasesClean.length > 0 ? (
-                            <div className="mt-2 space-y-2">
-                              {addedPhrasesClean.slice(0, 10).map((p) => (
+                        <Button
+                          variant="outline"
+                          onClick={() => copyToClipboard(filteredMissingVerbatim.slice(0, 15).join('\n'))}
+                          disabled={filteredMissingVerbatim.length === 0}
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copy top 15
+                        </Button>
+                      </div>
+
+                      {filteredMissingVerbatim.length > 0 ? (
+                        <div className="flex flex-col flex-1 min-h-0 rounded-md border bg-background overflow-hidden">
+                          <ScrollArea className="flex-1 min-h-0 p-2">
+                            <div className="space-y-1">
+                              {filteredMissingVerbatim.slice(0, 60).map((p) => (
                                 <div key={p} className="flex items-start justify-between gap-3">
-                                  <div className="text-sm leading-6">{p}</div>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 p-0" onClick={() => copyToClipboard(p)} title="Copy">
+                                  <div className="text-[13px] leading-5">{p}</div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => copyToClipboard(p)}
+                                    title="Copy"
+                                  >
                                     <Copy className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ))}
                             </div>
-                          ) : (
-                            <div className="mt-2 text-sm">No tracked edits yet.</div>
-                          )}
-                          {prepFocus.length > 0 && (
-                            <div className="mt-4 text-sm">
-                              <div className="font-medium">Top interview focus areas (pick 5)</div>
-                              <div className="text-xsmt-1">For each: one STAR story + one metric + one trade-off.</div>
-                              <div className="mt-2">{prepFocus.slice(0, 5).join(' • ')}</div>
+                          </ScrollArea>
+                          <div className="border-t p-3 text-xs">
+                            Tip: add to Skills first; only add to bullets if you can defend it in interview.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm">No missing phrases found.</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {(addedPhrasesClean.length > 0 ||
+                  highRiskClaims.length > 0 ||
+                  (analysisMatched.length + analysisMissing.length > 0) ||
+                  responsibilityMap.length > 0) && (
+                    <Card className="card-elevated">
+                      <CardHeader>
+                        <CardTitle className="text-base">JD deconstruction + interview readiness</CardTitle>
+                        <CardDescription>
+                          Built from the JD + your tailored resume. Use this to improve ATS and prep stories before interviews.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Tabs defaultValue="deconstruct">
+                          <TabsList className="flex flex-wrap justify-start">
+                            <TabsTrigger value="deconstruct">1) JD deconstruction</TabsTrigger>
+                            <TabsTrigger value="ats">2) ATS gaps</TabsTrigger>
+                            <TabsTrigger value="resp">3) Responsibilities</TabsTrigger>
+                            <TabsTrigger value="delta">4) Delta skills</TabsTrigger>
+                            <TabsTrigger value="metrics">5) Metrics & red flags</TabsTrigger>
+                            <TabsTrigger value="prep">6) Interview prep</TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="deconstruct" className="mt-4 space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="rounded-md border bg-background p-3">
+                                <div className="text-sm font-medium">Hard skills (ATS keywords)</div>
+                                <div className="mt-2 space-y-2">
+                                  {keywordInventory.must.length > 0 && (
+                                    <div className="text-sm">
+                                      <div className="font-medium text-foreground">Must-have</div>
+                                      <div className="">{keywordInventory.must.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                                    </div>
+                                  )}
+                                  {keywordInventory.nice.length > 0 && (
+                                    <div className="text-sm">
+                                      <div className="font-medium text-foreground">Nice-to-have</div>
+                                      <div className="">{keywordInventory.nice.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="rounded-md border bg-background p-3">
+                                <div className="text-sm font-medium">Seniority signals (what the JD implies)</div>
+                                <div className="mt-2 text-smspace-y-1">
+                                  <div>Dial up: scope, decision-making, cross-functional leadership, scale/ownership.</div>
+                                  <div>Dial down: vague buzzwords and org-specific claims that aren’t yours.</div>
+                                  <div>Ensure Summary + most recent role reflect the JD’s level (strategy vs hands-on).</div>
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            )}
+                          </TabsContent>
 
-            {jdSkillExtraction && (
-              <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle className="text-base">JD skill extraction (quick map)</CardTitle>
-                  <CardDescription>Use this as a checklist for your Summary + Skills ordering.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  {[
-                    ['Core Technical Skills', jdSkillExtraction.core_technical_skills],
-                    ['Platform / Cloud / Tooling', jdSkillExtraction.platform_cloud_tooling],
-                    ['Architecture & Systems', jdSkillExtraction.architecture_systems],
-                    ['Leadership & Org Design', jdSkillExtraction.leadership_org_design],
-                    ['Business & Strategy', jdSkillExtraction.business_strategy],
-                  ]
-                    .filter(([, arr]: any) => Array.isArray(arr) && arr.length)
-                    .map(([label, arr]: any) => (
-                      <div key={label} className="space-y-2">
-                        <div className="text-sm font-medium">{label}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {(arr as any[]).slice(0, 18).map((t, i) => (
-                            <Badge key={`${label}-${i}`} variant="secondary">
-                              {cleanPhrase(t)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  {[
-                    jdSkillExtraction.core_technical_skills,
-                    jdSkillExtraction.platform_cloud_tooling,
-                    jdSkillExtraction.architecture_systems,
-                    jdSkillExtraction.leadership_org_design,
-                    jdSkillExtraction.business_strategy,
-                  ].every((a: any) => !Array.isArray(a) || a.length === 0) && (
-                    <div className="text-sm">No skill groups extracted.</div>
+                          <TabsContent value="ats" className="mt-4 space-y-3">
+                            <div className="rounded-md border bg-background p-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  <div className="text-sm font-medium">Keyword coverage</div>
+                                  <div className="text-xs">Use exact JD wording; replace synonyms where possible.</div>
+                                </div>
+                                <div className="text-sm font-medium text-foreground">
+                                  {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
+                                  {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="rounded-md border bg-background p-3 text-sm">
+                              <div className="font-medium">Keyword placement guidance</div>
+                              <ul className="mt-2 list-disc pl-5space-y-1">
+                                <li>Skills: tools/platforms/acronyms (verbatim)</li>
+                                <li>Summary: role-level responsibilities + domain</li>
+                                <li>Recent bullets: keywords tied to outcomes/metrics (recency bias)</li>
+                              </ul>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="resp" className="mt-4 space-y-3">
+                            <div className="text-sm font-medium">Responsibility coverage map</div>
+                            {responsibilityMap.length > 0 ? (
+                              <div className="rounded-md border bg-background overflow-auto">
+                                <table className="w-full text-sm">
+                                  <thead className="border-b bg-muted/30">
+                                    <tr>
+                                      <th className="text-left font-medium p-3 w-[45%]">JD responsibility</th>
+                                      <th className="text-left font-medium p-3 w-[12%]">Coverage</th>
+                                      <th className="text-left font-medium p-3">Resume evidence (best match)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {responsibilityMap.slice(0, 10).map((r) => (
+                                      <tr key={r.responsibility} className="border-b last:border-b-0">
+                                        <td className="p-3 align-top">{r.responsibility}</td>
+                                        <td className="p-3 align-top">
+                                          <Badge
+                                            variant={r.status === 'Yes' ? 'default' : r.status === 'Partial' ? 'secondary' : 'outline'}
+                                          >
+                                            {r.status}
+                                          </Badge>
+                                        </td>
+                                        <td className="p-3 align-top">{r.evidence || '—'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                                No responsibilities could be extracted yet. Paste a fuller JD (with responsibilities) and regenerate the tailored resume.
+                              </div>
+                            )}
+                            <div className="text-xs">
+                              Use this table to decide what to expand in the most recent role, and which “Missing” items need an interview story (or should be
+                              removed).
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="delta" className="mt-4 space-y-3">
+                            <div className="text-sm font-medium">Delta skills (what the JD emphasizes that isn’t verbatim in your resume)</div>
+                            <div className="rounded-md border bg-background overflow-auto">
+                              <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/30">
+                                  <tr>
+                                    <th className="text-left font-medium p-3">Delta skill/phrase</th>
+                                    <th className="text-left font-medium p-3 w-[16%]">Closeness</th>
+                                    <th className="text-left font-medium p-3 w-[20%]">Placement</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {deltaSkills.slice(0, 12).map((d) => (
+                                    <tr key={d.skill} className="border-b last:border-b-0">
+                                      <td className="p-3">{d.skill}</td>
+                                      <td className="p-3">
+                                        <Badge variant={d.closeness === 'Direct' ? 'default' : d.closeness === 'Adjacent' ? 'secondary' : 'outline'}>
+                                          {d.closeness}
+                                        </Badge>
+                                      </td>
+                                      <td className="p-3">{d.suggestedPlacement}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="metrics" className="mt-4 space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="rounded-md border bg-background p-3">
+                                <div className="text-sm font-medium">Metrics strength</div>
+                                <div className="mt-2 text-sm">
+                                  Metrics present: <span className="font-medium text-foreground">{metricsStrength.withM}</span>/
+                                  <span className="font-medium text-foreground">{metricsStrength.total}</span> bullets (
+                                  <span className="font-medium text-foreground">{metricsStrength.pct}%</span>)
+                                </div>
+                                {metricsStrength.weakRecent.length > 0 && (
+                                  <div className="mt-3 text-sm">
+                                    <div className="font-medium">Add metrics to these recent bullets</div>
+                                    <ul className="mt-2 list-disc pl-5space-y-1">
+                                      {metricsStrength.weakRecent.map((b, i) => (
+                                        <li key={i}>{String(b).slice(0, 180)}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="rounded-md border bg-background p-3">
+                                <div className="text-sm font-medium">Red flags (ATS + human)</div>
+                                {redFlags.length > 0 ? (
+                                  <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
+                                    {redFlags.map((r, i) => (
+                                      <li key={i}>{r}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="mt-2 text-sm">No obvious red flags detected.</div>
+                                )}
+                              </div>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="prep" className="mt-4 space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="rounded-md border bg-background p-3">
+                                <div className="text-sm font-medium">Responsibility-to-story map (what to prep)</div>
+                                <div className="text-xsmt-1">Prep STAR stories for Partial/Missing responsibilities you keep in the resume.</div>
+                                <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
+                                  {responsibilityMap
+                                    .filter((r) => r.status !== 'Yes')
+                                    .slice(0, 8)
+                                    .map((r) => (
+                                      <li key={r.responsibility}>
+                                        <span className="font-medium text-foreground">{r.status}:</span> {r.responsibility}
+                                      </li>
+                                    ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-md border bg-background p-3">
+                                <div className="text-sm font-medium">Edits you must be able to defend (added vs base)</div>
+                                <div className="text-xsmt-1">If anything below isn’t true, remove it before exporting.</div>
+                                {addedPhrasesClean.length > 0 ? (
+                                  <div className="mt-2 space-y-2">
+                                    {addedPhrasesClean.slice(0, 10).map((p) => (
+                                      <div key={p} className="flex items-start justify-between gap-3">
+                                        <div className="text-sm leading-6">{p}</div>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 p-0" onClick={() => copyToClipboard(p)} title="Copy">
+                                          <Copy className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 text-sm">No tracked edits yet.</div>
+                                )}
+                                {prepFocus.length > 0 && (
+                                  <div className="mt-4 text-sm">
+                                    <div className="font-medium">Top interview focus areas (pick 5)</div>
+                                    <div className="text-xsmt-1">For each: one STAR story + one metric + one trade-off.</div>
+                                    <div className="mt-2">{prepFocus.slice(0, 5).join(' • ')}</div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                      </CardContent>
+                    </Card>
                   )}
-                </CardContent>
-              </Card>
-            )}
 
-            {(visibleImprovements.length > 0 || debugImprovements.length > 0) && (
-              <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle className="text-base">Advanced</CardTitle>
-                  <CardDescription>Optional details for debugging and deep review.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Accordion type="single" collapsible>
-                    <AccordionItem value="diagnostics">
-                      <AccordionTrigger>Diagnostics</AccordionTrigger>
-                      <AccordionContent>
-                        {visibleImprovements.length > 0 && (
-                          <div className="text-sm">
-                            <div className="font-medium">Improvement ideas</div>
-                            <ul className="mt-2 list-disc pl-5space-y-1">
-                              {visibleImprovements.slice(0, 10).map((t, i) => (
-                                <li key={i}>{cleanPhrase(t)}</li>
+                {jdSkillExtraction && (
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base">JD skill extraction (quick map)</CardTitle>
+                      <CardDescription>Use this as a checklist for your Summary + Skills ordering.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                      {[
+                        ['Core Technical Skills', jdSkillExtraction.core_technical_skills],
+                        ['Platform / Cloud / Tooling', jdSkillExtraction.platform_cloud_tooling],
+                        ['Architecture & Systems', jdSkillExtraction.architecture_systems],
+                        ['Leadership & Org Design', jdSkillExtraction.leadership_org_design],
+                        ['Business & Strategy', jdSkillExtraction.business_strategy],
+                      ]
+                        .filter(([, arr]: any) => Array.isArray(arr) && arr.length)
+                        .map(([label, arr]: any) => (
+                          <div key={label} className="space-y-2">
+                            <div className="text-sm font-medium">{label}</div>
+                            <div className="flex flex-wrap gap-2">
+                              {(arr as any[]).slice(0, 18).map((t, i) => (
+                                <Badge key={`${label}-${i}`} variant="secondary">
+                                  {cleanPhrase(t)}
+                                </Badge>
                               ))}
-                            </ul>
+                            </div>
                           </div>
+                        ))}
+                      {[
+                        jdSkillExtraction.core_technical_skills,
+                        jdSkillExtraction.platform_cloud_tooling,
+                        jdSkillExtraction.architecture_systems,
+                        jdSkillExtraction.leadership_org_design,
+                        jdSkillExtraction.business_strategy,
+                      ].every((a: any) => !Array.isArray(a) || a.length === 0) && (
+                          <div className="text-sm">No skill groups extracted.</div>
                         )}
-                        {debugImprovements.length > 0 && (
-                          <div className="mt-4 text-xs">
-                            {debugImprovements.map((t, i) => (
-                              <div key={i}>{cleanPhrase(t)}</div>
-                            ))}
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {(visibleImprovements.length > 0 || debugImprovements.length > 0) && (
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="text-base">Advanced</CardTitle>
+                      <CardDescription>Optional details for debugging and deep review.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Accordion type="single" collapsible>
+                        <AccordionItem value="diagnostics">
+                          <AccordionTrigger>Diagnostics</AccordionTrigger>
+                          <AccordionContent>
+                            {visibleImprovements.length > 0 && (
+                              <div className="text-sm">
+                                <div className="font-medium">Improvement ideas</div>
+                                <ul className="mt-2 list-disc pl-5space-y-1">
+                                  {visibleImprovements.slice(0, 10).map((t, i) => (
+                                    <li key={i}>{cleanPhrase(t)}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {debugImprovements.length > 0 && (
+                              <div className="mt-4 text-xs">
+                                {debugImprovements.map((t, i) => (
+                                  <div key={i}>{cleanPhrase(t)}</div>
+                                ))}
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
-          </div>
-        )}
         </div>
       </TooltipProvider>
     </DashboardLayout>

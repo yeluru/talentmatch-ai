@@ -389,12 +389,12 @@ export default function AuthPage() {
         const redirectPath = role === 'super_admin'
           ? '/admin'
           : role === 'org_admin'
-          ? '/org-admin'
-          : role === 'candidate'
-          ? '/candidate'
-          : role === 'recruiter'
-          ? '/recruiter'
-          : '/manager';
+            ? '/org-admin'
+            : role === 'candidate'
+              ? '/candidate'
+              : role === 'recruiter'
+                ? '/recruiter'
+                : '/manager';
         navigate(redirectPath);
       }
     } catch (err) {
@@ -417,11 +417,11 @@ export default function AuthPage() {
       const inviteRedirectTo =
         isInviteFlow && inviteToken
           ? (() => {
-              const url = new URL(`${window.location.origin}/auth`);
-              url.searchParams.set('invite', inviteToken);
-              if (nextPath) url.searchParams.set('next', nextPath);
-              return url.toString();
-            })()
+            const url = new URL(`${window.location.origin}/auth`);
+            url.searchParams.set('invite', inviteToken);
+            if (nextPath) url.searchParams.set('next', nextPath);
+            return url.toString();
+          })()
           : undefined;
 
       // For invite signups, create the user and then claim the invite via RPC after sign-in.
@@ -505,10 +505,10 @@ export default function AuthPage() {
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       resetSchema.parse({ email: resetEmail });
-      
+
       const redirectTo = new URL(`${window.location.origin}/auth`);
       redirectTo.searchParams.set('reset', 'true');
       if (inviteToken) redirectTo.searchParams.set('invite', inviteToken);
@@ -517,7 +517,7 @@ export default function AuthPage() {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: redirectTo.toString(),
       });
-      
+
       if (error) {
         toast.error(error.message || 'Failed to send reset email');
       } else {
@@ -590,7 +590,7 @@ export default function AuthPage() {
               </Link>
             </div>
 
-            <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
+            <Card className="glass-panel border-white/5 shadow-2xl">
               <CardHeader>
                 <CardTitle className="text-2xl font-display">Set a new password</CardTitle>
                 <CardDescription>
@@ -628,7 +628,7 @@ export default function AuthPage() {
                     />
                   </div>
 
-                  <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
+                  <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Update password
                   </Button>
@@ -658,7 +658,7 @@ export default function AuthPage() {
     return (
       <div className="min-h-screen relative overflow-hidden bg-background">
         <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-        <div 
+        <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
@@ -667,10 +667,10 @@ export default function AuthPage() {
         />
         <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        
+
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <SEOHead 
-            title="Reset Password" 
+          <SEOHead
+            title="Reset Password"
             description="Reset your TalentMatch AI account password"
             noIndex
           />
@@ -681,7 +681,7 @@ export default function AuthPage() {
               </Link>
             </div>
 
-            <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
+            <Card className="glass-panel border-white/5 shadow-2xl">
               <CardHeader>
                 <Button
                   variant="ghost"
@@ -711,7 +711,7 @@ export default function AuthPage() {
                       required
                     />
                   </div>
-                  <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
+                  <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Send reset link
                   </Button>
@@ -729,7 +729,7 @@ export default function AuthPage() {
     return (
       <div className="min-h-screen relative overflow-hidden bg-background">
         <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-        <div 
+        <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
@@ -738,10 +738,10 @@ export default function AuthPage() {
         />
         <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        
+
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <SEOHead 
-            title="Check Your Email" 
+          <SEOHead
+            title="Check Your Email"
             description="Password reset email sent"
             noIndex
           />
@@ -752,7 +752,7 @@ export default function AuthPage() {
               </Link>
             </div>
 
-            <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
+            <Card className="glass-panel border-white/5 shadow-2xl">
               <CardContent className="pt-8 pb-8 text-center space-y-4">
                 <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
                   <Mail className="h-10 w-10 text-primary" />
@@ -763,15 +763,15 @@ export default function AuthPage() {
                 </CardDescription>
                 <p className="text-sm">
                   Didn't receive the email? Check your spam folder or{' '}
-                  <button 
+                  <button
                     className="text-primary hover:underline font-medium"
                     onClick={() => setAuthView('forgot-password')}
                   >
                     try again
                   </button>
                 </p>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="mt-4"
                   onClick={() => {
                     setAuthView('main');
@@ -792,7 +792,7 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-background">
       <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-      <div 
+      <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
@@ -801,10 +801,10 @@ export default function AuthPage() {
       />
       <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      
+
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <SEOHead 
-          title="Sign In" 
+        <SEOHead
+          title="Sign In"
           description="Sign in to your TalentMatch AI account to access AI-powered recruitment tools"
         />
         <div className="w-full max-w-md">
@@ -818,13 +818,13 @@ export default function AuthPage() {
             </p>
           </div>
 
-          <Card className="border border-border/50 shadow-2xl backdrop-blur-sm bg-card/80">
+          <Card className="glass-panel border-white/5 shadow-2xl">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'signup')}>
-              <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50">
-                <TabsTrigger value="signin" className="data-[state=active]:bg-background">Sign In</TabsTrigger>
-                <TabsTrigger value="signup" className="data-[state=active]:bg-background">Sign Up</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50 rounded-t-xl rounded-b-none">
+                <TabsTrigger value="signin" className="data-[state=active]:bg-background/80 data-[state=active]:shadow-sm">Sign In</TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-background/80 data-[state=active]:shadow-sm">Sign Up</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn}>
                   <CardHeader>
@@ -832,8 +832,8 @@ export default function AuthPage() {
                       {inviteDetails ? 'Welcome back' : 'Welcome back'}
                     </CardTitle>
                     <CardDescription>
-                      {inviteDetails 
-                        ? `Sign in to join ${inviteDetails.organizationName || 'the team'}` 
+                      {inviteDetails
+                        ? `Sign in to join ${inviteDetails.organizationName || 'the team'}`
                         : 'Sign in to your account'}
                     </CardDescription>
                   </CardHeader>
@@ -878,7 +878,7 @@ export default function AuthPage() {
                         placeholder="you@example.com"
                         value={signInData.email}
                         onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                        className={`h-12 ${inviteDetails ? 'bg-muted/50' : ''}`}
+                        className={`h-12 bg-white/5 data-[disabled]:opacity-50 ${inviteDetails ? 'bg-muted/50' : ''}`}
                         readOnly={!!inviteDetails}
                         disabled={!!inviteDetails}
                         required
@@ -901,26 +901,26 @@ export default function AuthPage() {
                         placeholder="••••••••"
                         value={signInData.password}
                         onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                        className="h-12"
+                        className="h-12 bg-white/5"
                         required
                       />
                     </div>
-                    <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
+                    <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
                       {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Sign In
                     </Button>
                   </CardContent>
                 </form>
               </TabsContent>
-              
+
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp}>
                   <CardHeader>
                     {inviteToken ? (
                       <>
                         <CardTitle className="text-2xl font-display">
-                          {inviteDetails?.organizationName 
-                            ? `Join ${inviteDetails.organizationName}` 
+                          {inviteDetails?.organizationName
+                            ? `Join ${inviteDetails.organizationName}`
                             : "You're invited"}
                         </CardTitle>
                         <CardDescription>Create your password to complete your account setup.</CardDescription>
@@ -962,7 +962,7 @@ export default function AuthPage() {
                         placeholder="John Doe"
                         value={signUpData.fullName}
                         onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
-                        className={`h-12 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
+                        className={`h-12 bg-white/5 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
                         required
                         maxLength={100}
                         readOnly={!!inviteDetails}
@@ -978,7 +978,7 @@ export default function AuthPage() {
                         placeholder="you@example.com"
                         value={signUpData.email}
                         onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                        className={`h-12 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
+                        className={`h-12 bg-white/5 ${inviteDetails ? 'bg-muted cursor-not-allowed' : ''}`}
                         required
                         maxLength={255}
                         readOnly={!!inviteDetails}
@@ -994,7 +994,7 @@ export default function AuthPage() {
                         placeholder="••••••••"
                         value={signUpData.password}
                         onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        className="h-12"
+                        className="h-12 bg-white/5"
                         required
                         minLength={8}
                         maxLength={72}
@@ -1011,7 +1011,7 @@ export default function AuthPage() {
                         value={signUpData.confirmPassword}
                         onChange={(e) =>
                           setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
-                        className="h-12"
+                        className="h-12 bg-white/5"
                         required
                         minLength={8}
                         maxLength={72}
@@ -1027,7 +1027,7 @@ export default function AuthPage() {
                             placeholder="8-character code"
                             value={signUpData.inviteCode}
                             onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value })}
-                            className="h-12"
+                            className="h-12 bg-white/5"
                             maxLength={20}
                           />
                           <p className="text-xs">
@@ -1053,9 +1053,7 @@ export default function AuthPage() {
                       </>
                     )}
 
-                    {/* Staff org creation removed for SaaS: invite-only staff roles */}
-
-                    <Button type="submit" variant="gradient" className="w-full h-12" disabled={isLoading}>
+                    <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
                       {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {inviteToken ? 'Complete Setup' : 'Create Account'}
                     </Button>
@@ -1065,7 +1063,7 @@ export default function AuthPage() {
             </Tabs>
           </Card>
 
-          <p className="text-center text-smmt-6">
+          <p className="text-center text-sm mt-6">
             By continuing, you agree to our{' '}
             <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
             {' '}and{' '}

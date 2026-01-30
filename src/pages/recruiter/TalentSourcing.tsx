@@ -94,7 +94,7 @@ export default function TalentSourcing() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const organizationId = orgIdForRecruiterSuite(roles);
-  
+
   // Determine active section from route pathname
   const pathname = location.pathname;
   // Legacy route: redirect to Talent Management landing
@@ -108,12 +108,12 @@ export default function TalentSourcing() {
       : pathname.includes('/api')
         ? 'api'
         : 'uploads'; // default
-  
+
   // Keep activeTab for backward compatibility with localStorage/URL params, but sync with route
   const [activeTab, setActiveTab] = useState<'resumes' | 'search' | 'api'>(
     currentSection === 'uploads' ? 'resumes' : currentSection === 'search' ? 'search' : 'api'
   );
-  
+
   // Sync activeTab with route when route changes
   useEffect(() => {
     if (currentSection === 'uploads' && activeTab !== 'resumes') setActiveTab('resumes');
@@ -259,15 +259,15 @@ export default function TalentSourcing() {
   // Skip until after URL/restore have run so we don't overwrite with initial state and cause tab flicker.
   useEffect(() => {
     if (!syncUrlAllowedRef.current) return;
-    
+
     const expectedPath = `/recruiter/talent-search/${currentSection}`;
     if (pathname !== expectedPath && !pathname.includes('/talent-sourcing')) {
       navigate(expectedPath, { replace: true });
     }
   }, [currentSection, pathname, navigate]);
 
-  const rowKey = useCallback((mode: 'web' | 'linkedin' | 'google', row: any, fallbackIndex: number) => {
-    if (mode === 'google') return String(row?.linkedin_url || `lead#${fallbackIndex}`);
+  const rowKey = useCallback((mode: 'web' | 'linkedin' | 'google' | 'basic' | 'deep', row: any, fallbackIndex: number) => {
+    if (mode === 'google' || mode === 'basic' || mode === 'deep') return String(row?.linkedin_url || `lead#${fallbackIndex}`);
     return String(row?.linkedin_url || row?.website || row?.source_url || `${row?.full_name || 'profile'}#${fallbackIndex}`);
   }, []);
 
@@ -1187,7 +1187,7 @@ export default function TalentSourcing() {
       fileName: f.name,
       status: 'pending'
     }));
-    
+
     // Append to existing results instead of replacing
     setUploadResults(prev => [...prev, ...newResults]);
     const startIndex = uploadResults.length;
@@ -1195,7 +1195,7 @@ export default function TalentSourcing() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const resultIndex = startIndex + i;
-      
+
       // Update to parsing
       updateResult(resultIndex, { status: 'parsing' });
 
@@ -1244,10 +1244,10 @@ export default function TalentSourcing() {
               error: undefined,
             });
           } catch (e: any) {
-          updateResult(resultIndex, { 
-            status: 'error', 
+            updateResult(resultIndex, {
+              status: 'error',
               error: `Duplicate rejected: This exact resume already exists in the system`,
-          });
+            });
           }
           continue; // Skip to next file
         }
@@ -1268,17 +1268,17 @@ export default function TalentSourcing() {
         }
 
         const parsed = parseData.parsed;
-        
+
         // Store the file hash for later use
         parsed._fileHash = fileHash;
-        
+
         // Update to importing
         updateResult(resultIndex, { status: 'importing', parsed, atsScore: parsed.ats_score });
 
         // Upload file to storage
         const fileExt = file.name.split('.').pop();
         const uniqueFileName = `sourced/${organizationId}/${crypto.randomUUID()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('resumes')
           .upload(uniqueFileName, file, {
@@ -1293,7 +1293,7 @@ export default function TalentSourcing() {
 
         // Auto-import the candidate with resume file info
         const { data: importData, error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
-          body: { 
+          body: {
             profiles: [{
               ...parsed,
               source: 'resume_upload',
@@ -1304,9 +1304,9 @@ export default function TalentSourcing() {
                 file_type: file.type || 'application/octet-stream',
                 content_hash: parsed._fileHash // Pass the pre-computed file hash
               }
-            }], 
-            organizationId, 
-            source: 'resume_upload' 
+            }],
+            organizationId,
+            source: 'resume_upload'
           }
         });
 
@@ -1314,7 +1314,7 @@ export default function TalentSourcing() {
           const msg = await getEdgeFunctionErrorMessage(importError);
           throw new Error(msg);
         }
-        
+
         // If the backend reported duplicates, treat as a non-fatal outcome (we re-link existing profiles).
         const relinked = Number((importData as any)?.results?.relinked ?? 0);
         const hasDuplicateError = (importData as any)?.results?.errors?.some((e: string) =>
@@ -1330,10 +1330,10 @@ export default function TalentSourcing() {
             error: undefined,
           });
         } else if (hasDuplicateError) {
-          updateResult(resultIndex, { 
-            status: 'error', 
+          updateResult(resultIndex, {
+            status: 'error',
             error: 'Duplicate resume: identical content already exists in the system',
-            parsed, 
+            parsed,
             atsScore: parsed.ats_score,
           });
         } else {
@@ -1349,7 +1349,7 @@ export default function TalentSourcing() {
 
     queryClient.invalidateQueries({ queryKey: ['candidates'] });
     if (organizationId) queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
-    
+
     // Reset input
     e.target.value = '';
   }, [organizationId, queryClient, uploadResults.length, setUploadResults, updateResult]);
@@ -1634,21 +1634,21 @@ export default function TalentSourcing() {
   const filteredLeadResults = !isLinkedInMode
     ? []
     : leadResults.filter((r) => {
-        const t = `${r.title || ''} ${r.snippet || ''} ${r.linkedin_url || ''}`.toLowerCase();
-        const keywords = leadKeywordFilters
-          .split(',')
-          .map(s => s.trim().toLowerCase())
-          .filter(Boolean)
-          .slice(0, 30);
-        const passKeywords = !keywords.length
-          ? true
-          : (leadKeywordMatch === 'all'
-            ? keywords.every(k => t.includes(k))
-            : keywords.some(k => t.includes(k)));
-        const score = typeof r.match_score === 'number' ? r.match_score : 0;
-        const passScore = !Number.isFinite(leadMinScore) || score >= leadMinScore;
-        return passKeywords && passScore;
-      });
+      const t = `${r.title || ''} ${r.snippet || ''} ${r.linkedin_url || ''}`.toLowerCase();
+      const keywords = leadKeywordFilters
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 30);
+      const passKeywords = !keywords.length
+        ? true
+        : (leadKeywordMatch === 'all'
+          ? keywords.every(k => t.includes(k))
+          : keywords.some(k => t.includes(k)));
+      const score = typeof r.match_score === 'number' ? r.match_score : 0;
+      const passScore = !Number.isFinite(leadMinScore) || score >= leadMinScore;
+      return passKeywords && passScore;
+    });
 
   const googleFilteredCount = isLinkedInMode ? filteredLeadResults.length : 0;
   // Deep Search (Serp API): show one page at a time; Basic exhaustive: same. Page size for Serp API is 20.
@@ -2270,9 +2270,8 @@ export default function TalentSourcing() {
               return (
                 <div
                   key={key}
-                  className={`flex items-center gap-2 py-1 px-2 rounded border text-xs transition-colors ${
-                    i % 2 === 1 ? 'bg-secondary/50 hover:bg-secondary/70' : 'hover:bg-muted/40'
-                  }`}
+                  className={`flex items-center gap-2 py-1 px-2 rounded border text-xs transition-colors ${i % 2 === 1 ? 'bg-secondary/50 hover:bg-secondary/70' : 'hover:bg-muted/40'
+                    }`}
                 >
                   <Checkbox
                     checked={isSelected}
@@ -2331,7 +2330,7 @@ export default function TalentSourcing() {
 
   // Determine page title based on section
   const pageTitle = currentSection === 'uploads' ? 'Bulk Upload Profiles' : currentSection === 'search' ? 'Talent Search' : 'API Integration';
-  const pageDescription = currentSection === 'uploads' 
+  const pageDescription = currentSection === 'uploads'
     ? 'Upload resumes to parse, score, and import'
     : currentSection === 'search'
       ? 'Search and preview candidates'
@@ -2340,26 +2339,23 @@ export default function TalentSourcing() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold">{pageTitle}</h1>
-            <p className="mt-1">
-              {pageDescription}
-            </p>
-          </div>
-          <Button asChild size="default" className="shrink-0">
-            <Link to="/recruiter/talent-pool">
-              <Users className="h-4 w-4 mr-2" />
-              Browse Talent Pool
-            </Link>
-          </Button>
+        <div>
+          <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Globe className="h-8 w-8 text-primary" />
+            </div>
+            <span className="text-gradient-premium">Talent Sourcing</span>
+          </h1>
+          <p className="mt-2 text-muted-foreground text-lg">
+            Source candidates from resumes, web search, and LinkedIn
+          </p>
         </div>
 
         {/* Single column: inputs on top */}
         <Card className="min-w-0">
           <CardContent className="pt-6 p-4">
-              {/* Uploads Section */}
-              {currentSection === 'uploads' && (
+            {/* Uploads Section */}
+            {currentSection === 'uploads' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm">
                   <FileText className="h-4 w-4" />
@@ -2384,10 +2380,10 @@ export default function TalentSourcing() {
                   </label>
                 </div>
               </div>
-              )}
+            )}
 
-              {/* Search Section */}
-              {currentSection === 'search' && (
+            {/* Search Section */}
+            {currentSection === 'search' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm">
                   <Globe className="h-4 w-4" />
@@ -2403,11 +2399,10 @@ export default function TalentSourcing() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSearchMode('web')}
-                        className={`h-8 px-3 ${
-                          searchMode === 'web'
-                            ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
-                            : ' hover:text-foreground'
-                        }`}
+                        className={`h-8 px-3 ${searchMode === 'web'
+                          ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
+                          : ' hover:text-foreground'
+                          }`}
                       >
                         <Globe className="h-4 w-4 mr-2" />
                         Web Search
@@ -2417,11 +2412,10 @@ export default function TalentSourcing() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSearchMode('basic')}
-                        className={`h-8 px-3 ${
-                          searchMode === 'basic'
-                            ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
-                            : ' hover:text-foreground'
-                        }`}
+                        className={`h-8 px-3 ${searchMode === 'basic'
+                          ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
+                          : ' hover:text-foreground'
+                          }`}
                       >
                         <Linkedin className="h-4 w-4 mr-2" />
                         Google X-Ray
@@ -2431,11 +2425,10 @@ export default function TalentSourcing() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSearchMode('deep')}
-                        className={`h-8 px-3 ${
-                          searchMode === 'deep'
-                            ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
-                            : ' hover:text-foreground'
-                        }`}
+                        className={`h-8 px-3 ${searchMode === 'deep'
+                          ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
+                          : ' hover:text-foreground'
+                          }`}
                       >
                         <Linkedin className="h-4 w-4 mr-2" />
                         Serp Search
@@ -2548,10 +2541,10 @@ export default function TalentSourcing() {
                   )}
                 </div>
               </div>
-              )}
+            )}
 
-              {/* API Section */}
-              {currentSection === 'api' && (
+            {/* API Section */}
+            {currentSection === 'api' && (
               <div className="space-y-4">
                 <div className="text-center py-6">
                   <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-50" />
@@ -2559,9 +2552,9 @@ export default function TalentSourcing() {
                   <p className="text-sm mt-1">Connect to job boards, ATS, and approved data providers</p>
                 </div>
               </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
         {currentSection === 'search' && searchMode !== 'web' && (
           <div className="rounded-xl border bg-background p-3 space-y-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2958,13 +2951,13 @@ export default function TalentSourcing() {
                                             const defaults =
                                               kind === 'location'
                                                 ? (googleUSOnly
-                                                  ? ['California','New York','Texas','Florida','Washington','Massachusetts','Illinois','New Jersey','Pennsylvania','Georgia','North Carolina','Virginia','Colorado','Arizona','Michigan','Ohio','Minnesota','Tennessee','Oregon','Maryland']
-                                                  : ['London','Toronto','Vancouver','Dublin','Berlin','Amsterdam','Paris','Singapore','Sydney','Melbourne','Bangalore','Hyderabad'])
+                                                  ? ['California', 'New York', 'Texas', 'Florida', 'Washington', 'Massachusetts', 'Illinois', 'New Jersey', 'Pennsylvania', 'Georgia', 'North Carolina', 'Virginia', 'Colorado', 'Arizona', 'Michigan', 'Ohio', 'Minnesota', 'Tennessee', 'Oregon', 'Maryland']
+                                                  : ['London', 'Toronto', 'Vancouver', 'Dublin', 'Berlin', 'Amsterdam', 'Paris', 'Singapore', 'Sydney', 'Melbourne', 'Bangalore', 'Hyderabad'])
                                                 : kind === 'industry'
-                                                  ? ['FinTech','Healthcare','SaaS','E-commerce','Cybersecurity','Robotics','EdTech','Biotech','Climate','AI']
+                                                  ? ['FinTech', 'Healthcare', 'SaaS', 'E-commerce', 'Cybersecurity', 'Robotics', 'EdTech', 'Biotech', 'Climate', 'AI']
                                                   : kind === 'skill'
-                                                    ? ['SQL','Pandas','NumPy','scikit-learn','TensorFlow','PyTorch','Spark','AWS']
-                                                    : ['Data Scientist','Data Analyst','Machine Learning Engineer','Applied Scientist','Analytics Engineer','Research Scientist'];
+                                                    ? ['SQL', 'Pandas', 'NumPy', 'scikit-learn', 'TensorFlow', 'PyTorch', 'Spark', 'AWS']
+                                                    : ['Data Scientist', 'Data Analyst', 'Machine Learning Engineer', 'Applied Scientist', 'Analytics Engineer', 'Research Scientist'];
 
                                             setGoogleExhaustiveBucketKind(kind === 'auto' ? null : (kind as any));
                                             setGoogleExhaustiveBuckets(defaults);
@@ -3488,13 +3481,12 @@ export default function TalentSourcing() {
                   {uploadResults.map((item, i) => (
                     <div
                       key={i}
-                      className={`flex items-center gap-3 p-3 rounded-lg border ${
-                        item.status === 'done'
-                          ? 'bg-green-50 dark:bg-green-950/20 border-green-200'
-                          : item.status === 'error'
-                            ? 'bg-red-50 dark:bg-red-950/20 border-red-200'
-                            : 'bg-muted/50'
-                      }`}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${item.status === 'done'
+                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200'
+                        : item.status === 'error'
+                          ? 'bg-red-50 dark:bg-red-950/20 border-red-200'
+                          : 'bg-muted/50'
+                        }`}
                     >
                       {item.status === 'pending' && <div className="h-5 w-5 rounded-full bg-muted" />}
                       {item.status === 'parsing' && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}

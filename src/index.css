@@ -1,153 +1,142 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* TalentMatch - Modern Minimalist Design System
-   Purple/Violet palette with clean aesthetics
-*/
+/* TalentMatch - Premium Digital Experience Design System */
 
 @layer base {
   :root {
-    /* Ultrahire Theme (Ashby-inspired): crisp neutrals + restrained accent */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
-    
+    /* Light Mode: Clean, Sharp, with Electric Accents */
+    --background: 210 30% 98%;
+    /* Slightly enhanced cool gray */
+    --foreground: 222 47% 10%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    
+    --card-foreground: 222 47% 10%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    
-    /* Primary - near-black */
-    --primary: 222 47% 11%;
-    --primary-foreground: 0 0% 100%;
-    
-    /* Secondary - soft surface */
+    --popover-foreground: 222 47% 10%;
+
+    --primary: 222 47% 10%;
+    --primary-foreground: 210 40% 98%;
+
     --secondary: 210 20% 96%;
     --secondary-foreground: 222 47% 11%;
-    
-    /* Muted tones */
+
     --muted: 210 20% 96%;
-    --muted-foreground: 220 9% 46%;
-    
-    /* Accent - restrained indigo/violet */
-    --accent: 255 85% 58%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent: A more vibrant, digital violet-indigo */
+    --accent: 250 95% 64%;
     --accent-foreground: 0 0% 100%;
-    
-    /* Semantic colors */
-    --destructive: 0 84% 60%;
+
+    --destructive: 346 84% 61%;
     --destructive-foreground: 0 0% 100%;
-    
-    --success: 142 71% 45%;
+
+    --success: 152 76% 36%;
+    /* Proper emerald green */
     --success-foreground: 0 0% 100%;
-    
-    --warning: 38 92% 50%;
+
+    --warning: 40 96% 51%;
     --warning-foreground: 222 47% 11%;
-    
-    --info: 199 89% 48%;
+
+    --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
-    
-    /* UI elements */
+
     --border: 220 13% 90%;
-    --input: 220 13% 88%;
-    --ring: 255 85% 58%;
-    
-    /* Slightly rounder than default shadcn */
-    --radius: 0.75rem;
-    
-    /* Role colors */
-    --candidate: 199 89% 48%;
+    --input: 220 13% 90%;
+    --ring: 250 95% 64%;
+
+    --radius: 1rem;
+    /* More rounded, modern feel */
+
+    /* Persona-specific colors, refined */
+    --candidate: 217 91% 60%;
+    /* Bright Blue */
     --candidate-foreground: 0 0% 100%;
-    --recruiter: 271 81% 56%;
+
+    --recruiter: 262 83% 58%;
+    /* Rich Purple */
     --recruiter-foreground: 0 0% 100%;
-    --manager: 45 93% 47%;
-    --manager-foreground: 222 47% 11%;
-    
-    /* Gradients - subtle, product-like */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(222 47% 16%) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 99%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(210 20% 98%) 0%, hsl(210 20% 96%) 100%);
-    --gradient-glass: linear-gradient(135deg, hsla(0, 0%, 100%, 0.9) 0%, hsla(210, 20%, 98%, 0.85) 100%);
-    
-    /* Audience gradients */
-    --gradient-candidate: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(199 85% 55%) 100%);
-    --gradient-recruiter: linear-gradient(135deg, hsl(271 81% 56%) 0%, hsl(280 75% 62%) 100%);
-    --gradient-manager: linear-gradient(135deg, hsl(45 93% 47%) 0%, hsl(40 90% 52%) 100%);
-    
-    /* Shadows - lighter + “crisper” */
-    --shadow-xs: 0 1px 2px 0 hsl(222 47% 11% / 0.03);
-    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05), 0 1px 1px -1px hsl(222 47% 11% / 0.05);
-    --shadow-md: 0 6px 14px -10px hsl(222 47% 11% / 0.18);
-    --shadow-lg: 0 14px 28px -18px hsl(222 47% 11% / 0.22);
-    --shadow-xl: 0 24px 48px -24px hsl(222 47% 11% / 0.28);
-    --shadow-2xl: 0 40px 70px -36px hsl(222 47% 11% / 0.35);
-    --shadow-glow: 0 0 22px hsl(var(--accent) / 0.14);
-    --shadow-glow-lg: 0 0 46px hsl(var(--accent) / 0.18);
-    --shadow-card: 0 1px 2px hsl(222 47% 11% / 0.05);
-    --shadow-card-hover: 0 18px 40px -28px hsl(222 47% 11% / 0.35);
-    
-    /* Sidebar */
-    /* Light mode sidebar should feel like the home page: clean, bright, and minimal. */
+
+    --manager: 32 95% 44%;
+    /* Deep Orange */
+    --manager-foreground: 0 0% 100%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(250 95% 64%) 0%, hsl(270 95% 60%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(210 30% 98%) 0%, hsl(230 40% 96%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsla(0, 0%, 100%, 0.8) 0%, hsla(0, 0%, 100%, 0.4) 100%);
+    --gradient-mesh: radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+
+    /* Refined Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --shadow-glow: 0 0 20px hsl(var(--accent) / 0.3);
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 222 47% 20%;
+    --sidebar-primary: 250 95% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent: 210 20% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 222 47% 20%;
-    
-    /* Match score colors */
-    --score-excellent: 142 71% 45%;
-    --score-good: 199 89% 48%;
-    --score-fair: 38 92% 50%;
-    --score-poor: 0 84% 60%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 250 95% 64%;
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 0 0% 98%;
-    
-    --card: 222 40% 12%;
-    --card-foreground: 0 0% 98%;
-    
-    --popover: 222 40% 12%;
-    --popover-foreground: 0 0% 98%;
-    
-    --primary: 45 93% 55%;
-    --primary-foreground: 222 47% 11%;
-    
-    --secondary: 222 30% 18%;
-    --secondary-foreground: 0 0% 98%;
-    
-    --muted: 222 25% 16%;
-    --muted-foreground: 220 10% 55%;
-    
-    --accent: 45 93% 55%;
-    --accent-foreground: 222 47% 11%;
-    
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --success: 142 71% 50%;
+    /* Dark Mode: Deep Void with Neon Accents */
+    --background: 230 25% 10%;
+    /* Deep navy/charcoal */
+    --foreground: 210 40% 98%;
+
+    --card: 230 25% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 230 25% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 250 95% 70%;
+    /* Lighter, glowing accent for primary actions in dark mode */
+    --primary-foreground: 230 25% 10%;
+
+    --secondary: 230 20% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 230 20% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 250 95% 64%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 346 84% 61%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 70% 50%;
     --success-foreground: 0 0% 100%;
-    
-    --border: 222 25% 22%;
-    --input: 222 25% 22%;
-    --ring: 45 93% 55%;
-    
-    --shadow-glow: 0 0 20px hsl(45 93% 55% / 0.2);
-    
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 45 93% 55%;
-    --sidebar-primary-foreground: 222 47% 8%;
-    --sidebar-accent: 222 35% 14%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 222 25% 16%;
+
+    --warning: 40 96% 51%;
+    --warning-foreground: 230 25% 10%;
+
+    --border: 230 20% 20%;
+    --input: 230 20% 20%;
+    --ring: 250 95% 64%;
+
+    --sidebar-background: 230 25% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 250 95% 70%;
+    --sidebar-primary-foreground: 230 25% 10%;
+    --sidebar-accent: 230 20% 14%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 230 20% 18%;
+
+    --shadow-glow: 0 0 30px hsl(250 95% 64% / 0.15);
   }
 }
 
@@ -157,273 +146,153 @@
   }
 
   html {
-    @apply scroll-smooth overflow-x-hidden overflow-y-auto;
-    width: 100%;
-    max-width: 100%;
-    /* Global typography scale: slightly larger base to improve readability across the app.
-       Tailwind font sizes are rem-based, so this scales the whole UI consistently. */
-    font-size: 17px;
-  }
-
-  @media (max-width: 640px) {
-    html {
-      font-size: 16px;
-    }
+    @apply scroll-smooth;
   }
 
   body {
-    @apply bg-background text-foreground antialiased overflow-x-hidden overflow-y-auto;
-    width: 100%;
-    max-width: 100%;
-    font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+    @apply bg-background text-foreground antialiased selection:bg-accent/20 selection:text-accent font-sans;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
   }
 
-  #root {
-    width: 100%;
-    max-width: 100%;
-    min-height: 100vh;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight text-balance;
   }
 }
 
 @layer components {
-  /* Gradient text effects */
-  .gradient-text {
-    @apply bg-clip-text text-transparent;
-    background-image: var(--gradient-primary);
-  }
-  
-  /* Hero section styles */
-  .hero-gradient {
-    background: var(--gradient-hero);
-    @apply relative overflow-hidden;
-  }
-  
-  .hero-gradient::before {
-    content: '';
-    @apply absolute inset-0 opacity-10;
-    background: radial-gradient(ellipse 50% 30% at 50% 0%, hsl(45 93% 47% / 0.2), transparent);
-  }
-  
-  /* Glass morphism */
-  .glass {
-    @apply backdrop-blur-xl border border-white/20;
-    background: hsla(0, 0%, 100%, 0.8);
-  }
-  
-  .dark .glass {
-    background: hsla(262, 25%, 10%, 0.8);
-    @apply border-white/10;
-  }
-  
-  /* Native app-like cards */
-  .card-elevated {
-    @apply bg-card rounded-2xl border transition-all duration-300;
-    box-shadow: var(--shadow-card);
-  }
-  
-  .card-elevated:hover {
-    box-shadow: var(--shadow-card-hover);
-    @apply -translate-y-1;
-  }
-  
-  .card-interactive {
-    @apply transition-all duration-300 ease-out cursor-pointer;
-    box-shadow: var(--shadow-card);
-  }
-  
-  .card-interactive:hover {
-    @apply -translate-y-1;
-    box-shadow: var(--shadow-card-hover);
-  }
-  
-  /* Feature cards with glow */
-  .feature-card {
-    @apply relative bg-card rounded-2xl border p-6 overflow-hidden;
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .feature-card::before {
-    content: '';
-    @apply absolute -top-24 -right-24 w-48 h-48 opacity-[0.03] rounded-full;
-    background: var(--gradient-primary);
-  }
-  
-  /* Role-specific styles */
-  .role-candidate {
-    @apply bg-candidate/10 text-candidate;
-  }
-  
-  .role-recruiter {
-    @apply bg-recruiter/10 text-recruiter;
-  }
-  
-  .role-manager {
-    @apply bg-manager/10 text-manager;
-  }
-  
-  /* Score badges */
-  .score-badge {
-    @apply inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium;
-  }
-  
-  .score-excellent { @apply bg-success/10 text-success; }
-  .score-good { @apply bg-info/10 text-info; }
-  .score-fair { @apply bg-warning/10 text-warning; }
-  .score-poor { @apply bg-destructive/10 text-destructive; }
-  
-  /* Stat cards */
-  .stat-card {
-    @apply relative overflow-hidden rounded-2xl p-6 bg-card;
-  }
-  
-  /* Pipeline stages */
-  .stage-applied { @apply bg-info/10 text-info border-info/20; }
-  .stage-reviewed { @apply bg-primary/10 text-primary border-primary/20; }
-  .stage-reviewing { @apply bg-primary/10 text-primary border-primary/20; }
-  .stage-screening { @apply bg-warning/10 text-warning border-warning/20; }
-  .stage-shortlisted { @apply bg-success/10 text-success border-success/20; }
-  .stage-interviewing { @apply bg-warning/10 text-warning border-warning/20; }
-  .stage-offered { @apply bg-accent/10 text-accent border-accent/20; }
-  .stage-hired { @apply bg-success/10 text-success border-success/20; }
-  .stage-rejected { @apply bg-destructive/10 text-destructive border-destructive/20; }
-  
-  /* Floating navigation */
-  .nav-floating {
-    @apply fixed top-4 left-1/2 -translate-x-1/2 z-50;
-    @apply px-2 py-2 rounded-full;
-    @apply backdrop-blur-xl bg-background/80 border shadow-lg;
-  }
-  
-  /* Section containers */
-  .section-container {
-    @apply py-20 md:py-28;
+
+  /* Premium Text Gradient */
+  .text-gradient-premium {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-gradient-xy bg-[length:200%_auto];
   }
 
-  /* Dashboard background: subtle “premium app” texture (light + dark) */
-  .dashboard-bg {
-    background: var(--gradient-subtle);
+  /* Glass Card - Modern Frosted Effect */
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/70 dark:bg-black/40 border border-white/20 dark:border-white/10 shadow-xl;
+  }
+
+  .glass-panel {
+    @apply backdrop-blur-2xl bg-white/80 dark:bg-[#1A1F36]/80 border border-white/30 dark:border-white/5;
+  }
+
+  /* Buttons */
+  .btn-primary-glow {
+    @apply relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_20px_hsl(var(--accent)/0.5)] hover:-translate-y-0.5;
+  }
+
+  .btn-primary-glow::after {
+    content: '';
+    @apply absolute inset-0 bg-white/20 translate-y-full transition-transform duration-300;
+  }
+
+  .btn-primary-glow:hover::after {
+    @apply translate-y-0;
+  }
+
+  /* Mesh Gradients for Backgrounds */
+  .mesh-gradient-bg {
+    background-color: hsla(0, 100%, 50%, 0);
     background-image:
-      radial-gradient(ellipse at top, hsl(var(--accent) / 0.10), transparent 55%),
-      radial-gradient(ellipse at bottom, hsl(var(--primary) / 0.08), transparent 55%),
-      radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.05) 1px, transparent 0);
-    background-size: auto, auto, 24px 24px;
+      radial-gradient(at 10% 10%, hsla(253, 91%, 75%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 90% 10%, hsla(300, 91%, 70%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, hsla(220, 91%, 80%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 10% 90%, hsla(200, 91%, 70%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 90% 90%, hsla(280, 91%, 75%, 0.15) 0px, transparent 50%);
   }
 
-  .dark .dashboard-bg {
+  .dark .mesh-gradient-bg {
     background-image:
-      radial-gradient(ellipse at top, hsl(var(--accent) / 0.12), transparent 60%),
-      radial-gradient(ellipse at bottom, hsl(var(--primary) / 0.10), transparent 60%),
-      radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.08) 1px, transparent 0);
+      radial-gradient(at 10% 10%, hsla(253, 91%, 65%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 90% 10%, hsla(300, 91%, 60%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, hsla(220, 91%, 70%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 10% 90%, hsla(200, 91%, 60%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 90% 90%, hsla(280, 91%, 65%, 0.15) 0px, transparent 50%);
   }
 
-  /* Dashboard cards: elevated surface without the “lift” motion (keeps things calm in data-heavy views) */
-  .dash-card {
-    @apply rounded-2xl border bg-card/80 backdrop-blur-sm;
-    box-shadow: var(--shadow-card);
+  /* Interactive Cards */
+  .card-hover-effect {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-accent/30;
   }
 
-  .dark .dash-card {
-    @apply bg-card;
+  /* Premium Row/Card Hover Effect */
+  .hover-card-premium {
+    @apply hover:shadow-glow hover:-translate-y-1 transition-all duration-300 relative z-0 hover:z-10;
   }
-  
-  /* Text utilities */
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  /* Button glow effect */
-  .btn-glow {
-    @apply relative;
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-  }
-  
-  .btn-glow:hover {
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
-  }
-  
-  /* Shimmer animation */
-  .shimmer {
-    @apply relative overflow-hidden;
-  }
-  
-  .shimmer::after {
-    content: '';
-    @apply absolute inset-0;
-    background: linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.1) 50%, transparent 100%);
-    animation: shimmer 2s infinite;
-  }
-  
-  @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
-  
-  /* Pulse animation */
-  .ai-pulse {
-    animation: ai-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-  
-  @keyframes ai-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-  }
-  
-  /* Smooth entrance animations */
-  .animate-in-view {
-    @apply opacity-0 translate-y-4;
-    animation: slide-in-view 0.6s ease-out forwards;
-  }
-  
-  @keyframes slide-in-view {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+
+  /* Utilities */
+  .center-flex {
+    @apply flex items-center justify-center;
   }
 }
 
-@layer utilities {
-  /* Animation delays */
-  .animation-delay-100 { animation-delay: 100ms; }
-  .animation-delay-200 { animation-delay: 200ms; }
-  .animation-delay-300 { animation-delay: 300ms; }
-  .animation-delay-400 { animation-delay: 400ms; }
-  .animation-delay-500 { animation-delay: 500ms; }
+/* Status Badges */
+.stage-applied {
+  @apply bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20 border;
+}
 
-  /* Ensure media never forces horizontal overflow */
-  .media-fluid {
-    max-width: 100%;
-    height: auto;
-  }
+.stage-reviewing {
+  @apply bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20 border;
+}
 
-  /* Gradient border utility */
-  .gradient-border {
-    @apply relative;
-  }
+.stage-screening {
+  @apply bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 border;
+}
 
-  .gradient-border::before {
-    content: '';
-    @apply absolute inset-0 rounded-inherit p-[1px];
-    background: var(--gradient-primary);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-  }
+.stage-shortlisted {
+  @apply bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20 border;
+}
 
-  /* Hide scrollbar but keep functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+.stage-interviewing {
+  @apply bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20 border;
+}
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+.stage-offered {
+  @apply bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 border;
+}
+
+.stage-hired {
+  @apply bg-green-100 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 border;
+}
+
+.stage-rejected {
+  @apply bg-red-100 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 border;
+}
+
+/* Score Badges */
+.score-excellent {
+  @apply bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20;
+}
+
+.score-good {
+  @apply bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20;
+}
+
+.score-fair {
+  @apply bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/20;
+}
+
+.score-poor {
+  @apply bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20;
+}
+
+.stage-withdrawn {
+  @apply bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-500/10 dark:text-slate-500 dark:border-slate-500/20 border;
+}
+
+/* Ensure horizontal scrollbar is visible in native scroll containers if needed */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  @apply bg-muted/20;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50;
 }

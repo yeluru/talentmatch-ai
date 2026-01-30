@@ -3,7 +3,7 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
@@ -11,16 +11,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   Sparkles,
   Loader2,
   Users,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Briefcase,
+  TrendingUp,
+  Brain
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -49,7 +60,7 @@ interface ApplicantWithProfile {
     full_name?: string | null;
     user_id: string;
   } | null;
-  profile?: { user_id: string; full_name: string };
+  profile?: { user_id: string; full_name: string; avatar_url?: string };
   skills?: string[];
 }
 
@@ -67,7 +78,7 @@ export default function AIMatching() {
   const [candidateSource, setCandidateSource] = useState<'talent_pool' | 'applicants'>('talent_pool');
   const [detailTalentId, setDetailTalentId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  
+
   const organizationId = orgIdForRecruiterSuite(roles);
   const STORAGE_KEY_PREFIX = useMemo(
     () => `recruiter:ai-matching:last:${organizationId || 'no-org'}`,
@@ -137,7 +148,7 @@ export default function AIMatching() {
     queryKey: ['job-applicants', selectedJob],
     queryFn: async (): Promise<ApplicantWithProfile[]> => {
       if (!selectedJob) return [];
-      
+
       const { data, error } = await supabase
         .from('applications')
         .select(`
@@ -156,7 +167,7 @@ export default function AIMatching() {
           )
         `)
         .eq('job_id', selectedJob);
-      
+
       if (error) throw error;
 
       // Fetch profile names
@@ -164,34 +175,34 @@ export default function AIMatching() {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, full_name')
+          .select('user_id, full_name, avatar_url')
           .in('user_id', userIds);
-        
+
         // Fetch skills
         const candidateIds = data?.map(a => a.candidate_id) || [];
         const { data: skills } = await supabase
           .from('candidate_skills')
           .select('candidate_id, skill_name')
           .in('candidate_id', candidateIds);
-        
+
         return data?.map(app => ({
           ...app,
           profile: profiles?.find(p => p.user_id === app.candidate_profiles?.user_id),
           skills: skills?.filter(s => s.candidate_id === app.candidate_id).map(s => s.skill_name) || []
         }));
       }
-      
+
       return data;
     },
     enabled: !!selectedJob,
   });
 
-  // Fetch org talent pool candidates (not just job applicants)
+  // Fetch org talent pool candidates
   const { data: talentPoolCandidates, isLoading: talentPoolLoading } = useQuery<
     Array<{
       candidate_id: string;
       candidate_profiles: ApplicantWithProfile['candidate_profiles'];
-      profile?: { user_id: string; full_name: string };
+      profile?: { user_id: string; full_name: string; avatar_url?: string };
       skills?: string[];
     }>
   >({
@@ -200,7 +211,7 @@ export default function AIMatching() {
       if (!organizationId) return [];
 
       const { data, error } = await supabase
-        .from('candidate_org_links')
+        .from('candidate_org_links' as any)
         .select(
           `
           candidate_id,
@@ -227,16 +238,16 @@ export default function AIMatching() {
           candidate_profiles: (r.candidate_profiles as any) || null,
         })) || [];
 
-      // Deduplicate by candidate_id (in case multiple link types exist)
+      // Deduplicate
       const byId = new Map<string, { candidate_id: string; candidate_profiles: any }>();
       for (const r of rows) if (!byId.has(r.candidate_id)) byId.set(r.candidate_id, r);
       const deduped = Array.from(byId.values());
 
-      // Fetch profile names (fallback)
+      // Fetch profile names
       const userIds = deduped.map((r) => r.candidate_profiles?.user_id).filter(Boolean);
       const { data: profiles } =
         userIds.length > 0
-          ? await supabase.from('profiles').select('user_id, full_name').in('user_id', userIds as any)
+          ? await supabase.from('profiles').select('user_id, full_name, avatar_url').in('user_id', userIds as any)
           : { data: [] as any[] };
 
       // Fetch skills
@@ -264,7 +275,7 @@ export default function AIMatching() {
     mutationFn: async () => {
       if (!selectedJob) throw new Error('No job selected');
       if (!candidatesForMatching?.length) throw new Error('No candidates available for matching');
-      
+
       const job = jobs?.find(j => j.id === selectedJob);
       if (!job) throw new Error('Job not found');
 
@@ -331,7 +342,7 @@ export default function AIMatching() {
       } catch {
         // ignore
       }
-      
+
       // Update application scores only when matching job applicants
       if (candidateSource === 'applicants') {
         for (const match of matches) {
@@ -339,7 +350,7 @@ export default function AIMatching() {
           if (app) {
             await supabase
               .from('applications')
-              .update({ 
+              .update({
                 ai_match_score: match.match_score,
                 ai_match_details: {
                   matched_skills: match.matched_skills,
@@ -351,7 +362,7 @@ export default function AIMatching() {
           }
         }
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ['job-applicants'] });
       toast.success('AI matching complete!');
     },
@@ -369,170 +380,240 @@ export default function AIMatching() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-            <Sparkles className="h-8 w-8 text-accent" />
-            AI Candidate Matching
-          </h1>
-          <p className="mt-1">
-            Use AI to score and rank candidates for your job openings
-          </p>
+      <div className="space-y-6 max-w-[1600px] mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Brain className="h-8 w-8 text-primary" />
+              </div>
+              <span className="text-gradient-premium">AI Matching</span>
+            </h1>
+            <p className="mt-2 text-muted-foreground text-lg">
+              Rank candidates instantly using our deep learning engine.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="rounded-full shadow-sm glass-panel border-white/20 hover:bg-white/10">
+              Export Report
+            </Button>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Select a Job</CardTitle>
-            <CardDescription>
-              Choose a job to run AI matching on its applicants
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-            <Select value={selectedJob} onValueChange={setSelectedJob}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a job..." />
-              </SelectTrigger>
-              <SelectContent>
-                {jobs?.map((job) => (
-                  <SelectItem key={job.id} value={job.id}>
-                    {job.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-              <Select value={candidateSource} onValueChange={(v) => setCandidateSource(v as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Candidate set" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="talent_pool">Talent Pool (all org candidates)</SelectItem>
-                  <SelectItem value="applicants">Applicants (this job only)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedJobData && (
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">{selectedJobData.title}</h4>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {selectedJobData.required_skills?.map((skill) => (
-                    <Badge key={skill} variant="secondary">{skill}</Badge>
-                  ))}
-                </div>
-                <p className="text-sm">
-                  {candidateSource === 'applicants'
-                    ? `${applicants?.length || 0} applicant${(applicants?.length || 0) === 1 ? '' : 's'}`
-                    : `${talentPoolCandidates?.length || 0} candidate${(talentPoolCandidates?.length || 0) === 1 ? '' : 's'} in Talent Pool`}
-                </p>
-              </div>
-            )}
-
-            <Button
-              onClick={() => runMatching.mutate()}
-              disabled={!selectedJob || !candidatesForMatching?.length || runMatching.isPending}
-              className="w-full"
-            >
-              {runMatching.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Running AI Analysis...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Run AI Matching
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Results */}
-        {matchResults.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Match Results</CardTitle>
-              <CardDescription>
-                Candidates ranked by AI match score
-              </CardDescription>
+        <div className="grid lg:grid-cols-12 gap-6">
+          {/* Controls Panel */}
+          <Card className="lg:col-span-4 h-fit glass-card border-none">
+            <CardHeader className="border-b border-white/10 bg-white/5 pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Briefcase className="h-5 w-5 text-primary" />
+                Configuration
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6 pt-6">
               <div className="space-y-4">
-                {matchResults
-                  .sort((a, b) => b.match_score - a.match_score)
-                  .map((result, index) => {
-                    const row = (candidatesForMatching as any[])?.find(
-                      (r: any) => String(r?.candidate_id) === String(result.candidate_id),
-                    );
-                    const displayName =
-                      row?.profile?.full_name ||
-                      row?.candidate_profiles?.full_name ||
-                      displayNameFromEmail(row?.candidate_profiles?.email) ||
-                      'Candidate';
-                    const subtitle = [
-                      row?.candidate_profiles?.current_title,
-                      row?.candidate_profiles?.current_company ? `at ${row.candidate_profiles.current_company}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' ');
-                    return (
-                      <div
-                        key={result.candidate_id}
-                        className={`flex items-center gap-3 py-2 px-3 border rounded-md cursor-pointer hover:bg-muted/40 transition-colors ${index % 2 === 1 ? 'bg-secondary/40' : ''}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          setDetailTalentId(result.candidate_id);
-                          setDetailOpen(true);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setDetailTalentId(result.candidate_id);
-                            setDetailOpen(true);
-                          }
-                        }}
-                      >
-                        <span className="text-xsw-6 shrink-0">#{index + 1}</span>
-                        <span className="font-medium truncate shrink-0 max-w-[120px]">{displayName}</span>
-                        <span className="text-smtruncate flex-1 min-w-0 max-w-[200px]" title={subtitle || undefined}>
-                          {subtitle || '—'}
-                        </span>
-                        <ScoreBadge score={result.match_score} size="sm" showLabel={false} />
-                        <span className="text-xstruncate max-w-[200px]" title={result.recommendation}>
-                          {result.recommendation ? String(result.recommendation).slice(0, 60) + (result.recommendation.length > 60 ? '…' : '') : '—'}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Job Requisition</label>
+                  <Select value={selectedJob} onValueChange={setSelectedJob}>
+                    <SelectTrigger className="w-full glass-input">
+                      <SelectValue placeholder="Choose a job..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jobs?.map((job) => (
+                        <SelectItem key={job.id} value={job.id}>
+                          {job.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Candidate Source</label>
+                  <Select value={candidateSource} onValueChange={(v) => setCandidateSource(v as any)}>
+                    <SelectTrigger className="w-full glass-input">
+                      <SelectValue placeholder="Candidate set" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="talent_pool">Talent Pool (Entire Org)</SelectItem>
+                      <SelectItem value="applicants">Just Applicants</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {selectedJobData && (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-primary">{selectedJobData.title}</h4>
+                    <Badge variant="outline" className="bg-background/50 border-primary/20 text-primary">Active</Badge>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wider">Required Skills</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedJobData.required_skills?.slice(0, 5).map((skill) => (
+                        <Badge key={skill} variant="secondary" className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary-foreground hover:bg-primary/20 border-0">{skill}</Badge>
+                      ))}
+                      {(selectedJobData.required_skills?.length || 0) > 5 && (
+                        <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/20">+{(selectedJobData.required_skills?.length || 0) - 5} more</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-primary/10 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Users className="h-3.5 w-3.5" />
+                    {candidateSource === 'applicants'
+                      ? `${applicants?.length || 0} applicants found`
+                      : `${talentPoolCandidates?.length || 0} candidates in pool`}
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={() => runMatching.mutate()}
+                disabled={!selectedJob || !candidatesForMatching?.length || runMatching.isPending}
+                className="w-full shadow-lg shadow-primary/20 h-12 text-base font-semibold"
+                size="lg"
+              >
+                {runMatching.isPending ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    Analyzing Candidates...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Generate Match Scores
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
-        )}
 
-        {selectedJob && candidatesForMatching?.length && !runMatching.isPending && matchResults.length === 0 && (
-          <EmptyState
-            icon={AlertCircle}
-            title="No match results to display"
-            description="Run matching again to generate scores for this job."
-          />
-        )}
+          {/* Results Panel */}
+          <div className="lg:col-span-8 space-y-6">
+            {matchResults.length > 0 ? (
+              <Card className="glass-card border-none overflow-hidden">
+                <CardHeader className="border-b border-white/10 bg-white/5 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl">Top Matches</CardTitle>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors border-0">
+                      {matchResults.length} analyzed
+                    </Badge>
+                  </div>
+                </CardHeader>
 
-        {selectedJob &&
-          !candidatesForMatching?.length &&
-          !applicantsLoading &&
-          !talentPoolLoading && (
-          <EmptyState
-            icon={Users}
-            title={candidateSource === 'applicants' ? 'No applicants yet' : 'No candidates in Talent Pool'}
-            description={
-              candidateSource === 'applicants'
-                ? 'Wait for candidates to apply (or switch to Talent Pool matching).'
-                : 'Upload/import candidates or link candidates to your organization.'
-            }
-          />
-        )}
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b-white/10">
+                      <TableHead className="w-[80px]">Rank</TableHead>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead>Experience</TableHead>
+                      <TableHead>Match Score</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {matchResults
+                      .sort((a, b) => b.match_score - a.match_score)
+                      .map((result, index) => {
+                        const row = (candidatesForMatching as any[])?.find(
+                          (r: any) => String(r?.candidate_id) === String(result.candidate_id),
+                        );
+
+                        const profile = row?.profile || row?.candidate_profiles;
+                        const avatarUrl = profile?.avatar_url;
+                        const displayName = profile?.full_name || displayNameFromEmail(profile?.email) || 'Candidate';
+                        const currentRole = row?.candidate_profiles?.current_title || 'No title';
+                        const company = row?.candidate_profiles?.current_company;
+
+                        return (
+                          <TableRow
+                            key={result.candidate_id}
+                            className="cursor-pointer group hover:bg-white/5 border-b-white/5 transition-colors"
+                            onClick={() => {
+                              setDetailTalentId(result.candidate_id);
+                              setDetailOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-display font-bold text-lg text-muted-foreground/50 group-hover:text-primary transition-colors">
+                              #{index + 1}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10 border-2 border-transparent group-hover:border-primary/50 transition-all ring-offset-background">
+                                  <AvatarImage src={avatarUrl} />
+                                  <AvatarFallback className="font-bold text-xs bg-muted text-muted-foreground">
+                                    {displayName.slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-bold text-foreground group-hover:text-primary transition-colors">
+                                    {displayName}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                    {currentRole}
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {company ? <span className="font-medium">{company}</span> : <span className="text-muted-foreground italic">Unknown</span>}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {row?.candidate_profiles?.years_of_experience || 0} years exp
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <ScoreBadge score={result.match_score} size="md" showLabel={false} />
+                                <div className="hidden sm:block">
+                                  <div className="h-1.5 w-24 bg-muted/30 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-1000 ${result.match_score > 85 ? 'bg-green-500' :
+                                        result.match_score > 70 ? 'bg-yellow-500' : 'bg-red-500'
+                                        }`}
+                                      style={{ width: `${result.match_score}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary hover:bg-primary/10">
+                                View Analysis
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </Card>
+            ) : (
+              <div className="h-full min-h-[400px] flex items-center justify-center">
+                {selectedJob && !runMatching.isPending && (
+                  <EmptyState
+                    icon={Sparkles}
+                    title="Ready to Match"
+                    description="Select a job and click 'Generate Match Scores' to see AI rankings."
+                    className="glass-panel border-white/10 bg-white/5"
+                  />
+                )}
+                {!selectedJob && (
+                  <EmptyState
+                    icon={Briefcase}
+                    title="Select a Job"
+                    description="Choose a job on the left to start matching candidates."
+                    className="glass-panel border-white/10 bg-white/5"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <TalentDetailSheet

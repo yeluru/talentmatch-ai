@@ -34,8 +34,8 @@ import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { 
-  Search, 
+import {
+  Search,
   Loader2,
   Users,
   Star,
@@ -43,6 +43,7 @@ import {
   Sparkles,
   CheckCircle,
   XCircle,
+  Briefcase,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -122,11 +123,11 @@ function CandidateDetailContent({
       {/* Status */}
       <div className="space-y-2">
         <Label>Status</Label>
-        <Select 
-          value={selectedApplication?.status || 'applied'} 
-          onValueChange={(value) => updateApplication.mutate({ 
-            appId: selectedApplication.id, 
-            status: value 
+        <Select
+          value={selectedApplication?.status || 'applied'}
+          onValueChange={(value) => updateApplication.mutate({
+            appId: selectedApplication.id,
+            status: value
           })}
         >
           <SelectTrigger>
@@ -204,7 +205,7 @@ function CandidateDetailContent({
               onClick={() => setRating(star)}
               className="p-1"
             >
-              <Star 
+              <Star
                 className={`h-6 w-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : ''}`}
               />
             </button>
@@ -223,11 +224,11 @@ function CandidateDetailContent({
         />
       </div>
 
-      <Button 
-        onClick={() => updateApplication.mutate({ 
-          appId: selectedApplication.id, 
-          notes, 
-          rating 
+      <Button
+        onClick={() => updateApplication.mutate({
+          appId: selectedApplication.id,
+          notes,
+          rating
         })}
         disabled={updateApplication.isPending}
         className="w-full"
@@ -250,7 +251,7 @@ export default function RecruiterCandidates() {
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
-  
+
   const organizationId = orgIdForRecruiterSuite(roles);
 
   const handleRefresh = useCallback(async () => {
@@ -282,7 +283,7 @@ export default function RecruiterCandidates() {
     queryKey: ['recruiter-applications', organizationId, selectedJobFilter],
     queryFn: async (): Promise<ApplicationWithProfile[]> => {
       if (!organizationId) return [];
-      
+
       let query = supabase
         .from('applications')
         .select(`
@@ -293,11 +294,11 @@ export default function RecruiterCandidates() {
         `)
         .eq('jobs.organization_id', organizationId)
         .order('applied_at', { ascending: false });
-      
+
       if (selectedJobFilter !== 'all') {
         query = query.eq('job_id', selectedJobFilter);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
 
@@ -308,21 +309,21 @@ export default function RecruiterCandidates() {
           .from('profiles')
           .select('user_id, full_name, email, phone, linkedin_url')
           .in('user_id', userIds);
-        
+
         return (data?.map(app => ({
           ...app,
           profile: profiles?.find(p => p.user_id === app.candidate_profiles?.user_id)
         })) || []) as unknown as ApplicationWithProfile[];
       }
-      
+
       return (data || []) as unknown as ApplicationWithProfile[];
     },
     enabled: !!organizationId,
   });
 
   const updateApplication = useMutation({
-    mutationFn: async ({ appId, status, notes, rating }: { 
-      appId: string; 
+    mutationFn: async ({ appId, status, notes, rating }: {
+      appId: string;
       status?: string;
       notes?: string;
       rating?: number;
@@ -331,7 +332,7 @@ export default function RecruiterCandidates() {
       if (status) updateData.status = status;
       if (notes !== undefined) updateData.recruiter_notes = notes;
       if (rating !== undefined) updateData.recruiter_rating = rating;
-      
+
       const { error } = await supabase
         .from('applications')
         .update(updateData)
@@ -451,7 +452,7 @@ export default function RecruiterCandidates() {
         title="Candidates"
         subtitle="Review and manage job applicants"
         filterCount={
-          (statusFilter !== 'all' ? 1 : 0) + 
+          (statusFilter !== 'all' ? 1 : 0) +
           (selectedJobFilter !== 'all' ? 1 : 0)
         }
       >
@@ -496,106 +497,112 @@ export default function RecruiterCandidates() {
 
       <Card className="mt-4">
         <CardContent className="p-0">
-            {!filteredApplications?.length ? (
-              <div className="p-6">
-                <EmptyState
-                  icon={Users}
-                  title="No candidates found"
-                  description={applications?.length ? "Try adjusting your filters" : "Applications will appear here when candidates apply"}
-                />
-              </div>
-            ) : isMobile ? (
-              <div className="divide-y">
-                {filteredApplications.map((app) => {
-                  const rowContent = (
-                    <div
-                      className="flex items-center gap-2 py-2.5 px-4 cursor-pointer active:bg-muted"
-                      onClick={() => handleOpenDetails(app)}
-                    >
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback className="bg-accent text-accent-foreground text-xs">
-                          {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{getDisplayName(app)}</div>
-                        <div className="text-xstruncate">{app.jobs?.title} · {getDisplayTitle(app)}</div>
-                      </div>
-                      <StatusBadge status={app.status || 'applied'} />
-                      {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : null}
-                      {app.recruiter_rating ? <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" /> : null}
+          {!filteredApplications?.length ? (
+            <div className="p-6">
+              <EmptyState
+                icon={Users}
+                title="No candidates found"
+                description={applications?.length ? "Try adjusting your filters" : "Applications will appear here when candidates apply"}
+              />
+            </div>
+          ) : isMobile ? (
+            <div className="divide-y">
+              {filteredApplications.map((app) => {
+                const rowContent = (
+                  <div
+                    className="flex items-center gap-2 py-2.5 px-4 cursor-pointer active:bg-muted"
+                    onClick={() => handleOpenDetails(app)}
+                  >
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                        {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{getDisplayName(app)}</div>
+                      <div className="text-xstruncate">{app.jobs?.title} · {getDisplayTitle(app)}</div>
                     </div>
-                  );
-                  return (
-                    <SwipeableRow
-                      key={app.id}
-                      leftActions={[
-                        { icon: <CheckCircle className="h-5 w-5" />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'shortlisted' }) },
-                      ]}
-                      rightActions={[
-                        { icon: <XCircle className="h-5 w-5" />, label: 'Reject', className: 'bg-destructive text-destructive-foreground', onAction: () => updateApplication.mutate({ appId: app.id, status: 'rejected' }) },
-                      ]}
-                      className="-mx-6"
-                    >
-                      {rowContent}
-                    </SwipeableRow>
-                  );
-                })}
+                    <StatusBadge status={app.status || 'applied'} />
+                    {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : null}
+                    {app.recruiter_rating ? <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" /> : null}
+                  </div>
+                );
+                return (
+                  <SwipeableRow
+                    key={app.id}
+                    leftActions={[
+                      { icon: <CheckCircle className="h-5 w-5" />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'shortlisted' }) },
+                    ]}
+                    rightActions={[
+                      { icon: <XCircle className="h-5 w-5" />, label: 'Reject', className: 'bg-destructive text-destructive-foreground', onAction: () => updateApplication.mutate({ appId: app.id, status: 'rejected' }) },
+                    ]}
+                    className="-mx-6"
+                  >
+                    {rowContent}
+                  </SwipeableRow>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3 px-1">
+              <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                <div className="flex-1">Candidate</div>
+                <div className="w-32">Status</div>
+                <div className="w-20 text-center">Match</div>
+                <div className="w-24 text-right">Applied</div>
+                <div className="w-20 text-right">Rating</div>
               </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="max-w-[140px]">Job</TableHead>
-                    <TableHead className="max-w-[160px]">Title</TableHead>
-                    <TableHead className="w-24">Status</TableHead>
-                    <TableHead className="w-14 text-right">Match</TableHead>
-                    <TableHead className="w-24">Applied</TableHead>
-                    <TableHead className="w-10">Rating</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredApplications.map((app) => (
-                    <TableRow
-                      key={app.id}
-                      className="cursor-pointer"
-                      onClick={() => handleOpenDetails(app)}
-                    >
-                      <TableCell className="py-2">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarFallback className="bg-accent text-accent-foreground text-xs">
-                              {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium truncate max-w-[140px]">{getDisplayName(app)}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="truncate max-w-[140px] py-2">{app.jobs?.title ?? '—'}</TableCell>
-                      <TableCell className="truncate max-w-[160px] py-2">{getDisplayTitle(app)}</TableCell>
-                      <TableCell className="py-2">
-                        <StatusBadge status={app.status || 'applied'} />
-                      </TableCell>
-                      <TableCell className="text-right py-2">
-                        {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : '—'}
-                      </TableCell>
-                      <TableCell className="text-xs py-2">{format(new Date(app.applied_at), 'MMM d, yyyy')}</TableCell>
-                      <TableCell className="py-2">
-                        {app.recruiter_rating ? (
-                          <span className="flex items-center gap-0.5">
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs">{app.recruiter_rating}</span>
-                          </span>
-                        ) : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+              {filteredApplications.map((app) => (
+                <div
+                  key={app.id}
+                  className="glass-panel p-4 hover-card-premium flex items-center gap-4 cursor-pointer group"
+                  onClick={() => handleOpenDetails(app)}
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs">
+                        {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-bold text-foreground truncate">{getDisplayName(app)}</div>
+                      <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                        <Briefcase className="h-3 w-3" />
+                        {app.jobs?.title ?? '—'}
+                        <span className="opacity-50">|</span>
+                        {getDisplayTitle(app)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-32 flex-shrink-0">
+                    <StatusBadge status={app.status || 'applied'} />
+                  </div>
+
+                  <div className="w-20 flex-shrink-0 flex justify-center">
+                    {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : <span className="text-muted-foreground">—</span>}
+                  </div>
+
+                  <div className="w-24 flex-shrink-0 text-right text-sm text-muted-foreground font-mono">
+                    {format(new Date(app.applied_at), 'MMM d')}
+                  </div>
+
+                  <div className="w-20 flex-shrink-0 flex justify-end">
+                    {app.recruiter_rating ? (
+                      <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-full border border-yellow-400/20">
+                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                        <span className="text-xs font-bold text-yellow-600">{app.recruiter_rating}</span>
+                      </div>
+                    ) : (
+                      <Star className="h-4 w-4 text-muted-foreground/20" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Candidate Details - Drawer on mobile, Dialog on desktop */}
       {isMobile ? (

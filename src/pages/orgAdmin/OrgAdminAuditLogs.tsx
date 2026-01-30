@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, Clock, User, Shield, Briefcase, FileText, Settings, Users, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -24,7 +23,26 @@ type Row = {
   details: unknown;
 };
 
-export default function OrgAdminAuditLogs() {
+const entityIcons: Record<string, React.ElementType> = {
+  candidate: Users,
+  job: Briefcase,
+  application: FileText,
+  user: User,
+  organization: Settings,
+  default: AlertTriangle
+};
+
+const actionColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  create: 'default',
+  update: 'secondary',
+  delete: 'destructive',
+  view: 'outline',
+  login: 'default',
+  logout: 'outline'
+};
+
+
+export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boolean }) {
   const { organizationId, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<Row[]>([]);
@@ -132,139 +150,197 @@ export default function OrgAdminAuditLogs() {
       setCursor(normalized[normalized.length - 1]?.created_at || null);
     } catch (e) {
       console.error(e);
-      // Keep UI responsive instead of silently showing empty.
-      // (We intentionally avoid toast spam here; org admins will use Refresh if needed.)
+      // Keep UI responsive
     } finally {
       setLoading(false);
     }
   };
 
+  const formatAction = (action: string) => {
+    return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getActionColor = (action: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    const lowerAction = action.toLowerCase();
+    if (lowerAction.includes('delete') || lowerAction.includes('remove')) return 'destructive';
+    if (lowerAction.includes('create') || lowerAction.includes('add')) return 'default';
+    if (lowerAction.includes('update') || lowerAction.includes('edit')) return 'secondary';
+    return 'outline';
+  };
+
+  const getEntityIcon = (entityType: string) => {
+    return entityIcons[entityType] || entityIcons.default;
+  };
+
   if (loading && logs.length === 0) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-        </div>
-      </DashboardLayout>
+    const loader = (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
     );
+    if (embedded) return loader;
+    return <DashboardLayout>{loader}</DashboardLayout>;
   }
 
   if (!organizationId) {
-    return (
-      <DashboardLayout>
-        <Card>
-          <CardHeader>
-            <CardTitle>Organization not assigned</CardTitle>
-          </CardHeader>
-        </Card>
-      </DashboardLayout>
+    const msg = (
+      <div className="glass-panel p-6 rounded-xl">
+        <h2 className="text-lg font-semibold mb-2">Organization not assigned</h2>
+        <p className="text-sm text-muted-foreground">
+          Tenant audit logs are only available when your account manager role is linked to an organization.
+        </p>
+      </div>
     );
+    if (embedded) return msg;
+    return <DashboardLayout>{msg}</DashboardLayout>;
   }
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-6">
+  const content = (
+    <div className="space-y-6 animate-fade-in">
+      {!embedded && (
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">Audit Logs</h1>
-            <p className="mt-1">
+            <h1 className="font-display text-3xl font-bold text-gradient-premium">Audit Logs</h1>
+            <p className="mt-1 text-muted-foreground">
               Default view shows the last 4 hours. Search queries the full tenant history.
             </p>
           </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-4 glass-panel p-3 rounded-xl">
+        <div className="flex items-center gap-2 flex-1">
+          <Search className="h-4 w-4 text-muted-foreground ml-2" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search audit logs..."
+            className="bg-transparent border-0 focus-visible:ring-0 placeholder:text-muted-foreground/50 w-full"
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setExpanded(false);
+            setCursor(null);
+            fetchLogs(true);
+          }}
+          disabled={loading}
+          className="hover:bg-white/10"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Refresh
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        {/* Header Info */}
+        <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search audit logs…" className="w-[260px]" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setExpanded(false);
-                setCursor(null);
-                fetchLogs(true);
-              }}
-              disabled={loading}
-            >
-              {loading ? "Refreshing…" : "Refresh"}
-            </Button>
+            <Shield className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-lg">Tenant Activity</h3>
           </div>
+          <Badge variant="outline" className="glass-panel text-xs font-normal">
+            {qDebounced ? "Search Mode" : expanded ? "Paged History" : "Last 4 hours"}
+          </Badge>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tenant activity</CardTitle>
-            <CardDescription>
-              {qDebounced ? "Search mode" : expanded ? "Paged history" : "Last 4 hours"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
+        {sortedLogs.length === 0 ? (
+          <div className="text-center py-12 glass-panel rounded-xl border-dashed border-2 border-white/10">
+            <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">No activity logs</h3>
+            <p className="text-muted-foreground">Logs matching your criteria will appear here.</p>
+          </div>
+        ) : (
+          <div className="glass-panel p-0 rounded-xl overflow-hidden border border-white/10 shadow-sm relative z-0">
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead label="Time" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                <TableHeader className="bg-primary/5">
+                  <TableRow className="hover:bg-transparent border-b border-white/10">
+                    <SortableTableHead label="Time" sortKey="created_at" sort={tableSort.sort} onToggle={tableSort.toggle} className="pl-6" />
                     <SortableTableHead label="User" sortKey="user_name" sort={tableSort.sort} onToggle={tableSort.toggle} />
                     <SortableTableHead label="Action" sortKey="action" sort={tableSort.sort} onToggle={tableSort.toggle} />
                     <SortableTableHead label="Entity" sortKey="entity_type" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    <SortableTableHead label="Details" sortKey="ip_address" sort={tableSort.sort} onToggle={tableSort.toggle} />
+                    {/* Reusing existing column headers or similar */}
                     <SortableTableHead label="IP" sortKey="ip_address" sort={tableSort.sort} onToggle={tableSort.toggle} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedLogs.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
-                        No audit logs found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sortedLogs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {format(new Date(log.created_at), "MMM d, yyyy HH:mm:ss")}
+                  {sortedLogs.map((log) => {
+                    const EntityIcon = getEntityIcon(log.entity_type);
+                    return (
+                      <TableRow key={log.id} className="hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors group">
+                        <TableCell className="pl-6 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                          {format(new Date(log.created_at), "MMM d, HH:mm:ss")}
                         </TableCell>
                         <TableCell className="max-w-[220px]">
-                          <span className="truncate block">{log.user_name || "Unknown"}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <User className="h-3 w-3 text-primary" />
+                            </div>
+                            <span className="truncate text-sm font-medium">{log.user_name || "Unknown"}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {log.action}
+                          <Badge variant={getActionColor(log.action)} className="text-[10px] px-2 py-0.5 min-w-[60px] justify-center">
+                            {formatAction(log.action)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="">
-                          {log.entity_type}
-                          {log.entity_id ? ` (${String(log.entity_id).slice(0, 8)}…)` : ""}
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm text-foreground/80">
+                            <EntityIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="capitalize">{log.entity_type}
+                              {log.entity_id ? <span className="text-muted-foreground/50 text-xs ml-1">({String(log.entity_id).slice(0, 4)}...)</span> : ""}
+                            </span>
+                          </div>
                         </TableCell>
-                        <TableCell className="">{log.ip_address || "—"}</TableCell>
+                        <TableCell className="max-w-[200px]">
+                          {log.details ? (
+                            <code className="text-[10px] bg-black/20 px-1.5 py-0.5 rounded inline-block max-w-full truncate font-mono text-muted-foreground" title={JSON.stringify(log.details)}>
+                              {JSON.stringify(log.details)}
+                            </code>
+                          ) : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {log.ip_address || "—"}
+                        </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
+          </div>
+        )}
 
-            <div className="mt-4 flex justify-end gap-2">
-              {!qDebounced && !expanded && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setExpanded(true);
-                    fetchLogs(false);
-                  }}
-                  disabled={loading || !hasMore}
-                >
-                  Load older logs (100)
-                </Button>
-              )}
-              {(qDebounced || expanded) && (
-                <Button variant="outline" size="sm" onClick={() => fetchLogs(false)} disabled={loading || !hasMore}>
-                  Load more (100)
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mt-4 flex justify-center gap-2">
+          {!qDebounced && !expanded && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="glass-panel hover:bg-white/10"
+              onClick={() => {
+                setExpanded(true);
+                fetchLogs(false);
+              }}
+              disabled={loading || !hasMore}
+            >
+              Load older logs (100)
+            </Button>
+          )}
+          {(qDebounced || expanded) && (
+            <Button variant="outline" size="sm" className="glass-panel hover:bg-white/10" onClick={() => fetchLogs(false)} disabled={loading || !hasMore}>
+              <Loader2 className={`mr-2 h-3 w-3 ${loading ? 'animate-spin' : 'hidden'}`} />
+              Load more (100)
+            </Button>
+          )}
+        </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
+
+  if (embedded) return content;
+  return <DashboardLayout>{content}</DashboardLayout>;
 }
-
-

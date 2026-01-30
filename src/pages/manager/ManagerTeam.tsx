@@ -58,12 +58,12 @@ export default function ManagerTeam() {
   const [isLoading, setIsLoading] = useState(true);
   const [organizationName, setOrganizationName] = useState('');
   const [assignedRecruiterIds, setAssignedRecruiterIds] = useState<Set<string>>(new Set());
-  
+
   // Dialog states
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastRecruiterInviteUrl, setLastRecruiterInviteUrl] = useState<string | null>(null);
-  
+
   // Invite form
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
@@ -86,7 +86,7 @@ export default function ManagerTeam() {
 
   const fetchTeamData = async () => {
     if (!organizationId) return;
-    
+
     try {
       // Fetch org name
       const { data: org } = await supabase
@@ -94,7 +94,7 @@ export default function ManagerTeam() {
         .select('name')
         .eq('id', organizationId)
         .single();
-      
+
       if (org) setOrganizationName(org.name);
 
       // Fetch team members
@@ -109,7 +109,7 @@ export default function ManagerTeam() {
           .from('profiles')
           .select('id, full_name, email, user_id, avatar_url')
           .in('user_id', userIds);
-        
+
         if (profiles) {
           const members = profiles.map(p => ({
             id: p.id,
@@ -140,7 +140,7 @@ export default function ManagerTeam() {
         .eq('organization_id', organizationId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
-      
+
       if (invites) {
         setPendingInvites(invites as PendingInvite[]);
       }
@@ -153,7 +153,7 @@ export default function ManagerTeam() {
 
   const handleSendInvite = async () => {
     if (!inviteEmail || !organizationId) return;
-    
+
     setIsSubmitting(true);
     setLastRecruiterInviteUrl(null);
     try {
@@ -316,7 +316,7 @@ export default function ManagerTeam() {
             <h1 className="font-display text-3xl font-bold">Team Management</h1>
             <p className="mt-1">Manage recruiters in your organization</p>
           </div>
-          
+
           <Dialog open={isInviteOpen} onOpenChange={(open) => !open && setIsInviteOpen(false)}>
             <DialogTrigger asChild>
               <Button onClick={() => setIsInviteOpen(true)} variant="outline">
@@ -324,7 +324,7 @@ export default function ManagerTeam() {
                 Invite Recruiter
               </Button>
             </DialogTrigger>
-            
+
             {/* Send Invite Dialog */}
             {isInviteOpen && (
               <DialogContent>
@@ -413,7 +413,7 @@ export default function ManagerTeam() {
             <CardContent>
               <div className="space-y-3">
                 {pendingInvites.map((invite) => (
-                  <div key={invite.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div key={invite.id} className="glass-panel p-4 hover-card-premium flex items-center justify-between border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40">
                     <div>
                       <p className="font-medium">{invite.full_name || invite.email}</p>
                       {invite.full_name && <p className="text-sm">{invite.email}</p>}
@@ -451,8 +451,8 @@ export default function ManagerTeam() {
                       >
                         Re-invite
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="text-destructive hover:text-destructive"
                         onClick={() => handleCancelInvite(invite.id)}
@@ -479,7 +479,7 @@ export default function ManagerTeam() {
               ) : (
                 <div className="space-y-3">
                   {managers.map((member) => (
-                    <div key={member.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+                    <div key={member.id} className="glass-panel p-4 hover-card-premium flex items-center gap-4">
                       <Avatar>
                         <AvatarImage src={member.avatar_url} />
                         <AvatarFallback className="bg-manager/20 text-manager">
@@ -511,7 +511,7 @@ export default function ManagerTeam() {
               ) : (
                 <div className="space-y-3">
                   {recruiters.map((member) => (
-                    <div key={member.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+                    <div key={member.id} className="glass-panel p-4 hover-card-premium flex items-center gap-4">
                       <Avatar>
                         <AvatarImage src={member.avatar_url} />
                         <AvatarFallback className="bg-recruiter/20 text-recruiter">

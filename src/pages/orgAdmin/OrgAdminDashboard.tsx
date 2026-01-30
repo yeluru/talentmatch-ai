@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Mail, Trash2, Users, Shield, FileText } from "lucide-react";
+import { Loader2, Mail, Trash2, Users, Shield, FileText, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { format } from "date-fns";
@@ -21,6 +21,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { useSearchParams } from "react-router-dom";
 import { sortBy, type SortState } from "@/lib/sort";
 import { useTableSort } from "@/hooks/useTableSort";
+import OrgAdminAuditLogs from "./OrgAdminAuditLogs";
 
 type TeamMember = {
   user_id: string;
@@ -784,69 +785,85 @@ export default function OrgAdminDashboard() {
 
           <TabsContent value="account_managers" className="mt-6 space-y-6">
             {pendingInvites.length > 0 && (
-              <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle>Pending account manager invitations</CardTitle>
-                  <CardDescription>{pendingInvites.length} pending</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="glass-panel p-6 rounded-xl hover-card-premium">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">Pending invitations</h3>
+                  <p className="text-sm text-muted-foreground">{pendingInvites.length} pending</p>
+                </div>
+                <div className="space-y-3">
                   {pendingInvites.map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between rounded-md border p-3">
+                    <div key={inv.id} className="flex items-center justify-between glass-panel p-4 rounded-xl hover:bg-white/5 transition-colors">
                       <div>
                         <p className="font-medium">{inv.full_name || inv.email}</p>
-                        <p className="text-sm">{inv.email}</p>
-                        <p className="mt-1 text-xs break-all">
+                        <p className="text-sm text-muted-foreground">{inv.email}</p>
+                        <p className="mt-1 text-xs break-all opacity-70">
                           Invite link: {buildInviteUrl(inv.invite_token)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
-                          variant="outline"
+                          variant="ghost"
+                          size="sm"
                           onClick={async () => {
                             await navigator.clipboard.writeText(buildInviteUrl(inv.invite_token));
                             toast.success("Copied invite link");
                           }}
                         >
-                          Copy link
+                          Copy
                         </Button>
-                        <Button variant="outline" onClick={() => window.open(buildInviteUrl(inv.invite_token), "_blank")}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(buildInviteUrl(inv.invite_token), "_blank")}
+                        >
                           Open
                         </Button>
-                        <Button variant="outline" onClick={() => reInviteManager(inv)}>
-                          Re-invite
+                        <Button variant="ghost" size="sm" onClick={() => reInviteManager(inv)}>
+                          Resend
                         </Button>
-                        <Button variant="outline" onClick={() => cancelInvite(inv.id)}>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => cancelInvite(inv.id)}>
                           Cancel
                         </Button>
                       </div>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
-            <Card className="card-elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Account Managers
-                </CardTitle>
-                <CardDescription>{managers.length} account manager(s)</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <div className="glass-panel p-6 rounded-xl relative overflow-hidden">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Account Managers
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{managers.length} active members</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
                 {managers.length === 0 ? (
-                  <p className="text-sm">No account managers yet.</p>
+                  <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
+                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <p className="text-sm text-muted-foreground">No account managers yet.</p>
+                  </div>
                 ) : (
                   managers.map((m) => (
-                    <div key={m.user_id} className="flex items-center justify-between rounded-md border p-3">
-                      <div>
-                        <p className="font-medium">{m.full_name}</p>
-                        <p className="text-sm">{m.email}</p>
+                    <div key={m.user_id} className="flex items-center justify-between glass-panel p-4 rounded-xl hover-card-premium group">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="font-semibold text-primary">{m.full_name?.[0] || m.email[0]}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{m.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{m.email}</p>
+                        </div>
                       </div>
                       {m.user_id !== user?.id ? (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="destructive">
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Trash2 className="h-4 w-4 mr-2" />
                               Remove
                             </Button>
@@ -870,223 +887,132 @@ export default function OrgAdminDashboard() {
                           </AlertDialogContent>
                         </AlertDialog>
                       ) : (
-                        <Badge variant="secondary">You</Badge>
+                        <Badge variant="secondary" className="glass-panel">You</Badge>
                       )}
                     </div>
                   ))
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="users" className="mt-6">
-            <Card className="card-elevated">
-              <CardHeader>
-                <CardTitle>All users in organization</CardTitle>
-                <CardDescription>
-                  Staff roles come from <code className="font-mono">user_roles</code>. Candidates come from{" "}
-                  <code className="font-mono">candidate_profiles</code>.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="max-w-sm">
+            <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    All users in organization
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Staff roles come from <code className="font-mono text-xs bg-white/5 px-1 py-0.5 rounded">user_roles</code>. Candidates come from <code className="font-mono text-xs bg-white/5 px-1 py-0.5 rounded">candidate_profiles</code>.
+                  </p>
+                </div>
+                <div className="relative w-full md:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={allUsersSearch}
                     onChange={(e) => setAllUsersSearch(e.target.value)}
                     placeholder="Search name / email / role…"
+                    className="pl-9 bg-black/20 border-white/10"
                   />
                 </div>
+              </div>
 
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
+              <div className="rounded-xl border border-white/5 overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-white/5">
+                    <TableRow className="hover:bg-white/5 border-white/5">
+                      <SortableTableHead
+                        label="User"
+                        sortKey="full_name"
+                        sort={usersSort.sort}
+                        onToggle={usersSort.toggle}
+                      />
+                      <SortableTableHead
+                        label="Type"
+                        sortKey="user_type"
+                        sort={usersSort.sort}
+                        onToggle={usersSort.toggle}
+                      />
+                      <SortableTableHead
+                        label="Roles"
+                        sortKey="roles"
+                        sort={usersSort.sort}
+                        onToggle={usersSort.toggle}
+                      />
+                      <SortableTableHead
+                        label="Candidate status"
+                        sortKey="candidate_status"
+                        sort={usersSort.sort}
+                        onToggle={usersSort.toggle}
+                      />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedUsers.length === 0 ? (
                       <TableRow>
-                        <SortableTableHead
-                          label="User"
-                          sortKey="full_name"
-                          sort={usersSort.sort}
-                          onToggle={usersSort.toggle}
-                        />
-                        <SortableTableHead
-                          label="Type"
-                          sortKey="user_type"
-                          sort={usersSort.sort}
-                          onToggle={usersSort.toggle}
-                        />
-                        <SortableTableHead
-                          label="Roles"
-                          sortKey="roles"
-                          sort={usersSort.sort}
-                          onToggle={usersSort.toggle}
-                        />
-                        <SortableTableHead
-                          label="Candidate status"
-                          sortKey="candidate_status"
-                          sort={usersSort.sort}
-                          onToggle={usersSort.toggle}
-                        />
+                        <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                          <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                          No users found matching your search.
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedUsers.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8">
-                            No users found.
+                    ) : (
+                      sortedUsers.map((r) => (
+                        <TableRow key={r.user_id} className="hover:bg-white/5 border-white/5 transition-colors">
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-foreground">{r.full_name}</p>
+                              <p className="text-sm text-muted-foreground">{r.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
+                              {r.roles.includes("candidate") ? "Candidate" : "Staff"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {r.roles.map((role) => (
+                                <Badge key={role} variant="secondary" className="text-xs bg-secondary/50 text-secondary-foreground border-transparent">
+                                  {role === "account_manager" ? "account manager" : role.replace("_", " ")}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {r.candidate_status ? (
+                              <Badge variant="outline" className="text-xs border-white/10">{r.candidate_status}</Badge>
+                            ) : (
+                              <span className="opacity-50">—</span>
+                            )}
                           </TableCell>
                         </TableRow>
-                      ) : (
-                        sortedUsers.map((r) => (
-                          <TableRow key={r.user_id}>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{r.full_name}</p>
-                                <p className="text-sm">{r.email}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {r.roles.includes("candidate") ? "Candidate" : "Staff"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {r.roles.map((role) => (
-                                  <Badge key={role} variant="secondary" className="text-xs">
-                                    {role === "account_manager" ? "account manager" : role.replace("_", " ")}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="">{r.candidate_status || "—"}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="audit_logs" className="mt-6 space-y-6">
-            <Card className="card-elevated">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Audit Logs</CardTitle>
-                  <CardDescription>
-                    Tenant activity for your organization. Platform admin actions are hidden by default.
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={auditSearch}
-                    onChange={(e) => setAuditSearch(e.target.value)}
-                    placeholder="Search audit logs…"
-                    className="w-[260px]"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setAuditExpanded(false);
-                      setAuditCursor(null);
-                      fetchOrgAuditLogs(true);
-                    }}
-                    disabled={auditLoading}
-                  >
-                    {auditLoading ? "Refreshing…" : "Refresh"}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <SortableTableHead label="Time" sortKey="created_at" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                        <SortableTableHead label="User" sortKey="user" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                        <SortableTableHead label="Action" sortKey="action" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                        <SortableTableHead label="Entity" sortKey="entity" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                        <SortableTableHead label="IP" sortKey="ip" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedAuditLogs.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
-                            No audit logs found.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        sortedAuditLogs.map((log: any) => (
-                          <TableRow key={log.id}>
-                            <TableCell className="whitespace-nowrap">
-                              {format(new Date(log.created_at), "MMM d, yyyy HH:mm:ss")}
-                            </TableCell>
-                            <TableCell className="max-w-[220px]">
-                              <span className="truncate block">{log.user_full_name || log.user_email || "Unknown"}</span>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {log.action}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="">
-                              {log.entity_type}
-                              {log.entity_id ? ` (${String(log.entity_id).slice(0, 8)}…)` : ""}
-                            </TableCell>
-                            <TableCell className="">{log.ip_address || "—"}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-xs">
-                    {!auditSearchDebounced && !auditExpanded ? "Showing last 4 hours" : "Showing full history (paged)"}
-                  </div>
-                  <div className="flex gap-2">
-                    {!auditSearchDebounced && !auditExpanded && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAuditExpanded(true);
-                          fetchOrgAuditLogs(false);
-                        }}
-                        disabled={auditLoading || !auditHasMore}
-                      >
-                        Load older logs (100)
-                      </Button>
-                    )}
-                    {(auditSearchDebounced || auditExpanded) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fetchOrgAuditLogs(false)}
-                        disabled={auditLoading || !auditHasMore}
-                      >
-                        Load more (100)
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <OrgAdminAuditLogs embedded />
           </TabsContent>
 
           <TabsContent value="recruiters" className="mt-6 space-y-6">
-            <Card className="card-elevated">
-              <CardHeader className="flex flex-row items-center justify-between">
+            <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
+              <div className="flex flex-row items-center justify-between mb-6">
                 <div>
-                  <CardTitle>Recruiters</CardTitle>
-                  <CardDescription>Invite and manage recruiters in your organization.</CardDescription>
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Recruiters
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Invite and manage recruiters in your organization.</p>
                 </div>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button className="glass-panel text-primary-foreground hover:bg-primary/90">
                       <Mail className="h-4 w-4 mr-2" />
                       Invite Recruiter
                     </Button>
@@ -1133,40 +1059,46 @@ export default function OrgAdminDashboard() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              </CardHeader>
-              <CardContent className="space-y-3">
+              </div>
+
+              <div className="space-y-4">
                 {pendingRecruiterInvites.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Pending recruiter invitations</p>
+                  <div className="space-y-2 mb-6 p-4 glass-panel rounded-xl bg-muted/5">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      Pending recruiter invitations
+                    </p>
                     {pendingRecruiterInvites.map((inv) => (
-                      <div key={inv.id} className="flex items-center justify-between rounded-md border p-3">
+                      <div key={inv.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-black/10 p-3">
                         <div>
                           <p className="font-medium">{inv.full_name || inv.email}</p>
-                          <p className="text-sm">{inv.email}</p>
-                          <p className="mt-1 text-xs break-all">
+                          <p className="text-sm text-muted-foreground">{inv.email}</p>
+                          <p className="mt-1 text-xs break-all opacity-50">
                             Invite link: {buildInviteUrl(inv.invite_token)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
-                            variant="outline"
+                            variant="ghost"
+                            size="sm"
                             onClick={async () => {
                               await navigator.clipboard.writeText(buildInviteUrl(inv.invite_token));
                               toast.success("Copied invite link");
                             }}
                           >
-                            Copy link
+                            Copy
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => window.open(buildInviteUrl(inv.invite_token), "_blank")}
                           >
                             Open
                           </Button>
-                          <Button variant="outline" onClick={() => reInviteRecruiter(inv)}>
-                            Re-invite
+                          <Button variant="ghost" size="sm" onClick={() => reInviteRecruiter(inv)}>
+                            Resend
                           </Button>
-                          <Button variant="outline" onClick={() => cancelRecruiterInvite(inv.id)}>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => cancelRecruiterInvite(inv.id)}>
                             Cancel
                           </Button>
                         </div>
@@ -1176,21 +1108,29 @@ export default function OrgAdminDashboard() {
                 )}
 
                 {recruiters.length === 0 ? (
-                  <p className="text-sm">No recruiters yet.</p>
+                  <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
+                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <p className="text-sm text-muted-foreground">No recruiters yet.</p>
+                  </div>
                 ) : (
                   recruiters.map((r) => (
-                    <div key={r.user_id} className="flex items-center justify-between rounded-md border p-3">
-                      <div>
-                        <p className="font-medium">{r.full_name}</p>
-                        <p className="text-sm">{r.email}</p>
+                    <div key={r.user_id} className="flex items-start md:items-center justify-between glass-panel p-4 rounded-xl hover-card-premium group flex-col md:flex-row gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
+                          <span className="font-semibold text-secondary-foreground">{r.full_name?.[0] || r.email[0]}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{r.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{r.email}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-[260px]">
+                      <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="w-full md:w-[260px]">
                           <Select
                             value={amByRecruiter[String(r.user_id)] || "unassigned"}
                             onValueChange={(v) => updateRecruiterAssignment(String(r.user_id), v === "unassigned" ? null : String(v))}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="bg-transparent border-white/10">
                               <SelectValue placeholder="Assign account manager" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1202,58 +1142,66 @@ export default function OrgAdminDashboard() {
                               ))}
                             </SelectContent>
                           </Select>
-                          <div className="mt-1 text-[11px]">
-                            Each recruiter can be assigned to only one account manager.
+                          <div className="mt-1 text-[10px] text-muted-foreground px-1">
+                            Assigned Account Manager
                           </div>
                         </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Remove
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove recruiter</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will revoke recruiter access for <strong>{r.email}</strong>.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => removeRecruiter(r.user_id)}
-                            >
-                              Remove
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove recruiter</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will revoke recruiter access for <strong>{r.email}</strong>.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => removeRecruiter(r.user_id)}
+                              >
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   ))
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="candidates" className="mt-6 space-y-6">
-            <Card className="card-elevated">
-              <CardHeader className="flex flex-row items-center justify-between">
+            <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
+              <div className="flex flex-row items-center justify-between mb-6">
                 <div>
-                  <CardTitle>Candidates in your organization</CardTitle>
-                  <CardDescription>
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Candidates in your organization
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
                     Public candidates are not visible by default. Link a candidate to your org by email to manage them here.
-                  </CardDescription>
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end glass-panel p-4 rounded-xl bg-muted/5">
                   <div className="flex-1 space-y-2">
                     <Label>Link candidate by email</Label>
-                    <Input value={linkCandidateEmail} onChange={(e) => setLinkCandidateEmail(e.target.value)} placeholder="candidate@example.com" />
+                    <Input
+                      value={linkCandidateEmail}
+                      onChange={(e) => setLinkCandidateEmail(e.target.value)}
+                      placeholder="candidate@example.com"
+                      className="bg-transparent border-white/10"
+                    />
                   </div>
                   <Button onClick={linkCandidateByEmail} disabled={linkingCandidate || !linkCandidateEmail.trim()}>
                     {linkingCandidate && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -1262,30 +1210,32 @@ export default function OrgAdminDashboard() {
                 </div>
 
                 {orgCandidates.length === 0 ? (
-                  <p className="text-sm">No org-linked candidates yet.</p>
+                  <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
+                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <p className="text-sm text-muted-foreground">No org-linked candidates yet.</p>
+                  </div>
                 ) : (
                   orgCandidates.map((c) => (
-                    <div key={c.user_id} className="flex items-start justify-between rounded-md border p-3">
+                    <div key={c.user_id} className="flex items-start justify-between glass-panel p-4 rounded-xl hover-card-premium group">
                       <div>
                         <p className="font-medium">{c.full_name}</p>
-                        <p className="text-sm">{c.email}</p>
+                        <p className="text-sm text-muted-foreground">{c.email}</p>
                         {(c.recruiter_status || c.recruiter_notes) && (
-                          <p className="mt-2 text-xs">
-                            {c.recruiter_status ? `Status: ${c.recruiter_status}` : ""}
-                            {c.recruiter_status && c.recruiter_notes ? " • " : ""}
-                            {c.recruiter_notes ? `Notes: ${c.recruiter_notes}` : ""}
-                          </p>
+                          <div className="mt-2 text-xs flex gap-2 items-center text-muted-foreground/80">
+                            {c.recruiter_status && <Badge variant="outline" className="text-[10px] h-5">{c.recruiter_status}</Badge>}
+                            {c.recruiter_notes && <span>{c.recruiter_notes}</span>}
+                          </div>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => openEditCandidate(c)}>Edit</Button>
-                        <Button variant="destructive" onClick={() => unlinkCandidate(c.user_id)}>Unlink</Button>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="sm" onClick={() => openEditCandidate(c)}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => unlinkCandidate(c.user_id)}>Unlink</Button>
                       </div>
                     </div>
                   ))
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             <Dialog open={!!editingCandidate} onOpenChange={(open) => !open && setEditingCandidate(null)}>
               <DialogContent>
@@ -1315,7 +1265,7 @@ export default function OrgAdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
-    </OrgAdminLayout>
+    </OrgAdminLayout >
   );
 }
 

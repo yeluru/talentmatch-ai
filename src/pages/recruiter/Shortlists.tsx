@@ -16,7 +16,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   ListChecks,
   Plus,
   Trash2,
@@ -85,7 +85,7 @@ export default function Shortlists() {
   const [candidateSortBy, setCandidateSortBy] = useState<'name' | 'date' | 'status'>('date');
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [talentSheetOpen, setTalentSheetOpen] = useState(false);
-  
+
   const organizationId = roles.find(r => r.role === 'recruiter' || r.role === 'account_manager')?.organization_id;
   const shortlistParam = searchParams.get('shortlist');
 
@@ -106,14 +106,14 @@ export default function Shortlists() {
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      
+
       // Get candidate counts
       const shortlistIds = data?.map(s => s.id) || [];
       const { data: counts } = await supabase
         .from('shortlist_candidates')
         .select('shortlist_id')
         .in('shortlist_id', shortlistIds);
-      
+
       return data?.map(s => ({
         ...s,
         candidates_count: counts?.filter(c => c.shortlist_id === s.id).length || 0
@@ -124,8 +124,8 @@ export default function Shortlists() {
       let filtered = data;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        filtered = data.filter(s => 
-          s.name.toLowerCase().includes(q) || 
+        filtered = data.filter(s =>
+          s.name.toLowerCase().includes(q) ||
           s.description?.toLowerCase().includes(q)
         );
       }
@@ -188,7 +188,7 @@ export default function Shortlists() {
           description: newDescription || null,
           created_by: user.id
         });
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -313,15 +313,17 @@ export default function Shortlists() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-              <ListChecks className="h-8 w-8 text-accent" />
-              Candidate Shortlists
+            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <ListChecks className="h-8 w-8 text-primary" />
+              </div>
+              <span className="text-gradient-premium">Candidate Shortlists</span>
             </h1>
-            <p className="mt-1">
+            <p className="mt-2 text-muted-foreground text-lg">
               Organize candidates into project-based shortlists
             </p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button onClick={() => setShowCreateDialog(true)} className="shadow-lg shadow-primary/20">
             <Plus className="h-4 w-4 mr-2" />
             New Shortlist
           </Button>
@@ -336,27 +338,27 @@ export default function Shortlists() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Shortlists */}
-            <Card>
-              <CardHeader>
+            <Card className="glass-card border-none overflow-hidden h-[calc(100vh-250px)] flex flex-col">
+              <CardHeader className="bg-white/5 border-b border-white/10 pb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Your Shortlists</CardTitle>
+                    <CardTitle className="text-xl">Your Shortlists</CardTitle>
                     <CardDescription>Click a shortlist to view candidates</CardDescription>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex items-center gap-2 mt-4">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search shortlists..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9"
+                      className="pl-9 glass-input h-9"
                     />
                   </div>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'name' | 'date' | 'count')}>
-                    <SelectTrigger className="w-[140px]">
-                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectTrigger className="w-[140px] glass-input h-9 text-xs">
+                      <ArrowUpDown className="h-3 w-3 mr-2" />
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -367,13 +369,14 @@ export default function Shortlists() {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-4 flex-1 overflow-y-auto custom-scrollbar">
                 {shortlists.map((shortlist) => (
-                  <div 
+                  <div
                     key={shortlist.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedShortlist?.id === shortlist.id ? 'border-accent bg-accent/5' : 'hover:bg-muted/30'
-                    }`}
+                    className={`glass-panel p-4 hover-card-premium cursor-pointer transition-all flex flex-col gap-2 ${selectedShortlist?.id === shortlist.id
+                        ? 'border-primary/50 bg-primary/10 shadow-[0_0_15px_rgba(var(--primary),0.2)] ring-1 ring-primary/20'
+                        : ''
+                      }`}
                     onClick={() => {
                       setSelectedShortlist(shortlist);
                       setSearchParams((prev) => {
@@ -384,19 +387,21 @@ export default function Shortlists() {
                     }}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <FolderOpen className="h-5 w-5 text-accent" />
-                        <h4 className="font-semibold">{shortlist.name}</h4>
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${selectedShortlist?.id === shortlist.id ? 'bg-primary/20 text-primary' : 'bg-white/10 text-muted-foreground'}`}>
+                          <FolderOpen className="h-5 w-5" />
+                        </div>
+                        <h4 className={`font-semibold text-base ${selectedShortlist?.id === shortlist.id ? 'text-primary' : 'text-foreground'}`}>{shortlist.name}</h4>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 hover:bg-white/10 -mr-2">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem 
-                            className="text-destructive"
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteShortlist.mutate(shortlist.id);
@@ -409,13 +414,14 @@ export default function Shortlists() {
                       </DropdownMenu>
                     </div>
                     {shortlist.description && (
-                      <p className="text-smmb-2">{shortlist.description}</p>
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2 pl-[3.25rem]">{shortlist.description}</p>
                     )}
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground/80 pl-[3.25rem]">
+                      <span className="flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" />
                         {shortlist.candidates_count} candidates
                       </span>
+                      <span>•</span>
                       <span>Created {safeFormatDate(shortlist.created_at)}</span>
                     </div>
                   </div>
@@ -424,28 +430,28 @@ export default function Shortlists() {
             </Card>
 
             {/* Candidates in Shortlist */}
-            <Card>
-              <CardHeader>
-                <CardTitle>
+            <Card className="glass-card border-none overflow-hidden h-[calc(100vh-250px)] flex flex-col">
+              <CardHeader className="bg-white/5 border-b border-white/10 pb-4">
+                <CardTitle className="text-xl">
                   {selectedShortlist ? selectedShortlist.name : 'Select a Shortlist'}
                 </CardTitle>
                 <CardDescription>
                   {selectedShortlist ? 'Candidates in this shortlist' : 'Click a shortlist to view candidates'}
                 </CardDescription>
                 {selectedShortlist && shortlistCandidates && shortlistCandidates.length > 0 && (
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex items-center gap-2 mt-4">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search candidates..."
                         value={candidateSearchQuery}
                         onChange={(e) => setCandidateSearchQuery(e.target.value)}
-                        className="pl-9"
+                        className="pl-9 glass-input h-9"
                       />
                     </div>
                     <Select value={candidateSortBy} onValueChange={(v) => setCandidateSortBy(v as 'name' | 'date' | 'status')}>
-                      <SelectTrigger className="w-[130px]">
-                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                      <SelectTrigger className="w-[130px] glass-input h-9 text-xs">
+                        <ArrowUpDown className="h-3 w-3 mr-2" />
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -457,7 +463,7 @@ export default function Shortlists() {
                   </div>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 flex-1 overflow-y-auto custom-scrollbar bg-black/20">
                 {!selectedShortlist ? (
                   <EmptyState
                     icon={FolderOpen}
@@ -510,7 +516,7 @@ export default function Shortlists() {
                           candidate={candidate}
                           shortlists={shortlists}
                           selectedShortlistId={selectedShortlist!.id}
-                          onCopy={(candidateId, targetShortlistId) => 
+                          onCopy={(candidateId, targetShortlistId) =>
                             copyToShortlist.mutate({ candidateId, targetShortlistId })
                           }
                           onMove={(shortlistCandidateId, candidateId, targetShortlistId) =>
@@ -533,7 +539,7 @@ export default function Shortlists() {
 
         {/* Create Shortlist Dialog */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent>
+          <DialogContent className="glass-panel border-white/20">
             <DialogHeader>
               <DialogTitle>Create Shortlist</DialogTitle>
               <DialogDescription>
@@ -547,6 +553,7 @@ export default function Shortlists() {
                   placeholder="e.g., Frontend Dev - Q1 Hire"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
+                  className="glass-input"
                 />
               </div>
               <div className="space-y-2">
@@ -555,12 +562,13 @@ export default function Shortlists() {
                   placeholder="Notes about this shortlist..."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
+                  className="glass-input min-h-[100px]"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-              <Button 
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="hover:bg-white/5">Cancel</Button>
+              <Button
                 onClick={() => createShortlist.mutate()}
                 disabled={!newName || createShortlist.isPending}
               >

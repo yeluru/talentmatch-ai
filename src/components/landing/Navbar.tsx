@@ -79,155 +79,155 @@ export function Navbar() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
-        <nav className="glass rounded-2xl px-4 sm:px-6 py-3 flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="shrink-0">
-            <Logo />
-          </Link>
+    <header className="fixed top-6 left-0 right-0 z-50 px-4">
+      <nav className="mx-auto max-w-5xl rounded-full border border-white/20 bg-white/70 dark:bg-black/70 backdrop-blur-xl shadow-lg shadow-black/5 px-6 py-3 flex items-center justify-between transition-all duration-300 hover:shadow-xl hover:bg-white/80 dark:hover:bg-black/80">
+        {/* Logo */}
+        <Link to="/" className="shrink-0 group">
+          <Logo className="transition-transform duration-300 group-hover:scale-105" />
+        </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1">
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-1">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              to={link.href}
+              className="px-4 py-2 text-sm font-medium hover:text-foreground transition-all duration-300 rounded-full hover:bg-muted/50"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Desktop Auth & Theme Toggle */}
+        <div className="hidden md:flex items-center gap-3">
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            aria-label="Toggle theme"
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+
+          <div className="h-6 w-px bg-border/50 mx-1" />
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 rounded-full pl-1 pr-3 hover:bg-muted">
+                  <Avatar className="h-8 w-8 border border-white/20">
+                    <AvatarImage src={profile?.avatar_url || ''} />
+                    <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs">
+                      {(profile?.full_name || profile?.email || 'U').slice(0, 1).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="max-w-[10rem] truncate text-sm font-medium hidden lg:block">
+                    {profile?.full_name || profile?.email || 'Account'}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 glass-panel">
+                <DropdownMenuItem
+                  onClick={() => navigate(getDashboardLink())}
+                  className="gap-2 rounded-xl focus:bg-accent/10 focus:text-accent cursor-pointer"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Go to dashboard
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border/50 my-1" />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await signOut();
+                    navigate('/');
+                  }}
+                  className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive rounded-xl cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" className="rounded-full font-medium" asChild>
+                <Link to="/auth">Sign In</Link>
+              </Button>
+              <Button size="sm" className="rounded-full px-5 btn-primary-glow font-semibold" asChild>
+                <Link to="/auth">Get Started</Link>
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden p-2 rounded-full hover:bg-muted transition-colors"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </nav>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden mt-2 glass rounded-2xl p-4 animate-fade-in">
+          <div className="flex flex-col gap-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
-                className="px-4 py-2 text-sm font-medium hover:text-foreground transition-colors rounded-lg hover:bg-muted"
+                className="px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.label}
               </Link>
             ))}
-          </div>
-
-          {/* Desktop Auth & Theme Toggle */}
-          <div className="hidden md:flex items-center gap-3">
+            <hr className="my-2 border-border" />
             <button
               onClick={() => setIsDark(!isDark)}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Toggle theme"
+              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors w-full"
             >
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {isDark ? 'Light Mode' : 'Dark Mode'}
             </button>
-
+            <hr className="my-2 border-border" />
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={profile?.avatar_url || ''} />
-                      <AvatarFallback className="bg-accent text-accent-foreground text-xs">
-                        {(profile?.full_name || profile?.email || 'U').slice(0, 1).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="max-w-[10rem] truncate">
-                      {profile?.full_name || profile?.email || 'Account'}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem
-                    onClick={() => navigate(getDashboardLink())}
-                    className="gap-2"
-                  >
-                    <LayoutDashboard className="h-4 w-4" />
-                    Go to dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={async () => {
-                      await signOut();
-                      navigate('/');
-                    }}
-                    className="gap-2 text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex flex-col gap-2">
+                <Button asChild className="w-full" variant="outline">
+                  <Link to={getDashboardLink()} onClick={() => setIsMobileMenuOpen(false)}>
+                    Go to Dashboard
+                  </Link>
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="destructive"
+                  onClick={async () => {
+                    setIsMobileMenuOpen(false);
+                    await signOut();
+                    navigate('/');
+                  }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </Button>
+              </div>
             ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/auth">Sign In</Link>
+              <div className="flex flex-col gap-2">
+                <Button variant="outline" asChild className="w-full">
+                  <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
+                    Sign In
+                  </Link>
                 </Button>
-                <Button size="sm" asChild>
-                  <Link to="/auth">Get Started</Link>
+                <Button asChild className="w-full">
+                  <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
+                    Get Started
+                  </Link>
                 </Button>
-              </>
+              </div>
             )}
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </nav>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden mt-2 glass rounded-2xl p-4 animate-fade-in">
-            <div className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className="px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <hr className="my-2 border-border" />
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors w-full"
-              >
-                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                {isDark ? 'Light Mode' : 'Dark Mode'}
-              </button>
-              <hr className="my-2 border-border" />
-              {user ? (
-                <div className="flex flex-col gap-2">
-                  <Button asChild className="w-full" variant="outline">
-                    <Link to={getDashboardLink()} onClick={() => setIsMobileMenuOpen(false)}>
-                      Go to Dashboard
-                    </Link>
-                  </Button>
-                  <Button
-                    className="w-full"
-                    variant="destructive"
-                    onClick={async () => {
-                      setIsMobileMenuOpen(false);
-                      await signOut();
-                      navigate('/');
-                    }}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Button variant="outline" asChild className="w-full">
-                    <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
-                      Sign In
-                    </Link>
-                  </Button>
-                  <Button asChild className="w-full">
-                    <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
-                      Get Started
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </header>
   );
 }

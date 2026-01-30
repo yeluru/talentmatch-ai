@@ -29,14 +29,14 @@ export default function ManagerJobs() {
 
   const fetchJobs = async () => {
     if (!organizationId) return;
-    
+
     try {
       const { data } = await supabase
         .from('jobs')
         .select('id, title, location, status, applications_count, posted_at, is_remote')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
-      
+
       if (data) {
         setJobs(data);
       }
@@ -142,7 +142,7 @@ export default function ManagerJobs() {
             ) : (
               <div className="space-y-3">
                 {jobs.map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                  <div key={job.id} className="glass-panel p-4 hover-card-premium group rounded-xl flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="font-medium">{job.title}</p>
                       <div className="flex items-center gap-4 text-sm">

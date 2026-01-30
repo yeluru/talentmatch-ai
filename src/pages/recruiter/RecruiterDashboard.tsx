@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { StatCard } from '@/components/ui/stat-card';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatCard } from '@/components/ui/stat-card';
 import {
   Briefcase,
   Users,
@@ -23,13 +22,13 @@ import {
   Megaphone,
   Upload,
   Globe,
+  TrendingUp,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { toast } from 'sonner';
-import { PageHeader } from '@/components/ui/page-header';
 
 interface RecruiterStats {
   openJobs: number;
@@ -55,7 +54,7 @@ interface RecentApplication {
 }
 
 export default function RecruiterDashboard() {
-  const { roles, organizationId } = useAuth();
+  const { roles, organizationId, user } = useAuth();
   const [stats, setStats] = useState<RecruiterStats>({
     openJobs: 0,
     totalApplications: 0,
@@ -82,21 +81,21 @@ export default function RecruiterDashboard() {
 
   const fetchDashboardData = async () => {
     if (!orgId) return;
-    
+
     try {
       // Fetch jobs
       const { data: jobs } = await supabase
         .from('jobs')
         .select('id, status')
         .eq('organization_id', orgId);
-      
+
       const openJobs = jobs?.filter(j => j.status === 'published').length || 0;
       const jobIds = jobs?.map(j => j.id) || [];
 
       // Fetch applications for org's jobs
       let totalApplications = 0;
       const appsList: RecentApplication[] = [];
-      
+
       if (jobIds.length > 0) {
         // Accurate count (not limited)
         const { count: appsCount } = await supabase
@@ -117,7 +116,7 @@ export default function RecruiterDashboard() {
           .in('job_id', jobIds)
           .order('applied_at', { ascending: false })
           .limit(5);
-        
+
         (applications || []).forEach((app: any) => {
           const cp = app.candidate_profiles as any;
           const name =
@@ -173,7 +172,7 @@ export default function RecruiterDashboard() {
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
         .limit(3);
-      
+
       if (codes) {
         setInviteCodes(codes);
       }
@@ -188,6 +187,7 @@ export default function RecruiterDashboard() {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -195,13 +195,13 @@ export default function RecruiterDashboard() {
 
   const createInviteCode = async () => {
     if (!orgId) return;
-    
+
     setIsCreatingCode(true);
     try {
       const { data: codeData, error: codeError } = await supabase.rpc('generate_invite_code');
-      
+
       if (codeError) throw codeError;
-      
+
       const { data, error } = await supabase
         .from('organization_invite_codes')
         .insert({
@@ -211,9 +211,9 @@ export default function RecruiterDashboard() {
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       setInviteCodes([{ id: data.id, code: data.code, uses_count: 0, is_active: true }, ...inviteCodes.slice(0, 2)]);
       toast.success('Invite code created!');
     } catch (error) {
@@ -286,7 +286,10 @@ export default function RecruiterDashboard() {
     return recs.slice(0, 4);
   }, [stats.openJobs, stats.totalApplications, stats.totalCandidates]);
 
-  const ActionCard = ({
+
+
+
+  const ActionCardPremium = ({
     title,
     description,
     href,
@@ -303,96 +306,90 @@ export default function RecruiterDashboard() {
       role="button"
       tabIndex={0}
       onClick={() => navigate(href)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          navigate(href);
-        }
-      }}
-      className="card-elevated p-4 md:p-5 cursor-pointer hover:bg-muted/30 transition-colors"
+      className="glass-panel p-5 cursor-pointer hover:bg-white/5 transition-colors group relative overflow-hidden"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="flex items-start justify-between gap-3 relative z-10">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="font-semibold truncate">{title}</div>
               {badge ? (
-                <Badge variant="secondary" className="bg-accent/10 text-accent">
+                <Badge variant="secondary" className="bg-primary/20 text-primary hover:bg-primary/30">
                   {badge}
                 </Badge>
               ) : null}
             </div>
-            <div className="text-smline-clamp-2">{description}</div>
+            <div className="text-sm text-muted-foreground line-clamp-2 mt-1">{description}</div>
           </div>
         </div>
-        <ArrowRight className="h-4 w-4mt-1 shrink-0" />
+        <ArrowRight className="h-4 w-4 mt-1 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
     </div>
   );
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title={
-            <>
-              Recruiter <span className="text-accent">Dashboard</span>
-            </>
-          }
-          description="Post jobs, track applicants, and prioritize the best-fit candidates—fast."
-          actions={
-            <Button asChild className="btn-glow">
+      <div className="space-y-8 animate-in-view">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl font-bold tracking-tight">
+              Recruiter <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Dashboard</span>
+            </h1>
+            <p className="mt-2 text-lg text-muted-foreground">
+              Overview of your hiring pipeline and sourcing activities.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button className="btn-primary-glow bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-0" asChild>
               <Link to="/recruiter/jobs/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> Post a Job
               </Link>
             </Button>
-          }
-        />
+          </div>
+        </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Stats Grid */}
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard
-            title="Bulk upload profiles"
+            title="Bulk Uploads"
             value={stats.sourcedResumeUploads.toString()}
             icon={Upload}
-            href="/recruiter/talent-search/uploads"
+            change="Total processed"
+            changeType="neutral"
           />
           <StatCard
-            title="LinkedIn search imports"
+            title="LinkedIn Imports"
             value={stats.sourcedGoogleXray.toString()}
             icon={Globe}
-            href="/recruiter/talent-search/search"
+            change="X-Ray Search"
+            changeType="neutral"
           />
           <StatCard
-            title="Web search imports"
+            title="Web Imports"
             value={stats.sourcedWebSearch.toString()}
             icon={Search}
-            href="/recruiter/talent-search/search"
+            change="Web Sourced"
+            changeType="neutral"
           />
         </div>
 
-        {/* Journey: quick actions */}
-        <div className="space-y-3">
-          <div className="flex items-end justify-between gap-3">
+        {/* Quick Actions Grid */}
+        <div className="space-y-4">
+          <div className="flex items-end justify-between">
             <div>
-              <h2 className="font-display text-lg font-semibold">Start here</h2>
-              <p className="text-sm">
-                Jump into the most common recruiter workflows with one click.
-              </p>
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Quick Actions
+              </h2>
+              <p className="text-sm text-muted-foreground">Jump into your most common workflows.</p>
             </div>
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 hover:bg-primary/10">
               <Link to="/recruiter/insights">
                 View Insights <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -400,173 +397,147 @@ export default function RecruiterDashboard() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <ActionCard
+            <ActionCardPremium
               title="My Jobs"
               description="Create and manage job postings."
               href="/recruiter/jobs"
               icon={Briefcase}
               badge={stats.openJobs ? `${stats.openJobs} open` : undefined}
             />
-            <ActionCard
+            <ActionCardPremium
               title="My Applicants"
               description="Review applicants and update statuses."
               href="/recruiter/candidates"
               icon={ClipboardList}
               badge={stats.totalApplications ? `${stats.totalApplications}` : undefined}
             />
-            <ActionCard
+            <ActionCardPremium
               title="Candidate Pipeline"
-              description="Move candidates through stages and stay organized."
+              description="Move candidates through stages."
               href="/recruiter/pipeline"
               icon={GitBranch}
             />
-            <ActionCard
+            <ActionCardPremium
               title="Interview Schedule"
-              description="Schedule interviews for candidates in your pipeline."
+              description="Manage upcoming interviews."
               href="/recruiter/interviews"
               icon={CalendarDays}
             />
-            <ActionCard
-              title="Shortlists"
-              description="Curate candidate lists for quick review and sharing."
-              href="/recruiter/shortlists"
-              icon={Layers}
-            />
-            <ActionCard
+            <ActionCardPremium
               title="ATS Match Search"
-              description="Search by ATS match and shortlist strong profiles."
+              description="Find best fits in your database."
               href="/recruiter/ats-match-search"
               icon={Search}
+            />
+            <ActionCardPremium
+              title="Shortlists"
+              description="Curated candidate lists."
+              href="/recruiter/shortlists"
+              icon={Layers}
             />
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2">
           {/* Invite Codes */}
-          <Card className="card-elevated">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Invite Candidates
-                </CardTitle>
-                <CardDescription>Share codes to invite candidates to your organization</CardDescription>
+          <div className="space-y-4">
+            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" />
+              Invite Candidates
+            </h2>
+            <div className="glass-panel p-6 rounded-xl hover-card-premium">
+              <div className="flex flex-row items-center justify-between pb-4 border-b border-white/5 mb-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-medium flex items-center gap-2">
+                    Active Codes
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Share these to invite talent.</p>
+                </div>
+                <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm" className="btn-primary-glow">
+                  {isCreatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Generate</>}
+                </Button>
               </div>
-              <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm">
-                {isCreatingCode ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+              <div>
+                {inviteCodes.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No active codes. Generate one to get started.
+                  </div>
                 ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-1" /> New
-                  </>
-                )}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {inviteCodes.length === 0 ? (
-                <p className="text-sm">Create an invite code to start inviting candidates.</p>
-              ) : (
-                <div className="space-y-2">
-                  {inviteCodes.map((code) => (
-                    <div key={code.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                      <code className="font-mono font-bold">{code.code}</code>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs">{code.uses_count} uses</span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyCode(code.code)}>
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                  <div className="space-y-3">
+                    {inviteCodes.map((code) => (
+                      <div key={code.id} className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between group">
+                        <div className="flex flex-col">
+                          <code className="font-mono font-bold text-lg text-primary tracking-wider">{code.code}</code>
+                          <span className="text-xs text-muted-foreground">Created by you</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground bg-black/20 px-2.5 py-1 rounded-full border border-white/5">{code.uses_count} uses</span>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => copyCode(code.code)}>
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Applications / Activity */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Recent Applications
+              </h2>
+              <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 hover:bg-primary/10">
+                <Link to="/recruiter/candidates">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+            </div>
+
+            <div className="glass-panel p-6 rounded-xl hover-card-premium min-h-[250px]">
+              {recentApplications.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground text-sm p-4">
+                  <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                    <Clock className="h-6 w-6 opacity-40" />
+                  </div>
+                  No recent applications found.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentApplications.map((app) => {
+                    // Extract initials for avatar
+                    const initials = app.candidate_name
+                      .split(' ')
+                      .map(n => n[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase();
+
+                    return (
+                      <div key={app.id} className="p-3 rounded-xl border border-white/5 hover:bg-white/5 transition-all flex items-center justify-between group cursor-pointer" onClick={() => navigate('/recruiter/candidates')}>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center fontsize-sm font-bold border border-primary/20">
+                            {initials}
+                          </div>
+                          <div>
+                            <p className="font-medium group-hover:text-primary transition-colors text-sm">{app.candidate_name}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Briefcase className="h-3 w-3" />
+                              {app.job_title}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground/60 font-mono bg-white/5 px-2 py-1 rounded">{formatDate(app.applied_at)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Recommendations */}
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                Recommended next steps
-              </CardTitle>
-              <CardDescription>Based on what’s happening in your org right now.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recommendations.map((r, idx) => (
-                  <div
-                    key={idx}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(r.href)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        navigate(r.href);
-                      }
-                    }}
-                    className="flex items-start gap-3 p-3 rounded-xl border bg-background/50 hover:bg-muted/30 transition-colors cursor-pointer"
-                  >
-                    <div className="h-9 w-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                      <r.icon className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold">{r.title}</div>
-                      <div className="text-sm">{r.description}</div>
-                    </div>
-                    <ArrowRight className="h-4 w-4mt-1 shrink-0" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Button asChild variant="secondary">
-                  <Link to="/recruiter/ai-matching">
-                    Run Matching <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link to="/recruiter/insights">
-                    Open Insights <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
-
-        {/* Recent Applications */}
-        <Card className="card-elevated">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent applications
-            </CardTitle>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/recruiter/candidates">
-                View All <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {recentApplications.length === 0 ? (
-              <p className="text-sm">No applications yet. Post a job to start receiving applications.</p>
-            ) : (
-              <div className="space-y-3">
-                {recentApplications.map((app) => (
-                  <div key={app.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">{app.candidate_name}</p>
-                      <p className="text-sm">Applied for: {app.job_title}</p>
-                    </div>
-                    <span className="text-sm">{formatDate(app.applied_at)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </DashboardLayout>
   );

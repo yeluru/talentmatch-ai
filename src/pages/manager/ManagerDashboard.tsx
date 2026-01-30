@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { StatCard } from '@/components/ui/stat-card';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Users, TrendingUp, Clock, Copy, Plus, Loader2, Key } from 'lucide-react';
+import { StatCard } from '@/components/ui/stat-card';
+import { Briefcase, Users, TrendingUp, Clock, Copy, Plus, Loader2, Key, Target, Award, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { PageHeader } from '@/components/ui/page-header';
 
 interface OrgStats {
   openJobs: number;
@@ -55,7 +52,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     // Wait for auth to finish loading before deciding on data fetch
     if (authLoading) return;
-    
+
     if (organizationId) {
       fetchOrgData();
     } else {
@@ -66,14 +63,14 @@ export default function ManagerDashboard() {
 
   const fetchOrgData = async () => {
     if (!organizationId) return;
-    
+
     try {
       // Fetch jobs count
       const { data: jobs } = await supabase
         .from('jobs')
         .select('id, status')
         .eq('organization_id', organizationId);
-      
+
       const openJobs = jobs?.filter(j => j.status === 'published').length || 0;
 
       // Fetch team members (recruiters in same org)
@@ -92,7 +89,7 @@ export default function ManagerDashboard() {
           .eq('account_manager_user_id', user.id);
         recruitersCount = assigned?.length || 0;
       }
-      
+
       // Fetch team member profiles
       if (rolesData && rolesData.length > 0) {
         const userIds = rolesData.map(r => r.user_id);
@@ -100,7 +97,7 @@ export default function ManagerDashboard() {
           .from('profiles')
           .select('id, full_name, email, user_id')
           .in('user_id', userIds);
-        
+
         if (profiles) {
           const members = profiles.map(p => ({
             id: p.id,
@@ -122,7 +119,7 @@ export default function ManagerDashboard() {
       const jobIds = jobs?.map(j => j.id) || [];
       let applicationsCount = 0;
       const appsList: RecentApplication[] = [];
-      
+
       if (jobIds.length > 0) {
         const { data: applications } = await supabase
           .from('applications')
@@ -134,9 +131,9 @@ export default function ManagerDashboard() {
           .in('job_id', jobIds)
           .order('applied_at', { ascending: false })
           .limit(5);
-        
+
         applicationsCount = applications?.length || 0;
-        
+
         if (applications) {
           for (const app of applications) {
             const { data: candidateProfile } = await supabase
@@ -144,14 +141,14 @@ export default function ManagerDashboard() {
               .select('user_id')
               .eq('id', app.candidate_id)
               .single();
-            
+
             if (candidateProfile) {
               const { data: profile } = await supabase
                 .from('profiles')
                 .select('full_name')
                 .eq('user_id', candidateProfile.user_id)
                 .single();
-              
+
               appsList.push({
                 id: app.id,
                 candidate_name: profile?.full_name || 'Unknown',
@@ -172,7 +169,7 @@ export default function ManagerDashboard() {
         .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
-      
+
       if (codes) {
         setInviteCodes(codes as InviteCode[]);
       }
@@ -192,14 +189,14 @@ export default function ManagerDashboard() {
 
   const createInviteCode = async () => {
     if (!organizationId) return;
-    
+
     setIsCreatingCode(true);
     try {
       // Generate random code
       const { data: codeData, error: codeError } = await supabase.rpc('generate_invite_code');
-      
+
       if (codeError) throw codeError;
-      
+
       const { data, error } = await supabase
         .from('organization_invite_codes')
         .insert({
@@ -209,9 +206,9 @@ export default function ManagerDashboard() {
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      
+
       setInviteCodes([data as InviteCode, ...inviteCodes]);
       toast.success('Invite code created!');
     } catch (error) {
@@ -236,145 +233,196 @@ export default function ManagerDashboard() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title={
-            <>
-              Account Manager <span className="text-accent">Dashboard</span>
-            </>
-          }
-          description="Organization overview, team activity, and the latest pipeline signals."
-          actions={
-            <Button variant="outline" asChild>
-              <Link to="/manager/team">View team</Link>
+      <div className="space-y-8 animate-in-view">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-4xl font-bold tracking-tight">
+              Manager <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-rose-500">Dashboard</span>
+            </h1>
+            <p className="mt-2 text-lg text-muted-foreground">
+              Organization overview, team activity, and metrics.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" asChild className="hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-200">
+              <Link to="/manager/team">
+                <Users className="mr-2 h-4 w-4" /> Manage Team
+              </Link>
             </Button>
-          }
-        />
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Open Jobs" value={stats.openJobs.toString()} icon={Briefcase} href="/manager/jobs" />
-          <StatCard title="Recruiters" value={stats.totalRecruiters.toString()} icon={Users} href="/manager/team" />
-          <StatCard title="Candidates" value={stats.totalCandidates.toString()} icon={Users} href="/recruiter/talent-pool" />
-          <StatCard title="Applications" value={stats.totalApplications.toString()} icon={Clock} href="/manager/analytics" />
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Invite Codes Section */}
-          <Card className="card-elevated">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Invite Codes
-                </CardTitle>
-                <CardDescription>Share codes with candidates to join your organization</CardDescription>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Open Jobs"
+            value={stats.openJobs.toString()}
+            icon={Briefcase}
+            iconColor="text-amber-500"
+            change="Active Listings"
+            changeType="neutral"
+          />
+          <StatCard
+            title="Recruiters"
+            value={stats.totalRecruiters.toString()}
+            icon={Users}
+            iconColor="text-orange-500"
+            change="Team Size"
+            changeType="neutral"
+          />
+          <StatCard
+            title="Candidates"
+            value={stats.totalCandidates.toString()}
+            icon={Target}
+            iconColor="text-rose-500"
+            change="Total Pipeline"
+            changeType="neutral"
+          />
+          <StatCard
+            title="Applications"
+            value={stats.totalApplications.toString()}
+            icon={Clock}
+            iconColor="text-red-500"
+            change="Recent Activity"
+            changeType="neutral"
+          />
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* Invite Codes & Team */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
+                <Key className="h-5 w-5 text-amber-500" />
+                Invite Codes
+              </h2>
+              <div className="glass-panel p-6 rounded-xl hover-card-premium">
+                <div className="flex flex-row items-center justify-between pb-4 border-b border-white/5 mb-4">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-medium">
+                      Active Invitations
+                    </h3>
+                    <p className="text-sm text-muted-foreground">Manage codes for candidate access.</p>
+                  </div>
+                  <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm" className="bg-amber-600 hover:bg-amber-700 text-white border-0">
+                    {isCreatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Create</>}
+                  </Button>
+                </div>
+                <div>
+                  {inviteCodes.length === 0 ? (
+                    <p className="text-sm p-4 text-center text-muted-foreground">No codes yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {inviteCodes.slice(0, 5).map((code) => (
+                        <div key={code.id} className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between group">
+                          <code className="font-mono text-lg font-bold text-amber-600 tracking-wider">{code.code}</code>
+                          <div className="flex items-center gap-3">
+                            <Badge variant={code.is_active ? "default" : "secondary"} className={code.is_active ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : ""}>
+                              {code.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground">{code.uses_count} uses</div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10" onClick={() => copyCode(code.code)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm">
-                {isCreatingCode ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                  <Users className="h-5 w-5 text-orange-500" />
+                  One Team
+                </h2>
+                <Button variant="link" size="sm" asChild className="text-amber-600 hover:text-amber-500">
+                  <Link to="/manager/team">View All <ArrowRight className="ml-1 h-3 w-3" /></Link>
+                </Button>
+              </div>
+              <div className="glass-panel p-6 rounded-xl hover-card-premium">
+                {teamMembers.length === 0 ? (
+                  <p className="text-sm p-6 text-center text-muted-foreground">No team members found.</p>
                 ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-1" /> New Code
-                  </>
-                )}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {inviteCodes.length === 0 ? (
-                <p className="text-sm">No invite codes yet. Create one to invite candidates.</p>
-              ) : (
-                <div className="space-y-3">
-                  {inviteCodes.slice(0, 5).map((code) => (
-                    <div key={code.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <code className="font-mono text-lg font-bold">{code.code}</code>
-                        <Badge variant={code.is_active ? "default" : "secondary"}>
-                          {code.is_active ? 'Active' : 'Inactive'}
+                  <div className="space-y-3">
+                    {teamMembers.slice(0, 5).map((member) => (
+                      <div key={member.id} className="p-3 rounded-xl border border-white/5 hover:bg-white/5 transition-all flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm border border-amber-500/20">
+                            {member.full_name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{member.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{member.email}</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
+                          {member.role === 'recruiter' ? 'Recruiter' :
+                            member.role === 'account_manager' ? 'Manager' : member.role}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">
-                          {code.uses_count} uses
-                        </span>
-                        <Button variant="ghost" size="icon" onClick={() => copyCode(code.code)}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Team Members */}
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-              <CardDescription>Recruiters and managers in your organization</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {teamMembers.length === 0 ? (
-                <p className="text-sm">No team members found.</p>
-              ) : (
-                <div className="space-y-3">
-                  {teamMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div>
-                        <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm">{member.email}</p>
-                      </div>
-                      <Badge variant="outline">
-                        {member.role === 'recruiter' ? 'Recruiter' : 
-                         member.role === 'account_manager' ? 'Manager' : member.role}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Applications */}
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle>Recent Applications</CardTitle>
-            <CardDescription>Latest candidate applications across all jobs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentApplications.length === 0 ? (
-              <p className="text-sm">No applications yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {recentApplications.map((app) => (
-                  <div key={app.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">{app.candidate_name}</p>
-                      <p className="text-sm">Applied for: {app.job_title}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">{app.status}</Badge>
-                      <span className="text-sm">{formatDate(app.applied_at)}</span>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+
+          {/* Recent Applications */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-red-500" />
+                Latest Applications
+              </h2>
+            </div>
+
+            <div className="glass-panel p-6 rounded-xl hover-card-premium h-full">
+              {recentApplications.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground p-12">
+                  <Clock className="h-12 w-12 mb-4 opacity-20" />
+                  <p>No recent applications.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentApplications.map((app) => (
+                    <div key={app.id} className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between group">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500 font-bold group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                          <Award className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold group-hover:text-rose-500 transition-colors">{app.candidate_name}</p>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Briefcase className="h-3 w-3" />
+                            {app.job_title}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <Badge variant="outline" className={`mb-1 ${app.status === 'applied' ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' :
+                          app.status === 'hired' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' :
+                            'border-white/10 bg-white/5'
+                          }`}>
+                          {app.status}
+                        </Badge>
+                        <div className="text-xs text-muted-foreground">{formatDate(app.applied_at)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
