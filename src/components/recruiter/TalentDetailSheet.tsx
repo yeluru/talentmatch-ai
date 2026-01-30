@@ -201,31 +201,37 @@ function TalentDetailContent({
   const content = (
     <div className={isMobile ? "space-y-5" : "space-y-6"}>
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <Avatar className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0">
-          <AvatarFallback className="bg-accent text-accent-foreground text-lg sm:text-xl">
-            {(talent.full_name || 'U').charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg sm:text-xl font-semibold truncate">{talent.full_name || 'Unknown'}</h2>
-            {talent.ats_score !== null && talent.ats_score !== undefined && (
-              <div className="flex flex-col items-start leading-tight" title="Generic resume-quality score (not JD-based)">
-                <ScoreBadge score={talent.ats_score} showLabel={false} />
-                <span className="text-[10px]">generic score</span>
-              </div>
-            )}
-          </div>
-          {talent.headline && (
-            <p className="text-smline-clamp-2">{talent.headline}</p>
+      <div className="flex items-start gap-4 mb-2">
+        <div className="flex flex-col items-center gap-2">
+          <Avatar className="h-16 w-16 flex-shrink-0 border-2 border-primary/20 shadow-lg">
+            <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
+              {(talent.full_name || 'U').charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {talent.ats_score !== null && talent.ats_score !== undefined && (
+            <div className="flex flex-col items-center leading-tight mt-1" title="Generic resume-quality score (not JD-based)">
+              <ScoreBadge score={talent.ats_score} showLabel={false} className="scale-90" />
+            </div>
           )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl font-bold font-display tracking-tight text-foreground truncate leading-tight mb-1">
+            {talent.full_name || 'Unknown'}
+          </h2>
+
+          {talent.headline && (
+            <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+              {talent.headline}
+            </p>
+          )}
+
           {talent.current_title && (
-            <p className="text-smflex items-center gap-1 mt-1">
-              <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
+            <p className="text-sm text-foreground/80 flex items-center gap-1.5 mt-2 font-medium">
+              <Briefcase className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
               <span className="truncate">
                 {talent.current_title}
-                {talent.current_company && ` at ${talent.current_company}`}
+                {talent.current_company && <span className="text-muted-foreground font-normal"> at {talent.current_company}</span>}
               </span>
             </p>
           )}
@@ -234,37 +240,38 @@ function TalentDetailContent({
 
       {/* Enrichment */}
       {talent.linkedin_url ? (
-        <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+        <div className="rounded-xl border border-primary/10 bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-3 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -z-10"></div>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium">Enrich profile</div>
-              <div className="text-xs">
+              <div className="text-sm font-semibold text-primary">Enrich profile</div>
+              <div className="text-xs text-muted-foreground">
                 Pull richer experience/skills from LinkedIn to improve this profile.
               </div>
             </div>
             <Button
               type="button"
               size="sm"
-              variant="secondary"
+              variant="outline"
               onClick={onEnrichFromLinkedIn}
               disabled={isEnriching}
-              className="shrink-0"
+              className="shrink-0 bg-primary/10 border-primary/20 text-primary hover:bg-primary/20"
             >
-              {isEnriching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isEnriching ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Linkedin className="h-3 w-3 mr-2" />}
               Enrich
             </Button>
           </div>
 
           {linkedinPasteOpen ? (
-            <div className="space-y-2">
-              <div className="text-xs">
+            <div className="space-y-3 pt-2 border-t border-white/5">
+              <div className="text-xs text-muted-foreground">
                 LinkedIn may block automated fetch. Paste the profile text (copy/paste from LinkedIn) and we’ll extract structured details.
               </div>
               <Textarea
                 value={linkedinPasteText}
                 onChange={(e) => onLinkedinPasteTextChange(e.target.value)}
                 placeholder="Paste LinkedIn profile text here…"
-                className="min-h-[140px]"
+                className="min-h-[140px] bg-black/20 border-white/10 focus:border-primary/50 text-sm"
               />
               <div className="flex items-center justify-end gap-2">
                 <Button
@@ -273,6 +280,7 @@ function TalentDetailContent({
                   variant="ghost"
                   onClick={() => onLinkedinPasteOpenChange(false)}
                   disabled={isEnriching}
+                  className="hover:bg-white/10"
                 >
                   Cancel
                 </Button>
@@ -281,6 +289,7 @@ function TalentDetailContent({
                   size="sm"
                   onClick={onEnrichFromPastedText}
                   disabled={isEnriching || !linkedinPasteText.trim()}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {isEnriching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Enrich from pasted text
@@ -292,63 +301,63 @@ function TalentDetailContent({
       ) : null}
 
       {/* Contact Info */}
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {talent.email && (
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <Mail className="h-4 w-4flex-shrink-0" />
-            <a href={`mailto:${talent.email}`} className="hover:underline min-w-0 truncate">
+          <div className="flex items-center gap-2 text-sm p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+            <Mail className="h-4 w-4 flex-shrink-0 text-primary" />
+            <a href={`mailto:${talent.email}`} className="hover:text-primary min-w-0 truncate text-foreground/80 transition-colors">
               {talent.email}
             </a>
           </div>
         )}
         {talent.phone && (
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <Phone className="h-4 w-4flex-shrink-0" />
-            <a href={`tel:${talent.phone}`} className="hover:underline">
+          <div className="flex items-center gap-2 text-sm p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+            <Phone className="h-4 w-4 flex-shrink-0 text-primary" />
+            <a href={`tel:${talent.phone}`} className="hover:text-primary text-foreground/80 transition-colors">
               {talent.phone}
             </a>
           </div>
         )}
         {talent.location && (
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <MapPin className="h-4 w-4flex-shrink-0" />
-            <span className="min-w-0 truncate">{talent.location}</span>
+          <div className="flex items-center gap-2 text-sm p-3 rounded-xl bg-white/5 border border-white/5">
+            <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
+            <span className="min-w-0 truncate text-foreground/80">{talent.location}</span>
           </div>
         )}
         {talent.linkedin_url && (
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <Linkedin className="h-4 w-4flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+            <Linkedin className="h-4 w-4 flex-shrink-0 text-primary" />
             <a
               href={talent.linkedin_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline text-primary min-w-0 truncate"
+              className="hover:text-primary min-w-0 truncate text-foreground/80 transition-colors"
             >
-              LinkedIn
+              LinkedIn Profile
             </a>
           </div>
         )}
         {talent.github_url && (
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <Github className="h-4 w-4flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+            <Github className="h-4 w-4 flex-shrink-0 text-primary" />
             <a
               href={talent.github_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline text-primary min-w-0 truncate"
+              className="hover:text-primary min-w-0 truncate text-foreground/80 transition-colors"
             >
-              GitHub
+              GitHub Profile
             </a>
           </div>
         )}
         {talent.website && !sourceIsRedundant && (
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <ExternalLink className="h-4 w-4flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+            <ExternalLink className="h-4 w-4 flex-shrink-0 text-primary" />
             <a
               href={talent.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:underline text-primary min-w-0 truncate"
+              className="hover:text-primary min-w-0 truncate text-foreground/80 transition-colors"
             >
               Source
             </a>
@@ -357,20 +366,20 @@ function TalentDetailContent({
       </div>
 
       {/* Recruiter Status & Notes */}
-      <Separator />
+      <Separator className="bg-white/10" />
       <div className="space-y-4">
         <div>
-          <h3 className="font-semibold mb-2 text-sm sm:text-base">Status</h3>
+          <h3 className="font-semibold mb-2 text-xs uppercase tracking-wider text-muted-foreground">Status</h3>
           <Select
             value={talent.recruiter_status || 'new'}
             onValueChange={onStatusChange}
             disabled={isStatusPending}
           >
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[200px] bg-white/5 border-white/10 text-foreground">
               <SelectValue>
-                <StatusBadge 
-                  status={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.label || 'New'} 
-                  variant={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.variant || 'default'} 
+                <StatusBadge
+                  status={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.label || 'New'}
+                  variant={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.variant || 'default'}
                 />
               </SelectValue>
             </SelectTrigger>
@@ -386,11 +395,11 @@ function TalentDetailContent({
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-sm sm:text-base">Recruiter Notes</h3>
+            <h3 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Recruiter Notes</h3>
             {!isEditingNotes && (
-              <Button variant="ghost" size="sm" onClick={onStartEditNotes}>
-                <MessageSquare className="h-4 w-4 mr-1" />
-                {talent.recruiter_notes ? 'Edit' : 'Add'}
+              <Button variant="ghost" size="sm" onClick={onStartEditNotes} className="h-6 text-xs hover:bg-white/10">
+                <MessageSquare className="h-3 w-3 mr-1" />
+                {talent.recruiter_notes ? 'Edit' : 'Add Note'}
               </Button>
             )}
           </div>
@@ -400,32 +409,36 @@ function TalentDetailContent({
                 value={editedNotes}
                 onChange={(e) => onEditedNotesChange(e.target.value)}
                 placeholder="Add notes about this candidate..."
-                className="min-h-[100px]"
+                className="min-h-[100px] bg-black/20 border-white/10 focus:border-primary/50 text-sm"
               />
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   onClick={onSaveNotes}
                   disabled={isNotesPending}
+                  className="btn-premium"
                 >
-                  <Check className="h-4 w-4 mr-1" />
+                  <Check className="h-3 w-3 mr-1" />
                   Save
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={onCancelEditNotes}
                   disabled={isNotesPending}
+                  className="bg-transparent border-white/10 hover:bg-white/5"
                 >
-                  <X className="h-4 w-4 mr-1" />
+                  <X className="h-3 w-3 mr-1" />
                   Cancel
                 </Button>
               </div>
             </div>
           ) : talent.recruiter_notes ? (
-            <p className="text-smwhitespace-pre-wrap">{talent.recruiter_notes}</p>
+            <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-sm whitespace-pre-wrap text-foreground/90">
+              {talent.recruiter_notes}
+            </div>
           ) : (
-            <p className="text-smitalic">No notes yet</p>
+            <div className="text-sm italic text-muted-foreground bg-white/5 border border-white/5 rounded-xl p-4">No notes yet</div>
           )}
         </div>
       </div>
@@ -433,10 +446,10 @@ function TalentDetailContent({
       {/* Summary */}
       {talent.summary && (
         <>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <h3 className="font-semibold mb-2 text-sm sm:text-base">Summary</h3>
-            <p className="text-sm">{talent.summary}</p>
+            <h3 className="font-semibold mb-2 text-xs uppercase tracking-wider text-muted-foreground">Summary</h3>
+            <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{talent.summary}</p>
           </div>
         </>
       )}
@@ -444,12 +457,12 @@ function TalentDetailContent({
       {/* Skills */}
       {talent.skills && talent.skills.length > 0 && (
         <>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <h3 className="font-semibold mb-2 text-sm sm:text-base">Skills</h3>
+            <h3 className="font-semibold mb-2 text-xs uppercase tracking-wider text-muted-foreground">Skills</h3>
             <div className="flex flex-wrap gap-1.5">
               {talent.skills.map((skill, i) => (
-                <Badge key={i} variant="secondary" className="text-xs">
+                <Badge key={i} variant="secondary" className="bg-white/5 hover:bg-white/10 border-white/5 text-foreground/80 px-2 py-1 text-xs">
                   {skill.skill_name}
                 </Badge>
               ))}
@@ -461,27 +474,27 @@ function TalentDetailContent({
       {/* Experience */}
       {talent.experience && talent.experience.length > 0 && (
         <>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <h3 className="font-semibold mb-3 text-sm sm:text-base">Experience</h3>
-            <div className="space-y-4">
+            <h3 className="font-semibold mb-3 text-xs uppercase tracking-wider text-muted-foreground">Experience</h3>
+            <div className="space-y-3">
               {talent.experience.map((exp) => (
-                <div key={exp.id} className="space-y-1">
-                  <div className="font-medium text-sm sm:text-base">{exp.job_title}</div>
-                  <div className="text-smflex items-center gap-1">
+                <div key={exp.id} className="bg-white/5 border border-white/5 rounded-xl p-4 hover:border-white/10 transition-colors">
+                  <div className="font-medium text-base text-foreground">{exp.job_title}</div>
+                  <div className="text-sm flex items-center gap-1 text-primary/80 mt-0.5">
                     <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="truncate">
                       {exp.company_name}
                       {exp.location && ` • ${exp.location}`}
                     </span>
                   </div>
-                  <div className="text-xsflex items-center gap-1">
+                  <div className="text-xs flex items-center gap-1 text-muted-foreground mt-1">
                     <Calendar className="h-3 w-3 flex-shrink-0" />
                     {format(new Date(exp.start_date), 'MMM yyyy')} -{' '}
                     {exp.is_current ? 'Present' : exp.end_date ? format(new Date(exp.end_date), 'MMM yyyy') : 'N/A'}
                   </div>
                   {exp.description && (
-                    <p className="text-smmt-1">{exp.description}</p>
+                    <p className="text-sm mt-2 text-foreground/70 leading-relaxed">{exp.description}</p>
                   )}
                 </div>
               ))}
@@ -493,25 +506,27 @@ function TalentDetailContent({
       {/* Education */}
       {talent.education && talent.education.length > 0 && (
         <>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <h3 className="font-semibold mb-3 text-sm sm:text-base">Education</h3>
+            <h3 className="font-semibold mb-3 text-xs uppercase tracking-wider text-muted-foreground">Education</h3>
             <div className="space-y-3">
               {talent.education.map((edu) => (
-                <div key={edu.id} className="space-y-1">
-                  <div className="font-medium text-sm sm:text-base">{edu.degree}</div>
-                  <div className="text-smflex items-center gap-1">
-                    <GraduationCap className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="truncate">
+                <div key={edu.id} className="flex items-start gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                    <GraduationCap className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-base text-foreground">{edu.degree}</div>
+                    <div className="text-sm text-foreground/80 mt-0.5">
                       {edu.institution}
                       {edu.field_of_study && ` • ${edu.field_of_study}`}
-                    </span>
-                  </div>
-                  {edu.end_date && (
-                    <div className="text-xs">
-                      {format(new Date(edu.end_date), 'yyyy')}
                     </div>
-                  )}
+                    {edu.end_date && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(edu.end_date), 'yyyy')}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -520,31 +535,33 @@ function TalentDetailContent({
       )}
 
       {/* Resumes */}
-      <Separator />
+      <Separator className="bg-white/10" />
       <div>
-        <h3 className="font-semibold mb-3 text-sm sm:text-base">Resumes</h3>
+        <h3 className="font-semibold mb-3 text-xs uppercase tracking-wider text-muted-foreground">Resumes</h3>
 
         {talent.resumes && talent.resumes.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {talent.resumes.map((resume) => (
               <div
                 key={resume.id}
-                className="p-3 rounded-md bg-muted/50 space-y-2"
+                className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors space-y-3"
               >
-                <div className="flex items-start gap-2">
-                  <FileText className="h-4 w-4flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
+                    <FileText className="h-4 w-4" />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium break-words">
+                      <span className="text-sm font-medium text-foreground break-words">
                         {resume.file_name}
                       </span>
                       {resume.is_primary && (
-                        <Badge variant="secondary" className="text-xs flex-shrink-0">
+                        <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-primary/20 flex-shrink-0">
                           Primary
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xsmt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {format(new Date(resume.created_at), 'MMM d, yyyy')}
                       {resume.ats_score && ` • ATS: ${resume.ats_score}%`}
                     </div>
@@ -556,9 +573,9 @@ function TalentDetailContent({
                     size="sm"
                     onClick={() => onViewResume(resume.file_url, resume.file_name)}
                     disabled={isDownloading}
-                    className="h-8 flex-1 sm:flex-none"
+                    className="h-8 flex-1 sm:flex-none border-white/10 hover:bg-white/10 hover:text-primary"
                   >
-                    <ExternalLink className="h-4 w-4 mr-1" />
+                    <ExternalLink className="h-3.5 w-3.5 mr-1" />
                     View
                   </Button>
                   <Button
@@ -566,9 +583,9 @@ function TalentDetailContent({
                     size="sm"
                     onClick={() => onDownloadResume(resume.file_url, resume.file_name)}
                     disabled={isDownloading}
-                    className="h-8 flex-1 sm:flex-none"
+                    className="h-8 flex-1 sm:flex-none border-white/10 hover:bg-white/10 hover:text-primary"
                   >
-                    <Download className="h-4 w-4 mr-1" />
+                    <Download className="h-3.5 w-3.5 mr-1" />
                     Download
                   </Button>
                 </div>
@@ -576,15 +593,15 @@ function TalentDetailContent({
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+          <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-sm text-center text-muted-foreground">
             No resumes found for this candidate.
           </div>
         )}
       </div>
 
       {/* Meta info */}
-      <Separator />
-      <div className="text-xspb-4">
+      <Separator className="bg-white/10" />
+      <div className="text-xs text-muted-foreground pb-4">
         Added {format(new Date(talent.created_at), 'MMMM d, yyyy')}
         {talent.years_of_experience !== null && talent.years_of_experience !== undefined && (
           <> • {talent.years_of_experience} years experience</>
@@ -666,7 +683,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
         experience: experience || [],
         education: education || [],
         resumes: resumes || [],
-      } as TalentData;
+      } as unknown as TalentData;
     },
     enabled: !!talentId && open,
   });
@@ -822,7 +839,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[92vh] w-full overflow-hidden flex flex-col">
+        <DrawerContent className="max-h-[92vh] w-full overflow-hidden flex flex-col bg-background/95 backdrop-blur-xl border-white/10">
           <DrawerHeader className="text-left flex-shrink-0 pb-2">
             <DrawerTitle className="text-base">Candidate Profile</DrawerTitle>
             <DrawerDescription className="text-xs">View and manage candidate details</DrawerDescription>
@@ -835,7 +852,7 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg">
+      <SheetContent className="w-full sm:max-w-xl bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl">
         <SheetHeader>
           <SheetTitle>Candidate Profile</SheetTitle>
           <SheetDescription>Full profile details</SheetDescription>
