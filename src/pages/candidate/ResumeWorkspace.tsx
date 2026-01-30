@@ -3750,7 +3750,7 @@ export default function ResumeWorkspace() {
                 <div className="space-y-6 lg:col-span-12 mt-6 animate-in slide-in-from-bottom-6 duration-700">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-px flex-1 bg-white/5" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Intelligence Hub</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Intelligence Hub</span>
                     <div className="h-px flex-1 bg-white/5" />
                   </div>
 
@@ -3767,34 +3767,34 @@ export default function ResumeWorkspace() {
                       <div className="p-6 pt-4">
                         <Tabs defaultValue="deconstruct">
                           <TabsList className="bg-muted/10 border border-white/10 p-0.5 mb-6 w-fit flex-wrap gap-1 md:flex-nowrap">
-                            <TabsTrigger value="deconstruct" className="text-[11px] px-3">1) JD Analysis</TabsTrigger>
-                            <TabsTrigger value="ats" className="text-[11px] px-3">2) ATS Alignment</TabsTrigger>
-                            <TabsTrigger value="delta" className="text-[11px] px-3">3) Delta Skills</TabsTrigger>
-                            <TabsTrigger value="metrics" className="text-[11px] px-3">4) Red Flags</TabsTrigger>
-                            <TabsTrigger value="prep" className="text-[11px] px-3">5) Interview Prep</TabsTrigger>
+                            <TabsTrigger value="deconstruct" className="text-xs px-4">1) JD Analysis</TabsTrigger>
+                            <TabsTrigger value="ats" className="text-xs px-4">2) ATS Alignment</TabsTrigger>
+                            <TabsTrigger value="delta" className="text-xs px-4">3) Delta Skills</TabsTrigger>
+                            <TabsTrigger value="metrics" className="text-xs px-4">4) Red Flags</TabsTrigger>
+                            <TabsTrigger value="prep" className="text-xs px-4">5) Interview Prep</TabsTrigger>
                           </TabsList>
 
                           <TabsContent value="deconstruct" className="mt-0 space-y-6">
                             <div className="grid gap-6 md:grid-cols-2">
                               <div className="rounded-xl border border-white/5 bg-white/5 p-4">
-                                <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Hard Skills (Matched vs Potential)</div>
+                                <div className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Hard Skills (Matched vs Potential)</div>
                                 <div className="space-y-4">
                                   {jdSkillExtraction?.core_technical_skills?.length > 0 && (
                                     <div className="space-y-2">
-                                      <div className="text-[10px] text-muted-foreground uppercase">Must-have Keywords</div>
+                                      <div className="text-[11px] text-muted-foreground uppercase">Must-have Keywords</div>
                                       <div className="flex flex-wrap gap-1.5">
                                         {jdSkillExtraction.core_technical_skills.slice(0, 15).map((k: string) => (
-                                          <Badge key={k} variant="outline" className="text-[10px] bg-white/5 border-white/5">{k}</Badge>
+                                          <Badge key={k} variant="outline" className="text-xs bg-white/5 border-white/5">{k}</Badge>
                                         ))}
                                       </div>
                                     </div>
                                   )}
                                   {jdSkillExtraction?.platform_cloud_tooling?.length > 0 && (
                                     <div className="space-y-2">
-                                      <div className="text-[10px] text-muted-foreground uppercase">Infrastructure & Platform</div>
+                                      <div className="text-[11px] text-muted-foreground uppercase">Infrastructure & Platform</div>
                                       <div className="flex flex-wrap gap-1.5">
                                         {jdSkillExtraction.platform_cloud_tooling.slice(0, 15).map((k: string) => (
-                                          <Badge key={k} variant="outline" className="text-[10px] bg-white/5 border-white/10">{k}</Badge>
+                                          <Badge key={k} variant="outline" className="text-xs bg-white/5 border-white/10">{k}</Badge>
                                         ))}
                                       </div>
                                     </div>
@@ -3802,16 +3802,16 @@ export default function ResumeWorkspace() {
                                 </div>
                               </div>
                               <div className="rounded-xl border border-white/5 bg-white/5 p-4">
-                                <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Seniority & Strategy Signals</div>
+                                <div className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Seniority & Strategy Signals</div>
                                 <div className="space-y-3">
-                                  <div className="p-3 rounded-lg bg-black/20 text-xs leading-relaxed">
+                                  <div className="p-3 rounded-lg bg-black/20 text-sm leading-relaxed">
                                     {targetTitle?.toLowerCase().includes('senior') || targetTitle?.toLowerCase().includes('lead') || targetTitle?.toLowerCase().includes('director') ? (
                                       "Strategy focus: prioritize scope, cross-functional leadership, and P&L/metric ownership in your Summary and most recent role bullets."
                                     ) : (
                                       "Execution focus: emphasize specific technical contributions, problem-solving speed, and tool proficiency."
                                     )}
                                   </div>
-                                  <ul className="text-[11px] text-muted-foreground space-y-2 list-disc pl-4">
+                                  <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-4">
                                     <li>Dial up domain-specific jargon from the JD</li>
                                     <li>Ensure top 3 bullets in most recent role use JD verbs</li>
                                     <li>Match the "implicit" level of the JD (e.g. strategic vs tactical)</li>
@@ -3830,16 +3830,16 @@ export default function ResumeWorkspace() {
                               <Progress value={derivedKeywordPct ?? 0} className="h-1.5 bg-black/40 mb-6" />
                               <div className="grid gap-6 md:grid-cols-3">
                                 <div className="space-y-2">
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Top Placement</div>
-                                  <p className="text-xs">Skills section first, Summary second, latest role third.</p>
+                                  <div className="text-[11px] uppercase font-bold text-muted-foreground/60">Top Placement</div>
+                                  <p className="text-sm">Skills section first, Summary second, latest role third.</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Exact Phrases</div>
-                                  <p className="text-xs">Use verbatim JD wording; replace your synonyms with their terms.</p>
+                                  <div className="text-[11px] uppercase font-bold text-muted-foreground/60">Exact Phrases</div>
+                                  <p className="text-sm">Use verbatim JD wording; replace your synonyms with their terms.</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Recency Bias</div>
-                                  <p className="text-xs">ATS and Humans weight recent roles 2x higher for core keywords.</p>
+                                  <div className="text-[11px] uppercase font-bold text-muted-foreground/60">Recency Bias</div>
+                                  <p className="text-sm">ATS and Humans weight recent roles 2x higher for core keywords.</p>
                                 </div>
                               </div>
                             </div>
@@ -3847,7 +3847,7 @@ export default function ResumeWorkspace() {
 
                           <TabsContent value="delta" className="mt-0">
                             <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-                              <table className="w-full text-xs">
+                              <table className="w-full text-sm">
                                 <thead className="bg-white/5 border-b border-white/10">
                                   <tr>
                                     <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Delta Skill / Missing Phrase</th>
@@ -3878,13 +3878,13 @@ export default function ResumeWorkspace() {
                               <div className="rounded-xl border border-white/5 bg-white/5 p-5">
                                 <div className="flex items-center gap-2 mb-4">
                                   <Target className="h-4 w-4 text-orange-400" />
-                                  <div className="text-xs font-bold uppercase tracking-wider">Metrics & Quantifiability</div>
+                                  <div className="text-sm font-bold uppercase tracking-wider">Metrics & Quantifiability</div>
                                 </div>
                                 <div className="space-y-4">
-                                  <div className="p-3 rounded-lg bg-black/20 text-[11px] leading-relaxed">
+                                  <div className="p-3 rounded-lg bg-black/20 text-sm leading-relaxed">
                                     {metricsStrength.pct < 30 ? "Your resume is 'Metric-Lite'. Add 3-5 concrete numbers (%, $, volume, scale) to your latest role to significantly improve response rates." : "Good metric density detected. Ensure they directly relate to the ROI expected in the JD."}
                                   </div>
-                                  <div className="flex items-center justify-between text-[11px]">
+                                  <div className="flex items-center justify-between text-sm">
                                     <span>Metric Density</span>
                                     <span className="font-bold">{metricsStrength.pct}%</span>
                                   </div>
@@ -3894,16 +3894,16 @@ export default function ResumeWorkspace() {
                               <div className="rounded-xl border border-white/5 bg-white/5 p-5">
                                 <div className="flex items-center gap-2 mb-4">
                                   <AlertTriangle className="h-4 w-4 text-destructive" />
-                                  <div className="text-xs font-bold uppercase tracking-wider">Potential Red Flags</div>
+                                  <div className="text-sm font-bold uppercase tracking-wider">Potential Red Flags</div>
                                 </div>
                                 <ul className="space-y-2">
                                   {Array.isArray(redFlags) && redFlags.length > 0 ? redFlags.slice(0, 5).map((r, i) => (
-                                    <li key={i} className="flex gap-2 text-[11px] text-muted-foreground">
+                                    <li key={i} className="flex gap-2 text-sm text-muted-foreground">
                                       <span className="text-destructive font-bold">•</span>
                                       <span>{r}</span>
                                     </li>
                                   )) : (
-                                    <li className="text-[11px] text-muted-foreground italic">No critical structural red flags detected.</li>
+                                    <li className="text-sm text-muted-foreground italic">No critical structural red flags detected.</li>
                                   )}
                                 </ul>
                               </div>
@@ -3912,16 +3912,16 @@ export default function ResumeWorkspace() {
 
                           <TabsContent value="prep" className="mt-0">
                             <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-                              <div className="text-xs font-bold uppercase tracking-wider text-primary mb-4">Top 5 Interview Prep Areas</div>
+                              <div className="text-sm font-bold uppercase tracking-wider text-primary mb-4">Top 5 Interview Prep Areas</div>
                               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                 {Array.isArray(prepFocus) && prepFocus.slice(0, 6).map((item, i) => (
-                                  <div key={i} className="p-3 rounded-lg bg-black/30 border border-white/5 text-[11px] leading-snug">
+                                  <div key={i} className="p-3 rounded-lg bg-black/30 border border-white/5 text-sm leading-snug">
                                     <div className="text-primary/60 mb-1 font-bold">Focus {i + 1}</div>
                                     {item}
                                   </div>
                                 ))}
                                 {(!Array.isArray(prepFocus) || prepFocus.length === 0) && (
-                                  <p className="col-span-full py-6 text-center text-muted-foreground text-xs italic">Generate a tailored resume to see interview focus areas.</p>
+                                  <p className="col-span-full py-6 text-center text-muted-foreground text-sm italic">Generate a tailored resume to see interview focus areas.</p>
                                 )}
                               </div>
                             </div>
@@ -3946,7 +3946,7 @@ export default function ResumeWorkspace() {
                                   <div className="text-xs font-semibold">Improvement Queue</div>
                                   <div className="space-y-1.5">
                                     {Array.isArray(visibleImprovements) && visibleImprovements.map((t, i) => (
-                                      <div key={i} className="text-[11px] text-muted-foreground flex gap-2">
+                                      <div key={i} className="text-sm text-muted-foreground flex gap-2">
                                         <span className="text-primary">•</span> {typeof t === 'string' ? t.replace(/['"\[\]]/g, '') : JSON.stringify(t)}
                                       </div>
                                     ))}
@@ -3955,7 +3955,7 @@ export default function ResumeWorkspace() {
                                 <div className="space-y-3">
                                   <div className="text-xs font-semibold">Model Confidence Score</div>
                                   <div className="text-2xl font-bold text-foreground">{atsEstimate ?? '—'} <span className="text-xs font-normal text-muted-foreground">/ 100</span></div>
-                                  <div className="text-[10px] leading-relaxed text-muted-foreground">
+                                  <div className="text-sm leading-relaxed text-muted-foreground">
                                     Based on semantic alignment and structural validity of the generated content.
                                   </div>
                                 </div>
