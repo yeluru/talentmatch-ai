@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { FileText, Plus, Save, Trash2, Clock, Download, Sparkles, X, Search, Briefcase, Copy } from 'lucide-react';
+import { FileText, Plus, Save, Trash2, Clock, Download, Sparkles, X, Search, Briefcase, Copy, Zap, Target, BrainCircuit, BarChart3, ChevronRight, Settings2, Minimize2, Maximize2, Loader2, AlertTriangle, Terminal } from 'lucide-react';
 import { getSignedResumeUrl } from '@/lib/resumeLinks';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -102,22 +102,22 @@ function SkillChipsEditor(props: {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-end justify-between gap-3">
-        <Label>{label}</Label>
-        <div className="text-xs">
+        <Label className="font-semibold">{label}</Label>
+        <div className="text-xs text-muted-foreground">
           {values.length}/{max}
         </div>
       </div>
 
-      {values.length ? (
-        <div className="flex flex-wrap gap-2">
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-white/10 bg-white/5">
           {values.map((v, idx) => (
-            <Badge key={`${v}-${idx}`} variant="secondary" className="gap-1">
+            <Badge key={`${v}-${idx}`} variant="secondary" className="gap-1 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20">
               <span className="max-w-[260px] truncate">{v}</span>
               <button
                 type="button"
-                className="ml-1 inline-flex items-center rounded hover:opacity-80"
+                className="ml-1 inline-flex items-center justify-center rounded-full w-4 h-4 hover:bg-primary/30 transition-colors"
                 onClick={() => removeAt(idx)}
                 aria-label={`Remove ${v}`}
               >
@@ -126,8 +126,10 @@ function SkillChipsEditor(props: {
             </Badge>
           ))}
         </div>
-      ) : (
-        <div className="text-sm">No skills yet.</div>
+      )}
+
+      {values.length === 0 && (
+        <div className="text-sm text-muted-foreground p-2 italic">No skills added yet.</div>
       )}
 
       <div className="flex gap-2">
@@ -141,8 +143,9 @@ function SkillChipsEditor(props: {
               addFromDraft();
             }
           }}
+          className="bg-background/50 border-white/10 focus:border-primary/50 transition-all shadow-sm"
         />
-        <Button type="button" variant="secondary" onClick={addFromDraft} disabled={!draft.trim()}>
+        <Button type="button" variant="secondary" onClick={addFromDraft} disabled={!draft.trim()} className="hover:bg-primary/20">
           Add
         </Button>
       </div>
@@ -3011,15 +3014,15 @@ export default function ResumeWorkspace() {
     return (
       <DashboardLayout>
         <div className="p-6">
-          <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-accent" />
+          <div className="glass-panel p-6 border-white/10">
+            <div className="flex flex-col space-y-1.5 p-6">
+              <h3 className="flex items-center gap-2 font-display text-lg font-semibold leading-none tracking-tight">
+                <FileText className="h-5 w-5 text-primary" />
                 Resume Workspace
-              </CardTitle>
-              <CardDescription>Loading…</CardDescription>
-            </CardHeader>
-          </Card>
+              </h3>
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -3028,175 +3031,198 @@ export default function ResumeWorkspace() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-500">
+
+          {/* Header */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
-              <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium">Resume Workspace</h1>
-              <p className="mt-2 text-lg text-muted-foreground/80">
-                Tailor a resume for a specific job description with minimal friction.
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <h1 className="font-display text-3xl font-bold tracking-tight text-gradient-premium">Resume Workspace</h1>
+              </div>
+              <p className="text-muted-foreground">
+                Craft and optimize your target resumes in a high-performance editing environment.
               </p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={createNewDoc} className="border-white/10 hover:bg-white/5">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={createNewDoc} className="border-white/10 hover:bg-white/5 rounded-full px-5 h-10 transition-all">
                 <Plus className="mr-2 h-4 w-4" />
-                New
+                New Doc
               </Button>
-              <Button onClick={saveDoc} disabled={isSaving || !selected} className="btn-primary-glow shadow-lg">
+              <Button onClick={saveDoc} disabled={isSaving || !selected} className="btn-primary-glow shadow-lg rounded-full px-6 h-10 font-semibold transition-all">
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving ? 'Saving…' : 'Save Changes'}
+                {isSaving ? 'Saving…' : 'Save Resume'}
               </Button>
             </div>
           </div>
 
-          {/* Tailoring wizard */}
-          {/* Tailoring wizard */}
-          <div className="glass-panel p-6 md:p-8 animate-in-view">
-            <div className="mb-6">
-              <h3 className="font-display text-2xl font-bold flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-accent" />
-                Tailor your resume
-              </h3>
-              <p className="text-muted-foreground mt-2 text-lg">Choose a base resume + a JD, generate a version you can edit and save.</p>
-            </div>
-            <div className="space-y-6">
-              {resumes.length === 0 ? (
-                <div className="text-sm">
-                  You don’t have any uploaded resumes yet. Upload one first, then come back here to tailor it for a job.
-                  <div className="mt-3">
-                    <Button onClick={() => navigate('/candidate/resumes')}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Upload a resume
-                    </Button>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="tailoring" className="border-none">
+              <div className="glass-panel border-white/10 overflow-hidden">
+                <AccordionTrigger className="px-6 py-3 hover:bg-white/5 transition-colors no-underline group hover:no-underline">
+                  <div className="flex items-center gap-3">
+                    <Settings2 className="h-4 w-4 text-primary group-hover:rotate-90 transition-transform duration-300" />
+                    <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                      Tailoring Configuration
+                    </span>
+                    {(!selectedJobId || !selectedBaseResumeId) && (
+                      <Badge variant="outline" className="ml-2 text-[10px] bg-primary/5 border-primary/20 text-primary animate-pulse">
+                        Setup Required
+                      </Badge>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <>
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Briefcase className="h-4 w-4" />
-                        Job Description
-                      </CardTitle>
-                      <CardDescription>Select an existing job or paste a custom description</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="existing">Select Job</TabsTrigger>
-                          <TabsTrigger value="custom">Paste JD</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="existing" className="space-y-3">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-                            <Input
-                              placeholder="Search jobs by title or company..."
-                              value={jobSearchQuery}
-                              onChange={(e) => setJobSearchQuery(e.target.value)}
-                              className="pl-9"
-                            />
-                          </div>
-                          <div className="max-h-[200px] overflow-y-auto space-y-2 border rounded-md p-2">
-                            {filteredJobs.length === 0 ? (
-                              <p className="text-sm text-center py-4">
-                                {jobs.length === 0 ? 'No published jobs available' : 'No jobs match your search'}
-                              </p>
-                            ) : (
-                              filteredJobs.slice(0, 20).map((job) => (
-                                <div
-                                  key={job.id}
-                                  className={`p-3 rounded-md cursor-pointer transition-colors ${selectedJobId === job.id ? 'bg-primary/10 border border-primary' : 'bg-muted/50 hover:bg-muted'
-                                    }`}
-                                  onClick={() => handleJobSelect(job.id)}
-                                >
-                                  <p className="font-medium text-sm">{job.title}</p>
-                                  <p className="text-xs">
-                                    {job.organization_name} {job.location && `• ${job.location}`}
-                                  </p>
+                </AccordionTrigger>
+                <AccordionContent className="p-6 border-t border-white/10">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* JD Source */}
+                    <div className="lg:col-span-12 space-y-4">
+                      {resumes.length === 0 ? (
+                        <div className="p-12 text-center border-2 border-dashed border-white/10 rounded-2xl bg-white/5">
+                          <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-4" />
+                          <h4 className="text-lg font-medium mb-2">No Base Resumes Found</h4>
+                          <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                            You need a baseline resume profile to start tailoring. Please upload one in the Resumes section.
+                          </p>
+                          <Button onClick={() => navigate('/candidate/resumes')} className="rounded-full">
+                            Go to My Resumes
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="space-y-4">
+                            <Label className="text-xs font-bold uppercase tracking-widest text-primary/80">1. Target Job Description</Label>
+                            <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
+                              <TabsList className="bg-muted/20 border border-white/5 p-1 h-9 mb-4">
+                                <TabsTrigger value="existing" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-xs flex-1">Select Job</TabsTrigger>
+                                <TabsTrigger value="custom" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-xs flex-1">Paste JD</TabsTrigger>
+                              </TabsList>
+                              <TabsContent value="existing" className="space-y-3">
+                                <div className="relative group">
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                  <Input
+                                    placeholder="Search active jobs..."
+                                    value={jobSearchQuery}
+                                    onChange={(e) => setJobSearchQuery(e.target.value)}
+                                    className="pl-9 bg-background/50 border-white/10 focus:border-primary/50 text-sm h-11"
+                                  />
                                 </div>
-                              ))
-                            )}
+                                <div className="max-h-[160px] overflow-y-auto space-y-1 bg-black/20 border border-white/10 rounded-xl p-1">
+                                  {filteredJobs.length === 0 ? (
+                                    <p className="text-xs text-center py-6 text-muted-foreground">No matching jobs found.</p>
+                                  ) : (
+                                    filteredJobs.slice(0, 50).map((job) => (
+                                      <button
+                                        key={job.id}
+                                        onClick={() => handleJobSelect(job.id)}
+                                        className={`w-full text-left p-2.5 rounded-lg transition-all text-sm ${selectedJobId === job.id
+                                          ? 'bg-primary/20 border-primary/30 text-primary'
+                                          : 'hover:bg-white/5 border border-transparent'
+                                          }`}
+                                      >
+                                        <div className="font-semibold">{job.title}</div>
+                                        <div className="text-[10px] opacity-60 uppercase tracking-tighter mt-0.5">{job.organization_name}</div>
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+                              </TabsContent>
+                              <TabsContent value="custom">
+                                <Textarea
+                                  className="min-h-[220px] bg-background/50 border-white/10 text-sm leading-relaxed"
+                                  placeholder="Paste the target JD text here..."
+                                  value={jdText}
+                                  onChange={(e) => setJdText(e.target.value)}
+                                />
+                              </TabsContent>
+                            </Tabs>
                           </div>
-                          <div className="text-xs">Tip: you can edit the JD in “Paste JD” after selecting a job.</div>
-                        </TabsContent>
 
-                        <TabsContent value="custom">
-                          <Textarea
-                            placeholder="Paste the job description here..."
-                            rows={10}
-                            value={jdText}
-                            onChange={(e) => setJdText(e.target.value)}
-                          />
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <Label className="text-xs font-bold uppercase tracking-widest text-primary/80">2. Base Profile & Preferences</Label>
+                              <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                  <Label className="text-[11px] text-muted-foreground uppercase ml-1">Baseline Resume</Label>
+                                  <Select value={selectedBaseResumeId} onValueChange={setSelectedBaseResumeId}>
+                                    <SelectTrigger className="bg-background/50 border-white/10 h-11">
+                                      <SelectValue placeholder="Choose profile..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {resumes.map(r => (
+                                        <SelectItem key={r.id} value={r.id}>
+                                          <span className="font-medium">{r.file_name}</span>
+                                          {r.is_primary && <span className="ml-2 text-[10px] text-primary">(Primary)</span>}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-[11px] text-muted-foreground uppercase ml-1">Target Role Title</Label>
+                                  <Input
+                                    value={targetTitle}
+                                    onChange={(e) => setTargetTitle(e.target.value)}
+                                    placeholder="e.g., Sr. Software Engineer"
+                                    className="bg-background/50 border-white/10 h-11"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-[11px] text-muted-foreground uppercase ml-1">Guidance (AI Prompt)</Label>
+                                  <Input
+                                    value={additionalNotes}
+                                    onChange={(e) => setAdditionalNotes(e.target.value)}
+                                    placeholder="e.g., focus on leadership and cloud scale..."
+                                    className="bg-background/50 border-white/10 h-11"
+                                  />
+                                </div>
+                              </div>
+                            </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label>Base resume</Label>
-                      <Select value={selectedBaseResumeId} onValueChange={(v) => setSelectedBaseResumeId(v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a base resume" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {resumes.map((r) => (
-                            <SelectItem key={r.id} value={r.id}>
-                              {(r.is_primary ? '★ ' : '') + String(r.file_name || 'Resume')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="link" className="px-0" onClick={() => navigate('/candidate/resumes')}>
-                        Manage uploads in My Resumes →
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Target role/title (required)</Label>
-                      <Input
-                        value={targetTitle}
-                        onChange={(e) => setTargetTitle(e.target.value)}
-                        placeholder="e.g., Senior Director of Engineering"
-                      />
-                      <div className="text-xs">This becomes the saved resume name.</div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Additional preferences (optional)</Label>
-                      <Input
-                        value={additionalNotes}
-                        onChange={(e) => setAdditionalNotes(e.target.value)}
-                        placeholder="e.g., emphasize platform scaling, people leadership, cloud architecture…"
-                      />
+                            <div className="pt-2 flex flex-col gap-3">
+                              <Button
+                                onClick={generateTailoredResume}
+                                disabled={isGenerating || !selectedBaseResumeId}
+                                className="w-full h-12 text-base font-bold shadow-xl btn-primary-glow animate-in slide-in-from-bottom-2"
+                              >
+                                {isGenerating ? (
+                                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Tailoring...</>
+                                ) : (
+                                  <><Sparkles className="mr-2 h-5 w-5" /> Generate Tailored Resume</>
+                                )}
+                              </Button>
+                              {generateError && <p className="text-xs text-destructive text-center">{generateError}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button onClick={generateTailoredResume} disabled={isGenerating}>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      {isGenerating ? 'Generating…' : 'Generate tailored resume'}
-                    </Button>
-                  </div>
-                  {generateError ? <div className="text-sm text-destructive">{generateError}</div> : null}
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-12 lg:min-h-[calc(100vh-360px)]">
-            {/* Left: docs list */}
-            {/* Left: docs list */}
-            <div className="glass-panel lg:col-span-4 flex flex-col p-0 overflow-hidden h-[600px] lg:h-auto border-white/10">
-              <div className="p-4 md:p-6 border-b border-white/10 bg-white/5">
-                <h3 className="font-display text-xl font-bold">My Resumes</h3>
-                <p className="text-sm text-muted-foreground">Saved, editable resumes from this workspace</p>
+                </AccordionContent>
               </div>
-              <div className="flex-1 min-h-0 bg-background/20 p-4">
+            </AccordionItem>
+          </Accordion>
+
+          <div className="grid gap-6 lg:grid-cols-12 lg:min-h-[calc(100vh-360px)] items-start">
+            {/* Left: Navigation Sidebar */}
+            <div className="glass-panel lg:col-span-2 flex flex-col p-0 overflow-hidden h-[800px] border-white/10 bg-background/20 sticky top-6">
+              <div className="p-4 border-b border-white/10 bg-white/5">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">My Resumes</h3>
+                  <Badge variant="outline" className="text-[10px] py-0 h-4">{docs.length}</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter">Drafts & Versions</p>
+              </div>
+              <div className="flex-1 min-h-0 p-2">
                 <ScrollArea className="h-full pr-2">
                   <div className="space-y-2">
                     {docs.map((d) => (
                       <div
                         key={d.id}
-                        className={`group w-full rounded-md border p-3 transition ${d.id === selectedDocId ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'
+                        className={`group w-full rounded-lg border p-2.5 transition-all duration-200 ${d.id === selectedDocId
+                          ? 'bg-primary/10 border-primary/20 ring-1 ring-primary/10 shadow-sm'
+                          : 'border-white/5 bg-transparent hover:bg-white/5'
                           }`}
                         role="button"
                         tabIndex={0}
@@ -3204,86 +3230,64 @@ export default function ResumeWorkspace() {
                         onKeyDown={(e) => e.key === 'Enter' && setSelectedDocId(d.id)}
                       >
                         <div className="min-w-0">
-                          <div className="text-[15px] font-semibold leading-5 line-clamp-1">{d.title}</div>
-                          <div className="mt-2 flex items-center justify-between gap-2">
-                            <div className="text-xsflex items-center gap-2 min-w-0">
-                              <Clock className="h-3 w-3" />
-                              <span className="truncate">{new Date(d.updated_at).toLocaleString()}</span>
+                          <div className={`text-xs font-semibold leading-tight line-clamp-1 transition-colors ${d.id === selectedDocId ? 'text-primary' : 'text-foreground/80'}`}>
+                            {d.title}
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between gap-1">
+                            <div className="text-[9px] text-muted-foreground flex items-center gap-1 min-w-0 opacity-60 group-hover:opacity-100 transition-opacity">
+                              <Clock className="h-2.5 w-2.5" />
+                              <span className="truncate">{new Date(d.updated_at).toLocaleDateString()}</span>
                             </div>
                             <div
-                              className={`flex items-center gap-0.5 transition-opacity ${d.id === selectedDocId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+                              className={`flex items-center gap-0.5 transition-all duration-300 ${d.id === selectedDocId ? 'opacity-100 scale-100' : 'opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100'
                                 }`}
                             >
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 p-0"
+                                  <button
+                                    className="p-1 rounded-md hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       void saveWorkspaceDocToMyResumes(d);
                                     }}
                                   >
-                                    <Save className="h-4 w-4" />
-                                  </Button>
+                                    <Save className="h-3 w-3" />
+                                  </button>
                                 </TooltipTrigger>
-                                <TooltipContent>Save to My Resumes</TooltipContent>
+                                <TooltipContent side="top" className="text-[10px]">Save to My Resumes</TooltipContent>
                               </Tooltip>
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 p-0"
+                                  <button
+                                    className="p-1 rounded-md hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       void downloadWorkspaceDocPdf(d);
                                     }}
                                   >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
+                                    <Download className="h-3 w-3" />
+                                  </button>
                                 </TooltipTrigger>
-                                <TooltipContent>Download PDF</TooltipContent>
+                                <TooltipContent side="top" className="text-[10px]">PDF</TooltipContent>
                               </Tooltip>
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 p-0"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      void downloadWorkspaceDocDocx(d);
-                                    }}
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Download DOCX</TooltipContent>
-                              </Tooltip>
-
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 p-0"
+                                  <button
+                                    className="p-1 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       void deleteWorkspaceDoc(d);
                                     }}
                                   >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
                                 </TooltipTrigger>
-                                <TooltipContent>Delete</TooltipContent>
+                                <TooltipContent side="top" className="text-[10px]">Delete</TooltipContent>
                               </Tooltip>
                             </div>
                           </div>
@@ -3300,9 +3304,8 @@ export default function ResumeWorkspace() {
               </div>
             </div>
 
-            {/* Center: editor */}
-            {/* Center: editor */}
-            <div className="glass-panel lg:col-span-8 flex flex-col p-6 border-white/10">
+            {/* Center: Editor */}
+            <div className="glass-panel lg:col-span-7 flex flex-col p-6 border-white/10 min-h-[850px]">
               <div className="mb-6">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
@@ -3329,16 +3332,18 @@ export default function ResumeWorkspace() {
 
                     <Separator className="my-4" />
 
-                    <Tabs defaultValue="summary">
-                      <TabsList className="flex flex-wrap justify-start">
-                        <TabsTrigger value="contact">Contact</TabsTrigger>
-                        <TabsTrigger value="summary">Summary</TabsTrigger>
-                        <TabsTrigger value="skills">Skills</TabsTrigger>
-                        <TabsTrigger value="experience">Experience</TabsTrigger>
-                        <TabsTrigger value="education">Education</TabsTrigger>
-                        <TabsTrigger value="certs">Certifications</TabsTrigger>
-                        <TabsTrigger value="changes">Changes</TabsTrigger>
-                      </TabsList>
+                    <Tabs defaultValue="summary" className="w-full">
+                      <div className="overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                        <TabsList className="bg-muted/10 border border-white/10 p-1 flex w-fit h-auto gap-1">
+                          <TabsTrigger value="contact" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Contact</TabsTrigger>
+                          <TabsTrigger value="summary" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Summary</TabsTrigger>
+                          <TabsTrigger value="skills" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Skills</TabsTrigger>
+                          <TabsTrigger value="experience" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Experience</TabsTrigger>
+                          <TabsTrigger value="education" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Education</TabsTrigger>
+                          <TabsTrigger value="certs" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Certifications</TabsTrigger>
+                          <TabsTrigger value="changes" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Changes & Diff</TabsTrigger>
+                        </TabsList>
+                      </div>
 
                       <TabsContent value="contact" className="space-y-4 mt-4">
                         <div className="grid gap-4 md:grid-cols-2">
@@ -3348,8 +3353,9 @@ export default function ResumeWorkspace() {
                               value={selected.title}
                               onChange={(e) => updateSelected({ title: e.target.value })}
                               placeholder="e.g., Senior Data Scientist"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all font-medium"
                             />
-                            <div className="text-xs">
+                            <div className="text-xs text-muted-foreground">
                               This is the workspace resume name and the export file name.
                             </div>
                           </div>
@@ -3360,6 +3366,7 @@ export default function ResumeWorkspace() {
                               value={String(selected.content_json?.contact?.full_name || '')}
                               onChange={(e) => updateContactField('full_name', e.target.value)}
                               placeholder="Full name"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                             />
                           </div>
 
@@ -3369,6 +3376,7 @@ export default function ResumeWorkspace() {
                               value={String(selected.content_json?.contact?.location || '')}
                               onChange={(e) => updateContactField('location', e.target.value)}
                               placeholder="City, State"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                             />
                           </div>
 
@@ -3378,6 +3386,7 @@ export default function ResumeWorkspace() {
                               value={String(selected.content_json?.contact?.phone || '')}
                               onChange={(e) => updateContactField('phone', e.target.value)}
                               placeholder="Phone"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                             />
                           </div>
 
@@ -3387,6 +3396,7 @@ export default function ResumeWorkspace() {
                               value={String(selected.content_json?.contact?.email || '')}
                               onChange={(e) => updateContactField('email', e.target.value)}
                               placeholder="Email"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                             />
                           </div>
 
@@ -3396,6 +3406,7 @@ export default function ResumeWorkspace() {
                               value={String(selected.content_json?.contact?.linkedin_url || '')}
                               onChange={(e) => updateContactField('linkedin_url', e.target.value)}
                               placeholder="linkedin.com/in/…"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                             />
                           </div>
 
@@ -3405,6 +3416,7 @@ export default function ResumeWorkspace() {
                               value={String(selected.content_json?.contact?.github_url || '')}
                               onChange={(e) => updateContactField('github_url', e.target.value)}
                               placeholder="github.com/…"
+                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                             />
                           </div>
                         </div>
@@ -3418,7 +3430,7 @@ export default function ResumeWorkspace() {
                       <TabsContent value="summary" className="space-y-3 mt-4">
                         <Label>Professional Summary</Label>
                         <Textarea
-                          className="min-h-[280px] lg:min-h-[360px]"
+                          className="min-h-[280px] lg:min-h-[360px] bg-background/50 border-white/10 focus:border-primary/50 transition-all leading-relaxed"
                           value={selected.content_json.summary || ''}
                           onChange={(e) => updateContent({ summary: e.target.value })}
                           placeholder="Write a concise summary of your background and strengths…"
@@ -3462,7 +3474,7 @@ export default function ResumeWorkspace() {
 
                       <TabsContent value="experience" className="space-y-3 mt-4">
                         <Textarea
-                          className="min-h-[360px] lg:min-h-[520px]"
+                          className="min-h-[360px] lg:min-h-[520px] bg-background/50 border-white/10 focus:border-primary/50 transition-all font-mono text-sm leading-relaxed"
                           value={experienceDraft}
                           onChange={(e) => {
                             const next = e.target.value;
@@ -3497,7 +3509,7 @@ export default function ResumeWorkspace() {
 
                       <TabsContent value="education" className="space-y-2 mt-4">
                         <Textarea
-                          className="min-h-[200px] lg:min-h-[260px]"
+                          className="min-h-[200px] lg:min-h-[260px] bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                           value={educationDraft}
                           onChange={(e) => {
                             const next = e.target.value;
@@ -3521,7 +3533,7 @@ export default function ResumeWorkspace() {
 
                       <TabsContent value="certs" className="space-y-2 mt-4">
                         <Textarea
-                          className="min-h-[200px] lg:min-h-[260px]"
+                          className="min-h-[200px] lg:min-h-[260px] bg-background/50 border-white/10 focus:border-primary/50 transition-all"
                           value={certsDraft}
                           onChange={(e) => {
                             const next = e.target.value;
@@ -3577,43 +3589,43 @@ export default function ResumeWorkspace() {
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2">
-                              <Card className="dash-card">
-                                <CardHeader className="pb-3">
-                                  <CardTitle className="text-base">Added</CardTitle>
-                                  <CardDescription>{diff.added.length} lines</CardDescription>
-                                </CardHeader>
-                                <CardContent>
+                              <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
+                                <div className="flex flex-col space-y-1.5 p-4 border-b border-white/10">
+                                  <h3 className="font-semibold leading-none tracking-tight">Added</h3>
+                                  <p className="text-sm text-muted-foreground">{diff.added.length} lines</p>
+                                </div>
+                                <div className="p-4">
                                   <ScrollArea className="h-[240px]">
                                     <div className="space-y-2">
                                       {(diff.added.length ? diff.added : ['No additions detected.']).slice(0, 120).map((l, i) => (
-                                        <div key={i} className="text-sm">
-                                          <span className="text-success font-medium">+ </span>
-                                          <span className="">{l}</span>
+                                        <div key={i} className="text-sm border-l-2 border-emerald-500/50 pl-2 py-0.5">
+                                          <span className="text-emerald-500 font-medium">+ </span>
+                                          <span className="text-foreground">{l}</span>
                                         </div>
                                       ))}
                                     </div>
                                   </ScrollArea>
-                                </CardContent>
-                              </Card>
+                                </div>
+                              </div>
 
-                              <Card className="dash-card">
-                                <CardHeader className="pb-3">
-                                  <CardTitle className="text-base">Removed</CardTitle>
-                                  <CardDescription>{diff.removed.length} lines</CardDescription>
-                                </CardHeader>
-                                <CardContent>
+                              <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
+                                <div className="flex flex-col space-y-1.5 p-4 border-b border-white/10">
+                                  <h3 className="font-semibold leading-none tracking-tight">Removed</h3>
+                                  <p className="text-sm text-muted-foreground">{diff.removed.length} lines</p>
+                                </div>
+                                <div className="p-4">
                                   <ScrollArea className="h-[240px]">
                                     <div className="space-y-2">
                                       {(diff.removed.length ? diff.removed : ['No removals detected.']).slice(0, 120).map((l, i) => (
-                                        <div key={i} className="text-sm">
+                                        <div key={i} className="text-sm border-l-2 border-destructive/50 pl-2 py-0.5">
                                           <span className="text-destructive font-medium">- </span>
-                                          <span className="">{l}</span>
+                                          <span className="text-muted-foreground">{l}</span>
                                         </div>
                                       ))}
                                     </div>
                                   </ScrollArea>
-                                </CardContent>
-                              </Card>
+                                </div>
+                              </div>
                             </div>
 
                             <div className="text-xs">
@@ -3627,452 +3639,339 @@ export default function ResumeWorkspace() {
                 )}
               </div>
             </div>
-          </div>
 
-          {(analysisScore != null ||
-            atsEstimate != null ||
-            missingVerbatimPhrases.length > 0 ||
-            keywordsMissing.length > 0 ||
-            defendWithLearning.length > 0 ||
-            visibleImprovements.length > 0 ||
-            Boolean(jdSkillExtraction) ||
-            notesAddedPhrases.length > 0) && (
-              <div className="space-y-6">
-                {/* Keep both panels the same compact height; list expands to fill whitespace but still scrolls */}
-                <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
-                  <Card className="card-elevated lg:col-span-5 lg:h-[520px] flex flex-col">
-                    <CardHeader>
-                      <CardTitle className="text-base">ATS outcomes</CardTitle>
-                      <CardDescription>What to change next to raise the canonical score.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 flex-1 min-h-0 overflow-auto">
-                      <div>
-                        <div className="text-sm">Canonical score</div>
-                        <div className="text-4xl font-bold tracking-tight">{analysisScore != null ? `${Math.round(analysisScore)}%` : '—'}</div>
-                        <div className="mt-2">
-                          <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2" />
+            {/* Right: Insights Sidebar */}
+            <div className="lg:col-span-3 space-y-6">
+              {(analysisScore != null || atsEstimate != null) ? (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                  {/* Score Card */}
+                  <div className="glass-panel p-5 border-white/10 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                          <Target className="h-3 w-3" /> ATS Match
+                        </span>
+                        <Badge variant="outline" className="text-[9px] bg-primary/5 border-primary/20 text-primary">Live Update</Badge>
+                      </div>
+                      <div className="flex items-baseline gap-2 mb-1">
+                        <span className="text-4xl font-bold tracking-tight text-gradient-premium">{analysisScore != null ? Math.round(analysisScore) : 0}</span>
+                        <span className="text-sm text-muted-foreground font-medium">%</span>
+                      </div>
+                      <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-1.5 bg-white/5 my-3" />
+                      <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/5">
+                        <div>
+                          <div className="text-[10px] text-muted-foreground uppercase opacity-60">Keywords</div>
+                          <div className="text-xs font-bold text-foreground">{derivedKeywordPct ?? 0}%</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-muted-foreground uppercase opacity-60">Model Rank</div>
+                          <div className="text-xs font-bold text-foreground">{atsEstimate ?? 0}%</div>
                         </div>
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="">Keyword coverage</div>
-                          <div className="font-medium text-foreground">
-                            {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
-                            {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="">Model estimate</div>
-                          <div className="font-medium text-foreground">{atsEstimate != null ? `${Math.round(atsEstimate)}%` : '—'}</div>
-                        </div>
-                      </div>
-
-                      {(notesBaseMatchedCount != null || notesTailoredMatchedCount != null) && (
-                        <div className="text-sm">
-                          <span className="font-medium text-foreground">Coverage change:</span>{' '}
-                          Base {notesBaseMatchedCount ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'} → Tailored{' '}
-                          {notesTailoredMatchedCount ?? derivedKeywordMatched ?? '—'}/{notesKeywordTotal ?? derivedKeywordTotal ?? '—'}
-                        </div>
-                      )}
-
-                      <div className="text-sm">
-                        <div className="font-medium">3-step boost plan</div>
-                        <ol className="mt-2 list-decimal pl-5space-y-1">
-                          <li>Copy missing JD phrases (right panel) and paste them verbatim.</li>
-                          <li>Place them in Skills first; Summary second; bullets only if you can defend them.</li>
-                          <li>Regenerate (or run ATS Checkpoint) and repeat until you’re happy with coverage.</li>
-                        </ol>
-                      </div>
-
-                      <div className="rounded-md border bg-background p-3 text-sm">
-                        <div className="font-medium">Quick tips (high impact)</div>
-                        <ul className="mt-2 space-y-1">
-                          <li>
-                            <span className="text-foreground font-medium">Don’t add unverifiable claims.</span> If you can’t explain it in 60
-                            seconds with proof, skip it.
-                          </li>
-                          <li>
-                            <span className="text-foreground font-medium">Put phrases where recruiters expect them.</span> Skills first, Summary
-                            second, only then add to your most recent role bullets.
-                          </li>
-                          <li>
-                            <span className="text-foreground font-medium">Turn 1–2 phrases into evidence.</span> Add one concrete bullet with a
-                            metric (latency, cost, accuracy, volume, revenue).
-                          </li>
-                          <li>
-                            <span className="text-foreground font-medium">Re-run after edits.</span> Iterate until coverage is “good enough” for
-                            the jobs you’re targeting.
-                          </li>
-                        </ul>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="card-elevated lg:col-span-7 lg:h-[520px] flex flex-col">
-                    <CardHeader>
-                      <CardTitle className="text-base">Do this first: copy/paste missing JD phrases</CardTitle>
-                      <CardDescription>
-                        These phrases were not found verbatim in the resume text used for analysis. Add them naturally (best place: Skills).
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-3 flex-1 min-h-0">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="relative w-full sm:max-w-[420px]">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-                          <Input
-                            value={missingPhraseQuery}
-                            onChange={(e) => setMissingPhraseQuery(e.target.value)}
-                            placeholder="Search missing phrases..."
-                            className="pl-9"
-                          />
-                        </div>
-                        <Button
-                          variant="outline"
-                          onClick={() => copyToClipboard(filteredMissingVerbatim.slice(0, 15).join('\n'))}
-                          disabled={filteredMissingVerbatim.length === 0}
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy top 15
-                        </Button>
-                      </div>
-
+                  {/* Critical Keyword Gaps */}
+                  <div className="glass-panel p-5 border-white/10">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-destructive/80 mb-4 flex items-center gap-1.5">
+                      <Zap className="h-3 w-3" /> Critical Gaps
+                    </h4>
+                    <div className="space-y-3">
                       {filteredMissingVerbatim.length > 0 ? (
-                        <div className="flex flex-col flex-1 min-h-0 rounded-md border bg-background overflow-hidden">
-                          <ScrollArea className="flex-1 min-h-0 p-2">
-                            <div className="space-y-1">
-                              {filteredMissingVerbatim.slice(0, 60).map((p) => (
-                                <div key={p} className="flex items-start justify-between gap-3">
-                                  <div className="text-[13px] leading-5">{p}</div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => copyToClipboard(p)}
-                                    title="Copy"
-                                  >
-                                    <Copy className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                          <div className="border-t p-3 text-xs">
-                            Tip: add to Skills first; only add to bullets if you can defend it in interview.
+                        <>
+                          <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-1">
+                            {filteredMissingVerbatim.slice(0, 10).map((p) => (
+                              <Badge key={p} variant="secondary" className="bg-white/5 text-[10px] py-0.5 border-white/5 font-medium truncate max-w-full">
+                                {p}
+                              </Badge>
+                            ))}
                           </div>
-                        </div>
+                          <Button
+                            variant="ghost"
+                            className="w-full h-8 text-[10px] text-primary hover:bg-primary/10 group"
+                            onClick={() => copyToClipboard(filteredMissingVerbatim.slice(0, 15).join('\n'))}
+                          >
+                            <span>Copy Top 15 Gaps</span>
+                            <ChevronRight className="ml-1 h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                          </Button>
+                        </>
                       ) : (
-                        <div className="text-sm">No missing phrases found.</div>
+                        <div className="text-center py-4 text-xs text-muted-foreground">
+                          Excellent! Verbatim matching is optimal.
+                        </div>
                       )}
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+                  </div>
 
-                {(addedPhrasesClean.length > 0 ||
-                  highRiskClaims.length > 0 ||
-                  (analysisMatched.length + analysisMissing.length > 0) ||
-                  responsibilityMap.length > 0) && (
-                    <Card className="card-elevated">
-                      <CardHeader>
-                        <CardTitle className="text-base">JD deconstruction + interview readiness</CardTitle>
-                        <CardDescription>
-                          Built from the JD + your tailored resume. Use this to improve ATS and prep stories before interviews.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
+                  {/* Recommendations / AI Advice */}
+                  <div className="glass-panel p-5 border-white/10">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-4 flex items-center gap-1.5">
+                      <BrainCircuit className="h-3 w-3" /> AI Strategic Advice
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                        <p className="text-[11px] leading-relaxed text-foreground/80 italic">
+                          "Place critical keywords in your 'Skills' section first to boost ATS visibility, then integrate into experience bullets."
+                        </p>
+                      </div>
+                      {prepFocus.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-[10px] text-muted-foreground uppercase tracking-tighter">Draft Focus Areas</div>
+                          <div className="text-[10px] leading-snug">{prepFocus.slice(0, 3).join(' • ')}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="glass-panel p-8 text-center border-white/10 opacity-60">
+                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/5">
+                    <Sparkles className="h-5 w-5 text-muted-foreground/50" />
+                  </div>
+                  <h4 className="text-xs font-semibold mb-2">Real-time Analysis</h4>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Start by generating a tailored version or selecting a baseline to see live ATS insights here.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Section: Detailed Analysis & Intelligence */}
+            {(analysisScore != null ||
+              atsEstimate != null ||
+              (Array.isArray(analysisMissing) && analysisMissing.length > 0) ||
+              (Array.isArray(keywordsMissing) && keywordsMissing.length > 0) ||
+              (Array.isArray(defendWithLearning) && defendWithLearning.length > 0) ||
+              (Array.isArray(visibleImprovements) && visibleImprovements.length > 0) ||
+              Boolean(jdSkillExtraction) ||
+              (Array.isArray(notesAddedPhrases) && notesAddedPhrases.length > 0)) && (
+                <div className="space-y-6 lg:col-span-12 mt-6 animate-in slide-in-from-bottom-6 duration-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-px flex-1 bg-white/5" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Intelligence Hub</span>
+                    <div className="h-px flex-1 bg-white/5" />
+                  </div>
+
+                  <div className="grid gap-6 lg:grid-cols-12">
+                    {/* JD Deconstruction */}
+                    <div className="glass-panel lg:col-span-12 border-white/10">
+                      <div className="flex flex-col space-y-1 p-6 pb-2">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <BrainCircuit className="h-4 w-4 text-primary" />
+                          JD Deconstruction + Interview Readiness
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Strategic insights built from the JD + your current tailored resume.</p>
+                      </div>
+                      <div className="p-6 pt-4">
                         <Tabs defaultValue="deconstruct">
-                          <TabsList className="flex flex-wrap justify-start">
-                            <TabsTrigger value="deconstruct">1) JD deconstruction</TabsTrigger>
-                            <TabsTrigger value="ats">2) ATS gaps</TabsTrigger>
-                            <TabsTrigger value="resp">3) Responsibilities</TabsTrigger>
-                            <TabsTrigger value="delta">4) Delta skills</TabsTrigger>
-                            <TabsTrigger value="metrics">5) Metrics & red flags</TabsTrigger>
-                            <TabsTrigger value="prep">6) Interview prep</TabsTrigger>
+                          <TabsList className="bg-muted/10 border border-white/10 p-0.5 mb-6 w-fit flex-wrap gap-1 md:flex-nowrap">
+                            <TabsTrigger value="deconstruct" className="text-[11px] px-3">1) JD Analysis</TabsTrigger>
+                            <TabsTrigger value="ats" className="text-[11px] px-3">2) ATS Alignment</TabsTrigger>
+                            <TabsTrigger value="delta" className="text-[11px] px-3">3) Delta Skills</TabsTrigger>
+                            <TabsTrigger value="metrics" className="text-[11px] px-3">4) Red Flags</TabsTrigger>
+                            <TabsTrigger value="prep" className="text-[11px] px-3">5) Interview Prep</TabsTrigger>
                           </TabsList>
 
-                          <TabsContent value="deconstruct" className="mt-4 space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div className="rounded-md border bg-background p-3">
-                                <div className="text-sm font-medium">Hard skills (ATS keywords)</div>
-                                <div className="mt-2 space-y-2">
-                                  {keywordInventory.must.length > 0 && (
-                                    <div className="text-sm">
-                                      <div className="font-medium text-foreground">Must-have</div>
-                                      <div className="">{keywordInventory.must.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                          <TabsContent value="deconstruct" className="mt-0 space-y-6">
+                            <div className="grid gap-6 md:grid-cols-2">
+                              <div className="rounded-xl border border-white/5 bg-white/5 p-4">
+                                <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Hard Skills (Matched vs Potential)</div>
+                                <div className="space-y-4">
+                                  {jdSkillExtraction?.core_technical_skills?.length > 0 && (
+                                    <div className="space-y-2">
+                                      <div className="text-[10px] text-muted-foreground uppercase">Must-have Keywords</div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {jdSkillExtraction.core_technical_skills.slice(0, 15).map((k: string) => (
+                                          <Badge key={k} variant="outline" className="text-[10px] bg-white/5 border-white/5">{k}</Badge>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
-                                  {keywordInventory.nice.length > 0 && (
-                                    <div className="text-sm">
-                                      <div className="font-medium text-foreground">Nice-to-have</div>
-                                      <div className="">{keywordInventory.nice.slice(0, 18).map((k) => k.keyword).join(' • ')}</div>
+                                  {jdSkillExtraction?.platform_cloud_tooling?.length > 0 && (
+                                    <div className="space-y-2">
+                                      <div className="text-[10px] text-muted-foreground uppercase">Infrastructure & Platform</div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {jdSkillExtraction.platform_cloud_tooling.slice(0, 15).map((k: string) => (
+                                          <Badge key={k} variant="outline" className="text-[10px] bg-white/5 border-white/10">{k}</Badge>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
                               </div>
-                              <div className="rounded-md border bg-background p-3">
-                                <div className="text-sm font-medium">Seniority signals (what the JD implies)</div>
-                                <div className="mt-2 text-smspace-y-1">
-                                  <div>Dial up: scope, decision-making, cross-functional leadership, scale/ownership.</div>
-                                  <div>Dial down: vague buzzwords and org-specific claims that aren’t yours.</div>
-                                  <div>Ensure Summary + most recent role reflect the JD’s level (strategy vs hands-on).</div>
+                              <div className="rounded-xl border border-white/5 bg-white/5 p-4">
+                                <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Seniority & Strategy Signals</div>
+                                <div className="space-y-3">
+                                  <div className="p-3 rounded-lg bg-black/20 text-xs leading-relaxed">
+                                    {targetTitle?.toLowerCase().includes('senior') || targetTitle?.toLowerCase().includes('lead') || targetTitle?.toLowerCase().includes('director') ? (
+                                      "Strategy focus: prioritize scope, cross-functional leadership, and P&L/metric ownership in your Summary and most recent role bullets."
+                                    ) : (
+                                      "Execution focus: emphasize specific technical contributions, problem-solving speed, and tool proficiency."
+                                    )}
+                                  </div>
+                                  <ul className="text-[11px] text-muted-foreground space-y-2 list-disc pl-4">
+                                    <li>Dial up domain-specific jargon from the JD</li>
+                                    <li>Ensure top 3 bullets in most recent role use JD verbs</li>
+                                    <li>Match the "implicit" level of the JD (e.g. strategic vs tactical)</li>
+                                  </ul>
                                 </div>
                               </div>
                             </div>
                           </TabsContent>
 
-                          <TabsContent value="ats" className="mt-4 space-y-3">
-                            <div className="rounded-md border bg-background p-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <div>
-                                  <div className="text-sm font-medium">Keyword coverage</div>
-                                  <div className="text-xs">Use exact JD wording; replace synonyms where possible.</div>
+                          <TabsContent value="ats" className="mt-0">
+                            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="text-sm font-semibold">Keyword Coverage Analysis</div>
+                                <div className="text-xl font-bold text-primary">{derivedKeywordPct ?? 0}%</div>
+                              </div>
+                              <Progress value={derivedKeywordPct ?? 0} className="h-1.5 bg-black/40 mb-6" />
+                              <div className="grid gap-6 md:grid-cols-3">
+                                <div className="space-y-2">
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Top Placement</div>
+                                  <p className="text-xs">Skills section first, Summary second, latest role third.</p>
                                 </div>
-                                <div className="text-sm font-medium text-foreground">
-                                  {derivedKeywordPct != null ? `${derivedKeywordPct}%` : '—'}{' '}
-                                  {derivedKeywordMatched != null && derivedKeywordTotal != null ? `· ${derivedKeywordMatched}/${derivedKeywordTotal}` : ''}
+                                <div className="space-y-2">
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Exact Phrases</div>
+                                  <p className="text-xs">Use verbatim JD wording; replace your synonyms with their terms.</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Recency Bias</div>
+                                  <p className="text-xs">ATS and Humans weight recent roles 2x higher for core keywords.</p>
                                 </div>
                               </div>
-                            </div>
-                            <div className="rounded-md border bg-background p-3 text-sm">
-                              <div className="font-medium">Keyword placement guidance</div>
-                              <ul className="mt-2 list-disc pl-5space-y-1">
-                                <li>Skills: tools/platforms/acronyms (verbatim)</li>
-                                <li>Summary: role-level responsibilities + domain</li>
-                                <li>Recent bullets: keywords tied to outcomes/metrics (recency bias)</li>
-                              </ul>
                             </div>
                           </TabsContent>
 
-                          <TabsContent value="resp" className="mt-4 space-y-3">
-                            <div className="text-sm font-medium">Responsibility coverage map</div>
-                            {responsibilityMap.length > 0 ? (
-                              <div className="rounded-md border bg-background overflow-auto">
-                                <table className="w-full text-sm">
-                                  <thead className="border-b bg-muted/30">
-                                    <tr>
-                                      <th className="text-left font-medium p-3 w-[45%]">JD responsibility</th>
-                                      <th className="text-left font-medium p-3 w-[12%]">Coverage</th>
-                                      <th className="text-left font-medium p-3">Resume evidence (best match)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {responsibilityMap.slice(0, 10).map((r) => (
-                                      <tr key={r.responsibility} className="border-b last:border-b-0">
-                                        <td className="p-3 align-top">{r.responsibility}</td>
-                                        <td className="p-3 align-top">
-                                          <Badge
-                                            variant={r.status === 'Yes' ? 'default' : r.status === 'Partial' ? 'secondary' : 'outline'}
-                                          >
-                                            {r.status}
-                                          </Badge>
-                                        </td>
-                                        <td className="p-3 align-top">{r.evidence || '—'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <div className="rounded-md border bg-muted/20 p-3 text-sm">
-                                No responsibilities could be extracted yet. Paste a fuller JD (with responsibilities) and regenerate the tailored resume.
-                              </div>
-                            )}
-                            <div className="text-xs">
-                              Use this table to decide what to expand in the most recent role, and which “Missing” items need an interview story (or should be
-                              removed).
-                            </div>
-                          </TabsContent>
-
-                          <TabsContent value="delta" className="mt-4 space-y-3">
-                            <div className="text-sm font-medium">Delta skills (what the JD emphasizes that isn’t verbatim in your resume)</div>
-                            <div className="rounded-md border bg-background overflow-auto">
-                              <table className="w-full text-sm">
-                                <thead className="border-b bg-muted/30">
+                          <TabsContent value="delta" className="mt-0">
+                            <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                              <table className="w-full text-xs">
+                                <thead className="bg-white/5 border-b border-white/10">
                                   <tr>
-                                    <th className="text-left font-medium p-3">Delta skill/phrase</th>
-                                    <th className="text-left font-medium p-3 w-[16%]">Closeness</th>
-                                    <th className="text-left font-medium p-3 w-[20%]">Placement</th>
+                                    <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Delta Skill / Missing Phrase</th>
+                                    <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Suggested Placement</th>
+                                    <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Interview Story</th>
                                   </tr>
                                 </thead>
-                                <tbody>
-                                  {deltaSkills.slice(0, 12).map((d) => (
-                                    <tr key={d.skill} className="border-b last:border-b-0">
-                                      <td className="p-3">{d.skill}</td>
-                                      <td className="p-3">
-                                        <Badge variant={d.closeness === 'Direct' ? 'default' : d.closeness === 'Adjacent' ? 'secondary' : 'outline'}>
-                                          {d.closeness}
-                                        </Badge>
-                                      </td>
-                                      <td className="p-3">{d.suggestedPlacement}</td>
+                                <tbody className="divide-y divide-white/5">
+                                  {Array.isArray(notesAddedPhrases) && notesAddedPhrases.slice(0, 10).map((p, i) => (
+                                    <tr key={i} className="hover:bg-white/5 transition-colors">
+                                      <td className="p-3 font-medium text-emerald-400">{p}</td>
+                                      <td className="p-3 text-muted-foreground">Skills or Summary</td>
+                                      <td className="p-3 text-muted-foreground italic">Required if used as primary skill</td>
                                     </tr>
                                   ))}
+                                  {(!Array.isArray(notesAddedPhrases) || notesAddedPhrases.length === 0) && (
+                                    <tr>
+                                      <td colSpan={3} className="p-8 text-center text-muted-foreground italic">No tracked JD-specific delta phrases found yet.</td>
+                                    </tr>
+                                  )}
                                 </tbody>
                               </table>
                             </div>
                           </TabsContent>
 
-                          <TabsContent value="metrics" className="mt-4 space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div className="rounded-md border bg-background p-3">
-                                <div className="text-sm font-medium">Metrics strength</div>
-                                <div className="mt-2 text-sm">
-                                  Metrics present: <span className="font-medium text-foreground">{metricsStrength.withM}</span>/
-                                  <span className="font-medium text-foreground">{metricsStrength.total}</span> bullets (
-                                  <span className="font-medium text-foreground">{metricsStrength.pct}%</span>)
+                          <TabsContent value="metrics" className="mt-0">
+                            <div className="grid gap-6 md:grid-cols-2">
+                              <div className="rounded-xl border border-white/5 bg-white/5 p-5">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <Target className="h-4 w-4 text-orange-400" />
+                                  <div className="text-xs font-bold uppercase tracking-wider">Metrics & Quantifiability</div>
                                 </div>
-                                {metricsStrength.weakRecent.length > 0 && (
-                                  <div className="mt-3 text-sm">
-                                    <div className="font-medium">Add metrics to these recent bullets</div>
-                                    <ul className="mt-2 list-disc pl-5space-y-1">
-                                      {metricsStrength.weakRecent.map((b, i) => (
-                                        <li key={i}>{String(b).slice(0, 180)}</li>
-                                      ))}
-                                    </ul>
+                                <div className="space-y-4">
+                                  <div className="p-3 rounded-lg bg-black/20 text-[11px] leading-relaxed">
+                                    {metricsStrength.pct < 30 ? "Your resume is 'Metric-Lite'. Add 3-5 concrete numbers (%, $, volume, scale) to your latest role to significantly improve response rates." : "Good metric density detected. Ensure they directly relate to the ROI expected in the JD."}
                                   </div>
-                                )}
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span>Metric Density</span>
+                                    <span className="font-bold">{metricsStrength.pct}%</span>
+                                  </div>
+                                  <Progress value={metricsStrength.pct} className="h-1 bg-white/10" />
+                                </div>
                               </div>
-                              <div className="rounded-md border bg-background p-3">
-                                <div className="text-sm font-medium">Red flags (ATS + human)</div>
-                                {redFlags.length > 0 ? (
-                                  <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
-                                    {redFlags.map((r, i) => (
-                                      <li key={i}>{r}</li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="mt-2 text-sm">No obvious red flags detected.</div>
-                                )}
+                              <div className="rounded-xl border border-white/5 bg-white/5 p-5">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                                  <div className="text-xs font-bold uppercase tracking-wider">Potential Red Flags</div>
+                                </div>
+                                <ul className="space-y-2">
+                                  {Array.isArray(redFlags) && redFlags.length > 0 ? redFlags.slice(0, 5).map((r, i) => (
+                                    <li key={i} className="flex gap-2 text-[11px] text-muted-foreground">
+                                      <span className="text-destructive font-bold">•</span>
+                                      <span>{r}</span>
+                                    </li>
+                                  )) : (
+                                    <li className="text-[11px] text-muted-foreground italic">No critical structural red flags detected.</li>
+                                  )}
+                                </ul>
                               </div>
                             </div>
                           </TabsContent>
 
-                          <TabsContent value="prep" className="mt-4 space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div className="rounded-md border bg-background p-3">
-                                <div className="text-sm font-medium">Responsibility-to-story map (what to prep)</div>
-                                <div className="text-xsmt-1">Prep STAR stories for Partial/Missing responsibilities you keep in the resume.</div>
-                                <ul className="mt-2 list-disc pl-5 text-smspace-y-1">
-                                  {responsibilityMap
-                                    .filter((r) => r.status !== 'Yes')
-                                    .slice(0, 8)
-                                    .map((r) => (
-                                      <li key={r.responsibility}>
-                                        <span className="font-medium text-foreground">{r.status}:</span> {r.responsibility}
-                                      </li>
-                                    ))}
-                                </ul>
-                              </div>
-                              <div className="rounded-md border bg-background p-3">
-                                <div className="text-sm font-medium">Edits you must be able to defend (added vs base)</div>
-                                <div className="text-xsmt-1">If anything below isn’t true, remove it before exporting.</div>
-                                {addedPhrasesClean.length > 0 ? (
-                                  <div className="mt-2 space-y-2">
-                                    {addedPhrasesClean.slice(0, 10).map((p) => (
-                                      <div key={p} className="flex items-start justify-between gap-3">
-                                        <div className="text-sm leading-6">{p}</div>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 p-0" onClick={() => copyToClipboard(p)} title="Copy">
-                                          <Copy className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
+                          <TabsContent value="prep" className="mt-0">
+                            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                              <div className="text-xs font-bold uppercase tracking-wider text-primary mb-4">Top 5 Interview Prep Areas</div>
+                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                {Array.isArray(prepFocus) && prepFocus.slice(0, 6).map((item, i) => (
+                                  <div key={i} className="p-3 rounded-lg bg-black/30 border border-white/5 text-[11px] leading-snug">
+                                    <div className="text-primary/60 mb-1 font-bold">Focus {i + 1}</div>
+                                    {item}
                                   </div>
-                                ) : (
-                                  <div className="mt-2 text-sm">No tracked edits yet.</div>
-                                )}
-                                {prepFocus.length > 0 && (
-                                  <div className="mt-4 text-sm">
-                                    <div className="font-medium">Top interview focus areas (pick 5)</div>
-                                    <div className="text-xsmt-1">For each: one STAR story + one metric + one trade-off.</div>
-                                    <div className="mt-2">{prepFocus.slice(0, 5).join(' • ')}</div>
-                                  </div>
+                                ))}
+                                {(!Array.isArray(prepFocus) || prepFocus.length === 0) && (
+                                  <p className="col-span-full py-6 text-center text-muted-foreground text-xs italic">Generate a tailored resume to see interview focus areas.</p>
                                 )}
                               </div>
                             </div>
                           </TabsContent>
                         </Tabs>
-                      </CardContent>
-                    </Card>
-                  )}
+                      </div>
+                    </div>
 
-                {jdSkillExtraction && (
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="text-base">JD skill extraction (quick map)</CardTitle>
-                      <CardDescription>Use this as a checklist for your Summary + Skills ordering.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 md:grid-cols-2">
-                      {[
-                        ['Core Technical Skills', jdSkillExtraction.core_technical_skills],
-                        ['Platform / Cloud / Tooling', jdSkillExtraction.platform_cloud_tooling],
-                        ['Architecture & Systems', jdSkillExtraction.architecture_systems],
-                        ['Leadership & Org Design', jdSkillExtraction.leadership_org_design],
-                        ['Business & Strategy', jdSkillExtraction.business_strategy],
-                      ]
-                        .filter(([, arr]: any) => Array.isArray(arr) && arr.length)
-                        .map(([label, arr]: any) => (
-                          <div key={label} className="space-y-2">
-                            <div className="text-sm font-medium">{label}</div>
-                            <div className="flex flex-wrap gap-2">
-                              {(arr as any[]).slice(0, 18).map((t, i) => (
-                                <Badge key={`${label}-${i}`} variant="secondary">
-                                  {cleanPhrase(t)}
-                                </Badge>
-                              ))}
-                            </div>
+                    {/* Diagnostics Accordion */}
+                    <div className="lg:col-span-12">
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="diagnostics" className="border-none">
+                          <div className="glass-panel border-white/10">
+                            <AccordionTrigger className="px-6 py-3 hover:bg-white/5 transition-colors no-underline">
+                              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                <Terminal className="h-3 w-3" /> System Diagnostics
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6 pt-2 border-t border-white/5">
+                              <div className="grid gap-6 md:grid-cols-2">
+                                <div className="space-y-3">
+                                  <div className="text-xs font-semibold">Improvement Queue</div>
+                                  <div className="space-y-1.5">
+                                    {Array.isArray(visibleImprovements) && visibleImprovements.map((t, i) => (
+                                      <div key={i} className="text-[11px] text-muted-foreground flex gap-2">
+                                        <span className="text-primary">•</span> {typeof t === 'string' ? t.replace(/['"\[\]]/g, '') : JSON.stringify(t)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="space-y-3">
+                                  <div className="text-xs font-semibold">Model Confidence Score</div>
+                                  <div className="text-2xl font-bold text-foreground">{atsEstimate ?? '—'} <span className="text-xs font-normal text-muted-foreground">/ 100</span></div>
+                                  <div className="text-[10px] leading-relaxed text-muted-foreground">
+                                    Based on semantic alignment and structural validity of the generated content.
+                                  </div>
+                                </div>
+                              </div>
+                            </AccordionContent>
                           </div>
-                        ))}
-                      {[
-                        jdSkillExtraction.core_technical_skills,
-                        jdSkillExtraction.platform_cloud_tooling,
-                        jdSkillExtraction.architecture_systems,
-                        jdSkillExtraction.leadership_org_design,
-                        jdSkillExtraction.business_strategy,
-                      ].every((a: any) => !Array.isArray(a) || a.length === 0) && (
-                          <div className="text-sm">No skill groups extracted.</div>
-                        )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {(visibleImprovements.length > 0 || debugImprovements.length > 0) && (
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="text-base">Advanced</CardTitle>
-                      <CardDescription>Optional details for debugging and deep review.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Accordion type="single" collapsible>
-                        <AccordionItem value="diagnostics">
-                          <AccordionTrigger>Diagnostics</AccordionTrigger>
-                          <AccordionContent>
-                            {visibleImprovements.length > 0 && (
-                              <div className="text-sm">
-                                <div className="font-medium">Improvement ideas</div>
-                                <ul className="mt-2 list-disc pl-5space-y-1">
-                                  {visibleImprovements.slice(0, 10).map((t, i) => (
-                                    <li key={i}>{cleanPhrase(t)}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            {debugImprovements.length > 0 && (
-                              <div className="mt-4 text-xs">
-                                {debugImprovements.map((t, i) => (
-                                  <div key={i}>{cleanPhrase(t)}</div>
-                                ))}
-                              </div>
-                            )}
-                          </AccordionContent>
                         </AccordionItem>
                       </Accordion>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+          </div>
         </div>
       </TooltipProvider>
     </DashboardLayout>
   );
 }
-
