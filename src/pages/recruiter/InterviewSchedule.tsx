@@ -432,7 +432,7 @@ export default function InterviewSchedule() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">
-                          {interview.applications?.candidate_profiles?.full_name || 'Unknown'}
+                          {interview.applications?.candidate_profiles?.full_name || (interview.applications?.candidate_profiles?.email ? String(interview.applications.candidate_profiles.email).split('@')[0] : null) || 'Applicant'}
                         </p>
                         <p className="text-sm">
                           {interview.applications?.jobs?.title}
@@ -492,7 +492,7 @@ export default function InterviewSchedule() {
                     <div key={interview.id} className="glass-panel p-3 hover-card-premium group rounded-xl flex items-center justify-between">
                       <div>
                         <p className="font-medium text-sm">
-                          {interview.applications?.candidate_profiles?.full_name || 'Unknown'}
+                          {interview.applications?.candidate_profiles?.full_name || (interview.applications?.candidate_profiles?.email ? String(interview.applications.candidate_profiles.email).split('@')[0] : null) || 'Applicant'}
                         </p>
                         <p className="text-xs">
                           {format(new Date(interview.scheduled_at), 'MMM d, yyyy')}

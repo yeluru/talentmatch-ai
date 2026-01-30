@@ -365,12 +365,17 @@ export default function RecruiterCandidates() {
     if (rawName && !isPlaceholderName) return rawName;
 
     const resumeData = getResumeData(app);
-    if (resumeData?.full_name) return resumeData.full_name;
+    const resumeName = (resumeData?.full_name || '').trim();
+    if (resumeName) return resumeName;
 
     const email = getDisplayEmail(app);
-    if (email) return email;
+    if (email) {
+      const local = (email || '').trim().split('@')[0];
+      if (local) return local;
+      return email;
+    }
 
-    return 'Unknown';
+    return 'Applicant';
   };
 
   const getDisplayEmail = (app: ApplicationWithProfile): string => {

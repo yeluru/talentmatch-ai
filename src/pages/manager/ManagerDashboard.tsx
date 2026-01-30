@@ -138,25 +138,31 @@ export default function ManagerDashboard() {
           for (const app of applications) {
             const { data: candidateProfile } = await supabase
               .from('candidate_profiles')
-              .select('user_id')
+              .select('user_id, full_name, email')
               .eq('id', app.candidate_id)
               .single();
 
-            if (candidateProfile) {
+            let candidateName = (candidateProfile?.full_name || '').trim();
+            if (!candidateName && candidateProfile?.user_id) {
               const { data: profile } = await supabase
                 .from('profiles')
                 .select('full_name')
                 .eq('user_id', candidateProfile.user_id)
                 .single();
-
-              appsList.push({
-                id: app.id,
-                candidate_name: profile?.full_name || 'Unknown',
-                job_title: (app.jobs as any)?.title || 'Unknown',
-                status: app.status || 'applied',
-                applied_at: app.applied_at
-              });
+              candidateName = (profile?.full_name || '').trim();
             }
+            if (!candidateName && (candidateProfile?.email || '').trim()) {
+              candidateName = (candidateProfile.email || '').trim().split('@')[0] || '';
+            }
+            if (!candidateName) candidateName = 'Applicant';
+
+            appsList.push({
+              id: app.id,
+              candidate_name: candidateName,
+              job_title: (app.jobs as any)?.title || 'Job',
+              status: app.status || 'applied',
+              applied_at: app.applied_at
+            });
           }
         }
       }

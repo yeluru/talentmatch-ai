@@ -267,7 +267,7 @@ export default function CandidatePipeline() {
                             <div className="flex items-start justify-between gap-1">
                               <div>
                                 <p className="font-bold text-sm leading-tight text-slate-800 dark:text-slate-100">
-                                  {app.candidate_profiles?.full_name || 'Unknown'}
+                                  {app.candidate_profiles?.full_name || (app.candidate_profiles?.email ? String(app.candidate_profiles.email).split('@')[0] : null) || 'Applicant'}
                                 </p>
                                 <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
                                   {app.candidate_profiles?.current_title || 'No Title'}

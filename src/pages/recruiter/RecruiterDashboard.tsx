@@ -48,6 +48,7 @@ interface InviteCode {
 
 interface RecentApplication {
   id: string;
+  candidate_id?: string;
   candidate_name: string;
   job_title: string;
   applied_at: string;
@@ -122,15 +123,41 @@ export default function RecruiterDashboard() {
           const name =
             String(cp?.full_name || '').trim() ||
             (String(cp?.email || '').trim().split('@')[0] || '').trim() ||
-            'Candidate';
+            '';
 
           appsList.push({
             id: app.id,
+            candidate_id: app.candidate_id,
             candidate_name: name,
             job_title: (app.jobs as any)?.title || 'Job',
             applied_at: app.applied_at,
           });
         });
+
+        // Fallback: if any application has no name (join returned null or empty), fetch profiles by candidate_id
+        const missingNames = appsList.filter((a: any) => !a.candidate_name);
+        if (missingNames.length > 0) {
+          const candidateIds = missingNames.map((a: any) => a.candidate_id).filter(Boolean);
+          if (candidateIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('candidate_profiles')
+              .select('id, full_name, email')
+              .in('id', candidateIds);
+            const profileById = new Map((profiles || []).map((p: any) => [p.id, p]));
+            appsList.forEach((a: any) => {
+              if (!a.candidate_name && a.candidate_id) {
+                const p = profileById.get(a.candidate_id) as any;
+                a.candidate_name =
+                  String(p?.full_name || '').trim() ||
+                  (String(p?.email || '').trim().split('@')[0] || '').trim() ||
+                  'Applicant';
+              }
+            });
+          }
+          missingNames.forEach((a: any) => {
+            if (!a.candidate_name) a.candidate_name = 'Applicant';
+          });
+        }
       }
 
       setRecentApplications(appsList);
@@ -518,7 +545,7 @@ export default function RecruiterDashboard() {
                     return (
                       <div key={app.id} className="p-3 rounded-xl border border-white/5 hover:bg-white/5 transition-all flex items-center justify-between group cursor-pointer" onClick={() => navigate('/recruiter/candidates')}>
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center fontsize-sm font-bold border border-primary/20">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border border-primary/20">
                             {initials}
                           </div>
                           <div>

@@ -256,7 +256,7 @@ export default function JobApplicants() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h3 className="font-semibold text-lg text-foreground/90 group-hover:text-primary transition-colors">
-                          {application.candidate_profiles?.full_name || 'Unknown'}
+                          {application.candidate_profiles?.full_name || (application.candidate_profiles?.email ? String(application.candidate_profiles.email).split('@')[0] : null) || 'Applicant'}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                           {application.candidate_profiles?.current_title}
