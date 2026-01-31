@@ -20,17 +20,18 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          // Large/heavy libs
+          // Large/heavy libs (keep separate)
           if (id.includes("pdf-lib")) return "pdf-lib";
           if (id.includes("docx")) return "docx";
           if (id.includes("recharts")) return "charts";
           if (id.includes("react-day-picker")) return "calendar";
           if (id.includes("react-hook-form") || id.includes("@hookform/resolvers")) return "forms";
           if (id.includes("zod")) return "zod";
-          // Core app vendors (React + Radix must stay together so Radix gets React)
-          if (id.includes("react-dom") || id.match(/node_modules\/react\//)) return "react-core";
-          if (id.includes("@radix-ui")) return "react-core";
-          if (id.includes("react-router")) return "react-router";
+          // React ecosystem: one chunk so React, Radix, next-themes etc. share same React instance
+          if (id.includes("react-dom") || id.match(/node_modules\/react\//)) return "vendor";
+          if (id.includes("@radix-ui")) return "vendor";
+          if (id.includes("next-themes")) return "vendor";
+          if (id.includes("react-router")) return "vendor";
           if (id.includes("@tanstack")) return "react-query";
           if (id.includes("@supabase")) return "supabase";
           if (id.includes("lucide-react")) return "icons";
