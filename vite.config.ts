@@ -27,12 +27,12 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("react-day-picker")) return "calendar";
           if (id.includes("react-hook-form") || id.includes("@hookform/resolvers")) return "forms";
           if (id.includes("zod")) return "zod";
-          // Core app vendors
+          // Core app vendors (React + Radix must stay together so Radix gets React)
           if (id.includes("react-dom") || id.match(/node_modules\/react\//)) return "react-core";
+          if (id.includes("@radix-ui")) return "react-core";
           if (id.includes("react-router")) return "react-router";
           if (id.includes("@tanstack")) return "react-query";
           if (id.includes("@supabase")) return "supabase";
-          if (id.includes("@radix-ui")) return "radix";
           if (id.includes("lucide-react")) return "icons";
           // Fallback vendor bucket
           return "vendor";
