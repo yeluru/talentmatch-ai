@@ -520,6 +520,12 @@ export default function SuperAdminDashboard() {
     setTenantCreateLoading(true);
     setTenantInviteUrl(null);
     try {
+      // Refresh session so we send a valid user JWT (gateway returns 401 if missing or expired)
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !session?.access_token) {
+        toast.error('Your session expired. Please sign in again.');
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('send-org-admin-invite', {
         body: { organizationName, email, fullName },
       });
@@ -559,6 +565,11 @@ export default function SuperAdminDashboard() {
 
     setTenantInviteSubmitting(true);
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !session?.access_token) {
+        toast.error('Your session expired. Please sign in again.');
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('send-org-admin-invite-existing', {
         body: {
           organizationId: tenantInviteTarget.organization_id,
