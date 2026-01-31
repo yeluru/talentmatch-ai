@@ -74,13 +74,13 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.send-org-admin-invite]
-verify_jwt = true
+verify_jwt = false
 
 [functions.bootstrap-platform-admin]
 verify_jwt = true
 
 [functions.send-org-admin-invite-existing]
-verify_jwt = true
+verify_jwt = false
 
 [functions.parse-job-description]
 verify_jwt = true
