@@ -29,7 +29,13 @@ This guide walks you through deploying **UltraHire** (formerly TalentMatch AI) t
    - **anon public** key (Project Settings → API) → `VITE_SUPABASE_PUBLISHABLE_KEY`
    - **Project ref** (from URL or Settings) → optional for `VITE_SUPABASE_PROJECT_ID`
 
-### 1.2 Run migrations
+### 1.2 Run migrations (required for every deployment and every customer)
+
+**You must apply all migrations** in `supabase/migrations/` for the app to work correctly. This includes RLS policies, roles, and features like managers seeing marketplace (publicly discoverable) candidates. Run migrations for:
+
+- Initial production deployment
+- Every new customer/tenant deployment (same repo, new Supabase project)
+- Any environment where you expect full feature parity
 
 From the repo root:
 
@@ -38,7 +44,9 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-Or apply migrations manually in **SQL Editor** in the Supabase dashboard (run each file in `supabase/migrations/` in order).
+This applies every migration file in order. Do **not** skip or cherry-pick migrations.
+
+If you cannot use the CLI, apply migrations manually in **SQL Editor** in the Supabase dashboard: run each file in `supabase/migrations/` in **timestamp order** (oldest first).
 
 ### 1.3 Edge Function secrets (Supabase Dashboard)
 
@@ -195,11 +203,12 @@ At your domain registrar or DNS provider:
 
 ## 5. Post-deploy checklist
 
-- [ ] **Supabase:** Migrations applied, Edge Functions deployed, secrets set (`RESEND_API_KEY`, `PUBLIC_APP_URL`, `APP_URL`, `OPENAI_API_KEY`, SMTP vars if used).
+- [ ] **Supabase:** All migrations applied (`npx supabase db push`), Edge Functions deployed, secrets set (`RESEND_API_KEY`, `PUBLIC_APP_URL`, `APP_URL`, `OPENAI_API_KEY`, SMTP vars if used).
 - [ ] **Resend:** Domain verified; invite emails send successfully (test by inviting a user).
 - [ ] **Render:** Build succeeds; env vars set; app loads at Render URL and at custom domain.
 - [ ] **Auth:** Sign up / sign in and redirects work; invite flow opens app at `PUBLIC_APP_URL` and completes.
-- [ ] **Engagement emails:** If you use `send-engagement-email`, send a test and confirm “Review & respond” links use `APP_URL` and work.
+- [ ] **Engagement emails:** If you use `send-engagement-email`, send a test and confirm "Review & respond" links use `APP_URL` and work.
+- [ ] **Role visibility:** As a smoke test, create a candidate who opts in to "publicly discoverable", then confirm both a **recruiter** and an **account manager** in the same org can see that candidate (e.g. on Marketplace Profiles). If managers cannot see them, re-run migrations so the latest RLS policies are applied.
 
 ---
 

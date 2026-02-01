@@ -53,7 +53,7 @@ Reply with: *Step 2 done*, then continue to Step 3.
 
 ## Step 3 — Run database migrations
 
-**What you’re doing:** Creating all tables and RLS policies in your production database.
+**What you’re doing:** Creating all tables and RLS policies in your production database. **All migrations in the repo are required** — for initial deploy and for every new customer/tenant. Do not skip or cherry-pick; missing migrations can break things like managers seeing marketplace (publicly discoverable) candidates.
 
 **Do this:**
 
@@ -66,7 +66,7 @@ Reply with: *Step 2 done*, then continue to Step 3.
 
    When prompted, enter your **database password** (the one you set when creating the project).
 
-3. Push migrations:
+3. Push migrations (this applies every file in `supabase/migrations/` in order):
 
    ```bash
    npx supabase db push
@@ -77,7 +77,7 @@ Reply with: *Step 2 done*, then continue to Step 3.
 **Verify:**
 
 - [ ] `supabase link` completes and reports success (or “already linked”).
-- [ ] `supabase db push` completes without errors.
+- [ ] `supabase db push` completes without errors (or reports "no migrations to run" if already applied).
 - [ ] In Supabase dashboard → **Table Editor**, you see tables (e.g. `profiles`, `jobs`, `organizations`).
 
 Reply with: *Step 3 done* (or paste the error), then continue to Step 4.
