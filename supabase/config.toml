@@ -83,7 +83,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.parse-job-description]
-verify_jwt = true
+verify_jwt = false
 
 [functions.tailor-resume]
 verify_jwt = true
