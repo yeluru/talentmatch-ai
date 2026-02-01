@@ -163,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
             <p>You’ve been invited to join <strong>${organizationName}</strong> as a <strong>Manager</strong> on UltraHire.</p>
             <p>Click below to accept the invitation and set up your account:</p>
             <p style="text-align: center; margin: 32px 0;">
-              <a href="${inviteUrl}" class="button">Accept Invitation</a>
+              <a href="${inviteUrl}" class="button" style="display: inline-block; background-color: #dc2626; color: #ffffff !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">Accept Invitation</a>
             </p>
             <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">
               Or copy and paste this link into your browser:<br />

@@ -166,7 +166,7 @@ serve(async (req: Request): Promise<Response> => {
             <p>You’ve been invited to become the <strong>Org Super Admin</strong> for <strong>${org.name}</strong>.</p>
             <p>Click below to accept and set up your account:</p>
             <p style="text-align: center; margin: 32px 0;">
-              <a href="${inviteUrl}" class="button">Complete Setup</a>
+              <a href="${inviteUrl}" class="button" style="display: inline-block; background-color: #dc2626; color: #ffffff !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">Complete Setup</a>
             </p>
             <p style="margin-top: 16px; font-size: 14px; color: #6b7280;">
               Or copy and paste this link into your browser:<br />
