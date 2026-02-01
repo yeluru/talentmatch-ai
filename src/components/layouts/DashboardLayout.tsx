@@ -231,7 +231,7 @@ function DashboardLayoutInner({
               </svg>
             </div>
             <span className="font-display font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
-              Talent<span className="text-accent">Match</span>
+              Ultra<span className="text-accent">Hire</span>
             </span>
           </Link>
         </SidebarHeader>

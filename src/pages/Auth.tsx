@@ -27,7 +27,7 @@ function Logo() {
         </svg>
       </div>
       <span className="font-bold text-2xl tracking-tight">
-        Talent<span className="text-accent">Match</span>
+        Ultra<span className="text-accent">Hire</span>
       </span>
     </div>
   );
