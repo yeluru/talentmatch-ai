@@ -34,7 +34,7 @@ export function AppInitGate({ children }: AppInitGateProps) {
             <div className="flex flex-col items-center text-center">
               <img
                 src={logo}
-                alt="TalentMatch AI"
+                alt="UltraHire AI"
                 className="h-12 w-auto"
                 loading="eager"
               />

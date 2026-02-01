@@ -66,7 +66,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-accent/30">
       <SEOHead
-        title="TalentMatch - The Future of Hiring is Intelligent"
+        title="UltraHire - The Future of Hiring is Intelligent"
         description="A premium recruitment platform that uses AI to match candidates to jobs and helps recruiters build world-class teams."
         keywords="recruitment, job search, resume analysis, hiring platform, candidate matching, AI recruiting"
       />
@@ -100,7 +100,7 @@ export default function Index() {
                 </h1>
 
                 <p className="text-xl sm:text-2xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
-                  Stop analyzing resumes manually. TalentMatch uses deep learning to connect the right candidates with the right opportunities instantly.
+                  Stop analyzing resumes manually. UltraHire uses deep learning to connect the right candidates with the right opportunities instantly.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center">
@@ -248,7 +248,7 @@ export default function Index() {
             <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
               Who are you?
             </h2>
-            <p className="text-xl text-muted-foreground">Select your role to see how TalentMatch empowers you.</p>
+            <p className="text-xl text-muted-foreground">Select your role to see how UltraHire empowers you.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
@@ -370,7 +370,7 @@ export default function Index() {
                 Ready to transform your <br /> hiring process?
               </h2>
               <p className="text-xl text-background/80 max-w-2xl mx-auto mb-10">
-                Join thousands of companies and candidates who are already using TalentMatch to find their perfect fit.
+                Join thousands of companies and candidates who are already using UltraHire to find their perfect fit.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">

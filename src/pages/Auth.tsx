@@ -582,7 +582,7 @@ export default function AuthPage() {
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-          <SEOHead title="Set New Password" description="Set a new password for your TalentMatch AI account" noIndex />
+          <SEOHead title="Set New Password" description="Set a new password for your UltraHire AI account" noIndex />
           <div className="w-full max-w-md">
             <div className="text-center mb-8">
               <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
@@ -671,7 +671,7 @@ export default function AuthPage() {
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
           <SEOHead
             title="Reset Password"
-            description="Reset your TalentMatch AI account password"
+            description="Reset your UltraHire AI account password"
             noIndex
           />
           <div className="w-full max-w-md">
@@ -805,7 +805,7 @@ export default function AuthPage() {
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <SEOHead
           title="Sign In"
-          description="Sign in to your TalentMatch AI account to access AI-powered recruitment tools"
+          description="Sign in to your UltraHire AI account to access AI-powered recruitment tools"
         />
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
@@ -928,7 +928,7 @@ export default function AuthPage() {
                     ) : (
                       <>
                         <CardTitle className="text-2xl font-display">Create an account</CardTitle>
-                        <CardDescription>Get started with TalentMatch AI</CardDescription>
+                        <CardDescription>Get started with UltraHire AI</CardDescription>
                       </>
                     )}
                   </CardHeader>

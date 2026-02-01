@@ -134,7 +134,7 @@ serve(async (req: Request) => {
         }
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
         <p style="color:#6b7280;font-size:12px;">
-          ${org?.name ? `${org.name} via TalentMatch` : "TalentMatch"}
+          ${org?.name ? `${org.name} via UltraHire` : "UltraHire"}
         </p>
       </div>
     `;
@@ -146,7 +146,7 @@ serve(async (req: Request) => {
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
     const smtpTls = (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
 
-    const fromEmail = (Deno.env.get("SMTP_FROM") || "TalentMatch <no-reply@talentmatch.local>").trim();
+    const fromEmail = (Deno.env.get("SMTP_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
 
     const client = new SMTPClient({
       connection: {

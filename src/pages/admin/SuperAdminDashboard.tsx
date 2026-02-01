@@ -529,7 +529,21 @@ export default function SuperAdminDashboard() {
       const { data, error } = await supabase.functions.invoke('send-org-admin-invite', {
         body: { organizationName, email, fullName },
       });
-      if (error) throw error;
+      if (error) {
+        let message = (data as { error?: string })?.error ?? error.message ?? 'Failed to create tenant';
+        try {
+          const ctx = (error as { context?: { body?: string } })?.context;
+          if (ctx?.body) {
+            const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+            if (parsed?.error) message = parsed.error;
+          }
+        } catch {
+          // ignore
+        }
+        console.error('Create tenant error:', error, data);
+        toast.error(message);
+        return;
+      }
 
       const inviteUrl = data?.inviteUrl as string | undefined;
       if (!inviteUrl) throw new Error('Invite created, but invite URL was not returned.');

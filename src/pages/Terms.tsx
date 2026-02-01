@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function Terms() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="Terms of Service | TalentMatch" description="Terms of service for TalentMatch." />
+      <SEOHead title="Terms of Service | UltraHire" description="Terms of service for UltraHire." />
       <Navbar />
 
       <main className="container mx-auto px-4 pt-28 pb-16">

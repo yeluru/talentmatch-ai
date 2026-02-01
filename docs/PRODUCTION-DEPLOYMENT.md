@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide walks you through deploying **TalentMatch AI** to production using:
+This guide walks you through deploying **UltraHire** (formerly TalentMatch AI) to production using:
 
 - **Render** — host the Vite React frontend (static site or web service)
 - **Supabase** — Auth, PostgreSQL, Storage, Edge Functions (already cloud-hosted)
@@ -203,6 +203,44 @@ At your domain registrar or DNS provider:
 
 ---
 
+## 5b. Deploying updates (Render + Supabase)
+
+After code changes (e.g. branding, UI, or Edge Function logic), deploy both so production stays in sync. **No config or env changes are needed** unless you changed env vars.
+
+### Render (frontend)
+
+1. **Commit and push** your changes to the branch Render uses (e.g. `main`):
+   ```bash
+   git add -A
+   git commit -m "Your message"
+   git push origin main
+   ```
+2. If **Auto-Deploy** is on, Render will build and deploy automatically. Check **Render Dashboard** → your Static Site → **Events** / **Deploys**.
+3. If Auto-Deploy is off, open your Static Site → **Manual Deploy** → **Deploy latest commit** (or **Clear build cache & Deploy** if you changed env vars).
+4. Wait until the deploy shows **Live**. Your site (e.g. https://ultra-hire.com) will serve the new build.
+
+### Supabase (Edge Functions)
+
+1. From your **project root** (where `supabase/` lives):
+   ```bash
+   npx supabase functions deploy
+   ```
+   Or deploy only the functions you changed, e.g.:
+   ```bash
+   npx supabase functions deploy send-org-admin-invite
+   npx supabase functions deploy send-recruiter-invite
+   npx supabase functions deploy send-manager-invite
+   npx supabase functions deploy send-engagement-email
+   ```
+2. Wait until the CLI reports success. No need to change **Secrets** unless you changed env var names or values.
+3. Invite and engagement emails will use the new function code on the next send.
+
+### Order
+
+- Deploy **Render** and **Supabase** in any order; they are independent. For a branding-only change (e.g. TalentMatch → UltraHire), deploy both so the browser and emails both show UltraHire.
+
+---
+
 ## 6. Optional: `render.yaml` (Blueprint)
 
 You can define the static site in a `render.yaml` in the repo root so deployments are reproducible:
@@ -245,3 +283,15 @@ Keep `PUBLIC_APP_URL` and `APP_URL` in sync with your production frontend URL (e
 - **Blank page or 404 on refresh:** Configure SPA fallback on Render so `/*` serves `index.html`.
 
 If you hit a specific error (e.g. build failure or invite not sending), share the message and which step you’re on for targeted help.
+
+
+Project URL: https://szmuvnnawnfclcusfxbs.supabase.co
+Publishable API Key: sb_publishable_ttWWBZfH2MBPnKo7MK-yPQ_-ArmyPD7
+Password: CompSciPrep!23
+ref: szmuvnnawnfclcusfxbs
+secret key: sb_secret_eupIjTlePoF5HuDJ9L1uGw_ryaMXgeM
+
+resend - matchtal-prod api key: re_Efm1Jyqe_4NGrqJ2n7Gb8tegsRm3WQtAS
+
+
+

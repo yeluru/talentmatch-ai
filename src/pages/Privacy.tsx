@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function Privacy() {
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead title="Privacy Policy | TalentMatch" description="Privacy policy for TalentMatch." />
+      <SEOHead title="Privacy Policy | UltraHire" description="Privacy policy for UltraHire." />
       <Navbar />
 
       <main className="container mx-auto px-4 pt-28 pb-16">

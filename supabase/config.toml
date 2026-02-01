@@ -65,13 +65,13 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.send-recruiter-invite]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-invite-details]
 verify_jwt = false
 
 [functions.send-manager-invite]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-org-admin-invite]
 verify_jwt = false

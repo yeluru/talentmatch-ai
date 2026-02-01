@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_FROM = (Deno.env.get("RESEND_FROM") || "UltraHire <onboarding@resend.dev>").trim();
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,7 +34,7 @@ async function sendEmail(to: string, subject: string, html: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "TalentMatch <onboarding@resend.dev>",
+      from: RESEND_FROM,
       to: [to],
       subject,
       html,
@@ -150,7 +151,7 @@ const handler = async (req: Request): Promise<Response> => {
       <body>
         <div class="container">
           <div class="header">
-            <div class="logo">TalentMatch</div>
+            <div class="logo">UltraHire</div>
           </div>
           <div class="content">
             <h2>Organization Admin Setup</h2>

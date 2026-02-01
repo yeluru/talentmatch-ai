@@ -87,7 +87,7 @@ export default function ManagersLanding() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-orange-500/30">
       <SEOHead
-        title="For Account Managers | TalentMatch"
+        title="For Account Managers | UltraHire"
         description="Get complete visibility into your hiring operations with analytics, team management, and performance insights. Make data-driven recruitment decisions."
         keywords="hiring manager, recruitment analytics, team management, hiring metrics, HR dashboard"
       />

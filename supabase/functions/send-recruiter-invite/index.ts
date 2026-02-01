@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_FROM = (Deno.env.get("RESEND_FROM") || "UltraHire <onboarding@resend.dev>").trim();
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,7 +34,7 @@ async function sendEmail(to: string, subject: string, html: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "TalentMatch <onboarding@resend.dev>",
+      from: RESEND_FROM,
       to: [to],
       subject,
       html,
@@ -167,12 +168,12 @@ const handler = async (req: Request): Promise<Response> => {
       <body>
         <div class="container">
           <div class="header">
-            <div class="logo">TalentMatch</div>
+            <div class="logo">UltraHire</div>
           </div>
           <div class="content">
             <h2>You're Invited! 🎉</h2>
             <p>${fullName ? `Hi ${fullName},` : 'Hi,'}</p>
-            <p>You've been invited to join <strong>${organizationName}</strong> as a Recruiter on TalentMatch.</p>
+            <p>You've been invited to join <strong>${organizationName}</strong> as a Recruiter on UltraHire.</p>
              <p>Click the button below to accept the invitation and set up your account:</p>
              <p style="text-align: center; margin: 32px 0;">
                <a href="${inviteUrl}" class="button">Accept Invitation</a>
@@ -185,7 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           <div class="footer">
             <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-            <p>&copy; TalentMatch AI - AI-Powered Recruitment</p>
+            <p>&copy; UltraHire AI - AI-Powered Recruitment</p>
           </div>
         </div>
       </body>

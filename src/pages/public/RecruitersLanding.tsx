@@ -79,7 +79,7 @@ export default function RecruitersLanding() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-purple-500/30">
       <SEOHead
-        title="For Recruiters | TalentMatch"
+        title="For Recruiters | UltraHire"
         description="Find and hire top talent faster with intelligent candidate matching, pipeline management, and outreach automation. Transform your recruitment process."
         keywords="recruiting, hiring, talent acquisition, candidate matching, ATS, recruitment software"
       />
@@ -257,7 +257,7 @@ export default function RecruitersLanding() {
                 Recruit Like <span className="text-purple-500">a Pro.</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
-                Join leading companies who have transformed their hiring with TalentMatch.
+                Join leading companies who have transformed their hiring with UltraHire.
               </p>
 
               <ul className="space-y-4">

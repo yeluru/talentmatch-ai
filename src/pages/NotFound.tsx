@@ -16,7 +16,7 @@ const NotFound = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="404 - Page Not Found"
-        description="The page you are looking for doesn’t exist on TalentMatch AI."
+        description="The page you are looking for doesn’t exist on UltraHire AI."
         noIndex
       />
 
@@ -25,7 +25,7 @@ const NotFound = () => {
           <div className="rounded-2xl border bg-card shadow-sm p-8">
             <header className="flex items-center justify-between gap-4">
               <Link to="/" className="flex items-center gap-3">
-                <img src={logo} alt="TalentMatch AI" className="h-10 w-auto" />
+                <img src={logo} alt="UltraHire AI" className="h-10 w-auto" />
               </Link>
               <span className="text-xs">Error 404</span>
             </header>

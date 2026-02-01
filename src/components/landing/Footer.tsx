@@ -107,7 +107,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t">
           <p className="text-smtext-center">
-            © {currentYear} TalentMatch. All rights reserved.
+            © {currentYear} UltraHire. All rights reserved.
           </p>
         </div>
       </div>

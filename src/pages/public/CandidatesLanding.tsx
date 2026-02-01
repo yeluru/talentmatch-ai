@@ -79,7 +79,7 @@ export default function CandidatesLanding() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-blue-500/30">
       <SEOHead
-        title="For Candidates | TalentMatch"
+        title="For Candidates | UltraHire"
         description="Find your dream job with intelligent matching. Get resume analysis, personalized job recommendations, and career insights to land your next opportunity."
         keywords="job search, career, resume analysis, job matching, candidates, job seekers"
       />
@@ -199,7 +199,7 @@ export default function CandidatesLanding() {
       <section className="py-24 bg-muted/20 relative">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-sm font-bold text-blue-500 tracking-widest uppercase mb-4">Why TalentMatch?</h2>
+            <h2 className="text-sm font-bold text-blue-500 tracking-widest uppercase mb-4">Why UltraHire?</h2>
             <h3 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
               Everything You Need to <span className="text-gradient-premium">Succeed.</span>
             </h3>
@@ -263,7 +263,7 @@ export default function CandidatesLanding() {
                 Your Career, <span className="text-blue-500">Elevated.</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
-                Join thousands of professionals who have accelerated their careers with TalentMatch's intelligent platform.
+                Join thousands of professionals who have accelerated their careers with UltraHire's intelligent platform.
               </p>
 
               <ul className="space-y-4">
