@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 export type GuideSection = {
   id: string;
@@ -280,6 +281,17 @@ export default function CandidateHowToGuide() {
     setChatMessages((prev) => [...prev, { role: 'user', content: text }]);
     setChatLoading(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        toast.error('Please sign in again to use the chat.');
+        setChatMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: 'Your session may have expired. Please refresh the page or sign in again.' },
+        ]);
+        setChatLoading(false);
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('candidate-help-chat', {
         body: {
           messages: [
@@ -288,16 +300,25 @@ export default function CandidateHowToGuide() {
           ],
           guideContext: GUIDE_CONTEXT,
         },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+      const payload = data as { message?: string; error?: string } | null;
+      // Server may return 200 with { error } or 5xx with body in data depending on client
+      const serverErrorBody = payload?.error ?? (error as { context?: { body?: { error?: string } } })?.context?.body?.error;
+      if (serverErrorBody) throw new Error(serverErrorBody);
       if (error) throw error;
-      const reply = (data as { message?: string })?.message ?? "I couldn't answer that. Please try again.";
+      const reply = payload?.message ?? "I couldn't answer that. Please try again.";
       setChatMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-    } catch (e) {
-      console.error(e);
-      toast.error('Failed to get a response. Please try again.');
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      const serverError = err?.message;
+      console.error('Help chat error:', e);
+      toast.error(serverError || 'Failed to get a response. Please try again.');
       setChatMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: "Sorry, I couldn't process that. Please try again in a moment." },
+        { role: 'assistant', content: serverError ? `Error: ${serverError}` : "Sorry, I couldn't process that. Please try again in a moment." },
       ]);
     } finally {
       setChatLoading(false);
@@ -460,7 +481,13 @@ export default function CandidateHowToGuide() {
                           : 'bg-muted/50 border border-border text-foreground'
                       )}
                     >
-                      {m.content}
+                      {m.role === 'assistant' ? (
+                        <div className="prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:font-display prose-headings:font-bold max-w-none">
+                          <ReactMarkdown>{m.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        m.content
+                      )}
                     </div>
                     {m.role === 'user' && (
                       <div className="shrink-0 w-8 h-8 rounded-lg bg-muted flex items-center justify-center">

@@ -54,6 +54,13 @@ serve(async (req) => {
 
     const systemPrompt = `You are a friendly help assistant for job seekers using this career platform. Your job is to answer their "how do I..." questions using the following How-to Guide. Keep answers clear, short, and in plain English. If the answer is not in the guide, say so and give brief general advice. Do not make up features that are not in the guide.
 
+Format your replies in Markdown for readability:
+- Use **bold** for emphasis on key terms or steps.
+- Use bullet lists (- or *) for multiple steps or options.
+- Use numbered lists (1. 2. 3.) when order matters.
+- Use short paragraphs; avoid one long block of text.
+- Do not use code blocks unless showing a literal value (e.g. a setting name).
+
 How-to Guide:
 ${guideContext}`;
 
@@ -91,11 +98,11 @@ ${guideContext}`;
     );
   } catch (err) {
     console.error("candidate-help-chat error:", err);
+    const message = err instanceof Error ? err.message : "Something went wrong";
+    // Return 200 with error body so the client can always read the message (5xx often drops body in relay)
     return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : "Something went wrong",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: message }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
