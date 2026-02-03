@@ -96,7 +96,8 @@ export default function ManagerTeam() {
 
       if (org) setOrganizationName(org.name);
 
-      // Fetch team members
+      // Fetch team members: build from user_roles (source of truth) so everyone in org shows,
+      // then merge profile data where visible (avoids RLS or missing profile hiding members).
       const { data: rolesData } = await supabase
         .from('user_roles')
         .select('user_id, role')
@@ -109,17 +110,19 @@ export default function ManagerTeam() {
           .select('id, full_name, email, user_id, avatar_url')
           .in('user_id', userIds);
 
-        if (profiles) {
-          const members = profiles.map(p => ({
-            id: p.id,
-            user_id: p.user_id,
-            full_name: p.full_name || 'User',
-            email: p.email || '',
-            avatar_url: p.avatar_url || undefined,
-            role: rolesData.find(r => r.user_id === p.user_id)?.role || 'unknown'
-          }));
-          setTeamMembers(members);
-        }
+        const profileByUserId = new Map((profiles || []).map(p => [p.user_id, p]));
+        const members: TeamMember[] = rolesData.map(r => {
+          const p = profileByUserId.get(r.user_id);
+          return {
+            id: p?.id ?? r.user_id,
+            user_id: r.user_id,
+            full_name: p?.full_name || 'Team member',
+            email: p?.email || '',
+            avatar_url: p?.avatar_url ?? undefined,
+            role: r.role || 'unknown',
+          };
+        });
+        setTeamMembers(members);
       }
 
       // For account managers: limit recruiter list to those explicitly assigned.
