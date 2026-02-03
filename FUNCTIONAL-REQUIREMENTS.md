@@ -119,7 +119,7 @@ Status legend:
 - **Acceptance criteria**:
   - Candidate can opt in during signup.
   - Recruiters can only view marketplace profiles for opted-in, actively-looking candidates.
-  - Consent can be disabled later (To Be Done: settings UI).
+  - Consent can be disabled later (Settings → Privacy).
 
 ### FR-025 — Application tracking
 - **Status**: **Done**

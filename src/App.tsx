@@ -44,6 +44,7 @@ const MyApplications = lazy(() => import("./pages/candidate/MyApplications"));
 const AIAnalysis = lazy(() => import("./pages/candidate/AIAnalysis"));
 const JobAlerts = lazy(() => import("./pages/candidate/JobAlerts"));
 const CandidateEngagementRequest = lazy(() => import("./pages/candidate/CandidateEngagementRequest"));
+const CandidateHowToGuide = lazy(() => import("./pages/candidate/CandidateHowToGuide"));
 
 // Recruiter Pages
 const RecruiterDashboard = lazy(() => import("./pages/recruiter/RecruiterDashboard"));
@@ -209,6 +210,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["candidate"]}>
                         {withSuspense(<CandidateEngagementRequest />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/candidate/help"
+                    element={
+                      <ProtectedRoute allowedRoles={["candidate"]}>
+                        {withSuspense(<CandidateHowToGuide />)}
                       </ProtectedRoute>
                     }
                   />

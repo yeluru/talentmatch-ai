@@ -43,6 +43,7 @@ import {
   Upload,
   Moon,
   Sun,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +68,7 @@ const candidateNavItems = [
   { title: 'Find Jobs', href: '/candidate/jobs', icon: Search },
   { title: 'Job Alerts', href: '/candidate/job-alerts', icon: Mail },
   { title: 'My Applications', href: '/candidate/applications', icon: Briefcase },
+  { title: 'Help & How-to', href: '/candidate/help', icon: BookOpen },
 ];
 
 const recruiterNavItems = [

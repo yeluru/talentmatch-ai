@@ -25,7 +25,7 @@ This document lists **candidate-facing capabilities** implemented in the codebas
 | **Public job apply (unauthenticated)** – Public job page by org slug + job id; upload resume → parse → sign up or sign in; create profile + application; org link on apply | `/job/:orgSlug/:jobId` – `PublicJobPage.tsx` | **FR-024** ✓ |
 | **Candidate signup** – Email/password signup with **marketplace opt-in** checkbox; profile creation; optional onboarding wizard | `Auth.tsx`, onboarding flow | **FR-027** ✓ (opt-in at signup) |
 | **Onboarding wizard** – Basic info, experience, preferences (locations, job types, Open to relocate); writes to `candidate_profiles` | `OnboardingWizard.tsx` | Supports FR-020; no separate FR for onboarding |
-| **Settings (shared)** – Notifications, theme, language via `user_settings`; no candidate-specific marketplace opt-out | `/settings` – `Settings.tsx` | See FR-027 gap below |
+| **Settings (shared)** – Notifications, theme, language via `user_settings`; candidate Privacy tab: “Allow recruiters to discover my profile” (marketplace opt-out) | `/settings` – `Settings.tsx` | **FR-027** ✓ (opt-out in Settings → Privacy) |
 
 ---
 
@@ -50,7 +50,7 @@ This document lists **candidate-facing capabilities** implemented in the codebas
 
 | Item | Requirement | Gap |
 |------|-------------|-----|
-| ~~**Marketplace opt-out (candidate)**~~ | ~~FR-027~~ “Consent can be disabled later (To Be Done: settings UI)” | No candidate-facing control to turn off discoverability. Super Admin can toggle via dashboard; candidate cannot. **Add:** Settings (or profile) option to “Allow recruiters to discover my profile” (marketplace opt-in) on/off. |
+| *None* | — | All candidate FRs (FR-020–FR-027) are implemented. Marketplace opt-out is in Settings → Privacy. |
 
 ### 3.2 In code but not in requirements
 
@@ -64,6 +64,6 @@ This document lists **candidate-facing capabilities** implemented in the codebas
 
 ## 4) Summary
 
-- **All current candidate FRs (FR-020–FR-026, FR-024, FR-027 opt-in)** are implemented except one: **FR-027 “consent can be disabled later”** – no candidate settings UI for marketplace opt-out.
+- **All candidate FRs (FR-020–FR-027)** are implemented, including **FR-027**: opt-in at signup and opt-out in **Settings → Privacy**.
 - **Candidate capabilities not yet in requirements:** Job Alerts (full CRUD), Resume Workspace tailoring, and explicit engagement-response flow; these can be added as new FRs or called out as enhancements.
 - **Recommendation:** Optionally add **FR-028 (Job Alerts)** and a short line for **engagement request response** and **Resume Workspace tailoring** if you want them in the requirements doc.
