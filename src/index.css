@@ -171,6 +171,43 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-gradient-xy bg-[length:200%_auto];
   }
 
+  /* Candidate area: blue/cyan theme (matches /candidates landing) */
+  .text-gradient-candidate {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-500;
+  }
+
+  /* Recruiter area: violet/purple theme (matches /recruiters landing and sidebar) */
+  .text-gradient-recruiter {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-400 to-purple-500;
+  }
+
+  /* Manager area: orange/amber theme (matches --manager and sidebar) */
+  .text-gradient-manager {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-orange-500;
+  }
+
+  .candidate-dashboard-bg {
+    @apply bg-background;
+  }
+
+  .btn-candidate-primary {
+    @apply rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-300 font-semibold;
+  }
+
+  /* Candidate cards: match /candidates landing (blue theme, hover highlight) */
+  .card-candidate {
+    @apply rounded-2xl border border-blue-500/10 bg-blue-500/5 transition-all duration-300;
+  }
+
+  .card-candidate-hover {
+    @apply card-candidate hover:border-blue-500/30 hover:bg-blue-500/10 hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  /* Block hover highlight (for list rows, panels) */
+  .block-candidate-hover {
+    @apply transition-all duration-200 hover:bg-blue-500/10 hover:border-blue-500/20;
+  }
+
   /* Glass Card - Modern Frosted Effect */
   .glass-card {
     @apply backdrop-blur-xl bg-white/70 dark:bg-black/40 border border-white/20 dark:border-white/10 shadow-xl;

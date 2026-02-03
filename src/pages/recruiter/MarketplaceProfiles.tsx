@@ -223,7 +223,9 @@ export default function MarketplaceProfiles() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <PageHeader
           title={<>Marketplace <span className="text-accent">Profiles</span></>}
           description="Browse opt-in profiles. When you’re ready, start an engagement workflow to move them into your tenant pipeline."
@@ -362,6 +364,8 @@ export default function MarketplaceProfiles() {
             )}
           </CardContent>
         </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

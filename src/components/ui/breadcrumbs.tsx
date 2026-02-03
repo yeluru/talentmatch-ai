@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface BreadcrumbItem {
   label: string;
@@ -46,48 +47,65 @@ const routeLabels: Record<string, string> = {
   'organization': 'Organization',
 };
 
-// Home paths for each role
+// Home paths for each role (by URL segment)
 const roleConfig: Record<string, { label: string; href: string }> = {
   candidate: { label: 'Candidate', href: '/candidate' },
   recruiter: { label: 'Recruiter', href: '/recruiter' },
   manager: { label: 'Manager', href: '/manager' },
+  'org-admin': { label: 'Org Admin', href: '/org-admin' },
 };
 
 export function Breadcrumbs() {
   const location = useLocation();
-  
+  const { currentRole } = useAuth();
+
   // Parse the current path
   const pathSegments = location.pathname.split('/').filter(Boolean);
-  
+
   if (pathSegments.length === 0) {
     return null;
   }
-  
+
   // Determine the role/home from first segment
   const roleKey = pathSegments[0];
-  const role = roleConfig[roleKey];
-  
-  if (!role) {
+  const role = roleConfig[roleKey] ?? (roleKey === 'org-admin' ? roleConfig['org-admin'] : null);
+  const pathBasedRole = role;
+
+  if (!pathBasedRole) {
     return null;
   }
-  
+
+  // When AM or Org Admin is viewing a recruiter URL (e.g. Open Engagement Pipeline), Home should go to their dashboard, not recruiter
+  const homeLabel =
+    currentRole === 'account_manager' && roleKey === 'recruiter'
+      ? 'Manager'
+      : currentRole === 'org_admin' && roleKey === 'recruiter'
+        ? 'Org Admin'
+        : pathBasedRole.label;
+  const homeHref =
+    currentRole === 'account_manager' && roleKey === 'recruiter'
+      ? '/manager'
+      : currentRole === 'org_admin' && roleKey === 'recruiter'
+        ? '/org-admin'
+        : pathBasedRole.href;
+
   // If we're on the dashboard (just /candidate, /recruiter, /manager), don't show breadcrumbs
   if (pathSegments.length === 1) {
     return null;
   }
-  
+
   // Build breadcrumb items
   const breadcrumbs: BreadcrumbItem[] = [];
   let currentPath = '';
-  
+
   pathSegments.forEach((segment, index) => {
     currentPath += `/${segment}`;
-    
-    // First segment is the role - show as home
+
+    // First segment is the role - show as home (use homeHref/homeLabel so AM on /recruiter goes to Manager)
     if (index === 0) {
       breadcrumbs.push({
-        label: role.label,
-        href: role.href,
+        label: homeLabel,
+        href: homeHref,
       });
       return;
     }
@@ -126,8 +144,8 @@ export function Breadcrumbs() {
   
   return (
     <nav className="flex items-center gap-1.5 text-sm overflow-x-auto" aria-label="Breadcrumb">
-      <Link 
-        to={role.href}
+      <Link
+        to={homeHref}
         className="flex items-center hover:text-foreground transition-colors shrink-0"
         aria-label="Home"
       >

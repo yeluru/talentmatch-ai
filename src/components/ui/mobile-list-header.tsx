@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MobileListHeaderProps {
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
   filterCount?: number;
   children: React.ReactNode;
@@ -28,8 +28,8 @@ export function MobileListHeader({
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">{title}</h1>
-            {subtitle && <p className="mt-1">{subtitle}</p>}
+            <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">{title}</h1>
+            {subtitle && <p className="mt-2 text-lg text-muted-foreground font-sans">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -43,9 +43,9 @@ export function MobileListHeader({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-xl font-bold truncate">{title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground truncate">{title}</h1>
           {subtitle && (
-            <p className="text-xstruncate">{subtitle}</p>
+            <p className="text-sm font-sans text-muted-foreground truncate mt-0.5">{subtitle}</p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload, FileText, Trash2, Star, StarOff, Download } from 'lucide-react';
+import { Loader2, Upload, FileText, Trash2, Star, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { resumesObjectPath } from '@/lib/storagePaths';
 import { openResumeInNewTab } from '@/lib/resumeLinks';
 
@@ -450,134 +449,189 @@ export default function CandidateResumes() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+          <div className="flex flex-col items-center justify-center min-h-[320px] gap-4 font-sans">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <p className="text-muted-foreground text-sm">Loading your resumes…</p>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
+  const primaryResume = resumes.find(r => r.is_primary) || resumes[0];
+  const otherResumes = resumes.filter(r => r.id !== primaryResume?.id);
+
+  const scoreColor = (s: number) =>
+    s >= 80 ? 'text-emerald-600 dark:text-emerald-400' : s >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+  const scoreBgColor = (s: number) =>
+    s >= 80 ? 'bg-emerald-500/10 border-emerald-500/20' : s >= 60 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-red-500/10 border-red-500/20';
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="font-sans pb-12 animate-in fade-in duration-500 w-full">
+        {/* Page header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">
           <div>
-            <h1 className="font-display text-4xl font-bold tracking-tight text-gradient-premium">My Resumes</h1>
-            <p className="mt-2 text-lg text-muted-foreground/80">
-              Manage your resume documents and track their ATS scores.
+            <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+              My <span className="text-gradient-candidate">Resumes</span>
+            </h1>
+            <p className="mt-2 text-lg text-muted-foreground leading-relaxed max-w-xl">
+              Your primary resume is used when you apply. Upload more to tailor versions for different jobs or run ATS checks.
             </p>
           </div>
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="btn-primary-glow shadow-lg h-12 px-6"
-            >
-              {isUploading ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-5 w-5" />
-              )}
-              Upload New Resume
-            </Button>
-          </div>
+          <input ref={fileInputRef} type="file" accept=".pdf,.docx" onChange={handleFileUpload} className="hidden" />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="btn-candidate-primary h-12 px-6 rounded-full shrink-0 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow"
+          >
+            {isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Upload className="mr-2 h-5 w-5" />}
+            Upload resume
+          </Button>
         </div>
 
         {resumes.length === 0 ? (
-          <div className="glass-panel p-12 border-dashed border-2 border-white/20 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
-            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-              <Upload className="h-10 w-10 text-primary" />
+          /* Empty state — inviting, clear CTA */
+          <div
+            className="rounded-2xl border-2 border-dashed border-blue-500/25 bg-gradient-to-b from-blue-500/5 to-transparent p-14 sm:p-16 text-center cursor-pointer transition-all duration-300 hover:border-blue-500/40 hover:bg-blue-500/10 hover:shadow-lg focus-within:ring-2 focus-within:ring-blue-500/30 focus-within:ring-offset-2"
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
+          >
+            <div className="w-20 h-20 rounded-2xl bg-blue-500/15 flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <FileText className="h-10 w-10 text-blue-500" strokeWidth={1.5} />
             </div>
-            <h3 className="text-2xl font-bold mb-2">No resumes uploaded yet</h3>
-            <p className="text-muted-foreground mb-8 max-w-md text-lg">
-              Upload your resume to start matching with jobs and getting AI-powered feedback.
+            <h2 className="text-xl font-display font-bold text-foreground">Upload your first resume</h2>
+            <p className="mt-3 text-base text-muted-foreground max-w-md mx-auto leading-relaxed font-sans">
+              PDF or Word. We’ll parse it so you can run ATS checks, tailor versions to jobs, and auto-fill your profile.
             </p>
-            <Button variant="outline" className="border-primary/20 hover:bg-primary/10 hover:text-primary">
+            <Button
+              variant="outline"
+              size="lg"
+              className="mt-8 rounded-full border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 font-semibold h-12 px-8"
+              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+            >
               <Upload className="mr-2 h-4 w-4" />
-              Select File to Upload
+              Choose file
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {resumes.map((resume) => (
-              <div
-                key={resume.id}
-                className={`glass-panel p-0 overflow-hidden relative group hover-card-premium ${resume.is_primary ? 'ring-2 ring-primary/50 shadow-primary/10' : ''
-                  }`}
-              >
-                {resume.is_primary && (
-                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-lg z-10">
-                    Primary
-                  </div>
-                )}
-
-                <div className="p-6 pb-4">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 rounded-lg bg-white/5 group-hover:bg-primary/10 transition-colors">
-                      <FileText className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-
-                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => { e.stopPropagation(); handleSetPrimary(resume.id); }}
-                        className="h-8 w-8 hover:bg-primary/20 hover:text-primary"
-                        title={resume.is_primary ? 'Primary resume' : 'Set as primary'}
-                      >
-                        {resume.is_primary ? (
-                          <Star className="h-4 w-4 text-primary fill-primary" />
-                        ) : (
-                          <StarOff className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteResume(resume.id, resume.file_url); }}
-                        className="h-8 w-8 hover:bg-destructive/20 hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <h3 className="font-bold text-lg truncate mb-1" title={resume.file_name}>{resume.file_name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Uploaded {format(new Date(resume.created_at), 'MMM d, yyyy')}
-                  </p>
-                </div>
-
-                <div className="px-6 py-4 bg-black/20 border-t border-white/5 flex items-center justify-between">
-                  {resume.ats_score ? (
-                    <div className="flex items-center gap-2">
-                      <div className={`text-2xl font-bold ${resume.ats_score >= 80 ? 'text-emerald-500' :
-                        resume.ats_score >= 60 ? 'text-amber-500' : 'text-red-500'
-                        }`}>
-                        {resume.ats_score}
+          <div className="space-y-10">
+            {/* Primary resume — hero card */}
+            {primaryResume && (
+              <section className="card-candidate rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-blue-500/30">
+                <div className="p-6 sm:p-8">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+                    <div className="flex gap-5 min-w-0">
+                      <div className="shrink-0 w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ATS Score</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 font-sans">Primary resume</p>
+                        <h2 className="mt-1.5 font-display font-bold text-xl text-foreground truncate" title={primaryResume.file_name}>
+                          {primaryResume.file_name}
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground font-sans">
+                          Uploaded {format(new Date(primaryResume.created_at), 'MMMM d, yyyy')}
+                        </p>
+                      </div>
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">No score yet</span>
-                  )}
-
-                  <Button variant="ghost" size="sm" className="hover:bg-white/10" onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
+                    <div className="flex flex-wrap items-center gap-6 lg:gap-8">
+                      {primaryResume.ats_score != null ? (
+                        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${scoreBgColor(primaryResume.ats_score)}`}>
+                          <span className={`text-2xl sm:text-3xl font-display font-bold tabular-nums ${scoreColor(primaryResume.ats_score)}`}>
+                            {primaryResume.ats_score}
+                          </span>
+                          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">ATS score</span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic font-sans">No ATS score yet — run a check in ATS Checkpoint</p>
+                      )}
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 font-sans font-medium"
+                          onClick={() => handleDownloadResume(primaryResume.file_url, primaryResume.file_name)}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                        <Button size="sm" className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-sans font-medium" asChild>
+                          <Link to="/candidate/resume-workspace">Use in Workspace</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              </section>
+            )}
+
+            {/* Other resumes */}
+            {otherResumes.length > 0 && (
+              <section>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-sans mb-2">Other resumes</h3>
+                <p className="text-sm text-muted-foreground font-sans mb-4">Set one as primary to use when you apply.</p>
+                <ul className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
+                  {otherResumes.map((resume) => (
+                    <li
+                      key={resume.id}
+                      className="block-candidate-hover flex flex-wrap items-center gap-4 p-5 rounded-lg border border-transparent"
+                    >
+                      <FileText className="h-5 w-5 text-muted-foreground shrink-0" strokeWidth={1.5} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-semibold text-foreground truncate" title={resume.file_name}>
+                          {resume.file_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground font-sans mt-0.5">
+                          {format(new Date(resume.created_at), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                      {resume.ats_score != null && (
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-display font-bold tabular-nums ${scoreColor(resume.ats_score)} ${scoreBgColor(resume.ats_score)}`}>
+                          {resume.ats_score} ATS
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+                          onClick={() => handleSetPrimary(resume.id)}
+                          title="Set as primary"
+                        >
+                          <Star className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-blue-500/10"
+                          onClick={() => handleDownloadResume(resume.file_url, resume.file_name)}
+                          title="Download"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteResume(resume.id, resume.file_url)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         )}
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { FileText, Plus, Save, Trash2, Clock, Download, Sparkles, X, Search, Briefcase, Copy, Zap, Target, BrainCircuit, BarChart3, ChevronRight, Settings2, Minimize2, Maximize2, Loader2, AlertTriangle, Terminal } from 'lucide-react';
+import { FileText, Plus, Save, Trash2, Clock, Download, Sparkles, X, Search, Briefcase, Copy, Zap, Target, BrainCircuit, BarChart3, ChevronRight, Settings2, Minimize2, Maximize2, Loader2, AlertTriangle, Terminal, User, GraduationCap, Award, GitCompare } from 'lucide-react';
 import { getSignedResumeUrl } from '@/lib/resumeLinks';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -102,26 +102,26 @@ function SkillChipsEditor(props: {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 font-sans">
       <div className="flex items-end justify-between gap-3">
-        <Label className="font-semibold">{label}</Label>
-        <div className="text-xs text-muted-foreground">
+        <Label className="font-display font-semibold text-foreground">{label}</Label>
+        <div className="text-xs text-muted-foreground tabular-nums">
           {values.length}/{max}
         </div>
       </div>
 
       {values.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-white/10 bg-white/5">
+        <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-blue-500/10 bg-blue-500/5">
           {values.map((v, idx) => (
-            <Badge key={`${v}-${idx}`} variant="secondary" className="gap-1 bg-primary/10 hover:bg-primary/20 text-primary border-primary/20">
+            <Badge key={`${v}-${idx}`} variant="secondary" className="gap-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/20 font-sans">
               <span className="max-w-[260px] truncate">{v}</span>
               <button
                 type="button"
-                className="ml-1 inline-flex items-center justify-center rounded-full w-4 h-4 hover:bg-primary/30 transition-colors"
+                className="ml-1 inline-flex items-center justify-center rounded-full w-4 h-4 hover:bg-blue-500/30 transition-colors"
                 onClick={() => removeAt(idx)}
                 aria-label={`Remove ${v}`}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3 w-3" strokeWidth={1.5} />
               </button>
             </Badge>
           ))}
@@ -129,7 +129,7 @@ function SkillChipsEditor(props: {
       )}
 
       {values.length === 0 && (
-        <div className="text-sm text-muted-foreground p-2 italic">No skills added yet.</div>
+        <div className="text-sm text-muted-foreground font-sans p-2 italic">No skills added yet.</div>
       )}
 
       <div className="flex gap-2">
@@ -143,9 +143,9 @@ function SkillChipsEditor(props: {
               addFromDraft();
             }
           }}
-          className="bg-background/50 border-white/10 focus:border-primary/50 transition-all shadow-sm"
+          className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/40 rounded-lg font-sans transition-all"
         />
-        <Button type="button" variant="secondary" onClick={addFromDraft} disabled={!draft.trim()} className="hover:bg-primary/20">
+        <Button type="button" variant="secondary" onClick={addFromDraft} disabled={!draft.trim()} className="rounded-lg font-sans font-medium hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/20">
           Add
         </Button>
       </div>
@@ -3013,15 +3013,13 @@ export default function ResumeWorkspace() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="p-6">
-          <div className="glass-panel p-6 border-white/10">
-            <div className="flex flex-col space-y-1.5 p-6">
-              <h3 className="flex items-center gap-2 font-display text-lg font-semibold leading-none tracking-tight">
-                <FileText className="h-5 w-5 text-primary" />
-                Resume Workspace
-              </h3>
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            </div>
+        <div className="flex flex-col items-center justify-center min-h-[360px] gap-5 font-sans">
+          <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" strokeWidth={1.5} />
+          </div>
+          <div className="text-center space-y-1">
+            <h2 className="font-display text-xl font-bold text-foreground">Resume Workspace</h2>
+            <p className="text-sm text-muted-foreground">Loading your workspace…</p>
           </div>
         </div>
       </DashboardLayout>
@@ -3031,98 +3029,101 @@ export default function ResumeWorkspace() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col flex-1 min-h-0 max-w-[1600px] mx-auto w-full font-sans overflow-hidden animate-in fade-in duration-500">
 
-          {/* Header */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Header — fixed */}
+          <div className="shrink-0 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                  <BarChart3 className="h-5 w-5" />
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400">
+                  <BarChart3 className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="font-display text-3xl font-bold tracking-tight text-gradient-premium">Resume Workspace</h1>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Resume <span className="text-gradient-candidate">Workspace</span></h1>
               </div>
-              <p className="text-muted-foreground">
-                Craft and optimize your target resumes in a high-performance editing environment.
+              <p className="text-lg text-muted-foreground font-sans leading-relaxed max-w-xl">
+                Craft and optimize target resumes. Tailor to job descriptions, then use live ATS insights to improve match.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={createNewDoc} className="border-white/10 hover:bg-white/5 rounded-full px-5 h-10 transition-all">
-                <Plus className="mr-2 h-4 w-4" />
+            <div className="flex items-center gap-3 shrink-0">
+              <Button variant="outline" onClick={createNewDoc} className="rounded-lg px-5 h-11 border border-blue-500/20 hover:bg-blue-500/10 transition-all font-sans font-semibold">
+                <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
                 New Doc
               </Button>
-              <Button onClick={saveDoc} disabled={isSaving || !selected} className="btn-primary-glow shadow-lg rounded-full px-6 h-10 font-semibold transition-all">
-                <Save className="mr-2 h-4 w-4" />
+              <Button onClick={saveDoc} disabled={isSaving || !selected} className="rounded-lg px-6 h-11 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold shadow-lg transition-all">
+                <Save className="mr-2 h-4 w-4" strokeWidth={1.5} />
                 {isSaving ? 'Saving…' : 'Save Resume'}
               </Button>
             </div>
           </div>
 
-          <Accordion type="single" collapsible className="w-full">
+          {/* Tailoring — fixed */}
+          <Accordion type="single" collapsible className="w-full shrink-0">
             <AccordionItem value="tailoring" className="border-none">
-              <div className="glass-panel border-white/10 overflow-hidden">
-                <AccordionTrigger className="px-6 py-3 hover:bg-white/5 transition-colors no-underline group hover:no-underline">
+              <div className="rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-blue-500/20">
+                <AccordionTrigger className="px-6 py-4 hover:bg-blue-500/5 transition-colors no-underline group hover:no-underline">
                   <div className="flex items-center gap-3">
-                    <Settings2 className="h-4 w-4 text-primary group-hover:rotate-90 transition-transform duration-300" />
-                    <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                    <Settings2 className="h-4 w-4 text-blue-500 group-hover:rotate-90 transition-transform duration-300" strokeWidth={1.5} />
+                    <span className="text-sm font-display font-semibold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
                       Tailoring Configuration
                     </span>
                     {(!selectedJobId || !selectedBaseResumeId) && (
-                      <Badge variant="outline" className="ml-2 text-[10px] bg-primary/5 border-primary/20 text-primary animate-pulse">
+                      <Badge variant="outline" className="ml-2 text-[10px] font-sans bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 animate-pulse">
                         Setup Required
                       </Badge>
                     )}
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="p-6 border-t border-white/10">
+                <AccordionContent className="p-6 border-t border-blue-500/10">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* JD Source */}
                     <div className="lg:col-span-12 space-y-4">
                       {resumes.length === 0 ? (
-                        <div className="p-12 text-center border-2 border-dashed border-white/10 rounded-2xl bg-white/5">
-                          <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-4" />
-                          <h4 className="text-lg font-medium mb-2">No Base Resumes Found</h4>
-                          <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                            You need a baseline resume profile to start tailoring. Please upload one in the Resumes section.
+                        <div className="p-12 text-center rounded-2xl border-2 border-dashed border-blue-500/25 bg-gradient-to-b from-blue-500/5 to-transparent transition-all hover:border-blue-500/40 hover:bg-blue-500/10">
+                          <div className="w-16 h-16 rounded-2xl bg-blue-500/15 flex items-center justify-center mx-auto mb-4">
+                            <FileText className="h-8 w-8 text-blue-500" strokeWidth={1.5} />
+                          </div>
+                          <h4 className="text-xl font-display font-bold text-foreground mb-2">No Base Resumes Found</h4>
+                          <p className="text-muted-foreground font-sans max-w-sm mx-auto mb-6 leading-relaxed">
+                            Upload a baseline resume in My Resumes to start tailoring versions for target jobs.
                           </p>
-                          <Button onClick={() => navigate('/candidate/resumes')} className="rounded-full">
+                          <Button onClick={() => navigate('/candidate/resumes')} className="rounded-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
                             Go to My Resumes
                           </Button>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="space-y-4">
-                            <Label className="text-xs font-bold uppercase tracking-widest text-primary/80">1. Target Job Description</Label>
+                            <Label className="text-xs font-display font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">1. Target Job Description</Label>
                             <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')}>
-                              <TabsList className="bg-muted/20 border border-white/5 p-1 h-9 mb-4">
-                                <TabsTrigger value="existing" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-xs flex-1">Select Job</TabsTrigger>
-                                <TabsTrigger value="custom" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-xs flex-1">Paste JD</TabsTrigger>
+                              <TabsList className="bg-muted/30 border border-blue-500/10 p-1 h-10 mb-4 rounded-lg">
+                                <TabsTrigger value="existing" className="text-xs font-sans data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md flex-1">Select Job</TabsTrigger>
+                                <TabsTrigger value="custom" className="text-xs font-sans data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 rounded-md flex-1">Paste JD</TabsTrigger>
                               </TabsList>
                               <TabsContent value="existing" className="space-y-3">
                                 <div className="relative group">
-                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" strokeWidth={1.5} />
                                   <Input
                                     placeholder="Search active jobs..."
                                     value={jobSearchQuery}
                                     onChange={(e) => setJobSearchQuery(e.target.value)}
-                                    className="pl-9 bg-background/50 border-white/10 focus:border-primary/50 text-sm h-11"
+                                    className="pl-9 bg-background border border-border focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 text-sm h-11 font-sans rounded-lg"
                                   />
                                 </div>
-                                <div className="max-h-[160px] overflow-y-auto space-y-1 bg-black/20 border border-white/10 rounded-xl p-1">
+                                <div className="max-h-[160px] overflow-y-auto space-y-1 bg-muted/30 border border-border rounded-xl p-1.5">
                                   {filteredJobs.length === 0 ? (
-                                    <p className="text-xs text-center py-6 text-muted-foreground">No matching jobs found.</p>
+                                    <p className="text-xs text-center py-6 text-muted-foreground font-sans">No matching jobs found.</p>
                                   ) : (
                                     filteredJobs.slice(0, 50).map((job) => (
                                       <button
                                         key={job.id}
                                         onClick={() => handleJobSelect(job.id)}
-                                        className={`w-full text-left p-2.5 rounded-lg transition-all text-sm ${selectedJobId === job.id
-                                          ? 'bg-primary/20 border-primary/30 text-primary'
-                                          : 'hover:bg-white/5 border border-transparent'
+                                        className={`w-full text-left p-2.5 rounded-lg transition-all text-sm font-sans ${selectedJobId === job.id
+                                          ? 'bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400'
+                                          : 'hover:bg-blue-500/10 border border-transparent text-foreground'
                                           }`}
                                       >
                                         <div className="font-semibold">{job.title}</div>
-                                        <div className="text-[10px] opacity-60 uppercase tracking-tighter mt-0.5">{job.organization_name}</div>
+                                        <div className="text-[10px] text-muted-foreground uppercase tracking-tighter mt-0.5">{job.organization_name}</div>
                                       </button>
                                     ))
                                   )}
@@ -3130,7 +3131,7 @@ export default function ResumeWorkspace() {
                               </TabsContent>
                               <TabsContent value="custom">
                                 <Textarea
-                                  className="min-h-[220px] bg-background/50 border-white/10 text-sm leading-relaxed"
+                                  className="min-h-[220px] bg-background border border-border focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 text-sm leading-relaxed font-sans rounded-lg"
                                   placeholder="Paste the target JD text here..."
                                   value={jdText}
                                   onChange={(e) => setJdText(e.target.value)}
@@ -3141,40 +3142,40 @@ export default function ResumeWorkspace() {
 
                           <div className="space-y-6">
                             <div className="space-y-4">
-                              <Label className="text-xs font-bold uppercase tracking-widest text-primary/80">2. Base Profile & Preferences</Label>
+                              <Label className="text-xs font-display font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">2. Base Profile & Preferences</Label>
                               <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                  <Label className="text-[11px] text-muted-foreground uppercase ml-1">Baseline Resume</Label>
+                                  <Label className="text-[11px] font-sans text-muted-foreground uppercase tracking-wider">Baseline Resume</Label>
                                   <Select value={selectedBaseResumeId} onValueChange={setSelectedBaseResumeId}>
-                                    <SelectTrigger className="bg-background/50 border-white/10 h-11">
+                                    <SelectTrigger className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-11 rounded-lg font-sans">
                                       <SelectValue placeholder="Choose profile..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {resumes.map(r => (
                                         <SelectItem key={r.id} value={r.id}>
                                           <span className="font-medium">{r.file_name}</span>
-                                          {r.is_primary && <span className="ml-2 text-[10px] text-primary">(Primary)</span>}
+                                          {r.is_primary && <span className="ml-2 text-[10px] text-blue-600 dark:text-blue-400">(Primary)</span>}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-[11px] text-muted-foreground uppercase ml-1">Target Role Title</Label>
+                                  <Label className="text-[11px] font-sans text-muted-foreground uppercase tracking-wider">Target Role Title</Label>
                                   <Input
                                     value={targetTitle}
                                     onChange={(e) => setTargetTitle(e.target.value)}
                                     placeholder="e.g., Sr. Software Engineer"
-                                    className="bg-background/50 border-white/10 h-11"
+                                    className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-11 rounded-lg font-sans"
                                   />
                                 </div>
                                 <div className="space-y-1.5">
-                                  <Label className="text-[11px] text-muted-foreground uppercase ml-1">Guidance (AI Prompt)</Label>
+                                  <Label className="text-[11px] font-sans text-muted-foreground uppercase tracking-wider">Guidance (AI Prompt)</Label>
                                   <Input
                                     value={additionalNotes}
                                     onChange={(e) => setAdditionalNotes(e.target.value)}
                                     placeholder="e.g., focus on leadership and cloud scale..."
-                                    className="bg-background/50 border-white/10 h-11"
+                                    className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-11 rounded-lg font-sans"
                                   />
                                 </div>
                               </div>
@@ -3184,15 +3185,15 @@ export default function ResumeWorkspace() {
                               <Button
                                 onClick={generateTailoredResume}
                                 disabled={isGenerating || !selectedBaseResumeId}
-                                className="w-full h-12 text-base font-bold shadow-xl btn-primary-glow animate-in slide-in-from-bottom-2"
+                                className="w-full h-12 text-base font-display font-bold shadow-xl btn-candidate-primary rounded-full animate-in slide-in-from-bottom-2"
                               >
                                 {isGenerating ? (
-                                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Tailoring...</>
+                                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" strokeWidth={1.5} /> Tailoring...</>
                                 ) : (
                                   <><Sparkles className="mr-2 h-5 w-5" /> Generate Tailored Resume</>
                                 )}
                               </Button>
-                              {generateError && <p className="text-xs text-destructive text-center">{generateError}</p>}
+                              {generateError && <p className="text-xs text-destructive text-center font-sans">{generateError}</p>}
                             </div>
                           </div>
                         </div>
@@ -3204,25 +3205,29 @@ export default function ResumeWorkspace() {
             </AccordionItem>
           </Accordion>
 
-          <div className="grid gap-6 lg:grid-cols-12 lg:min-h-[calc(100vh-360px)] items-start">
-            {/* Left: Navigation Sidebar */}
-            <div className="glass-panel lg:col-span-2 flex flex-col p-0 overflow-hidden h-[800px] border-white/10 bg-background/20 sticky top-6">
-              <div className="p-4 border-b border-white/10 bg-white/5">
+          {/* Main content — scrolls inside this area */}
+          <div className="flex-1 min-h-0 overflow-y-auto pb-12">
+          <div className="space-y-6">
+            {/* Row 1: My Resumes + Editor — height fits Contact form with no scroll; longer tabs scroll inside */}
+            <div className="grid gap-6 lg:grid-cols-12 items-stretch h-[864px]">
+            {/* My Resumes — fixed height column, list scrolls */}
+            <div className="rounded-xl border border-border bg-card lg:col-span-3 flex flex-col p-0 overflow-hidden h-full min-h-0 lg:sticky lg:top-6 transition-all duration-300 hover:border-blue-500/20">
+              <div className="shrink-0 p-4 border-b border-blue-500/10 bg-blue-500/5">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">My Resumes</h3>
-                  <Badge variant="outline" className="text-[10px] py-0 h-4">{docs.length}</Badge>
+                  <Badge variant="outline" className="text-[10px] font-sans py-0 h-5 px-1.5 border-blue-500/20 text-blue-600 dark:text-blue-400">{docs.length}</Badge>
                 </div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter">Drafts & Versions</p>
+                <p className="text-xs text-muted-foreground font-sans">Drafts & versions</p>
               </div>
-              <div className="flex-1 min-h-0 p-2">
-                <ScrollArea className="h-full pr-2">
+              <div className="flex-1 min-h-0 p-2 flex flex-col">
+                <ScrollArea className="h-full min-h-0 flex-1 pr-2">
                   <div className="space-y-2">
                     {docs.map((d) => (
                       <div
                         key={d.id}
                         className={`group w-full rounded-lg border p-2.5 transition-all duration-200 ${d.id === selectedDocId
-                          ? 'bg-primary/10 border-primary/20 ring-1 ring-primary/10 shadow-sm'
-                          : 'border-white/5 bg-transparent hover:bg-white/5'
+                          ? 'bg-blue-500/10 border-blue-500/20 ring-1 ring-blue-500/10 shadow-sm'
+                          : 'border-blue-500/5 bg-transparent hover:bg-blue-500/5'
                           }`}
                         role="button"
                         tabIndex={0}
@@ -3230,12 +3235,12 @@ export default function ResumeWorkspace() {
                         onKeyDown={(e) => e.key === 'Enter' && setSelectedDocId(d.id)}
                       >
                         <div className="min-w-0">
-                          <div className={`text-xs font-semibold leading-tight line-clamp-1 transition-colors ${d.id === selectedDocId ? 'text-primary' : 'text-foreground/80'}`}>
+                          <div className={`text-xs font-semibold leading-tight line-clamp-1 transition-colors ${d.id === selectedDocId ? 'text-blue-600 dark:text-blue-400' : 'text-foreground/80'}`}>
                             {d.title}
                           </div>
                           <div className="mt-1.5 flex items-center justify-between gap-1">
                             <div className="text-[9px] text-muted-foreground flex items-center gap-1 min-w-0 opacity-60 group-hover:opacity-100 transition-opacity">
-                              <Clock className="h-2.5 w-2.5" />
+                              <Clock className="h-2.5 w-2.5" strokeWidth={1.5} />
                               <span className="truncate">{new Date(d.updated_at).toLocaleDateString()}</span>
                             </div>
                             <div
@@ -3245,14 +3250,14 @@ export default function ResumeWorkspace() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <button
-                                    className="p-1 rounded-md hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors"
+                                    className="p-1 rounded-md hover:bg-blue-500/20 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       void saveWorkspaceDocToMyResumes(d);
                                     }}
                                   >
-                                    <Save className="h-3 w-3" />
+                                    <Save className="h-3 w-3" strokeWidth={1.5} />
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-[10px]">Save to My Resumes</TooltipContent>
@@ -3261,14 +3266,14 @@ export default function ResumeWorkspace() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <button
-                                    className="p-1 rounded-md hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors"
+                                    className="p-1 rounded-md hover:bg-blue-500/20 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       void downloadWorkspaceDocPdf(d);
                                     }}
                                   >
-                                    <Download className="h-3 w-3" />
+                                    <Download className="h-3 w-3" strokeWidth={1.5} />
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-[10px]">PDF</TooltipContent>
@@ -3284,7 +3289,7 @@ export default function ResumeWorkspace() {
                                       void deleteWorkspaceDoc(d);
                                     }}
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-3 w-3" strokeWidth={1.5} />
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-[10px]">Delete</TooltipContent>
@@ -3304,177 +3309,206 @@ export default function ResumeWorkspace() {
               </div>
             </div>
 
-            {/* Center: Editor */}
-            <div className="glass-panel lg:col-span-7 flex flex-col p-6 border-white/10 min-h-[850px]">
-              <div className="mb-6">
+            {/* Editor — same row, fixed height, content scrolls */}
+            <div className="lg:col-span-9 min-w-0 flex flex-col h-full min-h-0">
+            <div className="rounded-xl border border-border bg-card flex flex-col flex-1 h-full min-h-0 p-6 overflow-hidden transition-all duration-300 hover:border-blue-500/20">
+              <div className="shrink-0 mb-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <h3 className="font-display text-xl font-bold">Editor</h3>
-                    <p className="text-muted-foreground mt-1 line-clamp-1">
-                      {selected ? 'Edit sections and save. Use checkpoints for version history.' : 'Select a resume document'}
+                    <h3 className="font-display text-xl font-bold text-foreground">Editor</h3>
+                    <p className="text-muted-foreground font-sans mt-1 text-sm line-clamp-1">
+                      {selected ? 'Edit sections below. Changes autosave.' : 'Select a resume document from the left.'}
                     </p>
                   </div>
-                  {/* Delete moved to My Resumes list row actions */}
+                  {selected && (
+                    <p className="text-xs text-muted-foreground font-sans shrink-0">
+                      {isAutoSaving ? 'Saving…' : autoSaveError ? `Error: ${autoSaveError}` : lastAutoSavedAt ? 'Autosaved' : ''}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden pr-1 -mr-1">
                 {!selected ? (
-                  <div className="text-sm">Select a document from the left.</div>
+                  <div className="rounded-xl border border-border bg-card p-8 text-center">
+                    <FileText className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
+                    <p className="text-base font-sans text-muted-foreground">Select a document from the left to edit.</p>
+                  </div>
                 ) : (
                   <>
-                    <div className="mb-2 text-sm">
-                      <span className="">Document:</span>{' '}
-                      <span className="font-medium text-foreground">{selected.title}</span>
-                      <span className="ml-3 text-xs">
-                        {isAutoSaving ? 'Saving…' : autoSaveError ? `Autosave failed: ${autoSaveError}` : lastAutoSavedAt ? 'Autosaved' : ''}
-                      </span>
+                    <div className="shrink-0 mb-6 text-sm font-sans">
+                      <span className="font-semibold text-foreground">{selected.title}</span>
                     </div>
 
-                    <Separator className="my-4" />
-
-                    <Tabs defaultValue="summary" className="w-full">
-                      <div className="overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-                        <TabsList className="bg-muted/10 border border-white/10 p-1 flex w-fit h-auto gap-1">
-                          <TabsTrigger value="contact" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Contact</TabsTrigger>
-                          <TabsTrigger value="summary" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Summary</TabsTrigger>
-                          <TabsTrigger value="skills" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Skills</TabsTrigger>
-                          <TabsTrigger value="experience" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Experience</TabsTrigger>
-                          <TabsTrigger value="education" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Education</TabsTrigger>
-                          <TabsTrigger value="certs" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Certifications</TabsTrigger>
-                          <TabsTrigger value="changes" className="text-xs px-4 py-2 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">Changes & Diff</TabsTrigger>
+                    <Tabs defaultValue="contact" className="w-full flex flex-col flex-1 min-h-0">
+                      <div className="shrink-0 overflow-x-auto no-scrollbar -mx-1 px-1 pb-4">
+                        <TabsList className="bg-muted/30 border border-blue-500/10 p-1 flex w-full sm:w-fit h-auto gap-1 rounded-xl">
+                          <TabsTrigger value="contact" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Contact</TabsTrigger>
+                          <TabsTrigger value="summary" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Summary</TabsTrigger>
+                          <TabsTrigger value="skills" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Skills</TabsTrigger>
+                          <TabsTrigger value="experience" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Experience</TabsTrigger>
+                          <TabsTrigger value="education" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Education</TabsTrigger>
+                          <TabsTrigger value="certs" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Certs</TabsTrigger>
+                          <TabsTrigger value="changes" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all flex-1 sm:flex-none">Changes</TabsTrigger>
                         </TabsList>
                       </div>
 
-                      <TabsContent value="contact" className="space-y-4 mt-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2 md:col-span-2">
-                            <Label>Applying title (saved resume name)</Label>
-                            <Input
-                              value={selected.title}
-                              onChange={(e) => updateSelected({ title: e.target.value })}
-                              placeholder="e.g., Senior Data Scientist"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all font-medium"
-                            />
-                            <div className="text-xs text-muted-foreground">
-                              This is the workspace resume name and the export file name.
+                      <TabsContent value="contact" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <User className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Document name & contact</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">This name is used for the file when you export. Contact details appear at the top of your resume.</p>
+                          <div className="rounded-xl border border-border bg-card p-6 space-y-5 font-sans flex-1 min-h-0 overflow-y-auto">
+                            <div>
+                              <Label htmlFor="resume-title" className="text-sm font-sans font-medium text-muted-foreground">Resume name (export filename)</Label>
+                              <Input
+                                id="resume-title"
+                                value={selected.title}
+                                onChange={(e) => updateSelected({ title: e.target.value })}
+                                placeholder="e.g., Senior Data Scientist"
+                                className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans text-base focus:ring-2 focus:ring-blue-500/20"
+                              />
                             </div>
+                            <div className="grid gap-5 sm:grid-cols-2">
+                              <div>
+                                <Label className="text-sm font-sans font-medium text-muted-foreground">Full name</Label>
+                                <Input
+                                  value={String(selected.content_json?.contact?.full_name || '')}
+                                  onChange={(e) => updateContactField('full_name', e.target.value)}
+                                  placeholder="Full name"
+                                  className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm font-sans font-medium text-muted-foreground">Location</Label>
+                                <Input
+                                  value={String(selected.content_json?.contact?.location || '')}
+                                  onChange={(e) => updateContactField('location', e.target.value)}
+                                  placeholder="City, State"
+                                  className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm font-sans font-medium text-muted-foreground">Phone</Label>
+                                <Input
+                                  value={String(selected.content_json?.contact?.phone || '')}
+                                  onChange={(e) => updateContactField('phone', e.target.value)}
+                                  placeholder="+1 (555) 000-0000"
+                                  className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm font-sans font-medium text-muted-foreground">Email</Label>
+                                <Input
+                                  value={String(selected.content_json?.contact?.email || '')}
+                                  onChange={(e) => updateContactField('email', e.target.value)}
+                                  placeholder="you@example.com"
+                                  className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-sm font-medium text-muted-foreground">LinkedIn</Label>
+                                <Input
+                                  value={String(selected.content_json?.contact?.linkedin_url || '')}
+                                  onChange={(e) => updateContactField('linkedin_url', e.target.value)}
+                                  placeholder="linkedin.com/in/…"
+                                  className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-sm font-sans font-medium text-muted-foreground">GitHub (optional)</Label>
+                                <Input
+                                  value={String(selected.content_json?.contact?.github_url || '')}
+                                  onChange={(e) => updateContactField('github_url', e.target.value)}
+                                  placeholder="github.com/…"
+                                  className="mt-1.5 h-11 border-border bg-background rounded-lg font-sans focus:ring-2 focus:ring-blue-500/20"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground pt-1">Tailoring overwrites contact from the base resume; you can edit here after.</p>
                           </div>
-
-                          <div className="space-y-2">
-                            <Label>Full name</Label>
-                            <Input
-                              value={String(selected.content_json?.contact?.full_name || '')}
-                              onChange={(e) => updateContactField('full_name', e.target.value)}
-                              placeholder="Full name"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Location</Label>
-                            <Input
-                              value={String(selected.content_json?.contact?.location || '')}
-                              onChange={(e) => updateContactField('location', e.target.value)}
-                              placeholder="City, State"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Phone</Label>
-                            <Input
-                              value={String(selected.content_json?.contact?.phone || '')}
-                              onChange={(e) => updateContactField('phone', e.target.value)}
-                              placeholder="Phone"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Email</Label>
-                            <Input
-                              value={String(selected.content_json?.contact?.email || '')}
-                              onChange={(e) => updateContactField('email', e.target.value)}
-                              placeholder="Email"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>LinkedIn URL</Label>
-                            <Input
-                              value={String(selected.content_json?.contact?.linkedin_url || '')}
-                              onChange={(e) => updateContactField('linkedin_url', e.target.value)}
-                              placeholder="linkedin.com/in/…"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>GitHub URL</Label>
-                            <Input
-                              value={String(selected.content_json?.contact?.github_url || '')}
-                              onChange={(e) => updateContactField('github_url', e.target.value)}
-                              placeholder="github.com/…"
-                              className="bg-background/50 border-white/10 focus:border-primary/50 transition-all"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="text-xs">
-                          Note: generating a new tailored resume overwrites contact info from the base resume facts. You can always edit here after
-                          generating.
-                        </div>
+                        </section>
                       </TabsContent>
 
-                      <TabsContent value="summary" className="space-y-3 mt-4">
-                        <Label>Professional Summary</Label>
+                      <TabsContent value="summary" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <Briefcase className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Professional summary</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">2–3 sentences that highlight your background and fit for the role. Recruiters read this first.</p>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex flex-col">
+                            <Textarea
+                              className="min-h-[280px] flex-1 w-full bg-background border-border focus:ring-2 focus:ring-blue-500/20 rounded-lg font-sans text-base leading-relaxed resize-none"
+                              value={selected.content_json.summary || ''}
+                              onChange={(e) => updateContent({ summary: e.target.value })}
+                              placeholder="Write a concise summary of your background and strengths. Aim for 2–4 sentences."
+                            />
+                          </div>
+                        </section>
+                      </TabsContent>
+
+                      <TabsContent value="skills" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <Sparkles className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Technical skills</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">ATS and recruiters match on these. Use exact phrases from the job description when honest.</p>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 overflow-y-auto">
+                            <SkillChipsEditor
+                              label="Technical skills (ATS keywords)"
+                              values={selected.content_json.skills?.technical || []}
+                              max={80}
+                              placeholder="e.g. React, Python, AWS (comma separated)"
+                              onChange={(next) =>
+                                updateContent({
+                                  skills: {
+                                    ...(selected.content_json.skills || {}),
+                                    technical: next.slice(0, 80),
+                                  },
+                                })
+                              }
+                            />
+                          </div>
+                        </section>
+                        <section className="flex flex-col flex-1 min-h-0 mt-8">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <Target className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Leadership & execution</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">Soft skills and leadership phrases that appear in many job descriptions.</p>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 overflow-y-auto">
+                            <SkillChipsEditor
+                              label="Leadership & execution skills"
+                              values={selected.content_json.skills?.soft || []}
+                              max={60}
+                              placeholder="e.g. Cross-functional, Agile, Stakeholder (comma separated)"
+                              onChange={(next) =>
+                                updateContent({
+                                  skills: {
+                                    ...(selected.content_json.skills || {}),
+                                    soft: next.slice(0, 60),
+                                  },
+                                })
+                              }
+                            />
+                            <p className="text-xs text-muted-foreground font-sans mt-4 pt-4 border-t border-border">If a JD keyword can’t go in Experience bullets, keep it here so ATS still matches.</p>
+                          </div>
+                        </section>
+                      </TabsContent>
+
+                      <TabsContent value="experience" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <Briefcase className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Experience</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">One role per block. First line = title — company. Following lines = bullets. Separate blocks with a blank line.</p>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex flex-col">
                         <Textarea
-                          className="min-h-[280px] lg:min-h-[360px] bg-background/50 border-white/10 focus:border-primary/50 transition-all leading-relaxed"
-                          value={selected.content_json.summary || ''}
-                          onChange={(e) => updateContent({ summary: e.target.value })}
-                          placeholder="Write a concise summary of your background and strengths…"
-                        />
-                      </TabsContent>
-
-                      <TabsContent value="skills" className="space-y-4 mt-4">
-                        <SkillChipsEditor
-                          label="Technical Skills (ATS keywords)"
-                          values={selected.content_json.skills?.technical || []}
-                          max={80}
-                          placeholder="Add technical/platform skills (comma separated)…"
-                          onChange={(next) =>
-                            updateContent({
-                              skills: {
-                                ...(selected.content_json.skills || {}),
-                                technical: next.slice(0, 80),
-                              },
-                            })
-                          }
-                        />
-                        <Separator />
-                        <SkillChipsEditor
-                          label="Leadership & Execution Skills (ATS keywords)"
-                          values={selected.content_json.skills?.soft || []}
-                          max={60}
-                          placeholder="Add leadership/soft skills (comma separated)…"
-                          onChange={(next) =>
-                            updateContent({
-                              skills: {
-                                ...(selected.content_json.skills || {}),
-                                soft: next.slice(0, 60),
-                              },
-                            })
-                          }
-                        />
-                        <CardDescription>
-                          Tip: if a JD keyword can’t be honestly shown in Experience bullets, keep it in Skills so ATS still matches it.
-                        </CardDescription>
-                      </TabsContent>
-
-                      <TabsContent value="experience" className="space-y-3 mt-4">
-                        <Textarea
-                          className="min-h-[360px] lg:min-h-[520px] bg-background/50 border-white/10 focus:border-primary/50 transition-all font-mono text-sm leading-relaxed"
+                          className="min-h-0 flex-1 bg-background border-border focus:ring-2 focus:ring-blue-500/20 rounded-lg font-mono text-sm leading-relaxed font-sans resize-none"
                           value={experienceDraft}
                           onChange={(e) => {
                             const next = e.target.value;
@@ -3505,11 +3539,20 @@ export default function ResumeWorkspace() {
                           }}
                           placeholder={`Director of Engineering — Walmart\n- Led ...\n- Built ...\n\nEngineering Manager — Fannie Mae\n- ...`}
                         />
+                          </div>
+                        </section>
                       </TabsContent>
 
-                      <TabsContent value="education" className="space-y-2 mt-4">
+                      <TabsContent value="education" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <GraduationCap className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Education</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">One entry per line (e.g. degree • school • year).</p>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex flex-col">
                         <Textarea
-                          className="min-h-[200px] lg:min-h-[260px] bg-background/50 border-white/10 focus:border-primary/50 transition-all"
+                          className="min-h-0 flex-1 bg-background border-border focus:ring-2 focus:ring-blue-500/20 rounded-lg font-sans text-base resize-none"
                           value={educationDraft}
                           onChange={(e) => {
                             const next = e.target.value;
@@ -3528,12 +3571,20 @@ export default function ResumeWorkspace() {
                           }}
                           placeholder="Executive MBA • George Mason University • 2020"
                         />
-                        <CardDescription>Paste each education line on a new line.</CardDescription>
+                          </div>
+                        </section>
                       </TabsContent>
 
-                      <TabsContent value="certs" className="space-y-2 mt-4">
+                      <TabsContent value="certs" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <Award className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Certifications</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">One certification per line.</p>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex flex-col">
                         <Textarea
-                          className="min-h-[200px] lg:min-h-[260px] bg-background/50 border-white/10 focus:border-primary/50 transition-all"
+                          className="min-h-0 flex-1 bg-background border-border focus:ring-2 focus:ring-blue-500/20 rounded-lg font-sans text-base resize-none"
                           value={certsDraft}
                           onChange={(e) => {
                             const next = e.target.value;
@@ -3551,28 +3602,38 @@ export default function ResumeWorkspace() {
                           }}
                           placeholder="AWS Certified Solutions Architect\n…"
                         />
+                          </div>
+                        </section>
                       </TabsContent>
 
-                      <TabsContent value="changes" className="space-y-4 mt-4">
+                      <TabsContent value="changes" className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
+                        <section className="flex flex-col flex-1 min-h-0">
+                          <div className="shrink-0 flex items-center gap-2 mb-2">
+                            <GitCompare className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                            <h4 className="text-lg font-display font-bold text-foreground">Changes & diff</h4>
+                          </div>
+                          <p className="shrink-0 text-base text-muted-foreground font-sans mb-4">Compare this document to your base resume. Set a base in Tailoring Configuration first.</p>
                         {!diffBaseResumeId ? (
-                          <div className="text-sm">
-                            Select a <span className="font-medium text-foreground">base resume</span> in the tailor section to compare changes.
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex items-center justify-center text-center">
+                          <p className="text-base font-sans text-muted-foreground">
+                            Select a <span className="font-semibold text-foreground">base resume</span> in Tailoring Configuration to compare changes.
+                          </p>
                           </div>
                         ) : diffBaseLoading ? (
-                          <div className="text-sm">Loading base resume…</div>
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex items-center justify-center text-center text-base font-sans text-muted-foreground">Loading base resume…</div>
                         ) : !diff ? (
-                          <div className="text-sm">
+                          <div className="rounded-xl border border-border bg-card p-6 flex-1 min-h-0 flex items-center justify-center text-center text-base font-sans text-muted-foreground">
                             Could not compute changes (base resume text unavailable).
                           </div>
                         ) : (
-                          <>
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="text-sm">
-                                Comparing <span className="font-medium text-foreground">{diffBaseLabel || 'Base resume'}</span> →{' '}
-                                <span className="font-medium text-foreground">{selected?.title || 'Current document'}</span>
-                              </div>
+                          <div className="space-y-6 flex-1 min-h-0 overflow-y-auto rounded-xl border border-border bg-card p-6">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between font-sans">
+                              <p className="text-base text-muted-foreground">
+                                Comparing <span className="font-semibold text-foreground">{diffBaseLabel || 'Base resume'}</span> → <span className="font-semibold text-foreground">{selected?.title || 'Current document'}</span>
+                              </p>
                               <Button
                                 variant="outline"
+                                className="rounded-lg font-sans font-medium border-blue-500/30 hover:bg-blue-500/10"
                                 onClick={async () => {
                                   if (!selected) return;
                                   const blob = await generateDiffPdfBlob({
@@ -3588,17 +3649,17 @@ export default function ResumeWorkspace() {
                               </Button>
                             </div>
 
-                            <div className="grid gap-4 md:grid-cols-2">
-                              <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
-                                <div className="flex flex-col space-y-1.5 p-4 border-b border-white/10">
-                                  <h3 className="font-semibold leading-none tracking-tight">Added</h3>
-                                  <p className="text-sm text-muted-foreground">{diff.added.length} lines</p>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                                <div className="flex flex-col space-y-1.5 p-4 border-b border-border">
+                                  <h3 className="font-display font-semibold leading-none tracking-tight text-foreground">Added</h3>
+                                  <p className="text-sm text-muted-foreground font-sans">{diff.added.length} lines</p>
                                 </div>
                                 <div className="p-4">
                                   <ScrollArea className="h-[240px]">
                                     <div className="space-y-2">
                                       {(diff.added.length ? diff.added : ['No additions detected.']).slice(0, 120).map((l, i) => (
-                                        <div key={i} className="text-sm border-l-2 border-emerald-500/50 pl-2 py-0.5">
+                                        <div key={i} className="text-sm font-sans border-l-2 border-emerald-500/50 pl-2 py-0.5">
                                           <span className="text-emerald-500 font-medium">+ </span>
                                           <span className="text-foreground">{l}</span>
                                         </div>
@@ -3608,16 +3669,16 @@ export default function ResumeWorkspace() {
                                 </div>
                               </div>
 
-                              <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
-                                <div className="flex flex-col space-y-1.5 p-4 border-b border-white/10">
-                                  <h3 className="font-semibold leading-none tracking-tight">Removed</h3>
-                                  <p className="text-sm text-muted-foreground">{diff.removed.length} lines</p>
+                              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                                <div className="flex flex-col space-y-1.5 p-4 border-b border-border">
+                                  <h3 className="font-display font-semibold leading-none tracking-tight text-foreground">Removed</h3>
+                                  <p className="text-sm text-muted-foreground font-sans">{diff.removed.length} lines</p>
                                 </div>
                                 <div className="p-4">
                                   <ScrollArea className="h-[240px]">
                                     <div className="space-y-2">
                                       {(diff.removed.length ? diff.removed : ['No removals detected.']).slice(0, 120).map((l, i) => (
-                                        <div key={i} className="text-sm border-l-2 border-destructive/50 pl-2 py-0.5">
+                                        <div key={i} className="text-sm font-sans border-l-2 border-destructive/50 pl-2 py-0.5">
                                           <span className="text-destructive font-medium">- </span>
                                           <span className="text-muted-foreground">{l}</span>
                                         </div>
@@ -3628,117 +3689,133 @@ export default function ResumeWorkspace() {
                               </div>
                             </div>
 
-                            <div className="text-xs">
-                              Note: this compares your current workspace document against the selected base resume. It’s not a PDF-to-PDF pixel diff.
-                            </div>
-                          </>
+                            <p className="text-xs text-muted-foreground font-sans">
+                              Note: text comparison only, not a PDF pixel diff.  It’s not a PDF-to-PDF pixel diff.
+                            </p>
+                          </div>
                         )}
+                        </section>
                       </TabsContent>
                     </Tabs>
                   </>
                 )}
               </div>
             </div>
+            </div>
+            </div>
 
-            {/* Right: Insights Sidebar */}
-            <div className="lg:col-span-3 space-y-6">
+            {/* Row 2: ATS & insights + JD Deconstruction (own row, full width) */}
+            <div className="grid gap-6 lg:grid-cols-12 items-start">
+              {/* ATS & insights — left column of row 2 */}
+              <div className="lg:col-span-4 space-y-5">
               {(analysisScore != null || atsEstimate != null) ? (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                <div className="animate-in fade-in duration-500 space-y-5">
+                  <div className="rounded-xl bg-gradient-to-r from-blue-500/15 to-cyan-500/10 border border-blue-500/20 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" strokeWidth={1.5} />
+                      <h3 className="text-xl font-display font-bold text-foreground">ATS & insights</h3>
+                    </div>
+                    <p className="mt-1 text-sm font-sans text-muted-foreground">Live match and keyword gaps</p>
+                  </div>
+                  <div className="space-y-5">
                   {/* Score Card */}
-                  <div className="glass-panel p-5 border-white/10 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50" />
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                          <Target className="h-3 w-3" /> ATS Match
+                  <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-b from-blue-500/15 to-blue-500/5 overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-500/30">
+                    <div className="px-5 pt-5 pb-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-display font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                          <Target className="h-4 w-4" strokeWidth={1.5} /> ATS Match
                         </span>
-                        <Badge variant="outline" className="text-[9px] bg-primary/5 border-primary/20 text-primary">Live Update</Badge>
+                        <Badge variant="outline" className="text-xs font-sans bg-blue-500/20 border-blue-500/30 text-blue-700 dark:text-blue-300">Live</Badge>
                       </div>
-                      <div className="flex items-baseline gap-2 mb-1">
-                        <span className="text-4xl font-bold tracking-tight text-gradient-premium">{analysisScore != null ? Math.round(analysisScore) : 0}</span>
-                        <span className="text-sm text-muted-foreground font-medium">%</span>
+                      <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-5xl font-display font-bold tracking-tight text-gradient-candidate">{analysisScore != null ? Math.round(analysisScore) : 0}</span>
+                        <span className="text-lg font-sans font-medium text-muted-foreground">%</span>
                       </div>
-                      <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-1.5 bg-white/5 my-3" />
-                      <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/5">
+                      <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2 rounded-full bg-blue-500/10 my-4" />
+                      <div className="grid grid-cols-2 gap-4 pt-4 pb-5 border-t border-blue-500/15">
                         <div>
-                          <div className="text-[10px] text-muted-foreground uppercase opacity-60">Keywords</div>
-                          <div className="text-xs font-bold text-foreground">{derivedKeywordPct ?? 0}%</div>
+                          <div className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wider">Keywords</div>
+                          <div className="text-lg font-display font-bold text-foreground tabular-nums">{derivedKeywordPct ?? 0}%</div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-muted-foreground uppercase opacity-60">Model Rank</div>
-                          <div className="text-xs font-bold text-foreground">{atsEstimate ?? 0}%</div>
+                          <div className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wider">Model rank</div>
+                          <div className="text-lg font-display font-bold text-foreground tabular-nums">{atsEstimate ?? 0}%</div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Critical Keyword Gaps */}
-                  <div className="glass-panel p-5 border-white/10">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-destructive/80 mb-4 flex items-center gap-1.5">
-                      <Zap className="h-3 w-3" /> Critical Gaps
+                  <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-500/10 to-transparent p-5 shadow-sm transition-all duration-300 hover:border-amber-500/30 min-h-[160px] flex flex-col">
+                    <h4 className="text-sm font-display font-bold text-amber-800 dark:text-amber-200 mb-3 flex items-center gap-2">
+                      <Zap className="h-4 w-4" strokeWidth={1.5} /> Critical gaps
                     </h4>
-                    <div className="space-y-3">
+                    <p className="text-xs font-sans text-muted-foreground mb-3">JD keywords missing from your resume</p>
+                    <div className="space-y-3 flex-1">
                       {filteredMissingVerbatim.length > 0 ? (
                         <>
-                          <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-1">
+                          <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1">
                             {filteredMissingVerbatim.slice(0, 10).map((p) => (
-                              <Badge key={p} variant="secondary" className="bg-white/5 text-[10px] py-0.5 border-white/5 font-medium truncate max-w-full">
+                              <Badge key={p} variant="secondary" className="bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-500/25 text-xs font-sans font-medium py-1 px-2 truncate max-w-full">
                                 {p}
                               </Badge>
                             ))}
                           </div>
                           <Button
                             variant="ghost"
-                            className="w-full h-8 text-[10px] text-primary hover:bg-primary/10 group"
+                            size="sm"
+                            className="w-full text-sm font-sans text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 group rounded-lg"
                             onClick={() => copyToClipboard(filteredMissingVerbatim.slice(0, 15).join('\n'))}
                           >
-                            <span>Copy Top 15 Gaps</span>
-                            <ChevronRight className="ml-1 h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                            Copy top 15 gaps
+                            <ChevronRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
                           </Button>
                         </>
                       ) : (
-                        <div className="text-center py-4 text-xs text-muted-foreground">
-                          Excellent! Verbatim matching is optimal.
+                        <div className="text-center py-6 text-sm font-sans text-muted-foreground">
+                          Verbatim matching looks good.
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Recommendations / AI Advice */}
-                  <div className="glass-panel p-5 border-white/10">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary/80 mb-4 flex items-center gap-1.5">
-                      <BrainCircuit className="h-3 w-3" /> AI Strategic Advice
+                  <div className="rounded-2xl border border-blue-500/20 bg-card p-5 shadow-sm transition-all duration-300 hover:border-blue-500/30 min-h-[160px] flex flex-col">
+                    <h4 className="text-sm font-display font-bold text-blue-700 dark:text-blue-300 mb-3 flex items-center gap-2">
+                      <BrainCircuit className="h-4 w-4" strokeWidth={1.5} /> AI advice
                     </h4>
-                    <div className="space-y-4">
-                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                        <p className="text-[11px] leading-relaxed text-foreground/80 italic">
-                          "Place critical keywords in your 'Skills' section first to boost ATS visibility, then integrate into experience bullets."
+                    <div className="space-y-4 flex-1">
+                      <div className="rounded-xl bg-blue-500/10 border-l-4 border-l-blue-500 p-4">
+                        <p className="text-sm font-sans leading-relaxed text-foreground italic">
+                          Place critical keywords in your Skills section first to boost ATS visibility, then weave them into experience bullets.
                         </p>
                       </div>
                       {prepFocus.length > 0 && (
                         <div className="space-y-2">
-                          <div className="text-[10px] text-muted-foreground uppercase tracking-tighter">Draft Focus Areas</div>
-                          <div className="text-[10px] leading-snug">{prepFocus.slice(0, 3).join(' • ')}</div>
+                          <div className="text-xs font-sans font-semibold text-muted-foreground uppercase tracking-wider">Focus areas</div>
+                          <p className="text-sm font-sans text-foreground leading-snug">{prepFocus.slice(0, 3).join(' • ')}</p>
                         </div>
                       )}
                     </div>
                   </div>
 
+                  </div>
                 </div>
               ) : (
-                <div className="glass-panel p-8 text-center border-white/10 opacity-60">
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/5">
-                    <Sparkles className="h-5 w-5 text-muted-foreground/50" />
+                <div className="rounded-2xl border-2 border-dashed border-blue-500/25 bg-gradient-to-b from-blue-500/5 to-transparent p-8 text-center transition-all duration-300 hover:border-blue-500/40">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500/15 flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
+                    <Sparkles className="h-8 w-8 text-blue-500" strokeWidth={1.5} />
                   </div>
-                  <h4 className="text-xs font-semibold mb-2">Real-time Analysis</h4>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Start by generating a tailored version or selecting a baseline to see live ATS insights here.
+                  <h4 className="text-base font-display font-semibold text-foreground mb-2">Real-time analysis</h4>
+                  <p className="text-sm font-sans text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                    Generate a tailored version or select a baseline to see live ATS insights here.
                   </p>
                 </div>
               )}
-            </div>
+              </div>
 
-            {/* Bottom Section: Detailed Analysis & Intelligence */}
+              {/* JD Deconstruction + Interview Readiness — right column of row 2 */}
+              <div className="lg:col-span-8">
             {(analysisScore != null ||
               atsEstimate != null ||
               (Array.isArray(analysisMissing) && analysisMissing.length > 0) ||
@@ -3747,74 +3824,67 @@ export default function ResumeWorkspace() {
               (Array.isArray(visibleImprovements) && visibleImprovements.length > 0) ||
               Boolean(jdSkillExtraction) ||
               (Array.isArray(notesAddedPhrases) && notesAddedPhrases.length > 0)) && (
-                <div className="space-y-6 lg:col-span-12 mt-6 animate-in slide-in-from-bottom-6 duration-700">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-px flex-1 bg-white/5" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">Intelligence Hub</span>
-                    <div className="h-px flex-1 bg-white/5" />
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-12">
-                    {/* JD Deconstruction */}
-                    <div className="glass-panel lg:col-span-12 border-white/10">
-                      <div className="flex flex-col space-y-1 p-6 pb-2">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                          <BrainCircuit className="h-4 w-4 text-primary" />
+                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                    {/* JD Deconstruction + Interview Readiness */}
+                    <div className="rounded-2xl border border-blue-500/20 bg-card overflow-hidden shadow-sm transition-all duration-300 hover:border-blue-500/30 hover:shadow-md">
+                      <div className="bg-gradient-to-r from-blue-500/15 to-cyan-500/10 border-b border-blue-500/20 px-6 py-5">
+                        <h3 className="font-display font-bold text-xl text-foreground flex items-center gap-2">
+                          <BrainCircuit className="h-5 w-5 text-blue-600 dark:text-blue-400" strokeWidth={1.5} />
                           JD Deconstruction + Interview Readiness
                         </h3>
-                        <p className="text-xs text-muted-foreground">Strategic insights built from the JD + your current tailored resume.</p>
+                        <p className="mt-1 text-sm font-sans text-muted-foreground">Strategic insights from the JD and your tailored resume.</p>
                       </div>
-                      <div className="p-6 pt-4">
+                      <div className="p-6">
                         <Tabs defaultValue="deconstruct">
-                          <TabsList className="bg-muted/10 border border-white/10 p-0.5 mb-6 w-fit flex-wrap gap-1 md:flex-nowrap">
-                            <TabsTrigger value="deconstruct" className="text-[11px] px-3">1) JD Analysis</TabsTrigger>
-                            <TabsTrigger value="ats" className="text-[11px] px-3">2) ATS Alignment</TabsTrigger>
-                            <TabsTrigger value="delta" className="text-[11px] px-3">3) Delta Skills</TabsTrigger>
-                            <TabsTrigger value="metrics" className="text-[11px] px-3">4) Red Flags</TabsTrigger>
-                            <TabsTrigger value="prep" className="text-[11px] px-3">5) Interview Prep</TabsTrigger>
+                          <TabsList className="bg-muted/40 border border-blue-500/15 p-1.5 mb-6 w-full sm:w-fit flex flex-wrap gap-1 rounded-xl">
+                            <TabsTrigger value="deconstruct" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:font-semibold">1) JD Analysis</TabsTrigger>
+                            <TabsTrigger value="ats" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:font-semibold">2) ATS Alignment</TabsTrigger>
+                            <TabsTrigger value="delta" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:font-semibold">3) Delta Skills</TabsTrigger>
+                            <TabsTrigger value="metrics" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:font-semibold">4) Red Flags</TabsTrigger>
+                            <TabsTrigger value="prep" className="text-sm font-sans px-4 py-2.5 rounded-lg data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:font-semibold">5) Interview Prep</TabsTrigger>
                           </TabsList>
 
                           <TabsContent value="deconstruct" className="mt-0 space-y-6">
                             <div className="grid gap-6 md:grid-cols-2">
-                              <div className="rounded-xl border border-white/5 bg-white/5 p-4">
-                                <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Hard Skills (Matched vs Potential)</div>
+                              <div className="rounded-xl border border-blue-500/20 bg-gradient-to-b from-blue-500/10 to-transparent p-5">
+                                <div className="text-sm font-display font-bold text-blue-700 dark:text-blue-300 mb-3">Hard skills (matched vs potential)</div>
                                 <div className="space-y-4">
                                   {jdSkillExtraction?.core_technical_skills?.length > 0 && (
                                     <div className="space-y-2">
-                                      <div className="text-[10px] text-muted-foreground uppercase">Must-have Keywords</div>
-                                      <div className="flex flex-wrap gap-1.5">
+                                      <div className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wider">Must-have keywords</div>
+                                      <div className="flex flex-wrap gap-2">
                                         {jdSkillExtraction.core_technical_skills.slice(0, 15).map((k: string) => (
-                                          <Badge key={k} variant="outline" className="text-[10px] bg-white/5 border-white/5">{k}</Badge>
+                                          <Badge key={k} variant="outline" className="text-xs font-sans bg-blue-500/15 border-blue-500/25 text-foreground py-1 px-2">{k}</Badge>
                                         ))}
                                       </div>
                                     </div>
                                   )}
                                   {jdSkillExtraction?.platform_cloud_tooling?.length > 0 && (
                                     <div className="space-y-2">
-                                      <div className="text-[10px] text-muted-foreground uppercase">Infrastructure & Platform</div>
-                                      <div className="flex flex-wrap gap-1.5">
+                                      <div className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wider">Infrastructure & platform</div>
+                                      <div className="flex flex-wrap gap-2">
                                         {jdSkillExtraction.platform_cloud_tooling.slice(0, 15).map((k: string) => (
-                                          <Badge key={k} variant="outline" className="text-[10px] bg-white/5 border-white/10">{k}</Badge>
+                                          <Badge key={k} variant="outline" className="text-xs font-sans bg-blue-500/15 border-blue-500/25 text-foreground py-1 px-2">{k}</Badge>
                                         ))}
                                       </div>
                                     </div>
                                   )}
                                 </div>
                               </div>
-                              <div className="rounded-xl border border-white/5 bg-white/5 p-4">
-                                <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Seniority & Strategy Signals</div>
-                                <div className="space-y-3">
-                                  <div className="p-3 rounded-lg bg-black/20 text-xs leading-relaxed">
+                              <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-b from-cyan-500/10 to-transparent p-5">
+                                <div className="text-sm font-display font-bold text-cyan-800 dark:text-cyan-200 mb-3">Seniority & strategy</div>
+                                <div className="space-y-4">
+                                  <div className="p-4 rounded-xl bg-card border border-border text-sm font-sans leading-relaxed">
                                     {targetTitle?.toLowerCase().includes('senior') || targetTitle?.toLowerCase().includes('lead') || targetTitle?.toLowerCase().includes('director') ? (
                                       "Strategy focus: prioritize scope, cross-functional leadership, and P&L/metric ownership in your Summary and most recent role bullets."
                                     ) : (
                                       "Execution focus: emphasize specific technical contributions, problem-solving speed, and tool proficiency."
                                     )}
                                   </div>
-                                  <ul className="text-[11px] text-muted-foreground space-y-2 list-disc pl-4">
+                                  <ul className="text-sm font-sans text-muted-foreground space-y-2 list-disc pl-4">
                                     <li>Dial up domain-specific jargon from the JD</li>
                                     <li>Ensure top 3 bullets in most recent role use JD verbs</li>
-                                    <li>Match the "implicit" level of the JD (e.g. strategic vs tactical)</li>
+                                    <li>Match the implicit level of the JD (strategic vs tactical)</li>
                                   </ul>
                                 </div>
                               </div>
@@ -3822,50 +3892,50 @@ export default function ResumeWorkspace() {
                           </TabsContent>
 
                           <TabsContent value="ats" className="mt-0">
-                            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+                            <div className="rounded-xl border border-blue-500/20 bg-gradient-to-b from-blue-500/10 to-transparent p-6">
                               <div className="flex items-center justify-between mb-4">
-                                <div className="text-sm font-semibold">Keyword Coverage Analysis</div>
-                                <div className="text-xl font-bold text-primary">{derivedKeywordPct ?? 0}%</div>
+                                <div className="text-base font-display font-semibold text-foreground">Keyword coverage</div>
+                                <div className="text-2xl font-display font-bold text-blue-600 dark:text-blue-400 tabular-nums">{derivedKeywordPct ?? 0}%</div>
                               </div>
-                              <Progress value={derivedKeywordPct ?? 0} className="h-1.5 bg-black/40 mb-6" />
+                              <Progress value={derivedKeywordPct ?? 0} className="h-2 rounded-full bg-blue-500/10 mb-6" />
                               <div className="grid gap-6 md:grid-cols-3">
                                 <div className="space-y-2">
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Top Placement</div>
-                                  <p className="text-xs">Skills section first, Summary second, latest role third.</p>
+                                  <div className="text-xs font-sans font-semibold text-muted-foreground uppercase tracking-wider">Top placement</div>
+                                  <p className="text-sm font-sans text-foreground leading-relaxed">Skills first, Summary second, latest role third.</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Exact Phrases</div>
-                                  <p className="text-xs">Use verbatim JD wording; replace your synonyms with their terms.</p>
+                                  <div className="text-xs font-sans font-semibold text-muted-foreground uppercase tracking-wider">Exact phrases</div>
+                                  <p className="text-sm font-sans text-foreground leading-relaxed">Use verbatim JD wording; replace synonyms with their terms.</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <div className="text-[10px] uppercase font-bold text-muted-foreground/60">Recency Bias</div>
-                                  <p className="text-xs">ATS and Humans weight recent roles 2x higher for core keywords.</p>
+                                  <div className="text-xs font-sans font-semibold text-muted-foreground uppercase tracking-wider">Recency bias</div>
+                                  <p className="text-sm font-sans text-foreground leading-relaxed">ATS and humans weight recent roles 2× for core keywords.</p>
                                 </div>
                               </div>
                             </div>
                           </TabsContent>
 
                           <TabsContent value="delta" className="mt-0">
-                            <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-                              <table className="w-full text-xs">
-                                <thead className="bg-white/5 border-b border-white/10">
+                            <div className="rounded-xl border border-blue-500/20 bg-card overflow-hidden">
+                              <table className="w-full text-sm font-sans">
+                                <thead className="bg-muted/60 border-b border-border">
                                   <tr>
-                                    <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Delta Skill / Missing Phrase</th>
-                                    <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Suggested Placement</th>
-                                    <th className="text-left p-3 font-semibold uppercase tracking-tighter opacity-70">Interview Story</th>
+                                    <th className="text-left p-4 font-display font-semibold text-foreground">Delta skill / missing phrase</th>
+                                    <th className="text-left p-4 font-display font-semibold text-foreground">Suggested placement</th>
+                                    <th className="text-left p-4 font-display font-semibold text-foreground">Interview story</th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5">
+                                <tbody className="divide-y divide-border">
                                   {Array.isArray(notesAddedPhrases) && notesAddedPhrases.slice(0, 10).map((p, i) => (
-                                    <tr key={i} className="hover:bg-white/5 transition-colors">
-                                      <td className="p-3 font-medium text-emerald-400">{p}</td>
-                                      <td className="p-3 text-muted-foreground">Skills or Summary</td>
-                                      <td className="p-3 text-muted-foreground italic">Required if used as primary skill</td>
+                                    <tr key={i} className="hover:bg-muted/30 transition-colors">
+                                      <td className="p-4 font-medium text-emerald-600 dark:text-emerald-400">{p}</td>
+                                      <td className="p-4 text-muted-foreground">Skills or Summary</td>
+                                      <td className="p-4 text-muted-foreground italic">Required if used as primary skill</td>
                                     </tr>
                                   ))}
                                   {(!Array.isArray(notesAddedPhrases) || notesAddedPhrases.length === 0) && (
                                     <tr>
-                                      <td colSpan={3} className="p-8 text-center text-muted-foreground italic">No tracked JD-specific delta phrases found yet.</td>
+                                      <td colSpan={3} className="p-8 text-center text-muted-foreground italic text-sm">No JD-specific delta phrases found yet.</td>
                                     </tr>
                                   )}
                                 </tbody>
@@ -3875,35 +3945,35 @@ export default function ResumeWorkspace() {
 
                           <TabsContent value="metrics" className="mt-0">
                             <div className="grid gap-6 md:grid-cols-2">
-                              <div className="rounded-xl border border-white/5 bg-white/5 p-5">
+                              <div className="rounded-xl border border-orange-500/20 bg-gradient-to-b from-orange-500/10 to-transparent p-5">
                                 <div className="flex items-center gap-2 mb-4">
-                                  <Target className="h-4 w-4 text-orange-400" />
-                                  <div className="text-xs font-bold uppercase tracking-wider">Metrics & Quantifiability</div>
+                                  <Target className="h-5 w-5 text-orange-600 dark:text-orange-400" strokeWidth={1.5} />
+                                  <div className="text-sm font-display font-bold text-foreground">Metrics & quantifiability</div>
                                 </div>
                                 <div className="space-y-4">
-                                  <div className="p-3 rounded-lg bg-black/20 text-[11px] leading-relaxed">
-                                    {metricsStrength.pct < 30 ? "Your resume is 'Metric-Lite'. Add 3-5 concrete numbers (%, $, volume, scale) to your latest role to significantly improve response rates." : "Good metric density detected. Ensure they directly relate to the ROI expected in the JD."}
+                                  <div className="p-4 rounded-xl bg-card border border-border text-sm font-sans leading-relaxed">
+                                    {metricsStrength.pct < 30 ? "Your resume is metric-lite. Add 3–5 concrete numbers (%, $, volume, scale) to your latest role to improve response rates." : "Good metric density. Ensure they relate to the ROI expected in the JD."}
                                   </div>
-                                  <div className="flex items-center justify-between text-[11px]">
-                                    <span>Metric Density</span>
-                                    <span className="font-bold">{metricsStrength.pct}%</span>
+                                  <div className="flex items-center justify-between text-sm font-sans">
+                                    <span className="text-muted-foreground">Metric density</span>
+                                    <span className="font-display font-bold text-foreground tabular-nums">{metricsStrength.pct}%</span>
                                   </div>
-                                  <Progress value={metricsStrength.pct} className="h-1 bg-white/10" />
+                                  <Progress value={metricsStrength.pct} className="h-2 rounded-full bg-orange-500/10" />
                                 </div>
                               </div>
-                              <div className="rounded-xl border border-white/5 bg-white/5 p-5">
+                              <div className="rounded-xl border border-red-500/20 bg-gradient-to-b from-red-500/10 to-transparent p-5">
                                 <div className="flex items-center gap-2 mb-4">
-                                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                                  <div className="text-xs font-bold uppercase tracking-wider">Potential Red Flags</div>
+                                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" strokeWidth={1.5} />
+                                  <div className="text-sm font-display font-bold text-foreground">Potential red flags</div>
                                 </div>
                                 <ul className="space-y-2">
                                   {Array.isArray(redFlags) && redFlags.length > 0 ? redFlags.slice(0, 5).map((r, i) => (
-                                    <li key={i} className="flex gap-2 text-[11px] text-muted-foreground">
-                                      <span className="text-destructive font-bold">•</span>
+                                    <li key={i} className="flex gap-2 text-sm font-sans text-muted-foreground">
+                                      <span className="text-red-500 font-bold">•</span>
                                       <span>{r}</span>
                                     </li>
                                   )) : (
-                                    <li className="text-[11px] text-muted-foreground italic">No critical structural red flags detected.</li>
+                                    <li className="text-sm font-sans text-muted-foreground italic">No critical structural red flags detected.</li>
                                   )}
                                 </ul>
                               </div>
@@ -3911,17 +3981,17 @@ export default function ResumeWorkspace() {
                           </TabsContent>
 
                           <TabsContent value="prep" className="mt-0">
-                            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-                              <div className="text-xs font-bold uppercase tracking-wider text-primary mb-4">Top 5 Interview Prep Areas</div>
-                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="rounded-xl border border-blue-500/20 bg-gradient-to-b from-blue-500/10 to-transparent p-6">
+                              <div className="text-sm font-display font-bold text-blue-700 dark:text-blue-300 mb-4">Top 5 interview prep areas</div>
+                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                 {Array.isArray(prepFocus) && prepFocus.slice(0, 6).map((item, i) => (
-                                  <div key={i} className="p-3 rounded-lg bg-black/30 border border-white/5 text-[11px] leading-snug">
-                                    <div className="text-primary/60 mb-1 font-bold">Focus {i + 1}</div>
-                                    {item}
+                                  <div key={i} className="p-4 rounded-xl bg-card border border-border">
+                                    <div className="text-blue-600 dark:text-blue-400 mb-2 font-display font-bold text-sm">Focus {i + 1}</div>
+                                    <p className="text-sm font-sans text-foreground leading-snug">{item}</p>
                                   </div>
                                 ))}
                                 {(!Array.isArray(prepFocus) || prepFocus.length === 0) && (
-                                  <p className="col-span-full py-6 text-center text-muted-foreground text-xs italic">Generate a tailored resume to see interview focus areas.</p>
+                                  <p className="col-span-full py-8 text-center text-muted-foreground text-sm font-sans italic">Generate a tailored resume to see interview focus areas.</p>
                                 )}
                               </div>
                             </div>
@@ -3931,33 +4001,33 @@ export default function ResumeWorkspace() {
                     </div>
 
                     {/* Diagnostics Accordion */}
-                    <div className="lg:col-span-12">
-                      <Accordion type="single" collapsible className="w-full">
+                    <div>
+                      <Accordion type="single" collapsible defaultValue="diagnostics" className="w-full">
                         <AccordionItem value="diagnostics" className="border-none">
-                          <div className="glass-panel border-white/10">
-                            <AccordionTrigger className="px-6 py-3 hover:bg-white/5 transition-colors no-underline">
-                              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                <Terminal className="h-3 w-3" /> System Diagnostics
+                          <div className="rounded-2xl border border-blue-500/20 bg-card overflow-hidden shadow-sm transition-all duration-300 hover:border-blue-500/30">
+                            <AccordionTrigger className="px-6 py-4 hover:bg-blue-500/5 transition-colors no-underline [&[data-state=open]]:border-b [&[data-state=open]]:border-border">
+                              <div className="flex items-center gap-2 text-sm font-display font-bold text-muted-foreground">
+                                <Terminal className="h-4 w-4" strokeWidth={1.5} /> System diagnostics
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6 pt-2 border-t border-white/5">
+                            <AccordionContent className="px-6 pb-6 pt-2 border-t border-border">
                               <div className="grid gap-6 md:grid-cols-2">
                                 <div className="space-y-3">
-                                  <div className="text-xs font-semibold">Improvement Queue</div>
-                                  <div className="space-y-1.5">
+                                  <div className="text-sm font-display font-semibold text-foreground">Improvement queue</div>
+                                  <div className="space-y-2">
                                     {Array.isArray(visibleImprovements) && visibleImprovements.map((t, i) => (
-                                      <div key={i} className="text-[11px] text-muted-foreground flex gap-2">
-                                        <span className="text-primary">•</span> {typeof t === 'string' ? t.replace(/['"\[\]]/g, '') : JSON.stringify(t)}
+                                      <div key={i} className="text-sm font-sans text-muted-foreground flex gap-2">
+                                        <span className="text-blue-500">•</span> {typeof t === 'string' ? t.replace(/['"\[\]]/g, '') : JSON.stringify(t)}
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                                 <div className="space-y-3">
-                                  <div className="text-xs font-semibold">Model Confidence Score</div>
-                                  <div className="text-2xl font-bold text-foreground">{atsEstimate ?? '—'} <span className="text-xs font-normal text-muted-foreground">/ 100</span></div>
-                                  <div className="text-[10px] leading-relaxed text-muted-foreground">
+                                  <div className="text-sm font-display font-semibold text-foreground">Model confidence</div>
+                                  <div className="text-3xl font-display font-bold text-foreground tabular-nums">{atsEstimate ?? '—'} <span className="text-sm font-normal text-muted-foreground">/ 100</span></div>
+                                  <p className="text-sm font-sans text-muted-foreground leading-relaxed">
                                     Based on semantic alignment and structural validity of the generated content.
-                                  </div>
+                                  </p>
                                 </div>
                               </div>
                             </AccordionContent>
@@ -3965,10 +4035,12 @@ export default function ResumeWorkspace() {
                         </AccordionItem>
                       </Accordion>
                     </div>
-                  </div>
                 </div>
               )}
 
+              </div>
+            </div>
+          </div>
           </div>
         </div>
       </TooltipProvider>

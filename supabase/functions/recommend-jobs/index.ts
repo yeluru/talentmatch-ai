@@ -76,7 +76,7 @@ CANDIDATE PROFILE:
 - Experience: ${candidateProfile.years_of_experience || 0} years
 - Skills: ${candidateProfile.skills?.join(', ') || 'Not specified'}
 - Desired Locations: ${candidateProfile.desired_locations?.join(', ') || 'Flexible'}
-- Open to Remote: ${candidateProfile.is_open_to_remote ? 'Yes' : 'No'}
+- Open to Relocate: ${candidateProfile.is_open_to_remote ? 'Yes' : 'No'}
 - Salary Range: ${candidateProfile.desired_salary_min && candidateProfile.desired_salary_max ? `$${candidateProfile.desired_salary_min.toLocaleString()} - $${candidateProfile.desired_salary_max.toLocaleString()}` : 'Not specified'}
 
 AVAILABLE JOBS:

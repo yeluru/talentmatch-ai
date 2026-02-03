@@ -23,9 +23,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Mail,
@@ -63,7 +64,9 @@ interface EmailSequence {
 }
 
 export default function OutreachCampaigns() {
-  const { user, roles, profile } = useAuth();
+  const { user, roles, profile, currentRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
@@ -93,27 +96,26 @@ export default function OutreachCampaigns() {
     enabled: !!organizationId,
   });
 
-  // Fetch jobs
+  // Fetch jobs (only this recruiter's when ownerId is set)
   const { data: jobs } = useQuery({
-    queryKey: ['org-jobs-outreach', organizationId],
+    queryKey: ['org-jobs-outreach', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('id, title, required_skills')
-        .eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, required_skills').eq('organization_id', organizationId);
+      if (ownerId) q = q.eq('recruiter_id', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
     enabled: !!organizationId,
   });
 
-  // Fetch campaigns
+  // Fetch campaigns (only this recruiter's when ownerId is set)
   const { data: campaigns, isLoading } = useQuery({
-    queryKey: ['outreach-campaigns', organizationId],
+    queryKey: ['outreach-campaigns', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
+      let q = supabase
         .from('outreach_campaigns')
         .select(`
           *,
@@ -121,6 +123,8 @@ export default function OutreachCampaigns() {
         `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
+      if (ownerId) q = q.eq('created_by', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as Campaign[];
     },
@@ -282,16 +286,20 @@ export default function OutreachCampaigns() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-              <Mail className="h-8 w-8 text-accent" />
-              Outreach Campaigns
-            </h1>
-            <p className="mt-1">
-              Create personalized email sequences to engage candidates
-            </p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <Mail className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                Outreach <span className="text-gradient-recruiter">Campaigns</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">Create personalized email sequences to engage candidates</p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -468,6 +476,8 @@ export default function OutreachCampaigns() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

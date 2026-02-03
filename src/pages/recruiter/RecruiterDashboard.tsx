@@ -23,11 +23,12 @@ import {
   Upload,
   Globe,
   TrendingUp,
+  LayoutDashboard,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { toast } from 'sonner';
 
 interface RecruiterStats {
@@ -55,7 +56,9 @@ interface RecentApplication {
 }
 
 export default function RecruiterDashboard() {
-  const { roles, organizationId, user } = useAuth();
+  const { roles, organizationId, user, currentRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const [stats, setStats] = useState<RecruiterStats>({
     openJobs: 0,
     totalApplications: 0,
@@ -74,21 +77,20 @@ export default function RecruiterDashboard() {
 
   useEffect(() => {
     if (orgId) {
-      fetchDashboardData();
+      fetchDashboardData(ownerId);
     } else {
       setIsLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, ownerId]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (effectiveOwnerId: string | null) => {
     if (!orgId) return;
 
     try {
-      // Fetch jobs
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id, status')
-        .eq('organization_id', orgId);
+      // Fetch jobs (only this recruiter's when effectiveOwnerId is set)
+      let jobsQuery = supabase.from('jobs').select('id, status').eq('organization_id', orgId);
+      if (effectiveOwnerId) jobsQuery = jobsQuery.eq('recruiter_id', effectiveOwnerId);
+      const { data: jobs } = await jobsQuery;
 
       const openJobs = jobs?.filter(j => j.status === 'published').length || 0;
       const jobIds = jobs?.map(j => j.id) || [];
@@ -333,52 +335,60 @@ export default function RecruiterDashboard() {
       role="button"
       tabIndex={0}
       onClick={() => navigate(href)}
-      className="glass-panel p-5 cursor-pointer hover:bg-white/5 transition-colors group relative overflow-hidden"
+      className="rounded-xl border border-border bg-card p-5 cursor-pointer transition-all duration-300 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md group relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <div className="flex items-start justify-between gap-3 relative z-10">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
-            <Icon className="h-5 w-5" />
+          <div className="h-10 w-10 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
+            <Icon className="h-5 w-5" strokeWidth={1.5} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <div className="font-semibold truncate">{title}</div>
+              <div className="font-display font-semibold truncate group-hover:text-recruiter transition-colors">{title}</div>
               {badge ? (
-                <Badge variant="secondary" className="bg-primary/20 text-primary hover:bg-primary/30">
+                <Badge variant="secondary" className="bg-recruiter/20 text-recruiter border-recruiter/20 font-sans">
                   {badge}
                 </Badge>
               ) : null}
             </div>
-            <div className="text-sm text-muted-foreground line-clamp-2 mt-1">{description}</div>
+            <div className="text-sm text-muted-foreground font-sans line-clamp-2 mt-1">{description}</div>
           </div>
         </div>
-        <ArrowRight className="h-4 w-4 mt-1 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+        <ArrowRight className="h-4 w-4 mt-1 shrink-0 text-muted-foreground group-hover:text-recruiter transition-colors" strokeWidth={1.5} />
       </div>
     </div>
   );
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-in-view">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-4xl font-bold tracking-tight">
-              Recruiter <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Dashboard</span>
-            </h1>
-            <p className="mt-2 text-lg text-muted-foreground">
-              Overview of your hiring pipeline and sourcing activities.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button className="btn-primary-glow bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-0" asChild>
-              <Link to="/recruiter/jobs/new">
-                <PlusCircle className="mr-2 h-4 w-4" /> Post a Job
-              </Link>
-            </Button>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <LayoutDashboard className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Recruiter <span className="text-gradient-recruiter">Dashboard</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                Overview of your hiring pipeline and sourcing activities.
+              </p>
+            </div>
+            <div className="flex gap-3 shrink-0">
+              <Button className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shadow-lg" asChild>
+                <Link to="/recruiter/jobs/new">
+                  <PlusCircle className="mr-2 h-4 w-4" strokeWidth={1.5} /> Post a Job
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-8 pt-6 pb-6 animate-in-view">
 
         {/* Stats Grid */}
         {/* Stats Grid */}
@@ -387,22 +397,28 @@ export default function RecruiterDashboard() {
             title="Bulk Uploads"
             value={stats.sourcedResumeUploads.toString()}
             icon={Upload}
+            iconColor="text-recruiter"
             change="Total processed"
             changeType="neutral"
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20"
           />
           <StatCard
             title="LinkedIn Imports"
             value={stats.sourcedGoogleXray.toString()}
             icon={Globe}
+            iconColor="text-recruiter"
             change="X-Ray Search"
             changeType="neutral"
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20"
           />
           <StatCard
             title="Web Imports"
             value={stats.sourcedWebSearch.toString()}
             icon={Search}
+            iconColor="text-recruiter"
             change="Web Sourced"
             changeType="neutral"
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20"
           />
         </div>
 
@@ -410,15 +426,15 @@ export default function RecruiterDashboard() {
         <div className="space-y-4">
           <div className="flex items-end justify-between">
             <div>
-              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
+                <Sparkles className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
                 Quick Actions
               </h2>
-              <p className="text-sm text-muted-foreground">Jump into your most common workflows.</p>
+              <p className="text-sm text-muted-foreground font-sans">Jump into your most common workflows.</p>
             </div>
-            <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 hover:bg-primary/10">
+            <Button variant="ghost" size="sm" asChild className="rounded-lg text-recruiter hover:text-recruiter/80 hover:bg-recruiter/10 font-sans">
               <Link to="/recruiter/insights">
-                View Insights <ArrowRight className="ml-2 h-4 w-4" />
+                View Insights <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} />
               </Link>
             </Button>
           </div>
@@ -468,39 +484,39 @@ export default function RecruiterDashboard() {
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Invite Codes */}
           <div className="space-y-4">
-            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-              <Key className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
+              <Key className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
               Invite Candidates
             </h2>
-            <div className="glass-panel p-6 rounded-xl hover-card-premium">
-              <div className="flex flex-row items-center justify-between pb-4 border-b border-white/5 mb-4">
+            <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20">
+              <div className="flex flex-row items-center justify-between pb-4 border-b border-recruiter/10 bg-recruiter/5 -mx-6 px-6 -mt-6 mb-4 rounded-t-xl">
                 <div className="space-y-1">
-                  <h3 className="text-base font-medium flex items-center gap-2">
+                  <h3 className="text-base font-display font-medium flex items-center gap-2 text-foreground">
                     Active Codes
                   </h3>
-                  <p className="text-sm text-muted-foreground">Share these to invite talent.</p>
+                  <p className="text-sm text-muted-foreground font-sans">Share these to invite talent.</p>
                 </div>
-                <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm" className="btn-primary-glow">
-                  {isCreatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Generate</>}
+                <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm" className="rounded-lg border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
+                  {isCreatingCode ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} /> : <><Plus className="h-4 w-4 mr-1" strokeWidth={1.5} /> Generate</>}
                 </Button>
               </div>
               <div>
                 {inviteCodes.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
+                  <div className="text-center py-8 text-muted-foreground font-sans text-sm">
                     No active codes. Generate one to get started.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {inviteCodes.map((code) => (
-                      <div key={code.id} className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between group">
+                      <div key={code.id} className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-recruiter/5 transition-all flex items-center justify-between group">
                         <div className="flex flex-col">
-                          <code className="font-mono font-bold text-lg text-primary tracking-wider">{code.code}</code>
-                          <span className="text-xs text-muted-foreground">Created by you</span>
+                          <code className="font-mono font-bold text-lg text-recruiter tracking-wider">{code.code}</code>
+                          <span className="text-xs text-muted-foreground font-sans">Created by you</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground bg-black/20 px-2.5 py-1 rounded-full border border-white/5">{code.uses_count} uses</span>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20 hover:text-primary" onClick={() => copyCode(code.code)}>
-                            <Copy className="h-4 w-4" />
+                          <span className="text-xs text-muted-foreground font-sans bg-muted/50 px-2.5 py-1 rounded-lg border border-border">{code.uses_count} uses</span>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-recruiter/20 hover:text-recruiter" onClick={() => copyCode(code.code)}>
+                            <Copy className="h-4 w-4" strokeWidth={1.5} />
                           </Button>
                         </div>
                       </div>
@@ -514,27 +530,26 @@ export default function RecruiterDashboard() {
           {/* Recent Applications / Activity */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
+                <Clock className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
                 Recent Applications
               </h2>
-              <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 hover:bg-primary/10">
-                <Link to="/recruiter/candidates">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              <Button variant="ghost" size="sm" asChild className="rounded-lg text-recruiter hover:text-recruiter/80 hover:bg-recruiter/10 font-sans">
+                <Link to="/recruiter/candidates">View All <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} /></Link>
               </Button>
             </div>
 
-            <div className="glass-panel p-6 rounded-xl hover-card-premium min-h-[250px]">
+            <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20 min-h-[250px]">
               {recentApplications.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground text-sm p-4">
-                  <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
-                    <Clock className="h-6 w-6 opacity-40" />
+                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground font-sans text-sm p-4">
+                  <div className="h-12 w-12 rounded-full bg-recruiter/10 border border-recruiter/20 flex items-center justify-center mb-3">
+                    <Clock className="h-6 w-6 text-recruiter opacity-60" strokeWidth={1.5} />
                   </div>
                   No recent applications found.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {recentApplications.map((app) => {
-                    // Extract initials for avatar
                     const initials = app.candidate_name
                       .split(' ')
                       .map(n => n[0])
@@ -543,26 +558,28 @@ export default function RecruiterDashboard() {
                       .toUpperCase();
 
                     return (
-                      <div key={app.id} className="p-3 rounded-xl border border-white/5 hover:bg-white/5 transition-all flex items-center justify-between group cursor-pointer" onClick={() => navigate('/recruiter/candidates')}>
+                      <div key={app.id} className="p-3 rounded-xl border border-border hover:bg-recruiter/5 transition-all flex items-center justify-between group cursor-pointer" onClick={() => navigate('/recruiter/candidates')}>
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold border border-primary/20">
+                          <div className="h-10 w-10 rounded-full bg-recruiter/10 text-recruiter flex items-center justify-center text-sm font-bold border border-recruiter/20 font-sans">
                             {initials}
                           </div>
                           <div>
-                            <p className="font-medium group-hover:text-primary transition-colors text-sm">{app.candidate_name}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Briefcase className="h-3 w-3" />
+                            <p className="font-sans font-medium group-hover:text-recruiter transition-colors text-sm">{app.candidate_name}</p>
+                            <p className="text-xs text-muted-foreground font-sans flex items-center gap-1">
+                              <Briefcase className="h-3 w-3" strokeWidth={1.5} />
                               {app.job_title}
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs text-muted-foreground/60 font-mono bg-white/5 px-2 py-1 rounded">{formatDate(app.applied_at)}</span>
+                        <span className="text-xs text-muted-foreground font-sans font-mono bg-muted/30 px-2 py-1 rounded-lg">{formatDate(app.applied_at)}</span>
                       </div>
                     );
                   })}
                 </div>
               )}
             </div>
+          </div>
+        </div>
           </div>
         </div>
       </div>

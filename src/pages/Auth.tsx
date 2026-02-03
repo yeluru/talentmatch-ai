@@ -26,7 +26,7 @@ function Logo() {
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       </div>
-      <span className="font-bold text-2xl tracking-tight">
+      <span className="font-display font-bold text-2xl tracking-tight text-foreground">
         Ultra<span className="text-accent">Hire</span>
       </span>
     </div>
@@ -569,31 +569,27 @@ export default function AuthPage() {
   // Update Password View (password recovery)
   if (authView === 'update-password') {
     return (
-      <div className="min-h-screen relative overflow-hidden bg-background">
-        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
-          }}
-        />
-        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="min-h-screen relative overflow-hidden bg-background font-sans selection:bg-accent/30">
+        <div className="absolute inset-0 mesh-gradient-bg opacity-30 dark:opacity-20 select-none pointer-events-none" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700 opacity-70 dark:opacity-50`} />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
+        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
           <SEOHead title="Set New Password" description="Set a new password for your UltraHire AI account" noIndex />
-          <div className="w-full max-w-md">
-            <div className="text-center mb-8">
-              <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
-                <Logo />
-              </Link>
-            </div>
+          <div className="container mx-auto px-4 max-w-6xl flex flex-col items-center">
+            <div className="w-full max-w-md">
+              <div className="text-center mb-8">
+                <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+                  <Logo />
+                </Link>
+              </div>
 
-            <Card className="glass-panel border-white/5 shadow-2xl">
-              <CardHeader>
-                <CardTitle className="text-2xl font-display">Set a new password</CardTitle>
-                <CardDescription>
+              <Card className="glass-panel border-white/5 shadow-2xl rounded-[2rem] overflow-hidden">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-display font-bold text-foreground">Set a new password</CardTitle>
+                  <CardDescription className="text-muted-foreground">
                   {inviteToken ? 'Set your password to continue and join the team.' : 'Set a new password for your account.'}
                 </CardDescription>
               </CardHeader>
@@ -649,6 +645,7 @@ export default function AuthPage() {
             </Card>
           </div>
         </div>
+        </div>
       </div>
     );
   }
@@ -656,17 +653,12 @@ export default function AuthPage() {
   // Forgot Password View
   if (authView === 'forgot-password') {
     return (
-      <div className="min-h-screen relative overflow-hidden bg-background">
-        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
-          }}
-        />
-        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="min-h-screen relative overflow-hidden bg-background font-sans selection:bg-accent/30">
+        <div className="absolute inset-0 mesh-gradient-bg opacity-30 dark:opacity-20 select-none pointer-events-none" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700 opacity-70 dark:opacity-50`} />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
+        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
           <SEOHead
@@ -674,29 +666,30 @@ export default function AuthPage() {
             description="Reset your UltraHire AI account password"
             noIndex
           />
-          <div className="w-full max-w-md">
-            <div className="text-center mb-8">
-              <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
-                <Logo />
-              </Link>
-            </div>
+          <div className="container mx-auto px-4 max-w-6xl flex flex-col items-center">
+            <div className="w-full max-w-md">
+              <div className="text-center mb-8">
+                <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+                  <Logo />
+                </Link>
+              </div>
 
-            <Card className="glass-panel border-white/5 shadow-2xl">
-              <CardHeader>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-fit -ml-2 mb-2"
-                  onClick={() => setAuthView('main')}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to sign in
-                </Button>
-                <CardTitle className="text-2xl font-display">Reset your password</CardTitle>
-                <CardDescription>
-                  Enter your email address and we'll send you a link to reset your password.
-                </CardDescription>
-              </CardHeader>
+              <Card className="glass-panel border-white/5 shadow-2xl rounded-[2rem] overflow-hidden">
+                <CardHeader>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-fit -ml-2 mb-2"
+                    onClick={() => setAuthView('main')}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to sign in
+                  </Button>
+                  <CardTitle className="text-2xl font-display font-bold text-foreground">Reset your password</CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Enter your email address and we'll send you a link to reset your password.
+                  </CardDescription>
+                </CardHeader>
               <CardContent>
                 <form onSubmit={handlePasswordReset} className="space-y-4">
                   <div className="space-y-2">
@@ -720,6 +713,7 @@ export default function AuthPage() {
             </Card>
           </div>
         </div>
+        </div>
       </div>
     );
   }
@@ -727,17 +721,12 @@ export default function AuthPage() {
   // Reset Email Sent View
   if (authView === 'reset-sent') {
     return (
-      <div className="min-h-screen relative overflow-hidden bg-background">
-        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px'
-          }}
-        />
-        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="min-h-screen relative overflow-hidden bg-background font-sans selection:bg-accent/30">
+        <div className="absolute inset-0 mesh-gradient-bg opacity-30 dark:opacity-20 select-none pointer-events-none" />
+        <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700 opacity-70 dark:opacity-50`} />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
+        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
           <SEOHead
@@ -745,23 +734,24 @@ export default function AuthPage() {
             description="Password reset email sent"
             noIndex
           />
-          <div className="w-full max-w-md">
+          <div className="container mx-auto px-4 max-w-6xl flex flex-col items-center">
+            <div className="w-full max-w-md">
             <div className="text-center mb-8">
               <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
                 <Logo />
               </Link>
             </div>
 
-            <Card className="glass-panel border-white/5 shadow-2xl">
+            <Card className="glass-panel border-white/5 shadow-2xl rounded-[2rem] overflow-hidden">
               <CardContent className="pt-8 pb-8 text-center space-y-4">
                 <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
                   <Mail className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-2xl font-display">Check your email</CardTitle>
-                <CardDescription className="text-base">
+                <CardTitle className="text-2xl font-display font-bold text-foreground">Check your email</CardTitle>
+                <CardDescription className="text-base text-muted-foreground">
                   We've sent a password reset link to <strong className="text-foreground">{resetEmail}</strong>
                 </CardDescription>
-                <p className="text-sm">
+                <p className="text-sm text-muted-foreground">
                   Didn't receive the email? Check your spam folder or{' '}
                   <button
                     className="text-primary hover:underline font-medium"
@@ -782,6 +772,7 @@ export default function AuthPage() {
                 </Button>
               </CardContent>
             </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -790,35 +781,31 @@ export default function AuthPage() {
 
   // Main Auth View
   return (
-    <div className="min-h-screen relative overflow-hidden bg-background">
-      <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700`} />
-      <div
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px'
-        }}
-      />
-      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+    <div className="min-h-screen relative overflow-hidden bg-background font-sans selection:bg-accent/30">
+      <div className="absolute inset-0 mesh-gradient-bg opacity-30 dark:opacity-20 select-none pointer-events-none" />
+      <div className={`absolute inset-0 bg-gradient-to-br ${currentGradient} transition-all duration-700 opacity-70 dark:opacity-50`} />
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <SEOHead
           title="Sign In"
           description="Sign in to your UltraHire AI account to access AI-powered recruitment tools"
         />
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
-              <Logo />
-            </Link>
-            <p className="flex items-center justify-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              AI-Powered Recruitment Platform
-            </p>
-          </div>
+        <div className="container mx-auto px-4 max-w-6xl flex flex-col items-center">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <Link to="/" className="inline-flex items-center gap-2 mb-4 group">
+                <Logo />
+              </Link>
+              <p className="inline-flex items-center justify-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-sm font-medium text-accent backdrop-blur-md">
+                <Sparkles className="h-4 w-4" />
+                AI-Powered Recruitment Platform
+              </p>
+            </div>
 
-          <Card className="glass-panel border-white/5 shadow-2xl">
+            <Card className="glass-panel border-white/5 shadow-2xl rounded-[2rem] overflow-hidden">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'signup')}>
               <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/50 rounded-t-xl rounded-b-none">
                 <TabsTrigger value="signin" className="data-[state=active]:bg-background/80 data-[state=active]:shadow-sm">Sign In</TabsTrigger>
@@ -828,10 +815,10 @@ export default function AuthPage() {
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn}>
                   <CardHeader>
-                    <CardTitle className="text-2xl font-display">
+                    <CardTitle className="text-2xl font-display font-bold text-foreground">
                       {inviteDetails ? 'Welcome back' : 'Welcome back'}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-muted-foreground">
                       {inviteDetails
                         ? `Sign in to join ${inviteDetails.organizationName || 'the team'}`
                         : 'Sign in to your account'}
@@ -918,17 +905,17 @@ export default function AuthPage() {
                   <CardHeader>
                     {inviteToken ? (
                       <>
-                        <CardTitle className="text-2xl font-display">
+                        <CardTitle className="text-2xl font-display font-bold text-foreground">
                           {inviteDetails?.organizationName
                             ? `Join ${inviteDetails.organizationName}`
                             : "You're invited"}
                         </CardTitle>
-                        <CardDescription>Create your password to complete your account setup.</CardDescription>
+                        <CardDescription className="text-muted-foreground">Create your password to complete your account setup.</CardDescription>
                       </>
                     ) : (
                       <>
-                        <CardTitle className="text-2xl font-display">Create an account</CardTitle>
-                        <CardDescription>Get started with UltraHire AI</CardDescription>
+                        <CardTitle className="text-2xl font-display font-bold text-foreground">Create an account</CardTitle>
+                        <CardDescription className="text-muted-foreground">Get started with UltraHire AI</CardDescription>
                       </>
                     )}
                   </CardHeader>
@@ -1063,12 +1050,13 @@ export default function AuthPage() {
             </Tabs>
           </Card>
 
-          <p className="text-center text-sm mt-6">
+          <p className="text-center text-sm text-muted-foreground mt-6">
             By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
+            <Link to="/terms" className="hover:text-foreground hover:underline">Terms of Service</Link>
             {' '}and{' '}
-            <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+            <Link to="/privacy" className="hover:text-foreground hover:underline">Privacy Policy</Link>
           </p>
+        </div>
         </div>
       </div>
     </div>

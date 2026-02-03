@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,14 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { SortableTableHead } from '@/components/ui/sortable-table-head';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
-  Loader2, Plus, Building2, Edit2, Trash2, Search, Globe,
-  Mail, Phone, User, FileText, Briefcase
+  Loader2, Plus, Building2, Edit2, Trash2, Search, Globe, Briefcase
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { sortBy } from '@/lib/sort';
@@ -228,7 +224,7 @@ export default function ClientManagement() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-manager" strokeWidth={1.5} />
         </div>
       </DashboardLayout>
     );
@@ -237,282 +233,310 @@ export default function ClientManagement() {
   if (!organizationId) {
     return (
       <DashboardLayout>
-        <Card>
-          <CardHeader>
-            <CardTitle>Organization not assigned</CardTitle>
-            <CardDescription>You need to be linked to a tenant to manage clients.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Ask a platform admin to re-invite you or reassign your account manager role to a tenant organization.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+          <div className="shrink-0 flex flex-col gap-6">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <Building2 className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                Client <span className="text-gradient-manager">Management</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">You need to be linked to a tenant to manage clients.</p>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="pt-6 pb-6">
+              <div className="rounded-xl border border-border bg-card p-6">
+                <p className="text-sm font-sans text-muted-foreground">
+                  Ask a platform admin to re-invite you or reassign your account manager role to a tenant organization.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold">Client Management</h1>
-            <p className="mt-1">Manage client companies and their requirements</p>
-          </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Client
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{editingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="name">Company Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="Acme Corporation"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="industry">Industry</Label>
-                    <Input
-                      id="industry"
-                      placeholder="Technology"
-                      value={formData.industry}
-                      onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="prospect">Prospect</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="website">Website</Label>
-                    <Input
-                      id="website"
-                      placeholder="https://acme.com"
-                      value={formData.website}
-                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    />
-                  </div>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <Building2 className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Primary Contact</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="contact_name">Name</Label>
-                      <Input
-                        id="contact_name"
-                        placeholder="John Smith"
-                        value={formData.contact_name}
-                        onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                      />
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Client <span className="text-gradient-manager">Management</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">Manage client companies and their requirements.</p>
+            </div>
+            <div className="shrink-0">
+              <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+                <DialogTrigger asChild>
+                  <Button className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                    <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
+                    Add Client
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="font-display">{editingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="name" className="font-sans">Company Name *</Label>
+                        <Input
+                          id="name"
+                          placeholder="Acme Corporation"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="industry" className="font-sans">Industry</Label>
+                        <Input
+                          id="industry"
+                          placeholder="Technology"
+                          value={formData.industry}
+                          onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="status" className="font-sans">Status</Label>
+                        <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                          <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                            <SelectItem value="prospect">Prospect</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="website" className="font-sans">Website</Label>
+                        <Input
+                          id="website"
+                          placeholder="https://acme.com"
+                          value={formData.website}
+                          onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="contact_phone">Phone</Label>
-                      <Input
-                        id="contact_phone"
-                        placeholder="+1 (555) 123-4567"
-                        value={formData.contact_phone}
-                        onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label htmlFor="contact_email">Email</Label>
-                      <Input
-                        id="contact_email"
-                        type="email"
-                        placeholder="john@acme.com"
-                        value={formData.contact_email}
-                        onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Additional notes about the client..."
-                    rows={3}
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  />
-                </div>
-
-                <Button onClick={handleSubmit} className="w-full">
-                  {editingClient ? 'Update Client' : 'Create Client'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Building2 className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{clients.length}</p>
-                  <p className="text-sm">Total Clients</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/10">
-                  <Building2 className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{clients.filter(c => c.status === 'active').length}</p>
-                  <p className="text-sm">Active Clients</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-accent/10">
-                  <Briefcase className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{clients.reduce((sum, c) => sum + (c.jobs_count || 0), 0)}</p>
-                  <p className="text-sm">Total Jobs</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-          <Input
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Clients List */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold font-display ml-1">All Clients</h2>
-          </div>
-
-          {!sortedClients.length ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <h3 className="text-lg font-semibold mb-2">No clients yet</h3>
-                <p className="text-muted-foreground">Add your first client to get started</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                <div className="flex-1">Company</div>
-                <div className="w-1/4">Contact</div>
-                <div className="w-32">Industry</div>
-                <div className="w-20 text-center">Jobs</div>
-                <div className="w-24 text-center">Status</div>
-                <div className="w-24 text-right">Actions</div>
-              </div>
-
-              <div className="space-y-3">
-                {sortedClients.map((client) => (
-                  <div key={client.id} className="glass-panel p-4 hover-card-premium flex items-center gap-4 group">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                          <Building2 className="h-5 w-5" />
+                    <div className="border-t border-border pt-4">
+                      <h4 className="font-display font-semibold mb-3 text-foreground">Primary Contact</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact_name" className="font-sans">Name</Label>
+                          <Input
+                            id="contact_name"
+                            placeholder="John Smith"
+                            value={formData.contact_name}
+                            onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                            className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
                         </div>
-                        <div>
-                          <p className="font-bold text-foreground truncate">{client.name}</p>
-                          {client.website && (
-                            <a
-                              href={client.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Globe className="h-3 w-3" />
-                              Website
-                            </a>
-                          )}
+                        <div className="space-y-2">
+                          <Label htmlFor="contact_phone" className="font-sans">Phone</Label>
+                          <Input
+                            id="contact_phone"
+                            placeholder="+1 (555) 123-4567"
+                            value={formData.contact_phone}
+                            onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                            className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="contact_email" className="font-sans">Email</Label>
+                          <Input
+                            id="contact_email"
+                            type="email"
+                            placeholder="john@acme.com"
+                            value={formData.contact_email}
+                            onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                            className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
                         </div>
                       </div>
                     </div>
 
-                    <div className="w-1/4 hidden md:block">
-                      {client.contact_name ? (
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-medium">{client.contact_name}</p>
-                          {client.contact_email && (
-                            <p className="text-xs text-muted-foreground truncate">{client.contact_email}</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="notes" className="font-sans">Notes</Label>
+                      <Textarea
+                        id="notes"
+                        placeholder="Additional notes about the client..."
+                        rows={3}
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        className="rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans resize-none"
+                      />
+                    </div>
+
+                    <Button onClick={handleSubmit} className="w-full rounded-lg h-11 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                      {editingClient ? 'Update Client' : 'Create Client'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
+            {/* Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                    <Building2 className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-display font-bold text-foreground">{clients.length}</p>
+                    <p className="text-sm font-sans text-muted-foreground">Total Clients</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                    <Building2 className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-display font-bold text-foreground">{clients.filter(c => c.status === 'active').length}</p>
+                    <p className="text-sm font-sans text-muted-foreground">Active Clients</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                    <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-display font-bold text-foreground">{clients.reduce((sum, c) => sum + (c.jobs_count || 0), 0)}</p>
+                    <p className="text-sm font-sans text-muted-foreground">Total Jobs</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+              <Input
+                placeholder="Search clients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+              />
+            </div>
+
+            {/* Clients List */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-manager" strokeWidth={1.5} />
+                All Clients
+              </h2>
+
+              {!sortedClients.length ? (
+                <div className="rounded-xl border border-border bg-card p-12 text-center">
+                  <div className="h-12 w-12 rounded-full bg-manager/10 border border-manager/20 flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="h-6 w-6 text-manager opacity-60" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-lg font-display font-semibold mb-2 text-foreground">No clients yet</h3>
+                  <p className="text-muted-foreground font-sans">Add your first client to get started.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest font-sans">
+                    <div className="flex-1">Company</div>
+                    <div className="w-1/4">Contact</div>
+                    <div className="w-32">Industry</div>
+                    <div className="w-20 text-center">Jobs</div>
+                    <div className="w-24 text-center">Status</div>
+                    <div className="w-24 text-right">Actions</div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {sortedClients.map((client) => (
+                      <div key={client.id} className="rounded-xl border border-border bg-card p-4 hover:border-manager/30 hover:bg-manager/5 hover:shadow-md transition-all flex items-center gap-4 group">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-manager/10 text-manager border border-manager/20 flex items-center justify-center">
+                              <Building2 className="h-5 w-5" strokeWidth={1.5} />
+                            </div>
+                            <div>
+                              <p className="font-sans font-bold text-foreground truncate group-hover:text-manager transition-colors">{client.name}</p>
+                              {client.website && (
+                                <a
+                                  href={client.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-muted-foreground hover:text-manager flex items-center gap-1 transition-colors font-sans"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Globe className="h-3 w-3" strokeWidth={1.5} />
+                                  Website
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="w-1/4 hidden md:block">
+                          {client.contact_name ? (
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-sans font-medium">{client.contact_name}</p>
+                              {client.contact_email && (
+                                <p className="text-xs text-muted-foreground truncate font-sans">{client.contact_email}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm font-sans">-</span>
                           )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </div>
 
-                    <div className="w-32 hidden md:block text-sm text-muted-foreground truncate">
-                      {client.industry || '-'}
-                    </div>
+                        <div className="w-32 hidden md:block text-sm text-muted-foreground truncate font-sans">
+                          {client.industry || '-'}
+                        </div>
 
-                    <div className="w-20 hidden md:flex justify-center">
-                      <Badge variant="outline" className="bg-muted/50">{client.jobs_count || 0}</Badge>
-                    </div>
+                        <div className="w-20 hidden md:flex justify-center">
+                          <Badge variant="outline" className="font-sans bg-muted/50 border-border">{client.jobs_count || 0}</Badge>
+                        </div>
 
-                    <div className="w-24 hidden md:flex justify-center">
-                      <Badge variant={getStatusColor(client.status)} className="capitalize">
-                        {client.status || 'active'}
-                      </Badge>
-                    </div>
+                        <div className="w-24 hidden md:flex justify-center">
+                          <Badge variant={getStatusColor(client.status)} className="capitalize font-sans">
+                            {client.status || 'active'}
+                          </Badge>
+                        </div>
 
-                    <div className="w-24 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(client)} className="h-8 w-8 hover:bg-primary/10 hover:text-primary">
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(client.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                        <div className="w-24 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(client)} className="h-8 w-8 rounded-lg hover:bg-manager/10 hover:text-manager">
+                            <Edit2 className="h-4 w-4" strokeWidth={1.5} />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(client.id)} className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </>
-          )}
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

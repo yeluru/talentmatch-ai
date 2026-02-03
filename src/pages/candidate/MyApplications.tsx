@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Building2, MapPin, Clock, ArrowRight, FileText } from 'lucide-react';
+import { Loader2, Building2, MapPin, Clock, ArrowRight, FileText, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { cn } from '@/lib/utils';
 
 interface Application {
   id: string;
@@ -27,14 +26,21 @@ interface Application {
 }
 
 const ACTIVE_STAGE_SET = new Set<string>([
-  'applied',
-  'reviewing',
-  'screening',
-  'shortlisted',
-  'interviewing',
-  'offered',
+  'applied', 'reviewing', 'screening', 'shortlisted', 'interviewing', 'offered',
 ]);
 const CLOSED_STAGE_SET = new Set<string>(['hired', 'rejected', 'withdrawn']);
+
+function statusLeadLabel(status: string): string {
+  const s = (status || 'applied').toLowerCase();
+  if (s === 'shortlisted') return 'Shortlisted';
+  if (s === 'interviewing') return 'Interview stage';
+  if (s === 'offered') return 'Offer received';
+  if (s === 'reviewing' || s === 'screening') return 'In review';
+  if (s === 'hired') return 'Hired';
+  if (s === 'rejected') return 'Not moving forward';
+  if (s === 'withdrawn') return 'Withdrawn';
+  return 'Applied';
+}
 
 export default function MyApplications() {
   const { user } = useAuth();
@@ -43,9 +49,7 @@ export default function MyApplications() {
   const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
-    if (user) {
-      fetchApplications();
-    }
+    if (user) fetchApplications();
   }, [user]);
 
   const fetchApplications = async () => {
@@ -56,24 +60,14 @@ export default function MyApplications() {
         .eq('user_id', user!.id)
         .order('updated_at', { ascending: false })
         .limit(1);
-
       const cp = (cpData || [])[0] as any;
       if (!cp?.id) return;
 
       const { data, error } = await supabase
         .from('applications')
         .select(`
-          id,
-          status,
-          applied_at,
-          ai_match_score,
-          job:jobs(
-            id,
-            title,
-            location,
-            is_remote,
-            organization:organizations(name, logo_url)
-          )
+          id, status, applied_at, ai_match_score,
+          job:jobs(id, title, location, is_remote, organization:organizations(name, logo_url))
         `)
         .eq('candidate_id', cp.id)
         .order('applied_at', { ascending: false });
@@ -95,11 +89,14 @@ export default function MyApplications() {
     return true;
   });
 
+  const activeCount = applications.filter(a => ACTIVE_STAGE_SET.has(String(a.status || ''))).length;
+  const closedCount = applications.filter(a => CLOSED_STAGE_SET.has(String(a.status || ''))).length;
+
   if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" strokeWidth={1.5} />
         </div>
       </DashboardLayout>
     );
@@ -107,102 +104,134 @@ export default function MyApplications() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">My Applications</h1>
-          <p className="mt-1">
-            Track your job applications and their status
-          </p>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                  <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  My <span className="text-gradient-candidate">Applications</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                See where each application stands and what to do next.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="all">
-              All ({applications.length})
-            </TabsTrigger>
-            <TabsTrigger value="active">
-              Active ({applications.filter(a => ACTIVE_STAGE_SET.has(String(a.status || ''))).length})
-            </TabsTrigger>
-            <TabsTrigger value="closed">
-              Closed ({applications.filter(a => CLOSED_STAGE_SET.has(String(a.status || ''))).length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+          <div className="shrink-0">
+            <TabsList className="grid w-full max-w-md grid-cols-3 rounded-xl p-1 h-11 bg-muted/30 border border-blue-500/10">
+              <TabsTrigger value="all" className="rounded-lg text-sm font-sans font-medium data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
+                All ({applications.length})
+              </TabsTrigger>
+              <TabsTrigger value="active" className="rounded-lg text-sm font-sans font-medium data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
+                Active ({activeCount})
+              </TabsTrigger>
+              <TabsTrigger value="closed" className="rounded-lg text-sm font-sans font-medium data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
+                Closed ({closedCount})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value={activeTab} className="mt-6">
+          <TabsContent value={activeTab} className="mt-6 flex-1 min-h-0 flex flex-col data-[state=inactive]:hidden">
             {filteredApplications.length === 0 ? (
-              <div className="glass-panel border-dashed border-2 py-12 flex flex-col items-center justify-center text-center">
-                <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
+              <div className="rounded-xl border border-dashed border-blue-500/20 bg-blue-500/5 py-14 px-6 text-center transition-all hover:bg-blue-500/10">
+                <div className="h-14 w-14 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-blue-500" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-lg font-bold mb-2">No applications yet</h3>
-                <p className="max-w-md text-muted-foreground mb-6">
-                  You haven't applied to any jobs yet. Start browsing opportunities to see your applications here.
+                <h3 className="text-xl font-display font-bold text-foreground">No applications yet</h3>
+                <p className="mt-2 max-w-sm mx-auto text-muted-foreground font-sans text-base">
+                  {activeTab === 'closed'
+                    ? 'No closed applications.'
+                    : 'Apply to jobs from the job search to see them here.'}
                 </p>
-                <Button asChild className="btn-primary-glow">
-                  <Link to="/candidate/jobs">
-                    Browse Jobs <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                {activeTab !== 'closed' && (
+                  <Button className="mt-6 rounded-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold" asChild>
+                    <Link to="/candidate/jobs">Browse jobs <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} /></Link>
+                  </Button>
+                )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredApplications.map((app) => {
-                  return (
-                    <div key={app.id} className="glass-panel p-5 hover-card-premium">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                        <div className="flex items-start gap-4">
-                          <div className="h-12 w-12 rounded-lg bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center flex-shrink-0 border border-white/10">
-                            {app.job.organization?.logo_url ? (
-                              <img src={app.job.organization.logo_url} alt="" className="h-8 w-8 object-contain" />
-                            ) : (
-                              <Building2 className="h-6 w-6 text-muted-foreground/60" />
-                            )}
-                          </div>
-                          <div>
-                            <Link to={`/candidate/jobs/${app.job.id}`} className="block hover:text-accent transition-colors">
-                              <h3 className="font-bold text-lg">{app.job.title}</h3>
-                            </Link>
-                            <p className="text-sm font-medium text-muted-foreground">{app.job.organization?.name}</p>
-                            <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                              {app.job.location && (
-                                <span className="flex items-center">
-                                  <MapPin className="mr-1 h-3 w-3" />
-                                  {app.job.location}
-                                </span>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <ul className="space-y-4">
+                  {filteredApplications.map((app) => {
+                    const status = String(app.status || 'applied');
+                    const isActive = ACTIVE_STAGE_SET.has(status);
+                    const isClosed = CLOSED_STAGE_SET.has(status);
+                    const orgName = app.job.organization?.name || 'Company';
+
+                    return (
+                      <li key={app.id}>
+                        <Link
+                          to={`/candidate/jobs/${app.job.id}`}
+                          className={cn(
+                            'group block rounded-xl border transition-all duration-300 p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-2',
+                            'hover:border-blue-500/30 hover:bg-blue-500/5 hover:shadow-md',
+                            isActive && 'border-blue-500/20 bg-blue-500/5',
+                            isClosed && 'border-border bg-card/50 opacity-90 hover:opacity-100',
+                            !isActive && !isClosed && 'border-border bg-card'
+                          )}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                            <div className="flex gap-4 min-w-0">
+                              <div className="shrink-0 w-12 h-12 rounded-xl bg-card flex items-center justify-center border border-border transition-transform duration-300 group-hover:scale-105">
+                                {app.job.organization?.logo_url ? (
+                                  <img src={app.job.organization.logo_url} alt="" className="w-8 h-8 object-contain" />
+                                ) : (
+                                  <Building2 className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                {isActive && (
+                                  <p className="text-xs font-sans font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+                                    {statusLeadLabel(status)}
+                                  </p>
+                                )}
+                                <h3 className="font-display font-bold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{app.job.title}</h3>
+                                <p className="text-sm font-sans text-muted-foreground mt-0.5">{orgName}</p>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs font-sans text-muted-foreground">
+                                  {app.job.location && (
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="h-3 w-3" strokeWidth={1.5} /> {app.job.location}
+                                    </span>
+                                  )}
+                                  {app.job.is_remote && (
+                                    <span className="text-emerald-600 dark:text-emerald-400">Remote</span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" strokeWidth={1.5} /> Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex sm:flex-col items-center sm:items-end gap-2 shrink-0">
+                              <StatusBadge status={app.status || 'applied'} />
+                              {app.ai_match_score != null && (
+                                <span className="text-xs font-sans text-muted-foreground">{app.ai_match_score}% match</span>
                               )}
-                              {app.job.is_remote && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                  Remote
-                                </span>
-                              )}
+                              <span className="text-sm font-sans font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1 sm:mt-1 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors">
+                                View job <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                              </span>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 min-w-[140px]">
-                          <StatusBadge status={app.status || 'applied'} />
-
-                          <div className="flex items-center gap-4 md:gap-2 text-xs text-muted-foreground">
-                            {app.ai_match_score && (
-                              <span className="flex items-center gap-1 font-medium text-foreground">
-                                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                                {app.ai_match_score}% Match
-                              </span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {format(new Date(app.applied_at), 'MMM d')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

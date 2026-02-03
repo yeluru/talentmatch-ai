@@ -209,8 +209,10 @@ function DashboardLayoutInner({
     else navigate('/manager');
   };
 
+  const isCandidate = currentRole === 'candidate';
+
   return (
-    <div className="flex w-full dashboard-bg" style={{ minHeight: '100vh' }}>
+    <div className={cn("flex w-full", isCandidate ? "candidate-dashboard-bg" : "dashboard-bg")} style={{ minHeight: '100vh' }}>
       <Sidebar variant="floating" collapsible="icon" className="border-sidebar-border">
         <SidebarHeader className="border-b border-sidebar-border p-4">
           <Link to="/" className="flex items-center gap-2">
@@ -321,14 +323,14 @@ function DashboardLayoutInner({
               </>
             ) : currentRole === 'account_manager' ? (
               <>
-                {/* TEAM & OVERSIGHT (top): manage team, view org, override — AM's primary landing */}
+                {/* TEAM & OVERSIGHT ONLY — AM sees oversight nav only; switch to Recruiter role for recruiting. */}
                 <div className="space-y-1 group-data-[collapsible=icon]:space-y-0">
                   <div className="px-3 py-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-1">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-manager group-data-[collapsible=icon]:hidden">
                       Team &amp; Oversight
                     </div>
                     <div className="text-[10px] text-sidebar-foreground/50 mt-0.5 group-data-[collapsible=icon]:hidden">
-                      Manage team, view org, override
+                      Manage team, view org, track progress
                     </div>
                   </div>
                   {accountManagerOversightNavItems.map((item) => {
@@ -345,12 +347,12 @@ function DashboardLayoutInner({
                             "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
                             "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
                             active
-                              ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
-                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                              ? "bg-manager/10 text-sidebar-foreground border border-manager/20 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-manager group-data-[collapsible=icon]:before:hidden"
+                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-manager/5"
                           )}
                         >
                           <Link to={item.href} onClick={() => isMobile && setOpenMobile(false)}>
-                            <item.icon className="h-4 w-4 shrink-0" />
+                            <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                             <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
                           </Link>
                         </SidebarMenuButton>
@@ -359,113 +361,58 @@ function DashboardLayoutInner({
                   })}
                 </div>
 
-                {/* Visual separator between Oversight and Recruiting */}
-                <div className="my-3 border-t border-sidebar-border group-data-[collapsible=icon]:my-2" aria-hidden />
-
-                {/* RECRUITING: independent work (create jobs, search talent, run pipelines) */}
-                <div className="space-y-1 group-data-[collapsible=icon]:space-y-0">
-                  <div className="px-3 py-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-1">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-accent group-data-[collapsible=icon]:hidden">
-                      Recruiting
-                    </div>
-                    <div className="text-[10px] text-sidebar-foreground/50 mt-0.5 group-data-[collapsible=icon]:hidden">
-                      Create jobs, search talent, run pipelines
-                    </div>
-                  </div>
-                  <SidebarMenuItem key="am-recruiter-dashboard">
+                {/* Switch to Recruiter — all AMs can work as recruiter */}
+                <div className="mt-3 pt-3 border-t border-sidebar-border group-data-[collapsible=icon]:mt-2 group-data-[collapsible=icon]:pt-2">
+                  <SidebarMenuItem>
                     <SidebarMenuButton
-                      asChild
-                      tooltip="Recruiter Dashboard"
-                      isActive={location.pathname === '/recruiter'}
+                      tooltip="Switch to Recruiter"
+                      onClick={() => handleRoleSwitch('recruiter')}
                       className={cn(
                         "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
                         "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
-                        location.pathname === '/recruiter'
-                          ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                        "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-recruiter/5 border border-transparent hover:border-recruiter/20"
                       )}
                     >
-                      <Link to="/recruiter" onClick={() => isMobile && setOpenMobile(false)}>
-                        <Home className="h-4 w-4 shrink-0" />
-                        <span className="font-medium group-data-[collapsible=icon]:hidden">Recruiter Dashboard</span>
-                      </Link>
+                      <Briefcase className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+                      <span className="font-medium group-data-[collapsible=icon]:hidden">Switch to Recruiter</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {recruiterNavGroups.map((group) => {
-                    const landingHref = CATEGORY_LANDING_HREFS[group.label];
-                    return (
-                      <div key={`am-${group.label}`} className="mt-2">
-                        {landingHref ? (
-                          <Link
-                            to={landingHref}
-                            onClick={() => isMobile && setOpenMobile(false)}
-                            className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors cursor-pointer group-data-[collapsible=icon]:hidden block"
-                          >
-                            {group.label}
-                          </Link>
-                        ) : (
-                          <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-                            {group.label}
-                          </div>
-                        )}
-                        {group.items.map((item) => {
-                          const active =
-                            location.pathname === item.href ||
-                            (location.pathname.startsWith(item.href + '/') && item.href !== '/recruiter');
-                          return (
-                            <SidebarMenuItem key={item.href}>
-                              <SidebarMenuButton
-                                asChild
-                                tooltip={item.title}
-                                isActive={active}
-                                className={cn(
-                                  "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
-                                  "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
-                                  active
-                                    ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
-                                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-                                )}
-                              >
-                                <Link to={item.href} onClick={() => isMobile && setOpenMobile(false)}>
-                                  <item.icon className="h-4 w-4 shrink-0" />
-                                  <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
-                                </Link>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
                 </div>
               </>
             ) : (
-              navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={item.title}
-                    isActive={location.pathname === item.href}
-                    className={cn(
-                      "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
-                      "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
-                      location.pathname === item.href
-                        ? "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden"
-                        : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
-                    )}
-                  >
-                    <Link
-                      to={item.href}
-                      onClick={() => {
-                        if (isMobile) setOpenMobile(false);
-                      }}
+              navItems.map((item) => {
+                const active = location.pathname === item.href || (item.href !== '/candidate' && location.pathname.startsWith(item.href + '/'));
+                const candidateActive = isCandidate
+                  ? "bg-blue-500/10 text-sidebar-foreground border border-blue-500/20 shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-blue-500 group-data-[collapsible=icon]:before:hidden"
+                  : "bg-accent/10 text-sidebar-foreground border border-sidebar-border shadow-sm before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-full before:bg-accent group-data-[collapsible=icon]:before:hidden";
+                const candidateInactive = isCandidate
+                  ? "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-blue-500/5"
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60";
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.title}
+                      isActive={active}
+                      className={cn(
+                        "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
+                        "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
+                        active ? candidateActive : candidateInactive
+                      )}
                     >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))
+                      <Link
+                        to={item.href}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false);
+                        }}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        <span className="font-medium group-data-[collapsible=icon]:hidden">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })
             )}
           </SidebarMenu>
         </SidebarContent>
@@ -474,7 +421,7 @@ function DashboardLayoutInner({
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarImage src={profile?.avatar_url || ''} />
-              <AvatarFallback className="bg-accent text-accent-foreground">
+              <AvatarFallback className={cn(isCandidate ? "bg-blue-500 text-white" : "bg-accent text-accent-foreground")}>
                 {profile?.full_name?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
@@ -561,6 +508,7 @@ function DashboardLayoutInner({
                           {r.role === 'candidate' && 'Candidate'}
                           {r.role === 'recruiter' && 'Recruiter'}
                           {r.role === 'account_manager' && 'Account Manager'}
+                          {r.role === 'org_admin' && 'Org Admin'}
                           {r.role === 'super_admin' && 'Super Admin'}
                         </DropdownMenuItem>
                       ))}
@@ -588,8 +536,8 @@ function DashboardLayoutInner({
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 overflow-x-hidden dashboard-bg">
-          <div className="w-full max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
+        <main className={cn("flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col", isCandidate ? "candidate-dashboard-bg font-sans" : "dashboard-bg")}>
+          <div className="w-full flex-1 min-h-0 flex flex-col max-w-[1800px] mx-auto p-4 sm:p-6 lg:p-8">
             {children ?? (
               import.meta.env.DEV ? (
                 <Card>

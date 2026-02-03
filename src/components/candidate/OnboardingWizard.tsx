@@ -262,11 +262,11 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="remote"
+                  id="relocate"
                   checked={formData.is_open_to_remote}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_open_to_remote: checked as boolean })}
                 />
-                <label htmlFor="remote" className="text-sm cursor-pointer">Open to remote work</label>
+                <label htmlFor="relocate" className="text-sm cursor-pointer">Open to relocate</label>
               </div>
               {/* Salary expectations removed (contracting-first product) */}
             </div>

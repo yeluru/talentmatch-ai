@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function EditJob() {
@@ -167,16 +167,23 @@ export default function EditJob() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-3xl mx-auto space-y-6 pt-6 pb-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="font-display text-3xl font-bold">Edit Job</h1>
-            <p className="mt-1">
-              Update your job posting
-            </p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                Edit <span className="text-gradient-recruiter">Job</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">Update your job posting</p>
           </div>
           <Badge variant={formData.status === 'published' ? 'default' : 'secondary'}>
             {formData.status}
@@ -413,6 +420,8 @@ export default function EditJob() {
             {updateJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {formData.status === 'published' ? 'Update Job' : 'Publish Job'}
           </Button>
+        </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

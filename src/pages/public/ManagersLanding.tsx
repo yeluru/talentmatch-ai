@@ -100,19 +100,20 @@ export default function ManagersLanding() {
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
 
         <div className="container relative mx-auto px-4 z-10">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="text-center lg:text-left animate-fade-in-up">
-              <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/5 px-4 py-1.5 text-sm font-medium text-orange-500 backdrop-blur-md mb-8 shadow-sm">
-                <BarChart3 className="h-4 w-4" />
-                For Account Managers
-              </div>
+          <div className="mx-auto max-w-6xl">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              <div className="text-center lg:text-left animate-fade-in-up">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/5 px-4 py-1.5 text-sm font-medium text-orange-500 backdrop-blur-md mb-8 shadow-sm">
+                  <BarChart3 className="h-4 w-4" />
+                  For Account Managers
+                </div>
 
-              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
-                Lead with <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">Data-Driven Insights.</span>
-              </h1>
+                <h1 className="text-6xl sm:text-7xl lg:text-8xl font-display font-extrabold tracking-tight leading-[1.1] mb-6">
+                  Lead with <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500">Data-Driven Insights.</span>
+                </h1>
 
-              <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10">
+                <p className="text-xl sm:text-2xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
                 Get complete visibility into your hiring operations. Track performance,
                 optimize processes, and make strategic decisions with confidence.
               </p>
@@ -131,11 +132,11 @@ export default function ManagersLanding() {
                   </Link>
                 </Button>
               </div>
-            </div>
+              </div>
 
-            {/* Visual element - Dashboard preview */}
-            <div className="relative mx-auto w-full max-w-[500px] lg:max-w-none perspective-1000">
-              <div className="absolute -top-20 -right-20 w-80 h-80 bg-orange-500/20 rounded-full blur-3xl animate-pulse-subtle" />
+              {/* Visual element - Dashboard preview */}
+              <div className="relative mx-auto w-full max-w-[500px] lg:max-w-none perspective-1000">
+                <div className="absolute -top-20 -right-20 w-80 h-80 bg-orange-500/20 rounded-full blur-3xl animate-pulse-subtle" />
               <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl animate-pulse-subtle animation-delay-500" />
 
               <div className="relative glass-card rounded-[2.5rem] p-8 shadow-xl animate-float border border-white/10">
@@ -196,6 +197,7 @@ export default function ManagersLanding() {
                   </div>
                 </div>
 
+                </div>
               </div>
             </div>
           </div>
@@ -215,13 +217,13 @@ export default function ManagersLanding() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {features.map((feature) => (
               <div key={feature.title} className="group p-8 rounded-[2rem] border bg-card hover:bg-card/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                 <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                   <feature.icon className="h-7 w-7" />
                 </div>
-                <h3 className="font-display text-xl font-bold mb-3">{feature.title}</h3>
+                <h4 className="text-2xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
                 <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
@@ -234,8 +236,8 @@ export default function ManagersLanding() {
       {/* How it works */}
       <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-20">
-            <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">Set Up in Minutes</h2>
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">Set Up in Minutes</h2>
             <p className="text-xl text-muted-foreground">Get your team up and running quickly with our intuitive platform</p>
           </div>
 
@@ -266,7 +268,7 @@ export default function ManagersLanding() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 text-xs font-bold uppercase tracking-wider mb-6">
                 Strategic Hiring
               </div>
-              <h2 className="font-display text-4xl md:text-5xl font-bold mb-6 leading-tight">
+              <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6 leading-tight">
                 Make Better <span className="text-orange-500">Decisions.</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
@@ -292,7 +294,7 @@ export default function ManagersLanding() {
                   <div className="h-20 w-20 mx-auto rounded-full bg-orange-500/10 flex items-center justify-center mb-6">
                     <Shield className="h-10 w-10 text-orange-500" />
                   </div>
-                  <h3 className="font-display text-3xl font-bold mb-4">Start Leading Now</h3>
+                  <h3 className="text-3xl font-display font-bold text-foreground mb-4">Start Leading Now</h3>
                   <p className="text-muted-foreground text-lg">Create your account and take control of your hiring pipeline.</p>
                 </div>
 

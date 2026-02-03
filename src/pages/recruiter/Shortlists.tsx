@@ -301,8 +301,10 @@ export default function Shortlists() {
   if (authLoading || isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+          <div className="flex items-center justify-center flex-1">
+            <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -310,55 +312,63 @@ export default function Shortlists() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <ListChecks className="h-8 w-8 text-primary" />
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <ListChecks className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Candidate <span className="text-gradient-recruiter">Shortlists</span>
+                </h1>
               </div>
-              <span className="text-gradient-premium">Candidate Shortlists</span>
-            </h1>
-            <p className="mt-2 text-muted-foreground text-lg">
-              Organize candidates into project-based shortlists
-            </p>
+              <p className="text-lg text-muted-foreground font-sans">
+                Organize candidates into project-based shortlists
+              </p>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)} className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shrink-0">
+              <Plus className="h-4 w-4 mr-2" strokeWidth={1.5} />
+              New Shortlist
+            </Button>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)} className="shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4 mr-2" />
-            New Shortlist
-          </Button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         {!shortlists?.length ? (
-          <EmptyState
-            icon={ListChecks}
-            title="No shortlists yet"
-            description="Create your first shortlist to organize candidates"
-          />
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <EmptyState
+              icon={ListChecks}
+              title="No shortlists yet"
+              description="Create your first shortlist to organize candidates"
+            />
+          </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2 h-[calc(100vh-220px)] min-h-[400px] items-stretch">
             {/* Shortlists */}
-            <Card className="glass-card border-none overflow-hidden h-[calc(100vh-250px)] flex flex-col">
-              <CardHeader className="bg-white/5 border-b border-white/10 pb-4">
-                <div className="flex items-center justify-between">
+            <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col min-h-0">
+              <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-4">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <CardTitle className="text-xl">Your Shortlists</CardTitle>
-                    <CardDescription>Click a shortlist to view candidates</CardDescription>
+                    <h2 className="text-xl font-display font-bold text-foreground">Your Shortlists</h2>
+                    <p className="text-sm text-muted-foreground font-sans">Click a shortlist to view candidates</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 mt-4">
+                <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                     <Input
                       placeholder="Search shortlists..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 glass-input h-9"
+                      className="pl-9 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
                     />
                   </div>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'name' | 'date' | 'count')}>
-                    <SelectTrigger className="w-[140px] glass-input h-9 text-xs">
-                      <ArrowUpDown className="h-3 w-3 mr-2" />
+                    <SelectTrigger className="w-[140px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
+                      <ArrowUpDown className="h-3 w-3 mr-2" strokeWidth={1.5} />
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -368,15 +378,13 @@ export default function Shortlists() {
                     </SelectContent>
                   </Select>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3 p-4 flex-1 overflow-y-auto custom-scrollbar">
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
                 {shortlists.map((shortlist) => (
                   <div
                     key={shortlist.id}
-                    className={`glass-panel p-4 hover-card-premium cursor-pointer transition-all flex flex-col gap-2 ${selectedShortlist?.id === shortlist.id
-                        ? 'border-primary/50 bg-primary/10 shadow-[0_0_15px_rgba(var(--primary),0.2)] ring-1 ring-primary/20'
-                        : ''
-                      }`}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setSelectedShortlist(shortlist);
                       setSearchParams((prev) => {
@@ -385,18 +393,23 @@ export default function Shortlists() {
                         return next;
                       });
                     }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedShortlist(shortlist); setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set('shortlist', String(shortlist.id)); return next; }); } }}
+                    className={`group rounded-xl border p-4 cursor-pointer transition-all flex flex-col gap-2 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2 ${selectedShortlist?.id === shortlist.id
+                        ? 'border-recruiter/50 bg-recruiter/10 ring-1 ring-recruiter/20'
+                        : 'border-border bg-card'
+                      }`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${selectedShortlist?.id === shortlist.id ? 'bg-primary/20 text-primary' : 'bg-white/10 text-muted-foreground'}`}>
-                          <FolderOpen className="h-5 w-5" />
+                        <div className={`p-2 rounded-lg ${selectedShortlist?.id === shortlist.id ? 'bg-recruiter/20 text-recruiter' : 'bg-muted text-muted-foreground'}`}>
+                          <FolderOpen className="h-5 w-5" strokeWidth={1.5} />
                         </div>
-                        <h4 className={`font-semibold text-base ${selectedShortlist?.id === shortlist.id ? 'text-primary' : 'text-foreground'}`}>{shortlist.name}</h4>
+                        <h4 className={`font-display font-semibold text-base ${selectedShortlist?.id === shortlist.id ? 'text-recruiter' : 'text-foreground'}`}>{shortlist.name}</h4>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 hover:bg-white/10 -mr-2">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 rounded-lg hover:bg-recruiter/10 hover:text-recruiter -mr-2">
+                            <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -414,11 +427,11 @@ export default function Shortlists() {
                       </DropdownMenu>
                     </div>
                     {shortlist.description && (
-                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2 pl-[3.25rem]">{shortlist.description}</p>
+                      <p className="text-sm text-muted-foreground font-sans mb-3 line-clamp-2 pl-[3.25rem]">{shortlist.description}</p>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground/80 pl-[3.25rem]">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground font-sans pl-[3.25rem]">
                       <span className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5" />
+                        <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
                         {shortlist.candidates_count} candidates
                       </span>
                       <span>•</span>
@@ -426,32 +439,32 @@ export default function Shortlists() {
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Candidates in Shortlist */}
-            <Card className="glass-card border-none overflow-hidden h-[calc(100vh-250px)] flex flex-col">
-              <CardHeader className="bg-white/5 border-b border-white/10 pb-4">
-                <CardTitle className="text-xl">
+            <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col min-h-0">
+              <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-4">
+                <h2 className="text-xl font-display font-bold text-foreground">
                   {selectedShortlist ? selectedShortlist.name : 'Select a Shortlist'}
-                </CardTitle>
-                <CardDescription>
+                </h2>
+                <p className="text-sm text-muted-foreground font-sans mt-1">
                   {selectedShortlist ? 'Candidates in this shortlist' : 'Click a shortlist to view candidates'}
-                </CardDescription>
+                </p>
                 {selectedShortlist && shortlistCandidates && shortlistCandidates.length > 0 && (
                   <div className="flex items-center gap-2 mt-4">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                       <Input
                         placeholder="Search candidates..."
                         value={candidateSearchQuery}
                         onChange={(e) => setCandidateSearchQuery(e.target.value)}
-                        className="pl-9 glass-input h-9"
+                        className="pl-9 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
                       />
                     </div>
                     <Select value={candidateSortBy} onValueChange={(v) => setCandidateSortBy(v as 'name' | 'date' | 'status')}>
-                      <SelectTrigger className="w-[130px] glass-input h-9 text-xs">
-                        <ArrowUpDown className="h-3 w-3 mr-2" />
+                      <SelectTrigger className="w-[130px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
+                        <ArrowUpDown className="h-3 w-3 mr-2" strokeWidth={1.5} />
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -462,8 +475,8 @@ export default function Shortlists() {
                     </Select>
                   </div>
                 )}
-              </CardHeader>
-              <CardContent className="p-4 flex-1 overflow-y-auto custom-scrollbar bg-black/20">
+              </div>
+              <div className="p-4 flex-1 min-h-0 overflow-y-auto">
                 {!selectedShortlist ? (
                   <EmptyState
                     icon={FolderOpen}
@@ -477,7 +490,7 @@ export default function Shortlists() {
                     description="Add candidates to this shortlist from the Talent Search page"
                   />
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 pt-2">
                     {(() => {
                       const filtered = shortlistCandidates
                         .filter(c => {
@@ -532,53 +545,57 @@ export default function Shortlists() {
                     })()}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
 
+          </div>
+        </div>
+      </div>
+
         {/* Create Shortlist Dialog */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent className="glass-panel border-white/20">
+          <DialogContent className="rounded-xl border border-border bg-card max-w-md">
             <DialogHeader>
-              <DialogTitle>Create Shortlist</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="font-display font-bold">Create Shortlist</DialogTitle>
+              <DialogDescription className="font-sans">
                 Create a new shortlist to organize candidates for a role or project
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Shortlist Name</Label>
+                <Label className="text-sm font-sans">Shortlist Name</Label>
                 <Input
                   placeholder="e.g., Frontend Dev - Q1 Hire"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="glass-input"
+                  className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Description (optional)</Label>
+                <Label className="text-sm font-sans">Description (optional)</Label>
                 <Textarea
                   placeholder="Notes about this shortlist..."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  className="glass-input min-h-[100px]"
+                  className="rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans min-h-[100px] resize-none"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="hover:bg-white/5">Cancel</Button>
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="rounded-lg h-11 border-border font-sans">Cancel</Button>
               <Button
                 onClick={() => createShortlist.mutate()}
                 disabled={!newName || createShortlist.isPending}
+                className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold"
               >
-                {createShortlist.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {createShortlist.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
                 Create Shortlist
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
       <TalentDetailSheet
         talentId={selectedTalentId}

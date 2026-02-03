@@ -198,15 +198,19 @@ export default function TalentInsights() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <div>
-          <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-            <BarChart3 className="h-8 w-8 text-accent" />
-            Talent Insights
-          </h1>
-          <p className="mt-1">
-            Visualize your candidate pool with AI-powered analytics
-          </p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+              <BarChart3 className="h-5 w-5" strokeWidth={1.5} />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+              Talent <span className="text-gradient-recruiter">Insights</span>
+            </h1>
+          </div>
+          <p className="text-lg text-muted-foreground font-sans">Visualize your candidate pool with AI-powered analytics</p>
         </div>
 
         {/* Moved from Recruiter Dashboard: Pipeline Snapshot */}
@@ -394,6 +398,8 @@ export default function TalentInsights() {
             description="Invite candidates to join your organization to generate insights"
           />
         )}
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

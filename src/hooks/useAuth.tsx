@@ -137,6 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: r.role as AppRole,
           organization_id: r.organization_id ?? undefined
         }));
+        // All account managers can switch to Recruiter: add synthetic recruiter role if not already present
+        const hasAccountManager = userRoles.some(r => r.role === 'account_manager');
+        const hasRecruiter = userRoles.some(r => r.role === 'recruiter');
+        if (hasAccountManager && !hasRecruiter) {
+          const amRole = userRoles.find(r => r.role === 'account_manager');
+          if (amRole?.organization_id) {
+            userRoles.push({ role: 'recruiter' as AppRole, organization_id: amRole.organization_id });
+          }
+        }
         setRoles(userRoles);
 
         // Check if user is super admin
@@ -158,7 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (savedRole && userRoles.find(r => r.role === savedRole)) {
             setCurrentRole(savedRole);
           } else {
-            setCurrentRole(userRoles[0].role);
+            // Default account_manager to Account Manager view (they can switch to Recruiter)
+            const defaultRole = userRoles.some(r => r.role === 'account_manager') ? 'account_manager' : userRoles[0].role;
+            setCurrentRole(defaultRole);
           }
         }
       } else {

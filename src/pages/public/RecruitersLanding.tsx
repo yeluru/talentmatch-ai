@@ -92,19 +92,20 @@ export default function RecruitersLanding() {
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 contrast-150 brightness-100 mix-blend-overlay pointer-events-none" />
 
         <div className="container relative mx-auto px-4 z-10">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div className="text-center lg:text-left animate-fade-in-up">
-              <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/5 px-4 py-1.5 text-sm font-medium text-purple-500 backdrop-blur-md mb-8 shadow-sm">
-                <Briefcase className="h-4 w-4" />
-                For Talent Acquisition
-              </div>
+          <div className="mx-auto max-w-6xl">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              <div className="text-center lg:text-left animate-fade-in-up">
+                <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/5 px-4 py-1.5 text-sm font-medium text-purple-500 backdrop-blur-md mb-8 shadow-sm">
+                  <Briefcase className="h-4 w-4" />
+                  For Talent Acquisition
+                </div>
 
-              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
-                Hire Smarter, <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Not Harder.</span>
-              </h1>
+                <h1 className="text-6xl sm:text-7xl lg:text-8xl font-display font-extrabold tracking-tight leading-[1.1] mb-6">
+                  Hire Smarter, <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Not Harder.</span>
+                </h1>
 
-              <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10">
+                <p className="text-xl sm:text-2xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
                 Transform your recruitment process with intelligent matching, automated sourcing,
                 and powerful pipeline management tools.
               </p>
@@ -123,11 +124,11 @@ export default function RecruitersLanding() {
                   </Link>
                 </Button>
               </div>
-            </div>
+              </div>
 
-            {/* Visual element */}
-            <div className="relative mx-auto w-full max-w-[500px] lg:max-w-none perspective-1000">
-              <div className="absolute -top-20 -right-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse-subtle" />
+              {/* Visual element */}
+              <div className="relative mx-auto w-full max-w-[500px] lg:max-w-none perspective-1000">
+                <div className="absolute -top-20 -right-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse-subtle" />
               <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl animate-pulse-subtle animation-delay-500" />
 
               <div className="relative glass-card rounded-[2.5rem] p-8 shadow-xl animate-float border border-white/10">
@@ -183,6 +184,7 @@ export default function RecruitersLanding() {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
             </div>
           </div>
@@ -202,13 +204,13 @@ export default function RecruitersLanding() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {features.map((feature) => (
               <div key={feature.title} className="group p-8 rounded-[2rem] border bg-card hover:bg-card/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                 <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                   <feature.icon className="h-7 w-7" />
                 </div>
-                <h3 className="font-display text-xl font-bold mb-3">{feature.title}</h3>
+                <h4 className="text-2xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
                 <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
@@ -221,8 +223,8 @@ export default function RecruitersLanding() {
       {/* How it works */}
       <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-20">
-            <h2 className="font-display text-4xl md:text-5xl font-bold mb-6">Streamlined Hiring Process</h2>
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">Streamlined Hiring Process</h2>
             <p className="text-xl text-muted-foreground">From job posting to offer acceptance in record time</p>
           </div>
 
@@ -253,7 +255,7 @@ export default function RecruitersLanding() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 text-xs font-bold uppercase tracking-wider mb-6">
                 Efficiency First
               </div>
-              <h2 className="font-display text-4xl md:text-5xl font-bold mb-6 leading-tight">
+              <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6 leading-tight">
                 Recruit Like <span className="text-purple-500">a Pro.</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
@@ -279,7 +281,7 @@ export default function RecruitersLanding() {
                   <div className="h-20 w-20 mx-auto rounded-full bg-purple-500/10 flex items-center justify-center mb-6">
                     <Sparkles className="h-10 w-10 text-purple-500" />
                   </div>
-                  <h3 className="font-display text-3xl font-bold mb-4">Start Hiring Today</h3>
+                  <h3 className="text-3xl font-display font-bold text-foreground mb-4">Start Hiring Today</h3>
                   <p className="text-muted-foreground text-lg">Create your account and find your next team member in minutes.</p>
                 </div>
 

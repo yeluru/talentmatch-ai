@@ -76,7 +76,7 @@ export default function OrgAdminDashboard() {
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [auditSearch, setAuditSearch] = useState("");
   const [auditSearchDebounced, setAuditSearchDebounced] = useState("");
-  const auditCutoffIso = useMemo(() => new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), []);
+  const auditCutoffIso = useMemo(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), []);
   const excludedPlatformActions = useMemo(
     () => ["invite_org_admin", "revoke_org_admin", "bootstrap_super_admin"],
     [],

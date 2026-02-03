@@ -24,9 +24,9 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { 
   Bot,
   Plus,
@@ -82,7 +82,9 @@ function displayNameFromEmail(email?: string | null) {
 }
 
 export default function AIAgents() {
-  const { user, roles } = useAuth();
+  const { user, roles, currentRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -106,27 +108,26 @@ export default function AIAgents() {
     }
   };
 
-  // Fetch jobs
+  // Fetch jobs (only this recruiter's when ownerId is set)
   const { data: jobs } = useQuery({
-    queryKey: ['org-jobs-agents', organizationId],
+    queryKey: ['org-jobs-agents', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('id, title, required_skills')
-        .eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, required_skills').eq('organization_id', organizationId);
+      if (ownerId) q = q.eq('recruiter_id', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
     enabled: !!organizationId,
   });
 
-  // Fetch agents
+  // Fetch agents (only this recruiter's when ownerId is set)
   const { data: agents, isLoading } = useQuery({
-    queryKey: ['ai-agents', organizationId],
+    queryKey: ['ai-agents', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
+      let q = supabase
         .from('ai_recruiting_agents')
         .select(`
           *,
@@ -134,6 +135,8 @@ export default function AIAgents() {
         `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
+      if (ownerId) q = q.eq('created_by', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as Agent[];
     },
@@ -413,16 +416,20 @@ export default function AIAgents() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold flex items-center gap-3">
-              <Bot className="h-8 w-8 text-accent" />
-              AI Recruiting Agents
-            </h1>
-            <p className="mt-1">
-              Create agents to match candidates against your job criteria. Click <strong>"Run"</strong> to analyze.
-            </p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <Bot className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                AI Recruiting <span className="text-gradient-recruiter">Agents</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">Create agents to match candidates against your job criteria. Click <strong>"Run"</strong> to analyze.</p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -695,6 +702,8 @@ export default function AIAgents() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

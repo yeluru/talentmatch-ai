@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Mail, Edit2, Trash2, Copy, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -45,7 +46,9 @@ const TEMPLATE_VARIABLES = [
 ];
 
 export default function EmailTemplates() {
-  const { user, roles } = useAuth();
+  const { user, roles, currentRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
@@ -54,14 +57,16 @@ export default function EmailTemplates() {
   const organizationId = orgIdForRecruiterSuite(roles);
 
   const { data: templates, isLoading } = useQuery({
-    queryKey: ['email-templates', organizationId],
+    queryKey: ['email-templates', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
+      let q = supabase
         .from('email_templates')
         .select('*')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
+      if (ownerId) q = q.eq('created_by', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as EmailTemplate[];
     },
@@ -159,11 +164,20 @@ export default function EmailTemplates() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Email Templates</h1>
-            <p className="">Create reusable email templates for outreach</p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <Mail className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                Email <span className="text-gradient-recruiter">Templates</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">Create reusable email templates for outreach</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
@@ -316,6 +330,8 @@ export default function EmailTemplates() {
             ))}
           </div>
         )}
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

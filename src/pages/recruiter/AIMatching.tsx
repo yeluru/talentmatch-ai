@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles,
@@ -80,6 +81,9 @@ export default function AIMatching() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const organizationId = orgIdForRecruiterSuite(roles);
+  const { currentRole, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const STORAGE_KEY_PREFIX = useMemo(
     () => `recruiter:ai-matching:last:${organizationId || 'no-org'}`,
     [organizationId],
@@ -127,16 +131,14 @@ export default function AIMatching() {
     }
   }, [STORAGE_KEY_PREFIX, organizationId, selectedJob]);
 
-  // Fetch jobs
+  // Fetch jobs (only this recruiter's when ownerId is set)
   const { data: jobs, isLoading: jobsLoading } = useQuery({
-    queryKey: ['recruiter-jobs-matching', organizationId],
+    queryKey: ['recruiter-jobs-matching', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .eq('status', 'published');
+      let q = supabase.from('jobs').select('*').eq('organization_id', organizationId).eq('status', 'published');
+      if (ownerId) q = q.eq('recruiter_id', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -380,18 +382,18 @@ export default function AIMatching() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-[1600px] mx-auto">
+      <div className="space-y-6 w-full max-w-[1600px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Brain className="h-8 w-8 text-primary" />
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <Brain className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <span className="text-gradient-premium">AI Matching</span>
-            </h1>
-            <p className="mt-2 text-muted-foreground text-lg">
-              Rank candidates instantly using our deep learning engine.
-            </p>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                AI <span className="text-gradient-recruiter">Matching</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">Rank candidates instantly using our deep learning engine.</p>
           </div>
 
           <div className="flex gap-2">

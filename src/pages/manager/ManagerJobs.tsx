@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Users, Calendar } from 'lucide-react';
+import { Loader2, MapPin, Users, Calendar, Briefcase } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -69,7 +68,7 @@ export default function ManagerJobs() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+          <Loader2 className="h-8 w-8 animate-spin text-manager" strokeWidth={1.5} />
         </div>
       </DashboardLayout>
     );
@@ -78,17 +77,28 @@ export default function ManagerJobs() {
   if (!organizationId) {
     return (
       <DashboardLayout>
-        <Card>
-          <CardHeader>
-            <CardTitle>Organization not assigned</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Your account manager role is active, but it isn’t linked to an organization yet. Ask a platform admin to re-invite you or
-              reassign you to a tenant.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+          <div className="shrink-0 flex flex-col gap-6">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Jobs <span className="text-gradient-manager">Overview</span></h1>
+              </div>
+            <p className="text-lg text-muted-foreground font-sans">Your account manager role is active, but it isn’t linked to an organization yet.</p>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="pt-6 pb-6">
+              <div className="rounded-xl border border-border bg-card p-6">
+                <p className="text-sm font-sans text-muted-foreground">
+                  Ask a platform admin to re-invite you or reassign you to a tenant.
+                </p>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
@@ -99,81 +109,80 @@ export default function ManagerJobs() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Jobs Overview</h1>
-          <p className="mt-1">All jobs in your organization</p>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                Jobs <span className="text-gradient-manager">Overview</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">
+              All jobs in your organization
+            </p>
+          </div>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-success">{publishedJobs.length}</p>
-                <p className="text-smmt-1">Published</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold">{draftJobs.length}</p>
-                <p className="text-smmt-1">Drafts</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-destructive">{closedJobs.length}</p>
-                <p className="text-smmt-1">Closed</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20 text-center">
+            <p className="text-4xl font-display font-bold text-success">{publishedJobs.length}</p>
+            <p className="text-sm font-sans text-muted-foreground mt-1">Published</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20 text-center">
+            <p className="text-4xl font-display font-bold text-foreground">{draftJobs.length}</p>
+            <p className="text-sm font-sans text-muted-foreground mt-1">Drafts</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20 text-center">
+            <p className="text-4xl font-display font-bold text-destructive">{closedJobs.length}</p>
+            <p className="text-sm font-sans text-muted-foreground mt-1">Closed</p>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Jobs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {jobs.length === 0 ? (
-              <p className="text-sm">No jobs created yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {jobs.map((job) => (
-                  <div key={job.id} className="glass-panel p-4 hover-card-premium group rounded-xl flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium">{job.title}</p>
-                      <div className="flex items-center gap-4 text-sm">
-                        {job.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {job.location}
-                            {job.is_remote && ' (Remote)'}
-                          </span>
-                        )}
+        <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+          <h2 className="font-display text-lg font-bold text-foreground mb-4">All Jobs</h2>
+          {jobs.length === 0 ? (
+            <p className="text-sm font-sans text-muted-foreground">No jobs created yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {jobs.map((job) => (
+                <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex items-center justify-between">
+                  <div className="space-y-1 min-w-0">
+                    <p className="font-sans font-medium truncate">{job.title}</p>
+                    <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
+                      {job.location && (
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(job.posted_at)}
+                          <MapPin className="h-3 w-3" strokeWidth={1.5} />
+                          {job.location}
+                          {job.is_remote && ' (Remote)'}
                         </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1 text-sm">
-                        <Users className="h-4 w-4" />
-                        {job.applications_count || 0} applicants
-                      </div>
-                      <Badge className={getStatusColor(job.status || 'draft')}>
-                        {job.status || 'draft'}
-                      </Badge>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" strokeWidth={1.5} />
+                        {formatDate(job.posted_at)}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-1 text-sm font-sans text-muted-foreground">
+                      <Users className="h-4 w-4" strokeWidth={1.5} />
+                      {job.applications_count || 0} applicants
+                    </div>
+                    <Badge className={`font-sans ${getStatusColor(job.status || 'draft')}`}>
+                      {job.status || 'draft'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

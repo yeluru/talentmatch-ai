@@ -610,7 +610,7 @@ export default function AIAnalysis() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" strokeWidth={1.5} />
         </div>
       </DashboardLayout>
     );
@@ -619,19 +619,19 @@ export default function AIAnalysis() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col flex-1 min-h-0 max-w-[1600px] mx-auto w-full animate-in fade-in duration-500">
 
           {/* Header & Controls Section */}
-          <div className="flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <Sparkles className="h-5 w-5" />
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                    <Sparkles className="h-5 w-5" strokeWidth={1.5} />
                   </div>
-                  <h1 className="font-display text-3xl font-bold tracking-tight text-gradient-premium">ATS Checkpoint</h1>
+                  <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">ATS <span className="text-gradient-candidate">Checkpoint</span></h1>
                 </div>
-                <p className="text-muted-foreground">
+                <p className="text-lg text-muted-foreground font-sans">
                   Optimize your resume for applicant tracking systems with AI-driven insights.
                 </p>
               </div>
@@ -639,16 +639,16 @@ export default function AIAnalysis() {
                 <Button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || !selectedResumeId || !getEffectiveJobDescription().trim()}
-                  className="btn-primary-glow shadow-lg px-6 h-10 text-sm font-semibold rounded-full"
+                  className="rounded-lg border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold shadow-lg px-6 h-11 text-sm"
                 >
                   {isAnalyzing ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.5} />
                       Analyzing...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="mr-2 h-4 w-4" />
+                      <Sparkles className="mr-2 h-4 w-4" strokeWidth={1.5} />
                       Run Analysis
                     </>
                   )}
@@ -657,35 +657,37 @@ export default function AIAnalysis() {
             </div>
 
             {/* Compact Control Bar */}
-            <div className="glass-panel p-4 border-white/10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="rounded-xl border border-border bg-card p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start transition-all duration-300 hover:border-blue-500/20">
               {/* JD Input */}
               <div className="lg:col-span-7 space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <Briefcase className="h-3.5 w-3.5" />
+                <Label className="text-sm font-sans font-semibold text-muted-foreground flex items-center gap-2">
+                  <Briefcase className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Target Job
                 </Label>
-                <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')} className="w-full">
-                  <TabsList className="bg-muted/20 border border-white/10 p-0.5 h-8 mb-2 w-fit">
-                    <TabsTrigger value="existing" className="h-7 text-xs px-3 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Select Job</TabsTrigger>
-                    <TabsTrigger value="custom" className="h-7 text-xs px-3 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">Paste JD</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="existing" className="m-0">
+                <Tabs value={jobInputMode} onValueChange={(v) => setJobInputMode(v as 'existing' | 'custom')} className="w-full flex flex-col flex-1 min-h-0">
+                  <div className="shrink-0">
+                    <TabsList className="bg-muted/30 border border-blue-500/10 p-1 h-9 mb-2 w-fit rounded-lg">
+                      <TabsTrigger value="existing" className="h-8 text-xs font-sans px-3 rounded-md data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">Select Job</TabsTrigger>
+                      <TabsTrigger value="custom" className="h-8 text-xs font-sans px-3 rounded-md data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">Paste JD</TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <TabsContent value="existing" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
                     {/* Compact Job Selector */}
                     <div className="relative group">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" strokeWidth={1.5} />
                       <Input
                         placeholder="Search active jobs..."
                         value={jobSearchQuery}
                         onChange={(e) => setJobSearchQuery(e.target.value)}
-                        className="pl-9 bg-background/50 border-white/10 focus:border-primary/50 text-sm h-10 transition-all font-medium"
+                        className="pl-9 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans"
                       />
                       {filteredJobs.length > 0 && jobSearchQuery && (
-                        <div className="absolute top-full left-0 right-0 mt-1 max-h-[300px] overflow-y-auto border border-white/10 rounded-xl bg-background/95 backdrop-blur-xl shadow-2xl z-50 p-1">
+                        <div className="absolute top-full left-0 right-0 mt-1 max-h-[300px] overflow-y-auto border border-border rounded-xl bg-card shadow-lg z-50 p-1">
                           {filteredJobs.slice(0, 10).map((job) => (
                             <button
                               key={job.id}
                               onClick={() => { handleJobSelect(job.id); setJobSearchQuery(''); }}
-                              className="w-full text-left p-2 rounded-lg hover:bg-white/5 transition-colors text-sm"
+                              className="w-full text-left p-2 rounded-lg hover:bg-blue-500/10 transition-colors text-sm font-sans"
                             >
                               <div className="font-medium text-foreground">{job.title}</div>
                               <div className="text-xs text-muted-foreground">{job.organization_name}</div>
@@ -695,18 +697,18 @@ export default function AIAnalysis() {
                       )}
                     </div>
                     {selectedJobId && (
-                      <div className="mt-2 text-xs text-primary flex items-center gap-1">
+                      <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
                         <span className="font-semibold">Selected:</span>
                         {jobs.find(j => j.id === selectedJobId)?.title || 'Unknown Job'}
                       </div>
                     )}
                   </TabsContent>
-                  <TabsContent value="custom" className="m-0">
+                  <TabsContent value="custom" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
                     <Textarea
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
                       placeholder="Paste job description text here..."
-                      className="min-h-[80px] h-[80px] resize-y bg-background/50 border-white/10 focus:border-primary/50 text-xs font-mono leading-relaxed"
+                      className="min-h-[80px] h-[80px] resize-y rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans leading-relaxed"
                     />
                   </TabsContent>
                 </Tabs>
@@ -714,12 +716,12 @@ export default function AIAnalysis() {
 
               {/* Resume Selector */}
               <div className="lg:col-span-5 space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <FileText className="h-3.5 w-3.5" />
+                <Label className="text-sm font-sans font-semibold text-muted-foreground flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Resume Profile
                 </Label>
                 <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                  <SelectTrigger className="h-10 bg-background/50 border-white/10 focus:ring-primary/20 text-sm font-medium">
+                  <SelectTrigger className="h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans">
                     <SelectValue placeholder="Select a resume version" />
                   </SelectTrigger>
                   <SelectContent>
@@ -734,34 +736,35 @@ export default function AIAnalysis() {
                   </SelectContent>
                 </Select>
                 {!resumes.length && (
-                  <div className="text-xs text-muted-foreground">
-                    No resumes found. <a href="/candidate/resumes" className="text-primary hover:underline font-medium">Upload one</a>.
+                  <div className="text-sm font-sans text-muted-foreground">
+                    No resumes found. <a href="/candidate/resumes" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">Upload one</a>.
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Results Area */}
+          {/* Results Area — scrolls inside this container */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
           {!analysisResult ? (
-            <div className="glass-panel border-white/10 p-12 flex flex-col items-center justify-center text-center min-h-[400px]">
-              <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                <Sparkles className="h-8 w-8 text-primary/50" />
+            <div className="rounded-xl border border-border bg-card p-12 flex flex-col items-center justify-center text-center min-h-[400px] transition-all duration-300 hover:border-blue-500/20">
+              <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4">
+                <Sparkles className="h-8 w-8 text-blue-500" strokeWidth={1.5} />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Ready to Analyze</h3>
-              <p className="text-muted-foreground max-w-md">
+              <h3 className="text-xl font-display font-bold text-foreground mb-2">Ready to Analyze</h3>
+              <p className="text-muted-foreground font-sans text-base max-w-md">
                 Select a resume and a job description above to get a comprehensive ATS compatibility report.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch animate-in slide-in-from-bottom-4 duration-700">
 
               {/* 1. Score Card (Hero) */}
-              <div className="glass-panel border-white/10 p-6 md:col-span-1 relative overflow-hidden group min-h-[300px] flex flex-col justify-between">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+              <div className="rounded-xl border border-border bg-card p-6 md:col-span-1 relative overflow-hidden group min-h-[300px] flex flex-col justify-between transition-all duration-300 hover:border-blue-500/20 h-full">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
                 <div className="relative z-10">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <Info className="h-4 w-4" /> Canonical Match
+                  <h3 className="text-sm font-display font-bold text-muted-foreground flex items-center gap-2">
+                    <Info className="h-4 w-4" strokeWidth={1.5} /> Canonical Match
                   </h3>
                   <div className="mt-4 flex items-baseline gap-2">
                     <span className={`text-7xl font-bold tracking-tighter ${getScoreColor(analysisResult.match_score)}`}>
@@ -769,20 +772,20 @@ export default function AIAnalysis() {
                     </span>
                     <span className="text-xl text-muted-foreground font-medium">%</span>
                   </div>
-                  <div className="mt-2 text-lg font-medium text-foreground">
+                  <div className="mt-2 text-lg font-sans font-medium text-foreground">
                     {getScoreLabel(analysisResult.match_score)}
                   </div>
                 </div>
                 <div className="relative z-10 pt-6 space-y-4">
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
+                    <div className="flex justify-between text-sm font-sans font-medium">
                       <span className="text-muted-foreground">Keyword Coverage</span>
                       <span className="text-foreground">{analysisResult.diagnostics?.scoring?.keyword_coverage_score ?? 0}%</span>
                     </div>
                     <Progress value={analysisResult.diagnostics?.scoring?.keyword_coverage_score ?? 0} className="h-1.5 bg-background/30" />
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
+                    <div className="flex justify-between text-sm font-sans font-medium">
                       <span className="text-muted-foreground">Semantic Relevance</span>
                       <span className="text-foreground">{analysisResult.diagnostics?.scoring?.model_score ?? 0}%</span>
                     </div>
@@ -792,81 +795,77 @@ export default function AIAnalysis() {
               </div>
 
               {/* 2. AI Summary Card */}
-              <div className="glass-panel border-white/10 p-6 md:col-span-2 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <BrainCircuit className="h-4 w-4" /> Strategic Summary
+              <div className="rounded-xl border border-border bg-card p-6 md:col-span-2 flex flex-col transition-all duration-300 hover:border-blue-500/20 h-full min-h-0">
+                <div className="shrink-0 flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                    <BrainCircuit className="h-4 w-4" strokeWidth={1.5} /> Strategic Summary
                   </h3>
                 </div>
-                <div className="flex-1">
-                  <p className="text-lg leading-relaxed text-foreground/90 font-light italic">
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <p className="text-base font-sans leading-relaxed text-foreground/90 italic">
                     “{analysisResult.summary}”
                   </p>
                 </div>
-                <div className="grid grid-cols-3 gap-6 mt-8 pt-6 border-t border-white/5">
+                <div className="shrink-0 grid grid-cols-3 gap-6 mt-8 pt-6 border-t border-border">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-emerald-400">{matchedPhraseCount}</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Matches</div>
+                    <div className="text-2xl font-display font-bold text-emerald-500 dark:text-emerald-400">{matchedPhraseCount}</div>
+                    <div className="text-xs font-sans text-muted-foreground uppercase tracking-wide">Matches</div>
                   </div>
-                  <div className="text-center border-x border-white/5">
-                    <div className="text-2xl font-bold text-destructive/80">{missingPhrases.length}</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Missing</div>
+                  <div className="text-center border-x border-border">
+                    <div className="text-2xl font-display font-bold text-destructive">{missingPhrases.length}</div>
+                    <div className="text-xs font-sans text-muted-foreground uppercase tracking-wide">Missing</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{topRecommendations.length}</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Edits</div>
+                    <div className="text-2xl font-display font-bold text-blue-600 dark:text-blue-400">{topRecommendations.length}</div>
+                    <div className="text-xs font-sans text-muted-foreground uppercase tracking-wide">Edits</div>
                   </div>
                 </div>
               </div>
 
               {/* 3. Top Critical Gaps (Verbatim) */}
-              <div className="glass-panel border-white/10 p-6 space-y-4">
-                <h3 className="text-xs font-semibold text-destructive/80 uppercase tracking-wider flex items-center gap-2">
-                  <Target className="h-4 w-4" /> Critical Keyword Gaps
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4 transition-all duration-300 hover:border-blue-500/20 h-full flex flex-col min-h-0">
+                <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2 shrink-0">
+                  <Target className="h-4 w-4" strokeWidth={1.5} /> Critical Keyword Gaps
                 </h3>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 flex-1 min-h-0 overflow-y-auto">
                   {topKeywordGaps.length > 0 ? topKeywordGaps.map((k, i) => (
-                    <Badge key={i} variant="outline" className="border-destructive/20 text-destructive/90 bg-destructive/5 py-1 px-2 text-[11px] font-medium">
+                    <Badge key={i} variant="outline" className="border-destructive/20 text-destructive font-sans py-1 px-2 text-xs font-medium">
                       {k}
                     </Badge>
-                  )) : <p className="text-xs text-muted-foreground">No critical verbatim gaps.</p>}
+                  )) : <p className="text-sm font-sans text-muted-foreground">No critical verbatim gaps.</p>}
                 </div>
-                <div className="pt-2">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Add these exact phrases to your skills or bullet points to immediately improve ATS visibility.
-                  </p>
-                </div>
+                <p className="text-sm font-sans text-muted-foreground leading-relaxed shrink-0 pt-2">
+                  Add these exact phrases to your skills or bullet points to immediately improve ATS visibility.
+                </p>
               </div>
 
               {/* 4. Model-Inferred Skill Gaps */}
-              <div className="glass-panel border-white/10 p-6 space-y-4">
-                <h3 className="text-xs font-semibold text-orange-400/80 uppercase tracking-wider flex items-center gap-2">
-                  <Zap className="h-4 w-4" /> Inferred Skill Gaps
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4 transition-all duration-300 hover:border-blue-500/20 h-full flex flex-col min-h-0">
+                <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2 shrink-0">
+                  <Zap className="h-4 w-4" strokeWidth={1.5} /> Inferred Skill Gaps
                 </h3>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 flex-1 min-h-0 overflow-y-auto">
                   {topSkillGaps.length > 0 ? topSkillGaps.map((k, i) => (
-                    <Badge key={i} variant="outline" className="border-orange-500/20 text-orange-400/90 bg-orange-500/5 py-1 px-2 text-[11px] font-medium">
+                    <Badge key={i} variant="outline" className="border-orange-500/20 text-orange-600 dark:text-orange-400 bg-orange-500/5 py-1 px-2 text-xs font-sans font-medium">
                       {k}
                     </Badge>
-                  )) : <p className="text-xs text-muted-foreground">Semantic skills align well.</p>}
+                  )) : <p className="text-sm font-sans text-muted-foreground">Semantic skills align well.</p>}
                 </div>
-                <div className="pt-2">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    The AI suggests these concepts are highly relevant to the role but missing from your profile.
-                  </p>
-                </div>
+                <p className="text-sm font-sans text-muted-foreground leading-relaxed shrink-0 pt-2">
+                  The AI suggests these concepts are highly relevant to the role but missing from your profile.
+                </p>
               </div>
 
               {/* 5. Key Recommendations */}
-              <div className="glass-panel border-white/10 p-6 space-y-4">
-                <h3 className="text-xs font-semibold text-primary/80 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" /> Action Plan
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4 transition-all duration-300 hover:border-blue-500/20 h-full flex flex-col min-h-0">
+                <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2 shrink-0">
+                  <Sparkles className="h-4 w-4" strokeWidth={1.5} /> Action Plan
                 </h3>
                 <div className="space-y-3">
                   {topRecommendations.slice(0, 3).map((rec, i) => (
                     <div key={i} className="flex gap-3">
-                      <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-                        <span className="text-[10px] font-bold text-primary">{i + 1}</span>
+                      <div className="h-5 w-5 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{i + 1}</span>
                       </div>
                       <p className="text-[13px] leading-snug text-foreground/80">{rec}</p>
                     </div>
@@ -875,37 +874,37 @@ export default function AIAnalysis() {
               </div>
 
               {/* 6. Deep Dive Accordion (Full Width) */}
-              <div className="md:col-span-3 glass-panel border-white/10 p-0 overflow-hidden">
-                <Accordion type="single" collapsible className="w-full">
+              <div className="md:col-span-3 rounded-xl border border-border bg-card p-0 overflow-hidden">
+                <Accordion type="single" collapsible className="w-full" defaultValue="details">
                   <AccordionItem value="details" className="border-b-0">
-                    <AccordionTrigger className="px-6 py-3.5 hover:bg-white/5 transition-colors text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    <AccordionTrigger className="px-6 py-3.5 hover:bg-blue-500/5 transition-colors text-sm font-display font-semibold text-foreground border-b border-blue-500/10">
                       Detailed Keyword Inventory
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 pt-2">
-                      <Tabs defaultValue="missing" className="w-full">
-                        <div className="flex items-center justify-between mb-4">
-                          <TabsList className="bg-muted/10 border border-white/5 p-0.5 h-9">
-                            <TabsTrigger value="missing" className="h-8 text-xs px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">Missing ({missingPhrases.length})</TabsTrigger>
-                            <TabsTrigger value="matched" className="h-8 text-xs px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm">Matched ({matchedPhraseCount})</TabsTrigger>
+                      <Tabs defaultValue="missing" className="w-full flex flex-col flex-1 min-h-0">
+                        <div className="shrink-0 flex items-center justify-between mb-4">
+                          <TabsList className="bg-muted/30 border border-blue-500/10 p-1 h-9 rounded-lg">
+                            <TabsTrigger value="missing" className="h-8 text-xs font-sans px-4 rounded-md data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">Missing ({missingPhrases.length})</TabsTrigger>
+                            <TabsTrigger value="matched" className="h-8 text-xs font-sans px-4 rounded-md data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">Matched ({matchedPhraseCount})</TabsTrigger>
                           </TabsList>
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Verbatim Analysis</span>
+                          <span className="text-xs font-sans text-muted-foreground uppercase tracking-wide font-medium">Verbatim Analysis</span>
                         </div>
-                        <TabsContent value="missing" className="m-0">
-                          <ScrollArea className="h-[240px] w-full rounded-xl border border-white/10 bg-black/10 p-4">
+                        <TabsContent value="missing" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
+                          <ScrollArea className="h-[240px] w-full rounded-xl border border-border bg-blue-500/5 p-4">
                             <div className="flex flex-wrap gap-2">
                               {missingPhrases.map((k, i) => (
-                                <Badge key={i} variant="secondary" className="bg-white/5 hover:bg-white/10 text-muted-foreground border-transparent text-[11px] py-1">
+                                <Badge key={i} variant="secondary" className="bg-muted/50 hover:bg-muted text-muted-foreground border-border text-xs font-sans py-1">
                                   {k}
                                 </Badge>
                               ))}
                             </div>
                           </ScrollArea>
                         </TabsContent>
-                        <TabsContent value="matched" className="m-0">
-                          <ScrollArea className="h-[240px] w-full rounded-xl border border-white/10 bg-black/10 p-4">
+                        <TabsContent value="matched" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
+                          <ScrollArea className="h-[240px] w-full rounded-xl border border-border bg-blue-500/5 p-4">
                             <div className="flex flex-wrap gap-2">
                               {analysisResult.matched_skills.map((k, i) => (
-                                <Badge key={i} variant="outline" className="border-emerald-500/10 text-emerald-400/80 bg-emerald-500/5 text-[11px] py-1">
+                                <Badge key={i} variant="outline" className="border-emerald-500/20 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 text-xs font-sans py-1">
                                   {k}
                                 </Badge>
                               ))}
@@ -920,6 +919,7 @@ export default function AIAnalysis() {
 
             </div>
           )}
+          </div>
         </div>
       </TooltipProvider>
     </DashboardLayout>

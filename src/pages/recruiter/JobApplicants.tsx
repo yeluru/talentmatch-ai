@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Loader2,
@@ -43,10 +43,15 @@ import { ApplicantDetailSheet } from '@/components/recruiter/ApplicantDetailShee
 import { openResumeInNewTab } from '@/lib/resumeLinks';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { APPLICATION_STAGE_OPTIONS } from '@/lib/statusOptions';
+import { useAuth } from '@/hooks/useAuth';
+import { effectiveRecruiterOwnerId } from '@/lib/org';
 
 export default function JobApplicants() {
   const { id: jobId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { currentRole, user } = useAuth();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -54,14 +59,12 @@ export default function JobApplicants() {
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const { data: job, isLoading: jobLoading } = useQuery({
-    queryKey: ['job', jobId],
+    queryKey: ['job', jobId, ownerId],
     queryFn: async () => {
       if (!jobId) throw new Error('No job ID');
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
+      let q = supabase.from('jobs').select('*').eq('id', jobId);
+      if (ownerId) q = q.eq('recruiter_id', ownerId);
+      const { data, error } = await q.single();
       if (error) throw error;
       return data;
     },
@@ -173,8 +176,10 @@ export default function JobApplicants() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+          <div className="flex items-center justify-center flex-1">
+            <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -182,40 +187,50 @@ export default function JobApplicants() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 rounded-full hover:bg-white/10">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="font-display text-2xl font-bold text-foreground">
-                {job?.title}
-              </h1>
-              <p className="text-muted-foreground flex items-center gap-2">
-                <Users className="h-4 w-4 opacity-70" />
+              <div className="flex items-center gap-3 mb-1">
+                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="rounded-lg -ml-2 text-muted-foreground hover:text-recruiter hover:bg-recruiter/5 font-sans shrink-0">
+                  <ArrowLeft className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                  Jobs
+                </Button>
+              </div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Users className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground truncate">
+                  {job?.title}
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans flex items-center gap-2">
+                <Users className="h-4 w-4 opacity-70" strokeWidth={1.5} />
                 {applications?.length || 0} applicant{applications?.length !== 1 ? 's' : ''}
               </p>
             </div>
+            <Button variant="outline" onClick={() => navigate(`/recruiter/jobs/${jobId}/edit`)} className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shrink-0">
+              Edit Job
+            </Button>
           </div>
-          <Button variant="outline" onClick={() => navigate(`/recruiter/jobs/${jobId}/edit`)} className="glass-panel border-white/20 hover:bg-white/10">
-            Edit Job
-          </Button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 glass-panel p-3 rounded-xl border border-white/10">
+        <div className="flex flex-col sm:flex-row gap-4 rounded-xl border border-border bg-card p-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <Input
               placeholder="Search applicants..."
-              className="pl-9 bg-transparent border-white/10 focus:bg-background/50 transition-colors"
+              className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40 bg-transparent border-white/10">
+            <SelectTrigger className="w-full sm:w-40 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -230,24 +245,29 @@ export default function JobApplicants() {
         </div>
 
         {filteredApplications.length === 0 ? (
-          <EmptyState
-            icon={Briefcase}
-            title="No applicants yet"
-            description={searchQuery || statusFilter !== 'all'
-              ? "No applicants match your filters"
-              : "Applications will appear here when candidates apply"}
-          />
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <EmptyState
+              icon={Briefcase}
+              title="No applicants yet"
+              description={searchQuery || statusFilter !== 'all'
+                ? "No applicants match your filters"
+                : "Applications will appear here when candidates apply"}
+            />
+          </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="space-y-3">
             {filteredApplications.map((application) => (
               <div
                 key={application.id}
-                className="glass-panel p-4 hover-card-premium group relative flex items-start gap-4 transition-all duration-300 cursor-pointer overflow-hidden mb-3"
+                role="button"
+                tabIndex={0}
                 onClick={() => handleOpenDetail(application.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpenDetail(application.id); } }}
+                className="group rounded-xl border border-border bg-card p-4 transition-all duration-300 cursor-pointer hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
               >
-                <div className="relative z-10 flex items-start gap-4 flex-1">
-                  <Avatar className="h-12 w-12 shrink-0 border border-white/10">
-                    <AvatarFallback className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-indigo-300 font-bold">
+                <div className="relative z-10 flex items-start gap-4">
+                  <Avatar className="h-12 w-12 shrink-0 border border-recruiter/20">
+                    <AvatarFallback className="bg-recruiter/10 text-recruiter font-bold font-sans">
                       {application.candidate_profiles?.full_name?.charAt(0) || 'C'}
                     </AvatarFallback>
                   </Avatar>
@@ -255,56 +275,33 @@ export default function JobApplicants() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-semibold text-lg text-foreground/90 group-hover:text-primary transition-colors">
+                        <h3 className="font-display font-semibold text-lg text-foreground group-hover:text-recruiter transition-colors">
                           {application.candidate_profiles?.full_name || (application.candidate_profiles?.email ? String(application.candidate_profiles.email).split('@')[0] : null) || 'Applicant'}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground font-sans">
                           {application.candidate_profiles?.current_title}
                           {application.candidate_profiles?.current_company &&
                             ` at ${application.candidate_profiles.current_company}`}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                         {application.ai_match_score && (
                           <ScoreBadge score={application.ai_match_score} />
                         )}
                         <StatusBadge status={application.status || 'applied'} />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
-                      {application.candidate_profiles?.email && (
-                        <span className="flex items-center gap-1.5 hover:text-foreground transition-colors">
-                          <Mail className="h-3.5 w-3.5 opacity-70" />
-                          {application.candidate_profiles.email}
-                        </span>
-                      )}
-                      {application.candidate_profiles?.location && (
-                        <span className="flex items-center gap-1.5 hover:text-foreground transition-colors">
-                          <MapPin className="h-3.5 w-3.5 opacity-70" />
-                          {application.candidate_profiles.location}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1.5">
-                        <Briefcase className="h-3.5 w-3.5 opacity-70" />
-                        Applied {formatDistanceToNow(new Date(application.applied_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                  </div>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 glass-panel border-white/20">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-recruiter/10 hover:text-recruiter">
+                              <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 rounded-xl border border-border bg-card">
                       {application.resumes && (Array.isArray(application.resumes) ? application.resumes.length > 0 : true) ? (
                         <DropdownMenuItem
                           onClick={async () => { await openResume(application.resumes); }}
                         >
-                          <FileText className="h-4 w-4 mr-2" />
+                          <FileText className="h-4 w-4 mr-2" strokeWidth={1.5} />
                           View Resume
                         </DropdownMenuItem>
                       ) : null}
@@ -317,7 +314,7 @@ export default function JobApplicants() {
                           status: 'screening'
                         })}
                       >
-                        <Eye className="h-4 w-4 mr-2" />
+                        <Eye className="h-4 w-4 mr-2" strokeWidth={1.5} />
                         Move to Screening
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -326,7 +323,7 @@ export default function JobApplicants() {
                           status: 'interviewing'
                         })}
                       >
-                        <Check className="h-4 w-4 mr-2" />
+                        <Check className="h-4 w-4 mr-2" strokeWidth={1.5} />
                         Move to Interviewing
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -336,7 +333,7 @@ export default function JobApplicants() {
                         })}
                         className="text-red-500 focus:text-red-600"
                       >
-                        <X className="h-4 w-4 mr-2" />
+                        <X className="h-4 w-4 mr-2" strokeWidth={1.5} />
                         Reject
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -352,6 +349,8 @@ export default function JobApplicants() {
           open={detailSheetOpen}
           onOpenChange={setDetailSheetOpen}
         />
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -118,14 +116,28 @@ export default function EngagementPipeline() {
   const [skipEmailOverride, setSkipEmailOverride] = useState(false);
 
   const { data: jobs } = useQuery({
-    queryKey: ['recruiter-jobs', organizationId],
+    queryKey: ['recruiter-jobs', organizationId, effectiveOwnerUserId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      if (effectiveOwnerUserId) {
+        q = q.eq('recruiter_id', effectiveOwnerUserId);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data || [];
     },
     enabled: !!organizationId,
+  });
+
+  const { data: ownerProfile } = useQuery({
+    queryKey: ['owner-profile', effectiveOwnerUserId],
+    queryFn: async () => {
+      if (!effectiveOwnerUserId) return null;
+      const { data } = await supabase.from('profiles').select('full_name').eq('user_id', effectiveOwnerUserId).maybeSingle();
+      return data as { full_name: string | null } | null;
+    },
+    enabled: !!effectiveOwnerUserId && (currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin'),
   });
 
   const { data: org } = useQuery({
@@ -272,44 +284,58 @@ export default function EngagementPipeline() {
       ? 'All Jobs'
       : (jobs || []).find((j: any) => String(j.id) === String(selectedJob))?.title || 'Selected Job';
 
+  const isViewingAsManager = (currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin') && !!effectiveOwnerUserId;
+
   return (
     <DashboardLayout>
-      <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-          <div>
-            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-              <span className="text-gradient-premium">Engagement Pipeline</span>
-            </h1>
-            <p className="mt-2 text-muted-foreground text-lg">
-              Engage internal candidates for submission: outreach → rate → RTR → screening → submission → offer → onboarding.
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        {isViewingAsManager && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0">
+            <Users className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.5} />
+            <p className="text-sm font-sans font-medium text-amber-800 dark:text-amber-200">
+              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>'s pipeline. Use the Manager home button above to return to your dashboard.
             </p>
           </div>
-          <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-            <SelectTrigger className="w-64 glass-panel border-white/20 h-11">
-              <SelectValue placeholder="Filter by job" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Jobs</SelectItem>
-              {(jobs || []).map((j: any) => (
-                <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
-                  <span className="block max-w-[300px] truncate">{j.title}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        )}
+        {/* Header */}
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Mail className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Engagement <span className="text-gradient-recruiter">Pipeline</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                Engage internal candidates: outreach → rate → RTR → screening → submission → offer → onboarding.
+              </p>
+            </div>
+            <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
+              <SelectTrigger className="w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
+                <SelectValue placeholder="Filter by job" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Jobs</SelectItem>
+                {(jobs || []).map((j: any) => (
+                  <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
+                    <span className="block max-w-[300px] truncate">{j.title}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin" />
+          <div className="flex items-center justify-center flex-1 min-h-0">
+            <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
         ) : (
-          <ScrollArea className="flex-1 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+          <ScrollArea className="flex-1 min-h-0 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
             {/* Premium Kanban Board - Responsive Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-6">
               {PIPELINE_STAGES.map((stage) => (
@@ -353,33 +379,32 @@ export default function EngagementPipeline() {
                   }}
                 >
                   {/* Column Header */}
-                  <div className={`mb-3 flex items-center justify-between p-3 rounded-xl bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 ${dragOverStage === stage.id ? 'ring-2 ring-primary/50' : ''
-                    }`}>
+                  <div className={`mb-3 flex items-center justify-between p-3 rounded-xl border font-sans ${dragOverStage === stage.id ? 'ring-2 ring-recruiter/50 bg-recruiter/10 border-recruiter/30' : 'bg-card border-border'}`}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <div className={`h-3 w-3 rounded-full ${stage.dot} shadow-[0_0_10px_currentColor]`} />
-                        <span className="font-bold text-sm tracking-tight">{stage.label}</span>
+                        <span className="font-display font-bold text-sm tracking-tight text-foreground">{stage.label}</span>
                       </div>
                       {STAGE_EMAIL_CONFIG[stage.id] ? (
-                        <div className="text-[10px] opacity-70 flex items-center gap-1 mt-1 pl-5">
-                          <Mail className="h-3 w-3" />
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 pl-5">
+                          <Mail className="h-3 w-3" strokeWidth={1.5} />
                           Auto-email
                         </div>
                       ) : null}
                     </div>
-                    <Badge variant="secondary" className="bg-white/5 text-foreground/80 font-mono shrink-0 border-white/10">
+                    <Badge variant="secondary" className="bg-muted text-foreground font-mono font-sans text-xs shrink-0 border-border">
                       {(appsByStage.get(stage.id)?.length || 0)}
                     </Badge>
                   </div>
 
                   {/* Drop Zone / List */}
-                  <div className={`h-[320px] overflow-y-auto rounded-2xl p-1.5 space-y-2 border transition-colors duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${dragOverStage === stage.id
-                    ? 'bg-primary/10 border-primary/20'
-                    : 'bg-slate-100/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800'
+                  <div className={`h-[320px] overflow-y-auto rounded-xl p-1.5 space-y-2 border transition-colors duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${dragOverStage === stage.id
+                    ? 'bg-recruiter/5 border-recruiter/20'
+                    : 'bg-muted/30 dark:bg-muted/20 border-border'
                     }`}>
                     {(appsByStage.get(stage.id)?.length || 0) === 0 ? (
-                      <div className="h-full max-h-32 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl m-2 opacity-50">
-                        <p className="text-xs font-medium">Empty</p>
+                      <div className="h-full max-h-32 flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-border rounded-xl m-2 opacity-50">
+                        <p className="text-xs font-sans font-medium">Empty</p>
                       </div>
                     ) : (
                       (appsByStage.get(stage.id) || []).map((r, idx) => (
@@ -392,29 +417,30 @@ export default function EngagementPipeline() {
                             setDragOverStage(null);
                           }}
                           className={`
-                            group relative p-3 rounded-xl border border-slate-200 dark:border-slate-700
-                            bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5
+                            group relative p-3 rounded-xl border border-border
+                            bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5
                             transition-all duration-200 cursor-grab active:cursor-grabbing
-                            border-l-[3px] border-l-primary
-                            ${draggedId === r.id ? 'opacity-40 rotate-2 scale-95 ring-2 ring-primary/50' : ''}
+                            border-l-[3px] border-l-recruiter hover:border-recruiter/50 hover:bg-recruiter/5
+                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2
+                            ${draggedId === r.id ? 'opacity-40 rotate-2 scale-95 ring-2 ring-recruiter/50' : ''}
                           `}
                         >
                           <div className="flex items-start gap-3">
-                            <Avatar className="h-9 w-9 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
-                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold">
+                            <Avatar className="h-9 w-9 border border-recruiter/20 shrink-0">
+                              <AvatarFallback className="bg-recruiter/10 text-recruiter text-[10px] font-sans font-bold">
                                 {(r.candidate_profiles?.full_name || 'C').slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-1">
-                                <span className="font-bold text-sm truncate text-slate-800 dark:text-slate-100 leading-tight">
+                                <span className="font-display font-bold text-sm truncate text-foreground leading-tight group-hover:text-recruiter transition-colors">
                                   {r.candidate_profiles?.full_name || 'Candidate'}
                                 </span>
-                                <div className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-grab text-slate-400 hover:text-slate-600">
-                                  <GripVertical className="h-4 w-4" />
+                                <div className="p-1 rounded-lg hover:bg-recruiter/10 transition-colors cursor-grab text-muted-foreground hover:text-recruiter">
+                                  <GripVertical className="h-4 w-4" strokeWidth={1.5} />
                                 </div>
                               </div>
-                              <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5 truncate">
+                              <div className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider mt-0.5 truncate">
                                 {[
                                   r.candidate_profiles?.current_title,
                                   r.candidate_profiles?.current_company,
@@ -423,7 +449,7 @@ export default function EngagementPipeline() {
                                   .join(' • ') || '—'}
                               </div>
                               {r.jobs?.title && (
-                                <div className="mt-2 text-[10px] font-medium truncate bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-md inline-block max-w-full">
+                                <div className="mt-2 text-[10px] font-sans font-medium truncate bg-recruiter/10 text-recruiter px-2 py-1 rounded-lg border border-recruiter/20 inline-block max-w-full">
                                   {r.jobs.title}
                                 </div>
                               )}
@@ -431,7 +457,7 @@ export default function EngagementPipeline() {
                           </div>
 
                           {/* Hover Glow Effect */}
-                          <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-transparent group-hover:ring-primary/10 pointer-events-none transition-all" />
+                          <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-transparent group-hover:ring-recruiter/10 pointer-events-none transition-all" />
                         </div>
                       ))
                     )}
@@ -444,24 +470,24 @@ export default function EngagementPipeline() {
       </div>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className="max-w-2xl glass-panel border-white/20">
+        <DialogContent className="max-w-2xl rounded-xl border border-border bg-card">
           <DialogHeader>
-            <DialogTitle>Send email to move stage</DialogTitle>
+            <DialogTitle className="font-display font-bold">Send email to move stage</DialogTitle>
           </DialogHeader>
 
           {!moveEngagement ? (
-            <div className="text-sm">Select an engagement to move.</div>
+            <div className="text-sm font-sans text-muted-foreground">Select an engagement to move.</div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-medium flex items-center gap-2">
-                  <span className="text-primary font-bold">{moveEngagement.candidate_profiles?.full_name || 'Candidate'}</span>
+              <div className="rounded-xl border border-recruiter/20 bg-recruiter/5 p-4">
+                <div className="text-sm font-sans font-medium flex items-center gap-2">
+                  <span className="text-recruiter font-display font-bold">{moveEngagement.candidate_profiles?.full_name || 'Candidate'}</span>
                   <span className="text-muted-foreground">in relation to</span>
-                  <span className="font-medium">{moveEngagement.jobs?.title || 'No job'}</span>
+                  <span className="font-medium text-foreground">{moveEngagement.jobs?.title || 'No job'}</span>
                 </div>
-                <div className="text-xs mt-2 flex items-center gap-2">
+                <div className="text-xs mt-2 flex items-center gap-2 font-sans">
                   <span className="text-muted-foreground">Moving to:</span>
-                  <Badge className={`${PIPELINE_STAGES.find((s) => s.id === moveToStage)?.dot.replace('bg-', 'bg-') || 'bg-primary'} text-white border-0`}>
+                  <Badge className={`${PIPELINE_STAGES.find((s) => s.id === moveToStage)?.dot.replace('bg-', 'bg-') || 'bg-recruiter'} text-white border-0`}>
                     {PIPELINE_STAGES.find((s) => s.id === moveToStage)?.label || moveToStage}
                   </Badge>
                 </div>
@@ -469,7 +495,7 @@ export default function EngagementPipeline() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Email template</Label>
+                  <Label className="text-sm font-sans">Email template</Label>
                   <Select
                     value={templateId}
                     onValueChange={(v) => {
@@ -494,7 +520,7 @@ export default function EngagementPipeline() {
                       setDraftBody(replaceVars(t.body || ''));
                     }}
                   >
-                    <SelectTrigger className="glass-input">
+                    <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
                       <SelectValue placeholder="Select a template" />
                     </SelectTrigger>
                     <SelectContent>
@@ -515,21 +541,21 @@ export default function EngagementPipeline() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>To</Label>
-                  <Input value={String((moveEngagement.candidate_profiles as any)?.email || '')} readOnly className="glass-input bg-white/5" />
+                  <Label className="text-sm font-sans">To</Label>
+                  <Input value={String((moveEngagement.candidate_profiles as any)?.email || '')} readOnly className="h-11 rounded-lg border-border bg-muted/50 font-sans" />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Subject</Label>
-                <Input value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} className="glass-input" />
+                <Label className="text-sm font-sans">Subject</Label>
+                <Input value={draftSubject} onChange={(e) => setDraftSubject(e.target.value)} className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans" />
               </div>
 
               <div className="space-y-2">
-                <Label>Message</Label>
-                <Textarea value={draftBody} onChange={(e) => setDraftBody(e.target.value)} className="min-h-[200px] glass-input" />
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                <Label className="text-sm font-sans">Message</Label>
+                <Textarea value={draftBody} onChange={(e) => setDraftBody(e.target.value)} className="min-h-[200px] rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans resize-none" />
+                <div className="text-xs text-muted-foreground font-sans flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-recruiter" />
                   The email will include a secure “Review & respond” link. Candidates will be prompted to login/signup.
                 </div>
               </div>
@@ -554,11 +580,11 @@ export default function EngagementPipeline() {
               ) : null}
 
               <div className="flex items-center justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setMoveOpen(false)} disabled={createAndSendRequest.isPending} className="hover:bg-white/5">
+                <Button variant="outline" onClick={() => setMoveOpen(false)} disabled={createAndSendRequest.isPending} className="rounded-lg h-11 border-border hover:bg-muted font-sans">
                   Cancel
                 </Button>
-                <Button onClick={() => createAndSendRequest.mutate()} disabled={createAndSendRequest.isPending || !draftSubject.trim() || !draftBody.trim()} className="shadow-lg shadow-primary/20">
-                  {createAndSendRequest.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                <Button onClick={() => createAndSendRequest.mutate()} disabled={createAndSendRequest.isPending || !draftSubject.trim() || !draftBody.trim()} className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
+                  {createAndSendRequest.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" strokeWidth={1.5} /> : <Send className="h-4 w-4 mr-2" strokeWidth={1.5} />}
                   Send & move
                 </Button>
                 {can(currentRole, 'engagement.override') && skipEmailOverride ? (

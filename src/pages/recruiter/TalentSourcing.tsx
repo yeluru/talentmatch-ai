@@ -2135,7 +2135,7 @@ export default function TalentSourcing() {
           aria-label="Select all"
           className="shrink-0"
         />
-        <div className="text-xs font-medium shrink-0">
+        <div className="text-xs font-sans font-medium shrink-0">
           {isLinkedInMode
             ? (
               <>
@@ -2163,7 +2163,7 @@ export default function TalentSourcing() {
                 >
                   Prev
                 </Button>
-                <span className="text-xs px-1.5">
+                <span className="text-xs font-sans px-1.5">
                   Page <span className="text-foreground font-medium">{safeLeadPage}</span> of {googlePageCount}
                 </span>
                 <Button
@@ -2245,9 +2245,9 @@ export default function TalentSourcing() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-muted/20 overflow-hidden">
-        <div className="max-h-[420px] overflow-y-auto p-1.5">
-          <div className="space-y-0.5">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="min-h-0 overflow-y-auto p-1.5">
+          <div className="space-y-1">
             {displayedRows.map((row: any, i: number) => {
               const key = rowKey(displayModeForRow, row, i);
               const isSelected = selectedKeys.has(key);
@@ -2270,8 +2270,11 @@ export default function TalentSourcing() {
               return (
                 <div
                   key={key}
-                  className={`flex items-center gap-2 py-1 px-2 rounded border text-xs transition-colors ${i % 2 === 1 ? 'bg-secondary/50 hover:bg-secondary/70' : 'hover:bg-muted/40'
-                    }`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveResultKey(key)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveResultKey(key); } }}
+                  className={`group flex items-center gap-2 py-2 px-3 rounded-xl border border-border bg-card text-xs font-sans transition-all cursor-pointer hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2 ${key === activeResultKey ? 'ring-2 ring-recruiter/30 border-recruiter/20 bg-recruiter/5' : ''}`}
                 >
                   <Checkbox
                     checked={isSelected}
@@ -2279,10 +2282,10 @@ export default function TalentSourcing() {
                     onClick={(e) => e.stopPropagation()}
                     className="shrink-0 h-3.5 w-3.5"
                   />
-                  <span className="font-medium truncate text-xs min-w-[200px] max-w-[260px] shrink-0 basis-[220px]" title={title}>
+                  <span className="font-display font-semibold truncate text-xs min-w-[200px] max-w-[260px] shrink-0 basis-[220px] text-foreground group-hover:text-recruiter transition-colors" title={title}>
                     {title}
                   </span>
-                  <span className="truncate flex-1 min-w-0 text-xs" title={subtitle || undefined}>
+                  <span className="truncate flex-1 min-w-0 text-xs font-sans" title={subtitle || undefined}>
                     {subtitle ? String(subtitle).trim().slice(0, 180) + (String(subtitle).length > 180 ? '…' : '') : '—'}
                   </span>
                   {isLinkedInMode && row?.open_to_work_signal ? (
@@ -2298,25 +2301,25 @@ export default function TalentSourcing() {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="shrink-0 p-0.5"
+                      className="shrink-0 p-0.5 rounded-lg hover:bg-recruiter/10 text-muted-foreground hover:text-recruiter focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30"
                       onClick={(e) => e.stopPropagation()}
                       title={isGoogleRow ? 'Open LinkedIn' : 'Open link'}
                     >
-                      {isGoogleRow ? <Linkedin className="h-4 w-4" /> : <LinkIcon className="h-4 w-4" />}
+                      {isGoogleRow ? <Linkedin className="h-4 w-4" strokeWidth={1.5} /> : <LinkIcon className="h-4 w-4" strokeWidth={1.5} />}
                     </a>
                   )}
                   <Button
                     type="button"
                     size="sm"
                     variant="secondary"
-                    className="shrink-0 h-7 text-xs px-2"
+                    className="shrink-0 h-8 rounded-lg text-xs px-3 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium"
                     onClick={(e) => {
                       e.stopPropagation();
                       void handleImportRow(row);
                     }}
                     disabled={isImportPending}
                   >
-                    {isImportPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                    {isImportPending ? <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} /> : <Plus className="h-3 w-3 mr-1" strokeWidth={1.5} />}
                     Import
                   </Button>
                 </div>
@@ -2338,31 +2341,46 @@ export default function TalentSourcing() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-4xl font-bold flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <Globe className="h-8 w-8 text-primary" />
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        {/* Page header - fixed, does not scroll */}
+        <header className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className={`p-2 rounded-xl border shrink-0 ${currentSection === 'search' ? 'bg-recruiter/10 text-recruiter border-recruiter/20' : 'bg-recruiter/10 text-recruiter border-recruiter/20'}`}>
+                  {currentSection === 'search' ? <Search className="h-5 w-5" strokeWidth={1.5} /> : <Globe className="h-5 w-5" strokeWidth={1.5} />}
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  {currentSection === 'uploads' && <>Bulk Upload <span className="text-gradient-recruiter">Profiles</span></>}
+                  {currentSection === 'search' && <>Talent <span className="text-gradient-recruiter">Search</span></>}
+                  {currentSection === 'api' && <>API <span className="text-gradient-recruiter">Integration</span></>}
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                {currentSection === 'uploads' && 'Upload resumes to parse, score, and add to your Talent Pool.'}
+                {currentSection === 'search' && 'Search the web and LinkedIn for candidates. Preview, then import the best matches into your Talent Pool.'}
+                {currentSection === 'api' && 'Connect to job boards, ATS, and approved data providers.'}
+              </p>
             </div>
-            <span className="text-gradient-premium">Talent Sourcing</span>
-          </h1>
-          <p className="mt-2 text-muted-foreground text-lg">
-            Source candidates from resumes, web search, and LinkedIn
-          </p>
-        </div>
+          </div>
+        </header>
 
-        {/* Single column: inputs on top */}
-        <Card className="min-w-0">
-          <CardContent className="pt-6 p-4">
+        {/* Content area: for search section use flex column so Results card can scroll internally; otherwise single scroll region */}
+        <div className={currentSection === 'search' ? 'flex flex-col flex-1 min-h-0 min-w-0' : 'flex-1 min-h-0 overflow-y-auto'}>
+          <div className={currentSection === 'search' ? 'flex flex-col flex-1 min-h-0 gap-6 pt-6 pb-6' : 'space-y-6 pt-6 pb-6'}>
+        {/* Search/Upload card - section header + content */}
+        <div className={`rounded-xl border border-border bg-card overflow-hidden min-w-0 ${currentSection === 'search' ? 'shrink-0' : ''}`}>
+          <div className="p-6">
             {/* Uploads Section */}
             {currentSection === 'uploads' && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <FileText className="h-4 w-4" />
-                  Upload resumes to parse, score, and import.
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-recruiter shrink-0" strokeWidth={1.5} />
+                  <h2 className="text-lg font-display font-bold text-foreground">Upload resumes</h2>
                 </div>
+                <p className="text-sm text-muted-foreground font-sans">Parse, score, and add to your Talent Pool.</p>
 
-                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-recruiter/30 hover:bg-recruiter/5 transition-colors">
                   <input
                     type="file"
                     id="resume-upload"
@@ -2371,10 +2389,10 @@ export default function TalentSourcing() {
                     className="hidden"
                     onChange={handleFileUpload}
                   />
-                  <label htmlFor="resume-upload" className="cursor-pointer">
-                    <Upload className="h-10 w-10 mx-automb-3" />
-                    <p className="text-base font-medium mb-1">Drop resumes here or click to upload</p>
-                    <p className="text-sm">
+                  <label htmlFor="resume-upload" className="cursor-pointer block">
+                    <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" strokeWidth={1.5} />
+                    <p className="text-base font-display font-semibold text-foreground mb-1">Drop resumes here or click to upload</p>
+                    <p className="text-sm font-sans text-muted-foreground">
                       PDF, DOC, DOCX, TXT • Auto-imports with a generic resume-quality score
                     </p>
                   </label>
@@ -2385,26 +2403,29 @@ export default function TalentSourcing() {
             {/* Search Section */}
             {currentSection === 'search' && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <Globe className="h-4 w-4" />
-                  Search and preview candidates.
+                <div className="flex items-center gap-2">
+                  <Search className="h-5 w-5 text-recruiter shrink-0" strokeWidth={1.5} />
+                  <h2 className="text-lg font-display font-bold text-foreground">How to search</h2>
                 </div>
+                <p className="text-sm text-muted-foreground font-sans">
+                  Choose general web search or targeted LinkedIn (Google X-Ray or Serp).
+                </p>
 
-                <div className="flex flex-col gap-3">
-                  {/* Sub-tabs: Web Search, Google X-Ray, Serp Search */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="inline-flex rounded-xl border border-border/60 bg-muted/60 p-1">
+                <div className="flex flex-col gap-4">
+                  {/* Sub-tabs: Web Search, Google X-Ray, Serp Search - shrink-0 so content below can flex */}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <div className="inline-flex rounded-xl border border-border bg-muted/30 p-1 font-sans">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => setSearchMode('web')}
-                        className={`h-8 px-3 ${searchMode === 'web'
-                          ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
-                          : ' hover:text-foreground'
+                        className={`h-9 px-4 rounded-lg font-sans ${searchMode === 'web'
+                          ? 'bg-recruiter/10 text-recruiter border border-recruiter/20 font-semibold'
+                          : 'hover:bg-recruiter/5 hover:text-recruiter'
                           }`}
                       >
-                        <Globe className="h-4 w-4 mr-2" />
+                        <Globe className="h-4 w-4 mr-2" strokeWidth={1.5} />
                         Web Search
                       </Button>
                       <Button
@@ -2412,12 +2433,12 @@ export default function TalentSourcing() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSearchMode('basic')}
-                        className={`h-8 px-3 ${searchMode === 'basic'
-                          ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
-                          : ' hover:text-foreground'
+                        className={`h-9 px-4 rounded-lg font-sans ${searchMode === 'basic'
+                          ? 'bg-recruiter/10 text-recruiter border border-recruiter/20 font-semibold'
+                          : 'hover:bg-recruiter/5 hover:text-recruiter'
                           }`}
                       >
-                        <Linkedin className="h-4 w-4 mr-2" />
+                        <Linkedin className="h-4 w-4 mr-2" strokeWidth={1.5} />
                         Google X-Ray
                       </Button>
                       <Button
@@ -2425,12 +2446,12 @@ export default function TalentSourcing() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setSearchMode('deep')}
-                        className={`h-8 px-3 ${searchMode === 'deep'
-                          ? 'bg-accent/15 text-foreground font-semibold shadow-sm border border-accent/50 ring-2 ring-accent/25'
-                          : ' hover:text-foreground'
+                        className={`h-9 px-4 rounded-lg font-sans ${searchMode === 'deep'
+                          ? 'bg-recruiter/10 text-recruiter border border-recruiter/20 font-semibold'
+                          : 'hover:bg-recruiter/5 hover:text-recruiter'
                           }`}
                       >
-                        <Linkedin className="h-4 w-4 mr-2" />
+                        <Linkedin className="h-4 w-4 mr-2" strokeWidth={1.5} />
                         Serp Search
                       </Button>
                     </div>
@@ -2438,33 +2459,32 @@ export default function TalentSourcing() {
 
                   {/* Web: search bar workspace */}
                   {searchMode === 'web' && (
-                    <div className="rounded-xl border bg-background p-3 space-y-3">
+                    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                          <div className="text-xs">
-                            Search the broader web for profiles and pages, then preview and import the best matches into
-                            your Talent Pool.
-                          </div>
+                          <p className="text-sm text-muted-foreground font-sans">
+                            Search the web for candidate profiles and pages. Preview below, then import the best matches into your Talent Pool.
+                          </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
                           <Sheet open={webFiltersOpen} onOpenChange={setWebFiltersOpen}>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setWebFiltersOpen(true)}>
-                              <SlidersHorizontal className="h-4 w-4 mr-2" />
+                            <Button type="button" variant="outline" size="sm" onClick={() => setWebFiltersOpen(true)} className="h-9 rounded-lg border-border font-sans hover:bg-recruiter/5 hover:border-recruiter/20">
+                              <SlidersHorizontal className="h-4 w-4 mr-2" strokeWidth={1.5} />
                               Filters
                             </Button>
-                            <SheetContent side="right" className="w-full sm:max-w-md">
+                            <SheetContent side="right" className="w-full sm:max-w-md rounded-xl border-border">
                               <SheetHeader>
-                                <SheetTitle>Web search filters</SheetTitle>
-                                <SheetDescription>Keep it simple; refine only when needed.</SheetDescription>
+                                <SheetTitle className="font-display font-bold">Web search filters</SheetTitle>
+                                <SheetDescription className="font-sans">Keep it simple; refine only when needed.</SheetDescription>
                               </SheetHeader>
                               <div className="mt-5 space-y-5">
                                 <div className="space-y-2">
-                                  <div className="text-sm font-medium">Scope</div>
+                                  <div className="text-sm font-sans font-medium">Scope</div>
                                   <div className="grid gap-3">
                                     <div className="space-y-1">
-                                      <div className="text-xs">Country</div>
+                                      <label className="text-sm font-sans text-muted-foreground">Country</label>
                                       <Select value={webCountry} onValueChange={(v) => setWebCountry(v as any)}>
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
                                           <SelectValue placeholder="Country" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -2473,10 +2493,11 @@ export default function TalentSourcing() {
                                         </SelectContent>
                                       </Select>
                                     </div>
-                                    <label className="flex items-center gap-2 text-smselect-none">
+                                    <label className="flex items-center gap-2 text-sm font-sans select-none cursor-pointer">
                                       <Checkbox
                                         checked={webIncludeLinkedIn}
                                         onCheckedChange={(v) => setWebIncludeLinkedIn(Boolean(v))}
+                                        className="rounded border-border focus:ring-2 focus:ring-recruiter/20"
                                       />
                                       Include LinkedIn results in web search
                                     </label>
@@ -2490,21 +2511,22 @@ export default function TalentSourcing() {
                                       setWebCountry('us');
                                       setWebIncludeLinkedIn(false);
                                     }}
+                                    className="rounded-lg h-11 border-border font-sans"
                                   >
                                     Reset
                                   </Button>
-                                  <Button type="button" onClick={() => setWebFiltersOpen(false)}>
+                                  <Button type="button" onClick={() => setWebFiltersOpen(false)} className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
                                     Done
                                   </Button>
                                 </div>
                               </div>
                             </SheetContent>
                           </Sheet>
-                          <Button size="sm" onClick={handleSearch} disabled={webSearchInitial.isPending}>
+                          <Button size="sm" onClick={handleSearch} disabled={webSearchInitial.isPending} className="h-9 rounded-lg px-4 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
                             {webSearchInitial.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} />
                             ) : (
-                              <Search className="h-4 w-4 mr-2" />
+                              <Search className="h-4 w-4 mr-2" strokeWidth={1.5} />
                             )}
                             Search
                           </Button>
@@ -2514,23 +2536,24 @@ export default function TalentSourcing() {
                             variant="outline"
                             onClick={clearWebSearchSession}
                             disabled={webSearchInitial.isPending || webSearchMore.isPending}
+                            className="h-9 rounded-lg border-border font-sans hover:bg-muted"
                           >
-                            <X className="h-4 w-4 mr-2" />
+                            <X className="h-4 w-4 mr-2" strokeWidth={1.5} />
                             Clear
                           </Button>
                         </div>
                       </div>
                       <Input
-                        placeholder="e.g., Senior Python developer 5+ years AWS New York"
+                        placeholder="e.g. Senior Python developer, 5+ years, AWS, New York"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        className="w-full"
+                        className="w-full h-11 rounded-lg border-border font-sans focus:ring-2 focus:ring-recruiter/20 placeholder:text-muted-foreground/70"
                       />
-                      <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs">
-                        <div>
-                          {webCountry === 'us' ? 'US' : 'Any'} • {webIncludeLinkedIn ? 'LinkedIn included' : 'LinkedIn excluded'} • 20 / page
-                        </div>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs font-sans text-muted-foreground">
+                        <span>
+                          {webCountry === 'us' ? 'US' : 'Any'} · {webIncludeLinkedIn ? 'LinkedIn included' : 'LinkedIn excluded'} · 20 per page
+                        </span>
                         {lastSearch?.mode === 'web' ? (
                           <div className="truncate">
                             Last: {format(new Date(lastSearch.ts), 'MMM d, h:mm a')} • {lastSearch.found} found
@@ -2546,24 +2569,29 @@ export default function TalentSourcing() {
             {/* API Section */}
             {currentSection === 'api' && (
               <div className="space-y-4">
-                <div className="text-center py-6">
-                  <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                  <p>API integration coming soon</p>
-                  <p className="text-sm mt-1">Connect to job boards, ATS, and approved data providers</p>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-recruiter shrink-0" strokeWidth={1.5} />
+                  <h2 className="text-lg font-display font-bold text-foreground">API integration</h2>
+                </div>
+                <p className="text-sm text-muted-foreground font-sans">Connect to job boards, ATS, and approved data providers.</p>
+                <div className="text-center py-6 rounded-xl border border-border bg-muted/20">
+                  <Sparkles className="h-10 w-10 mx-auto mb-3 text-muted-foreground" strokeWidth={1.5} />
+                  <p className="font-display font-semibold text-foreground">Coming soon</p>
+                  <p className="text-sm font-sans text-muted-foreground mt-1">Planned: LinkedIn (provider-based), job boards, ATS sync.</p>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         {currentSection === 'search' && searchMode !== 'web' && (
-          <div className="rounded-xl border bg-background p-3 space-y-3">
+          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <div className="text-xs">
+                <p className="text-sm text-muted-foreground font-sans">
                   {searchMode === 'deep'
-                    ? 'Build a targeted LinkedIn query from filters, search via Serp API (deep pagination), then import matched profiles.'
-                    : 'Build a targeted LinkedIn query from filters, search via Google, then import matched profiles.'}
-                </div>
+                    ? 'Build a LinkedIn query with filters, run via Serp API (deep pagination), then preview and import matches.'
+                    : 'Build a LinkedIn query with filters, run via Google, then preview and import matches.'}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
@@ -2591,14 +2619,14 @@ export default function TalentSourcing() {
                   <SheetContent side="right" className="w-full p-0 sm:max-w-4xl">
                     <div className="flex h-full">
                       <aside className="w-56 border-r bg-muted/20 p-3">
-                        <div className="px-2 py-1 text-sm font-medium">Build query</div>
+                        <div className="px-2 py-1 text-sm font-sans font-medium">Build query</div>
 
                         <div className="mt-2 space-y-1">
                           <Button
                             type="button"
                             variant={googleFiltersSection === 'general' ? 'secondary' : 'ghost'}
                             size="sm"
-                            className="w-full justify-start"
+                            className="w-full justify-start font-sans"
                             onClick={() => setGoogleFiltersSection('general')}
                           >
                             General
@@ -2607,7 +2635,7 @@ export default function TalentSourcing() {
                             type="button"
                             variant={googleFiltersSection === 'skills' ? 'secondary' : 'ghost'}
                             size="sm"
-                            className="w-full justify-start"
+                            className="w-full justify-start font-sans"
                             onClick={() => setGoogleFiltersSection('skills')}
                           >
                             Skills
@@ -2616,7 +2644,7 @@ export default function TalentSourcing() {
                             type="button"
                             variant={googleFiltersSection === 'jd' ? 'secondary' : 'ghost'}
                             size="sm"
-                            className="w-full justify-start"
+                            className="w-full justify-start font-sans"
                             onClick={() => setGoogleFiltersSection('jd')}
                           >
                             Build from JD
@@ -2625,7 +2653,7 @@ export default function TalentSourcing() {
                             type="button"
                             variant={googleFiltersSection === 'advanced' ? 'secondary' : 'ghost'}
                             size="sm"
-                            className="w-full justify-start"
+                            className="w-full justify-start font-sans"
                             onClick={() => setGoogleFiltersSection('advanced')}
                           >
                             Advanced
@@ -2633,7 +2661,7 @@ export default function TalentSourcing() {
                         </div>
 
                         <div className="mt-4 border-t pt-3">
-                          <div className="px-2 text-xs">Presets</div>
+                          <div className="px-2 text-xs font-sans">Presets</div>
                           <div className="mt-2 grid gap-2">
                             <Button
                               type="button"
@@ -2693,8 +2721,8 @@ export default function TalentSourcing() {
                       <div className="flex-1 overflow-y-auto p-6">
                         <div className="flex items-start justify-between gap-3">
                           <SheetHeader className="space-y-1 text-left">
-                            <SheetTitle>Build your query</SheetTitle>
-                            <SheetDescription>
+                            <SheetTitle className="font-display font-bold text-foreground">Build your query</SheetTitle>
+                            <SheetDescription className="font-sans text-muted-foreground">
                               Simplicity first. Use Advanced only when you need it.
                             </SheetDescription>
                           </SheetHeader>
@@ -2739,7 +2767,7 @@ export default function TalentSourcing() {
                           {googleFiltersSection === 'general' && (
                             <div className="grid gap-3 md:grid-cols-2">
                               <div className="space-y-2 md:col-span-2">
-                                <div className="text-xs">Strictness</div>
+                                <div className="text-xs font-sans font-medium">Strictness</div>
                                 <ToggleGroup
                                   type="single"
                                   value={googleStrictness}
@@ -2759,7 +2787,7 @@ export default function TalentSourcing() {
                                     Strict
                                   </ToggleGroupItem>
                                 </ToggleGroup>
-                                <div className="text-[11px]">
+                                <div className="text-[11px] font-sans text-muted-foreground">
                                   Broad finds more people; Strict requires more exact matches. Balanced is a good default.
                                 </div>
                               </div>
@@ -2811,7 +2839,7 @@ export default function TalentSourcing() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <div className="text-xs">Titles</div>
+                                <div className="text-xs font-sans font-medium">Titles</div>
                                 <Input
                                   value={googleTitles}
                                   onChange={(e) => setGoogleTitles(e.target.value)}
@@ -2820,7 +2848,7 @@ export default function TalentSourcing() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <div className="text-xs">Location</div>
+                                <div className="text-xs font-sans font-medium">Location</div>
                                 <Input
                                   value={googleLocation}
                                   onChange={(e) => setGoogleLocation(e.target.value)}
@@ -2838,7 +2866,7 @@ export default function TalentSourcing() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <div className="text-xs">Seniority</div>
+                                <div className="text-xs font-sans font-medium">Seniority</div>
                                 <Select
                                   value={googleSeniority}
                                   onValueChange={(v) => setGoogleSeniority(v as any)}
@@ -2857,8 +2885,8 @@ export default function TalentSourcing() {
                                 </Select>
                               </div>
                               <div className="space-y-1">
-                                <div className="text-xs">US-only</div>
-                                <label className="flex items-center gap-2 text-smselect-none pt-2">
+                                <div className="text-xs font-sans font-medium">US-only</div>
+                                <label className="flex items-center gap-2 text-sm font-sans select-none pt-2">
                                   <Checkbox
                                     checked={googleUSOnly}
                                     onCheckedChange={(v) => setGoogleUSOnly(Boolean(v))}
@@ -2868,8 +2896,8 @@ export default function TalentSourcing() {
                                 </label>
                               </div>
                               <div className="space-y-1 md:col-span-2">
-                                <div className="text-xs">Exhaustive search</div>
-                                <label className="flex items-center gap-2 text-smselect-none pt-1">
+                                <div className="text-xs font-sans font-medium">Exhaustive search</div>
+                                <label className="flex items-center gap-2 text-sm font-sans select-none pt-1">
                                   <Checkbox
                                     checked={googleExhaustiveEnabled}
                                     onCheckedChange={(v) => setGoogleExhaustiveEnabled(Boolean(v))}
@@ -2880,7 +2908,7 @@ export default function TalentSourcing() {
                                 {googleExhaustiveEnabled ? (
                                   <div className="mt-2 grid gap-2 md:grid-cols-3">
                                     <div className="space-y-1">
-                                      <div className="text-[11px]">Split by</div>
+                                      <div className="text-[11px] font-sans">Split by</div>
                                       <Select value={googleExhaustiveStrategy} onValueChange={(v) => setGoogleExhaustiveStrategy(v as any)}>
                                         <SelectTrigger>
                                           <SelectValue placeholder="Strategy" />
@@ -2895,7 +2923,7 @@ export default function TalentSourcing() {
                                       </Select>
                                     </div>
                                     <div className="space-y-1">
-                                      <div className="text-[11px]">Target leads</div>
+                                      <div className="text-[11px] font-sans">Target leads</div>
                                       <Input
                                         value={String(googleExhaustiveTarget)}
                                         onChange={(e) => setGoogleExhaustiveTarget(Math.max(50, Math.min(5000, Number(e.target.value) || 0)))}
@@ -2904,7 +2932,7 @@ export default function TalentSourcing() {
                                       />
                                     </div>
                                     <div className="space-y-1">
-                                      <div className="text-[11px]">Max queries</div>
+                                      <div className="text-[11px] font-sans">Max queries</div>
                                       <Select value={String(googleExhaustiveMaxQueries)} onValueChange={(v) => setGoogleExhaustiveMaxQueries(Math.max(1, Math.min(100, Number(v) || 20)))}>
                                         <SelectTrigger>
                                           <SelectValue placeholder="20" />
@@ -2923,7 +2951,7 @@ export default function TalentSourcing() {
                                 {googleExhaustiveEnabled ? (
                                   <div className="mt-2 rounded-lg border bg-muted/20 p-3 space-y-2 md:col-span-2">
                                     <div className="flex items-center justify-between gap-2">
-                                      <div className="text-xs font-medium">Auto split wizard</div>
+                                      <div className="text-xs font-sans font-medium">Auto split wizard</div>
                                       <div className="flex items-center gap-2">
                                         <Button
                                           type="button"
@@ -3014,8 +3042,8 @@ export default function TalentSourcing() {
                                 </div>
                               </div>
                               <div className="space-y-1 md:col-span-2">
-                                <div className="text-xs">Open to work</div>
-                                <label className="flex items-center gap-2 text-smselect-none pt-1">
+                                <div className="text-xs font-sans font-medium">Open to work</div>
+                                <label className="flex items-center gap-2 text-sm font-sans select-none pt-1">
                                   <Checkbox
                                     checked={googleBoostOpenToWork}
                                     onCheckedChange={(v) => setGoogleBoostOpenToWork(Boolean(v))}
@@ -3041,7 +3069,7 @@ export default function TalentSourcing() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <div className="text-xs">Nice-to-have skills (comma-separated)</div>
+                                <div className="text-xs font-sans font-medium">Nice-to-have skills (comma-separated)</div>
                                 <Input
                                   value={googleSkills}
                                   onChange={(e) => setGoogleSkills(e.target.value)}
@@ -3291,13 +3319,13 @@ export default function TalentSourcing() {
 
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="text-xsflex items-center gap-2">
+                                  <div className="text-sm font-sans flex items-center gap-2">
                                     <span>Final query</span>
                                     {googleUseRawXray ? (
                                       <Badge variant="secondary" className="h-5 px-2 text-[10px]">Manual</Badge>
                                     ) : null}
                                   </div>
-                                  <label className="flex items-center gap-2 text-smselect-none">
+                                  <label className="flex items-center gap-2 text-sm font-sans select-none">
                                     <Checkbox
                                       checked={googleUseRawXray}
                                       onCheckedChange={(v) => {
@@ -3381,12 +3409,12 @@ export default function TalentSourcing() {
           </div>
         )}
 
-        {searchMode === 'web' && (
-          <Collapsible open={webExamplesOpen} onOpenChange={setWebExamplesOpen}>
+        {currentSection === 'search' && searchMode === 'web' && (
+          <Collapsible open={webExamplesOpen} onOpenChange={setWebExamplesOpen} className="shrink-0">
             <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="justify-start px-2">
-                Examples
-                <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${webExamplesOpen ? 'rotate-180' : ''}`} />
+              <Button type="button" variant="ghost" size="sm" className="justify-start px-2 rounded-lg font-sans text-muted-foreground hover:text-recruiter hover:bg-recruiter/5">
+                Example searches
+                <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${webExamplesOpen ? 'rotate-180' : ''}`} strokeWidth={1.5} />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -3395,7 +3423,7 @@ export default function TalentSourcing() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs"
+                  className="h-9 px-3 rounded-lg text-xs font-sans border-border hover:bg-recruiter/5 hover:border-recruiter/20"
                   onClick={() => applyWebExample('Senior Python developer AWS New York')}
                 >
                   Python + AWS (NY)
@@ -3404,7 +3432,7 @@ export default function TalentSourcing() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs"
+                  className="h-9 px-3 rounded-lg text-xs font-sans border-border hover:bg-recruiter/5 hover:border-recruiter/20"
                   onClick={() => applyWebExample('Java Spring Boot microservices New Jersey')}
                 >
                   Java + Spring (NJ)
@@ -3413,7 +3441,7 @@ export default function TalentSourcing() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs"
+                  className="h-9 px-3 rounded-lg text-xs font-sans border-border hover:bg-recruiter/5 hover:border-recruiter/20"
                   onClick={() => applyWebExample('Data Scientist healthcare Boston')}
                 >
                   Data Science (Boston)
@@ -3495,22 +3523,22 @@ export default function TalentSourcing() {
                       {item.status === 'error' && <AlertCircle className="h-5 w-5 text-destructive" />}
 
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{item.parsed?.full_name || item.fileName}</div>
+                        <div className="font-sans font-medium truncate">{item.parsed?.full_name || item.fileName}</div>
                         {item.parsed?.current_title && (
-                          <div className="text-smtruncate">{item.parsed.current_title}</div>
+                          <div className="text-sm font-sans truncate">{item.parsed.current_title}</div>
                         )}
                         {item.status === 'error' && item.error && (
-                          <div className="text-sm text-destructive">{item.error}</div>
+                          <div className="text-sm font-sans text-destructive">{item.error}</div>
                         )}
                         {item.status !== 'error' && item.note && (
-                          <div className="text-sm">{item.note}</div>
+                          <div className="text-sm font-sans">{item.note}</div>
                         )}
                       </div>
 
                       {item.atsScore !== undefined && (
                         <div className="flex flex-col items-end leading-tight">
                           <div className={`font-bold ${getScoreColor(item.atsScore)}`}>{item.atsScore}%</div>
-                          <div className="text-[10px]">generic</div>
+                          <div className="text-[10px] font-sans text-muted-foreground">generic</div>
                         </div>
                       )}
                     </div>
@@ -3522,33 +3550,36 @@ export default function TalentSourcing() {
         )}
 
         {currentSection === 'search' && (
-          <Card className="min-w-0">
-            <CardHeader className="p-4 pb-3">
-              <CardTitle className="flex items-center justify-between gap-3">
-                <span>Results</span>
-                <span className="text-sm">
-                  {isSearching ? 'Searching…' : hasSearchRows ? `${totalSearchRows} ready` : 'No results yet'}
+          <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 flex flex-col flex-1 min-h-0">
+            <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-4 pb-3">
+              <h2 className="text-lg font-display font-bold text-foreground flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
+                  Results
                 </span>
-              </CardTitle>
-              <CardDescription>
-                Click a row to preview. Select multiple to import/save in bulk.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
+                <span className="text-sm font-sans font-medium text-muted-foreground">
+                  {isSearching ? 'Searching…' : hasSearchRows ? `${totalSearchRows} match${totalSearchRows === 1 ? '' : 'es'}` : 'No results yet'}
+                </span>
+              </h2>
+              <p className="text-sm text-muted-foreground font-sans mt-1">
+                Click a row to preview. Select multiple to import or save in bulk to your Talent Pool.
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
               {isSearching ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="flex items-center gap-2 text-sm font-sans text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin text-recruiter" strokeWidth={1.5} />
                   Searching…
                 </div>
               ) : hasSearchRows ? (
                 searchResultsPane
               ) : (
-                <div className="text-sm">
-                  Run a search above to see results here.
-                </div>
+                <p className="text-sm font-sans text-muted-foreground">
+                  Enter a search above and click Search. Results will appear here.
+                </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {currentSection === 'api' && (
@@ -3564,6 +3595,8 @@ export default function TalentSourcing() {
             </CardContent>
           </Card>
         )}
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

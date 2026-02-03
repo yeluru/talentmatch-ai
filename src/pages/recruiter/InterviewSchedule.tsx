@@ -13,7 +13,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Calendar as CalendarIcon, Clock, Video, MapPin, Loader2, Users, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
@@ -50,7 +51,9 @@ const INTERVIEW_TYPES = [
 ];
 
 export default function InterviewSchedule() {
-  const { user, roles } = useAuth();
+  const { user, roles, currentRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -68,20 +71,20 @@ export default function InterviewSchedule() {
   const DRAFT_KEY = useMemo(() => `interview_schedule:draft:${organizationId || 'no-org'}:${user?.id || 'no-user'}`, [organizationId, user?.id]);
 
   const { data: interviews, isLoading } = useQuery({
-    queryKey: ['interviews', organizationId, user?.id],
+    queryKey: ['interviews', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId && !user?.id) return [];
 
-      // Load interviews for the org (more reliable than filtering only by interviewer_id).
-      // This avoids "scheduled but not visible" when interviewer_id filtering doesn't match,
-      // and makes the page useful for teams.
+      // Load interviews for applications that belong to org (and to this recruiter's jobs when ownerId is set).
       let orgApplicationIds: string[] = [];
       if (organizationId) {
-        const { data: apps, error: appsErr } = await supabase
+        let appsQuery = supabase
           .from('applications')
-          .select('id, jobs!inner(organization_id)')
+          .select('id, jobs!inner(organization_id, recruiter_id)')
           .eq('jobs.organization_id', organizationId)
           .limit(5000);
+        if (ownerId) appsQuery = appsQuery.eq('jobs.recruiter_id', ownerId);
+        const { data: apps, error: appsErr } = await appsQuery;
         if (appsErr) throw appsErr;
         orgApplicationIds = Array.from(new Set((apps || []).map((a: any) => a?.id).filter(Boolean)));
       }
@@ -272,11 +275,20 @@ export default function InterviewSchedule() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Interview Schedule</h1>
-            <p className="">Manage your upcoming interviews</p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <CalendarIcon className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                Interview <span className="text-gradient-recruiter">Schedule</span>
+              </h1>
+            </div>
+            <p className="text-lg text-muted-foreground font-sans">Manage your upcoming interviews</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -505,7 +517,9 @@ export default function InterviewSchedule() {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

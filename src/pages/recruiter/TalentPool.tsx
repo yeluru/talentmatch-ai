@@ -1058,40 +1058,45 @@ export default function TalentPool() {
       {/* Scroll to top button */}
       <ScrollToTop />
 
-      {/* Page heading + filters (same as other recruiter pages) */}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Users className="h-8 w-8 text-primary" />
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Users className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Talent <span className="text-gradient-recruiter">Pool</span>
+                </h1>
               </div>
-              <span className="text-gradient-premium">Talent Pool</span>
-            </h1>
-            <p className="mt-2 text-muted-foreground text-lg">
-              Sourced profiles from bulk uploads and searches
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" className="shadow-sm glass-panel border-white/20 hover:bg-white/10">
-              <Link to="/recruiter/talent-search/uploads">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </Link>
-            </Button>
-            <Button asChild className="shadow-lg shadow-primary/20">
-              <Link to="/recruiter/talent-search/search">
-                <Search className="h-4 w-4 mr-2" />
-                Find Talent
-              </Link>
-            </Button>
+              <p className="text-lg text-muted-foreground font-sans">
+                Sourced profiles from bulk uploads and searches
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Button asChild variant="outline" className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold">
+                <Link to="/recruiter/talent-search/uploads">
+                  <Upload className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                  Upload
+                </Link>
+              </Button>
+              <Button asChild className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
+                <Link to="/recruiter/talent-search/search">
+                  <Search className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                  Find Talent
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         {filtersContent}
 
-        <Card className="glass-card border-none overflow-hidden">
-          <CardContent className="p-0">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="p-0">
             {!filteredTalents?.length ? (
               <EmptyState
                 icon={Users}
@@ -1290,8 +1295,11 @@ export default function TalentPool() {
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
+          </div>
+        </div>
       </div>
 
       <TalentDetailSheet

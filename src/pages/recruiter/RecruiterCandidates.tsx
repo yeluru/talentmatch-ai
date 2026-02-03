@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -30,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -57,7 +56,6 @@ import { MobileListHeader } from '@/components/ui/mobile-list-header';
 import { SwipeableRow } from '@/components/ui/swipeable-row';
 import { APPLICATION_STAGE_OPTIONS } from '@/lib/statusOptions';
 import { openResumeInNewTab } from '@/lib/resumeLinks';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface ParsedResumeContent {
   current_title?: string;
@@ -122,7 +120,7 @@ function CandidateDetailContent({
     >
       {/* Status */}
       <div className="space-y-2">
-        <Label>Status</Label>
+        <Label className="text-sm font-sans">Status</Label>
         <Select
           value={selectedApplication?.status || 'applied'}
           onValueChange={(value) => updateApplication.mutate({
@@ -130,7 +128,7 @@ function CandidateDetailContent({
             status: value
           })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -145,8 +143,8 @@ function CandidateDetailContent({
 
       {/* AI Match Score */}
       {selectedApplication?.ai_match_score && (
-        <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-          <Sparkles className="h-5 w-5 text-accent" />
+        <div className="flex items-center gap-4 p-4 rounded-lg border border-recruiter/20 bg-recruiter/5">
+          <Sparkles className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
           <div>
             <div className="font-medium">AI Match Score</div>
             <div className="text-sm">
@@ -159,8 +157,8 @@ function CandidateDetailContent({
       {/* Cover Letter */}
       {selectedApplication?.cover_letter && (
         <div className="space-y-2">
-          <Label>Cover Letter</Label>
-          <div className="p-4 bg-muted rounded-lg text-sm">
+          <Label className="text-sm font-sans">Cover Letter</Label>
+          <div className="p-4 rounded-lg border border-border bg-muted/50 text-sm font-sans">
             {selectedApplication.cover_letter}
           </div>
         </div>
@@ -169,11 +167,11 @@ function CandidateDetailContent({
       {/* Resume */}
       {selectedApplication?.resumes && (Array.isArray(selectedApplication.resumes) ? selectedApplication.resumes.length > 0 : true) && (
         <div className="space-y-2">
-          <Label>Resume</Label>
+          <Label className="text-sm font-sans">Resume</Label>
           <Button
             type="button"
             variant="outline"
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
             disabled={isOpeningResume}
             onClick={async () => {
               try {
@@ -189,7 +187,7 @@ function CandidateDetailContent({
               }
             }}
           >
-            {isOpeningResume ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+            {isOpeningResume ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : <FileText className="h-4 w-4 mr-2" strokeWidth={1.5} />}
             View Resume
           </Button>
         </div>
@@ -197,16 +195,17 @@ function CandidateDetailContent({
 
       {/* Rating */}
       <div className="space-y-2">
-        <Label>Your Rating</Label>
+        <Label className="text-sm font-sans">Your Rating</Label>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
               onClick={() => setRating(star)}
-              className="p-1"
+              className="p-1 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
             >
               <Star
                 className={`h-6 w-6 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : ''}`}
+                strokeWidth={1.5}
               />
             </button>
           ))}
@@ -215,12 +214,13 @@ function CandidateDetailContent({
 
       {/* Notes */}
       <div className="space-y-2">
-        <Label>Notes</Label>
+        <Label className="text-sm font-sans">Notes</Label>
         <Textarea
           placeholder="Add your notes about this candidate..."
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={4}
+          className="rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans resize-none"
         />
       </div>
 
@@ -231,9 +231,9 @@ function CandidateDetailContent({
           rating
         })}
         disabled={updateApplication.isPending}
-        className="w-full"
+        className="w-full h-11 rounded-lg border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold"
       >
-        {updateApplication.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+        {updateApplication.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
         Save Changes
       </Button>
     </div>
@@ -241,7 +241,7 @@ function CandidateDetailContent({
 }
 
 export default function RecruiterCandidates() {
-  const { roles } = useAuth();
+  const { roles, currentRole, user } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -253,6 +253,7 @@ export default function RecruiterCandidates() {
   const [rating, setRating] = useState(0);
 
   const organizationId = orgIdForRecruiterSuite(roles);
+  const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['recruiter-applications', organizationId, selectedJobFilter] });
@@ -263,24 +264,23 @@ export default function RecruiterCandidates() {
     onRefresh: handleRefresh,
   });
 
-  // Fetch jobs for filter
+  // Fetch jobs for filter (only this recruiter's jobs when ownerId is set)
   const { data: jobs } = useQuery({
-    queryKey: ['recruiter-jobs-filter', organizationId],
+    queryKey: ['recruiter-jobs-filter', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('id, title')
-        .eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      if (ownerId) q = q.eq('recruiter_id', ownerId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
     enabled: !!organizationId,
   });
 
-  // Fetch applications with candidate info
+  // Fetch applications with candidate info (only for this recruiter's jobs when ownerId is set)
   const { data: applications, isLoading } = useQuery<ApplicationWithProfile[]>({
-    queryKey: ['recruiter-applications', organizationId, selectedJobFilter],
+    queryKey: ['recruiter-applications', organizationId, selectedJobFilter, ownerId],
     queryFn: async (): Promise<ApplicationWithProfile[]> => {
       if (!organizationId) return [];
 
@@ -288,13 +288,14 @@ export default function RecruiterCandidates() {
         .from('applications')
         .select(`
           *,
-          jobs!inner(id, title, organization_id),
+          jobs!inner(id, title, organization_id, recruiter_id),
           candidate_profiles!inner(id, current_title, years_of_experience, user_id, email, phone, linkedin_url, full_name),
           resumes(id, file_name, file_url, parsed_content)
         `)
         .eq('jobs.organization_id', organizationId)
         .order('applied_at', { ascending: false });
 
+      if (ownerId) query = query.eq('jobs.recruiter_id', ownerId);
       if (selectedJobFilter !== 'all') {
         query = query.eq('job_id', selectedJobFilter);
       }
@@ -427,8 +428,10 @@ export default function RecruiterCandidates() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+          <div className="flex items-center justify-center flex-1">
+            <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -436,14 +439,14 @@ export default function RecruiterCandidates() {
 
   const detailHeader = selectedApplication ? (
     <div className="flex items-center gap-3">
-      <Avatar className="h-10 w-10">
-        <AvatarFallback className="bg-accent text-accent-foreground">
+      <Avatar className="h-10 w-10 border border-recruiter/20">
+        <AvatarFallback className="bg-recruiter/10 text-recruiter font-sans font-bold">
           {getDisplayName(selectedApplication).charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
       <div>
-        <div className="font-semibold">{getDisplayName(selectedApplication)}</div>
-        <div className="text-sm">
+        <div className="font-display font-semibold text-foreground">{getDisplayName(selectedApplication)}</div>
+        <div className="text-sm text-muted-foreground font-sans">
           {selectedApplication?.candidate_profiles?.current_title}
         </div>
       </div>
@@ -463,16 +466,16 @@ export default function RecruiterCandidates() {
       >
         <div className="flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <Input
               placeholder="Search candidates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
             />
           </div>
           <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
               <SelectValue placeholder="All Jobs" />
             </SelectTrigger>
             <SelectContent>
@@ -483,7 +486,7 @@ export default function RecruiterCandidates() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -500,8 +503,68 @@ export default function RecruiterCandidates() {
         </div>
       </MobileListHeader>
 
-      <Card className="mt-4">
-        <CardContent className="p-0">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Users className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  My <span className="text-gradient-recruiter">Candidates</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                Review and manage applicants across your jobs.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
+        {/* Filters - desktop */}
+        <div className="hidden md:flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+            <Input
+              placeholder="Search candidates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
+            />
+          </div>
+          <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
+            <SelectTrigger className="w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+              <SelectValue placeholder="All Jobs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Jobs</SelectItem>
+              {jobs?.map((job) => (
+                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="applied">Applied</SelectItem>
+              <SelectItem value="reviewing">Reviewing</SelectItem>
+              <SelectItem value="shortlisted">Shortlisted</SelectItem>
+              <SelectItem value="interviewing">Interviewing</SelectItem>
+              <SelectItem value="offered">Offered</SelectItem>
+              <SelectItem value="hired">Hired</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="p-0">
           {!filteredApplications?.length ? (
             <div className="p-6">
               <EmptyState
@@ -511,35 +574,35 @@ export default function RecruiterCandidates() {
               />
             </div>
           ) : isMobile ? (
-            <div className="divide-y">
+            <div className="divide-y divide-border">
               {filteredApplications.map((app) => {
                 const rowContent = (
                   <div
-                    className="flex items-center gap-2 py-2.5 px-4 cursor-pointer active:bg-muted"
+                    className="flex items-center gap-2 py-2.5 px-4 cursor-pointer active:bg-recruiter/5"
                     onClick={() => handleOpenDetails(app)}
                   >
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                      <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+                    <Avatar className="h-8 w-8 flex-shrink-0 border border-recruiter/20">
+                      <AvatarFallback className="bg-recruiter/10 text-recruiter text-xs font-sans">
                         {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{getDisplayName(app)}</div>
-                      <div className="text-xstruncate">{app.jobs?.title} · {getDisplayTitle(app)}</div>
+                      <div className="font-display font-semibold truncate text-foreground">{getDisplayName(app)}</div>
+                      <div className="text-xs text-muted-foreground font-sans truncate">{app.jobs?.title} · {getDisplayTitle(app)}</div>
                     </div>
                     <StatusBadge status={app.status || 'applied'} />
                     {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : null}
-                    {app.recruiter_rating ? <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" /> : null}
+                    {app.recruiter_rating ? <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 shrink-0" strokeWidth={1.5} /> : null}
                   </div>
                 );
                 return (
                   <SwipeableRow
                     key={app.id}
                     leftActions={[
-                      { icon: <CheckCircle className="h-5 w-5" />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'shortlisted' }) },
+                      { icon: <CheckCircle className="h-5 w-5" strokeWidth={1.5} />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'shortlisted' }) },
                     ]}
                     rightActions={[
-                      { icon: <XCircle className="h-5 w-5" />, label: 'Reject', className: 'bg-destructive text-destructive-foreground', onAction: () => updateApplication.mutate({ appId: app.id, status: 'rejected' }) },
+                      { icon: <XCircle className="h-5 w-5" strokeWidth={1.5} />, label: 'Reject', className: 'bg-destructive text-destructive-foreground', onAction: () => updateApplication.mutate({ appId: app.id, status: 'rejected' }) },
                     ]}
                     className="-mx-6"
                   >
@@ -550,7 +613,7 @@ export default function RecruiterCandidates() {
             </div>
           ) : (
             <div className="space-y-3 px-1">
-              <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest">
+              <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground font-sans uppercase tracking-widest">
                 <div className="flex-1">Candidate</div>
                 <div className="w-32">Status</div>
                 <div className="w-20 text-center">Match</div>
@@ -560,19 +623,22 @@ export default function RecruiterCandidates() {
               {filteredApplications.map((app) => (
                 <div
                   key={app.id}
-                  className="glass-panel p-4 hover-card-premium flex items-center gap-4 cursor-pointer group"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleOpenDetails(app)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpenDetails(app); } }}
+                  className="group rounded-xl border border-border bg-card p-4 flex items-center gap-4 cursor-pointer transition-all duration-300 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <Avatar className="h-10 w-10 flex-shrink-0">
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-xs">
+                    <Avatar className="h-10 w-10 flex-shrink-0 border border-recruiter/20">
+                      <AvatarFallback className="bg-recruiter/10 text-recruiter text-xs font-sans font-bold">
                         {getDisplayName(app).charAt(0).toUpperCase() || 'C'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <div className="font-bold text-foreground truncate">{getDisplayName(app)}</div>
-                      <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
-                        <Briefcase className="h-3 w-3" />
+                      <div className="font-display font-bold text-foreground truncate group-hover:text-recruiter transition-colors">{getDisplayName(app)}</div>
+                      <div className="text-xs text-muted-foreground font-sans truncate flex items-center gap-1.5">
+                        <Briefcase className="h-3 w-3" strokeWidth={1.5} />
                         {app.jobs?.title ?? '—'}
                         <span className="opacity-50">|</span>
                         {getDisplayTitle(app)}
@@ -585,29 +651,34 @@ export default function RecruiterCandidates() {
                   </div>
 
                   <div className="w-20 flex-shrink-0 flex justify-center">
-                    {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : <span className="text-muted-foreground">—</span>}
+                    {app.ai_match_score ? <ScoreBadge score={app.ai_match_score} size="sm" showLabel={false} /> : <span className="text-muted-foreground font-sans">—</span>}
                   </div>
 
-                  <div className="w-24 flex-shrink-0 text-right text-sm text-muted-foreground font-mono">
+                  <div className="w-24 flex-shrink-0 text-right text-sm text-muted-foreground font-sans font-mono">
                     {format(new Date(app.applied_at), 'MMM d')}
                   </div>
 
                   <div className="w-20 flex-shrink-0 flex justify-end">
                     {app.recruiter_rating ? (
-                      <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-full border border-yellow-400/20">
-                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs font-bold text-yellow-600">{app.recruiter_rating}</span>
+                      <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg border border-yellow-400/20">
+                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" strokeWidth={1.5} />
+                        <span className="text-xs font-bold text-yellow-600 font-sans">{app.recruiter_rating}</span>
                       </div>
                     ) : (
-                      <Star className="h-4 w-4 text-muted-foreground/20" />
+                      <Star className="h-4 w-4 text-muted-foreground/20" strokeWidth={1.5} />
                     )}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+          <ScrollToTop />
+          </div>
+        </div>
+      </div>
 
       {/* Candidate Details - Drawer on mobile, Dialog on desktop */}
       {isMobile ? (
@@ -654,7 +725,6 @@ export default function RecruiterCandidates() {
           </DialogContent>
         </Dialog>
       )}
-      <ScrollToTop />
     </DashboardLayout>
   );
 }

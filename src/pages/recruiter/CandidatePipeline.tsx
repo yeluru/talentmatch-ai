@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { orgIdForRecruiterSuite } from '@/lib/org';
+import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Loader2, GripVertical, Users, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -48,7 +48,9 @@ const PIPELINE_STAGES = [
 ] as const;
 
 export default function CandidatePipeline() {
-  const { roles } = useAuth();
+  const { roles, currentRole, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ownerParam = searchParams.get('owner');
   const queryClient = useQueryClient();
   const [selectedJob, setSelectedJob] = useState<string>('all');
   const [draggedApp, setDraggedApp] = useState<string | null>(null);
@@ -57,23 +59,37 @@ export default function CandidatePipeline() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const organizationId = orgIdForRecruiterSuite(roles);
+  const viewAsOwnerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, ownerParam);
 
   const { data: jobs } = useQuery({
-    queryKey: ['recruiter-jobs', organizationId],
+    queryKey: ['recruiter-jobs', organizationId, viewAsOwnerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('id, title')
-        .eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      if (viewAsOwnerId) {
+        q = q.eq('recruiter_id', viewAsOwnerId);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
     enabled: !!organizationId,
   });
 
+  const { data: ownerProfile } = useQuery({
+    queryKey: ['owner-profile-pipeline', viewAsOwnerId],
+    queryFn: async () => {
+      if (!viewAsOwnerId) return null;
+      const { data } = await supabase.from('profiles').select('full_name').eq('user_id', viewAsOwnerId).maybeSingle();
+      return data as { full_name: string | null } | null;
+    },
+    enabled: !!viewAsOwnerId,
+  });
+
+  const jobIds = (jobs || []).map((j: { id: string }) => j.id);
+
   const { data: applications, isLoading, isFetching } = useQuery({
-    queryKey: ['pipeline-applications', organizationId, selectedJob],
+    queryKey: ['pipeline-applications', organizationId, selectedJob, viewAsOwnerId, jobIds],
     queryFn: async () => {
       if (!organizationId) return [];
       let query = supabase
@@ -88,13 +104,15 @@ export default function CandidatePipeline() {
 
       if (selectedJob !== 'all') {
         query = query.eq('job_id', selectedJob);
+      } else if (viewAsOwnerId && jobIds.length > 0) {
+        query = query.in('job_id', jobIds);
       }
 
       const { data, error } = await query;
       if (error) throw error;
       return data as unknown as Application[];
     },
-    enabled: !!organizationId,
+    enabled: !!organizationId && (selectedJob !== 'all' || !viewAsOwnerId || jobIds.length > 0),
   });
 
   const selectedJobTitle =
@@ -170,45 +188,61 @@ export default function CandidatePipeline() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+          <div className="flex items-center justify-center flex-1">
+            <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
+  const isViewingAsManager = (currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin') && !!ownerParam;
+
   return (
     <DashboardLayout>
-      <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-          <div>
-            <h1 className="font-display text-4xl font-bold flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-              <span className="text-gradient-premium">Candidate Pipeline</span>
-            </h1>
-            <p className="mt-2 text-muted-foreground text-lg">
-              Manage and track candidate progress through stages.
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        {isViewingAsManager && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0">
+            <Users className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.5} />
+            <p className="text-sm font-sans font-medium text-amber-800 dark:text-amber-200">
+              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>'s application pipeline. Use the Manager home button above to return to your dashboard.
             </p>
           </div>
-          <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-            <SelectTrigger className="w-64 glass-panel border-white/20">
-              <SelectValue placeholder="Filter by job" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Jobs</SelectItem>
-              {jobs?.map(job => (
-                <SelectItem key={job.id} value={String(job.id)} className="max-w-[320px]">
-                  <span className="block max-w-[300px] truncate">{job.title}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        )}
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Users className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Candidate <span className="text-gradient-recruiter">Pipeline</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                Manage and track candidate progress through stages.
+              </p>
+            </div>
+            <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
+              <SelectTrigger className="w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
+                <SelectValue placeholder="Filter by job" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Jobs</SelectItem>
+                {jobs?.map(job => (
+                  <SelectItem key={job.id} value={String(job.id)} className="max-w-[320px]">
+                    <span className="block max-w-[300px] truncate">{job.title}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Kanban Board */}
-        <ScrollArea className="flex-1 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+        <ScrollArea className="flex-1 min-h-0 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-6">
             {PIPELINE_STAGES.map(stage => (
               <div
@@ -310,8 +344,8 @@ export default function CandidatePipeline() {
               </div>
             ))}
           </div>
-        </ScrollArea >
-      </div >
+        </ScrollArea>
+      </div>
 
       <ApplicantDetailSheet
         applicationId={selectedApplicationId}

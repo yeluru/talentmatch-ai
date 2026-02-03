@@ -9,6 +9,24 @@ export function orgIdForRecruiterSuite(
   return r?.organization_id ?? null;
 }
 
+/**
+ * When viewing recruiter-suite pages (Jobs, Applicants, Pipelines, Communications), data is scoped per recruiter.
+ * - Recruiter role: show only current user's data (jobs, applications, engagements, etc.).
+ * - Account Manager / Org Admin with ?owner=xxx: show that recruiter's data.
+ * - Account Manager / Org Admin without owner: oversight view (all org data).
+ */
+export function effectiveRecruiterOwnerId(
+  currentRole: AppRole | null | undefined,
+  userId: string | undefined,
+  ownerParam: string | null
+): string | null {
+  if (currentRole === 'recruiter') return userId ?? null;
+  if (currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin') {
+    return ownerParam || null;
+  }
+  return null;
+}
+
 export function orgIdForRole(
   roles: { role: AppRole; organization_id?: string }[],
   currentRole: AppRole | null | undefined

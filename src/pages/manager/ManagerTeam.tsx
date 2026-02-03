@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Mail, Trash2, Clock, XCircle, ArrowRight } from 'lucide-react';
+import { Loader2, Mail, Trash2, Clock, XCircle, ArrowRight, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -274,7 +273,7 @@ export default function ManagerTeam() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+          <Loader2 className="h-8 w-8 animate-spin text-manager" strokeWidth={1.5} />
         </div>
       </DashboardLayout>
     );
@@ -283,261 +282,241 @@ export default function ManagerTeam() {
   if (!organizationId) {
     return (
       <DashboardLayout>
-        <main className="space-y-4">
-          <header>
-            <h1 className="font-display text-3xl font-bold">Team Management</h1>
-            <p className="mt-1">We couldn’t find an organization for this manager account.</p>
-          </header>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Action needed</CardTitle>
-              <CardDescription>
-                This page requires an organization to be linked to your user role. If you were just invited/changed roles, try signing out and back in.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => supabase.auth.signOut()}>
-                Sign out
-              </Button>
-              <Button onClick={() => (window.location.href = '/auth')}>Go to login</Button>
-            </CardContent>
-          </Card>
-        </main>
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+          <div className="shrink-0 flex flex-col gap-6">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <Users className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Team <span className="text-gradient-manager">Management</span></h1>
+              </div>
+              <p className="mt-1 text-lg text-muted-foreground font-sans">We couldn’t find an organization for this manager account.</p>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="pt-6 pb-6">
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h2 className="font-display text-xl font-bold text-foreground mb-2">Action needed</h2>
+                <p className="text-muted-foreground font-sans mb-4">
+                  This page requires an organization to be linked to your user role. If you were just invited/changed roles, try signing out and back in.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => supabase.auth.signOut()} className="rounded-lg border-border hover:bg-manager/10 hover:text-manager font-sans">
+                    Sign out
+                  </Button>
+                  <Button onClick={() => (window.location.href = '/auth')} className="rounded-lg h-11 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                    Go to login
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold">Team Management</h1>
-            <p className="mt-1">Manage recruiters in your organization</p>
-          </div>
-
-          <Dialog open={isInviteOpen} onOpenChange={(open) => !open && setIsInviteOpen(false)}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setIsInviteOpen(true)} variant="outline">
-                <Mail className="h-4 w-4 mr-2" />
-                Invite Recruiter
-              </Button>
-            </DialogTrigger>
-
-            {/* Send Invite Dialog */}
-            {isInviteOpen && (
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    Send Recruiter Invite
-                  </DialogTitle>
-                  <DialogDescription>
-                    Send an email invitation to join your organization as a recruiter.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-email">Email Address *</Label>
-                    <Input
-                      id="invite-email"
-                      type="email"
-                      placeholder="recruiter@example.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-name">Full Name *</Label>
-                    <Input
-                      id="invite-name"
-                      placeholder="John Doe"
-                      value={inviteName}
-                      onChange={(e) => setInviteName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  {lastRecruiterInviteUrl && (
-                    <div className="rounded-md border bg-muted/20 p-3">
-                      <p className="text-xs">Invite link (local email may be skipped)</p>
-                      <p className="mt-1 break-all text-sm font-medium">{lastRecruiterInviteUrl}</p>
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            await navigator.clipboard.writeText(lastRecruiterInviteUrl);
-                            toast.success("Copied invite link");
-                          }}
-                        >
-                          Copy
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(lastRecruiterInviteUrl, "_blank")}
-                        >
-                          Open
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <Users className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsInviteOpen(false)}>
-                    Cancel
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Team <span className="text-gradient-manager">Management</span>
+                </h1>
+              </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                Manage recruiters in your organization
+              </p>
+            </div>
+            <div className="shrink-0">
+              <Dialog open={isInviteOpen} onOpenChange={(open) => !open && setIsInviteOpen(false)}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setIsInviteOpen(true)} variant="outline" className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                    <Mail className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                    Invite Recruiter
                   </Button>
-                  <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail || !inviteName}>
-                    {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Send Invitation
-                  </Button>
-                </DialogFooter>
+                </DialogTrigger>
+
+                {isInviteOpen && (
+                  <DialogContent className="rounded-xl border border-border bg-card max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="font-display text-xl font-bold text-foreground flex items-center gap-2">
+                        <Mail className="h-5 w-5 text-manager" strokeWidth={1.5} />
+                        Send Recruiter Invite
+                      </DialogTitle>
+                      <DialogDescription className="font-sans text-muted-foreground">
+                        Send an email invitation to join your organization as a recruiter.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="invite-email" className="text-sm font-sans font-medium text-muted-foreground">Email Address *</Label>
+                        <Input
+                          id="invite-email"
+                          type="email"
+                          placeholder="recruiter@example.com"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="invite-name" className="text-sm font-sans font-medium text-muted-foreground">Full Name *</Label>
+                        <Input
+                          id="invite-name"
+                          placeholder="John Doe"
+                          value={inviteName}
+                          onChange={(e) => setInviteName(e.target.value)}
+                          required
+                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                        />
+                      </div>
+                      {lastRecruiterInviteUrl && (
+                        <div className="rounded-xl border border-border bg-muted/30 p-3">
+                          <p className="text-xs font-sans text-muted-foreground">Invite link (local email may be skipped)</p>
+                          <p className="mt-1 break-all text-sm font-sans font-medium">{lastRecruiterInviteUrl}</p>
+                          <div className="mt-2 flex gap-2">
+                            <Button type="button" variant="outline" size="sm" className="rounded-lg border-border hover:bg-manager/10 font-sans" onClick={async () => { await navigator.clipboard.writeText(lastRecruiterInviteUrl!); toast.success("Copied invite link"); }}>
+                              Copy
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="rounded-lg border-manager/20 hover:bg-manager/10 text-manager font-sans" onClick={() => window.open(lastRecruiterInviteUrl!, "_blank")}>
+                              Open
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsInviteOpen(false)} className="rounded-lg font-sans">
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail || !inviteName} className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                        {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" strokeWidth={1.5} />}
+                        Send Invitation
+                      </Button>
+                    </DialogFooter>
               </DialogContent>
-            )}
-          </Dialog>
+                )}
+              </Dialog>
+            </div>
+          </div>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 pt-6 pb-6">
         {/* Pending Invites */}
         {pendingInvites.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-amber-500" />
-                Pending Invitations
-              </CardTitle>
-              <CardDescription>{pendingInvites.length} pending invite(s)</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="h-5 w-5 text-manager" strokeWidth={1.5} />
+              <h2 className="font-display text-xl font-bold text-foreground">Pending Invitations</h2>
+            </div>
+            <p className="text-sm text-muted-foreground font-sans mb-4">{pendingInvites.length} pending invite(s)</p>
+            <div className="space-y-3">
+              {pendingInvites.map((invite) => (
+                <div key={invite.id} className="p-4 rounded-xl border border-manager/20 bg-manager/5 hover:bg-manager/10 transition-all flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="font-sans font-medium">{invite.full_name || invite.email}</p>
+                    {invite.full_name && <p className="text-sm font-sans text-muted-foreground">{invite.email}</p>}
+                    <p className="mt-1 text-xs font-sans break-all text-muted-foreground">
+                      Invite link: {buildInviteUrl(invite.invite_token)}
+                    </p>
+                    <p className="text-xs mt-1 font-sans text-muted-foreground">
+                      Expires {new Date(invite.expires_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="border-manager/30 text-manager font-sans">Pending</Badge>
+                    <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-manager/10 font-sans" onClick={async () => { await navigator.clipboard.writeText(buildInviteUrl(invite.invite_token)); toast.success("Copied invite link"); }}>
+                      Copy link
+                    </Button>
+                    <Button variant="outline" size="sm" className="rounded-lg border-manager/20 hover:bg-manager/10 text-manager font-sans" onClick={() => window.open(buildInviteUrl(invite.invite_token), "_blank")}>
+                      Open
+                    </Button>
+                    <Button variant="outline" size="sm" className="rounded-lg border-manager/20 hover:bg-manager/20 text-manager font-sans" onClick={() => handleReInvite(invite)} disabled={isSubmitting}>
+                      Re-invite
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleCancelInvite(invite.id)}>
+                      <XCircle className="h-4 w-4" strokeWidth={1.5} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+            <h2 className="font-display text-lg font-bold text-foreground mb-1">Account Managers</h2>
+            <p className="text-sm text-muted-foreground font-sans mb-4">{managers.length} manager(s)</p>
+            {managers.length === 0 ? (
+              <p className="text-sm font-sans text-muted-foreground">No managers found.</p>
+            ) : (
               <div className="space-y-3">
-                {pendingInvites.map((invite) => (
-                  <div key={invite.id} className="glass-panel p-4 hover-card-premium flex items-center justify-between border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40">
-                    <div>
-                      <p className="font-medium">{invite.full_name || invite.email}</p>
-                      {invite.full_name && <p className="text-sm">{invite.email}</p>}
-                      <p className="mt-1 text-xs break-all">
-                        Invite link: {buildInviteUrl(invite.invite_token)}
-                      </p>
-                      <p className="text-xsmt-1">
-                        Expires {new Date(invite.expires_at).toLocaleDateString()}
-                      </p>
+                {managers.map((member) => (
+                  <div key={member.id} className="p-4 rounded-xl border border-border hover:bg-manager/5 transition-all flex items-center gap-4">
+                    <Avatar>
+                      <AvatarImage src={member.avatar_url} />
+                      <AvatarFallback className="bg-manager/20 text-manager font-sans">
+                        {(member.full_name?.[0] || 'U').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sans font-medium">{member.full_name}</p>
+                      <p className="text-sm font-sans text-muted-foreground">{member.email}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-amber-500 text-amber-600">Pending</Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(buildInviteUrl(invite.invite_token));
-                          toast.success("Copied invite link");
-                        }}
-                      >
-                        Copy link
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(buildInviteUrl(invite.invite_token), "_blank")}
-                      >
-                        Open
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleReInvite(invite)}
-                        disabled={isSubmitting}
-                      >
-                        Re-invite
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleCancelInvite(invite.id)}
-                      >
-                        <XCircle className="h-4 w-4" />
+                    <Badge className="bg-manager/10 text-manager border-manager/20 font-sans shrink-0">Manager</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+            <h2 className="font-display text-lg font-bold text-foreground mb-1">Recruiters</h2>
+            <p className="text-sm text-muted-foreground font-sans mb-4">{recruiters.length} recruiter(s)</p>
+            {recruiters.length === 0 ? (
+              <p className="text-sm font-sans text-muted-foreground">
+                No recruiters assigned to you yet. Ask an Org Admin to assign recruiters under your account.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recruiters.map((member) => (
+                  <div key={member.id} className="p-4 rounded-xl border border-border hover:bg-manager/5 transition-all flex items-center gap-4 flex-wrap">
+                    <Avatar>
+                      <AvatarImage src={member.avatar_url} />
+                      <AvatarFallback className="bg-recruiter/20 text-recruiter font-sans">
+                        {(member.full_name?.[0] || 'U').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sans font-medium">{member.full_name}</p>
+                      <p className="text-sm font-sans text-muted-foreground">{member.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className="bg-recruiter/10 text-recruiter border-recruiter/20 font-sans">Recruiter</Badge>
+                      <Button asChild size="sm" variant="outline" className="rounded-lg border-manager/20 hover:bg-manager/10 text-manager font-sans">
+                        <Link to={`/manager/team/recruiters/${member.user_id}`}>
+                          View progress
+                          <ArrowRight className="h-4 w-4 ml-2" strokeWidth={1.5} />
+                        </Link>
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Managers</CardTitle>
-              <CardDescription>{managers.length} manager(s)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {managers.length === 0 ? (
-                <p className="text-sm">No managers found.</p>
-              ) : (
-                <div className="space-y-3">
-                  {managers.map((member) => (
-                    <div key={member.id} className="glass-panel p-4 hover-card-premium flex items-center gap-4">
-                      <Avatar>
-                        <AvatarImage src={member.avatar_url} />
-                        <AvatarFallback className="bg-manager/20 text-manager">
-                          {(member.full_name?.[0] || 'U').toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm">{member.email}</p>
-                      </div>
-                      <Badge className="bg-manager/10 text-manager">Manager</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Recruiters</CardTitle>
-              <CardDescription>{recruiters.length} recruiter(s)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recruiters.length === 0 ? (
-                <p className="text-sm">
-                  No recruiters assigned to you yet. Ask an Org Admin to assign recruiters under your account.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {recruiters.map((member) => (
-                    <div key={member.id} className="glass-panel p-4 hover-card-premium flex items-center gap-4">
-                      <Avatar>
-                        <AvatarImage src={member.avatar_url} />
-                        <AvatarFallback className="bg-recruiter/20 text-recruiter">
-                          {(member.full_name?.[0] || 'U').toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="font-medium">{member.full_name}</p>
-                        <p className="text-sm">{member.email}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-recruiter/10 text-recruiter">Recruiter</Badge>
-                        <Button asChild size="sm" variant="outline">
-                          <Link to={`/manager/team/recruiters/${member.user_id}`}>
-                            View progress
-                            <ArrowRight className="h-4 w-4 ml-2" />
-                          </Link>
-                        </Button>
-                        {/* Account managers oversee recruiters; org admins manage assignment/removal. */}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </div>
+        </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

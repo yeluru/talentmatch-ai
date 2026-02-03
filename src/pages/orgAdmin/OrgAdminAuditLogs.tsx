@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Clock, User, Shield, Briefcase, FileText, Settings, Users, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { sortBy } from "@/lib/sort";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -56,7 +57,8 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
     dir: "desc",
   });
 
-  const cutoffIso = useMemo(() => new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), []);
+  // Default window: 7 days so org admins see recent activity (was 4 hours, often empty)
+  const cutoffIso = useMemo(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), []);
 
   const sortedLogs = useMemo(() => {
     return sortBy(logs, tableSort.sort, (r, key) => {
@@ -106,7 +108,7 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
     ].join(",");
   };
 
-  const fetchLogs = async (reset: boolean) => {
+  const fetchLogs = async (reset: boolean, ignoreCutoff?: boolean) => {
     if (!organizationId) return;
     const PAGE = 100;
     setLoading(true);
@@ -121,7 +123,7 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
         .limit(PAGE);
 
       if (!qDebounced) {
-        if (!expanded) query = query.gte("created_at", cutoffIso);
+        if (!expanded && !ignoreCutoff) query = query.gte("created_at", cutoffIso);
       } else {
         query = query.or(buildOr(qDebounced));
       }
@@ -150,7 +152,7 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
       setCursor(normalized[normalized.length - 1]?.created_at || null);
     } catch (e) {
       console.error(e);
-      // Keep UI responsive
+      toast.error("Failed to load audit logs");
     } finally {
       setLoading(false);
     }
@@ -202,7 +204,7 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
           <div>
             <h1 className="font-display text-3xl font-bold text-gradient-premium">Audit Logs</h1>
             <p className="mt-1 text-muted-foreground">
-              Default view shows the last 4 hours. Search queries the full tenant history.
+              Default view shows the last 7 days. Search queries the full tenant history.
             </p>
           </div>
         </div>
@@ -242,7 +244,7 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
             <h3 className="font-semibold text-lg">Tenant Activity</h3>
           </div>
           <Badge variant="outline" className="glass-panel text-xs font-normal">
-            {qDebounced ? "Search Mode" : expanded ? "Paged History" : "Last 4 hours"}
+            {qDebounced ? "Search Mode" : expanded ? "Paged History" : "Last 7 days"}
           </Badge>
         </div>
 
@@ -250,7 +252,12 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
           <div className="text-center py-12 glass-panel rounded-xl border-dashed border-2 border-white/10">
             <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-semibold mb-2">No activity logs</h3>
-            <p className="text-muted-foreground">Logs matching your criteria will appear here.</p>
+            <p className="text-muted-foreground mb-2">
+              {qDebounced ? "No logs match your search." : "No activity in the last 7 days for this organization."}
+            </p>
+            <p className="text-sm text-muted-foreground/80">
+              Use the search box to query full history, or click &quot;Load older logs&quot; to fetch more.
+            </p>
           </div>
         ) : (
           <div className="glass-panel p-0 rounded-xl overflow-hidden border border-white/10 shadow-sm relative z-0">
@@ -323,7 +330,7 @@ export default function OrgAdminAuditLogs({ embedded = false }: { embedded?: boo
               className="glass-panel hover:bg-white/10"
               onClick={() => {
                 setExpanded(true);
-                fetchLogs(false);
+                fetchLogs(false, true);
               }}
               disabled={loading || !hasMore}
             >

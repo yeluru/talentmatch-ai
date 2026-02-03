@@ -223,11 +223,33 @@ export default function CreateJob() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-lg -ml-2 text-muted-foreground hover:text-recruiter hover:bg-recruiter/5">
+                <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
+              </Button>
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                    <Sparkles className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                    Post a New <span className="text-gradient-recruiter">Job</span>
+                  </h1>
+                </div>
+                <p className="text-lg text-muted-foreground font-sans">
+                  Create a job posting to attract top talent
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto w-full">
+          <div className="space-y-6 pt-6 pb-6 w-full max-w-5xl mx-auto">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="font-display text-3xl font-bold">Post a New Job</h1>
             <p className="mt-1">
@@ -236,21 +258,21 @@ export default function CreateJob() {
           </div>
         </div>
 
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-accent" />
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="border-b border-recruiter/10 bg-recruiter/5 px-6 pt-6 pb-2">
+            <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
               Create a job (fast)
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="text-sm text-muted-foreground font-sans mt-1">
               Paste the JD blurb and we’ll auto-fill, or switch to manual entry.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="paste">Paste & Auto‑Fill</TabsTrigger>
-                <TabsTrigger value="manual">Manual</TabsTrigger>
+            </p>
+          </div>
+          <div className="p-6 space-y-4">
+            <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="flex flex-col flex-1 min-h-0">
+              <TabsList className="grid w-full grid-cols-2 shrink-0 rounded-lg border border-border bg-muted/30 p-1 font-sans">
+                <TabsTrigger value="paste" className="rounded-lg font-sans data-[state=active]:bg-recruiter/10 data-[state=active]:text-recruiter data-[state=active]:border-recruiter/20">Paste & Auto‑Fill</TabsTrigger>
+                <TabsTrigger value="manual" className="rounded-lg font-sans data-[state=active]:bg-recruiter/10 data-[state=active]:text-recruiter data-[state=active]:border-recruiter/20">Manual</TabsTrigger>
               </TabsList>
 
               <TabsContent value="paste" className="space-y-4 pt-3">
@@ -302,8 +324,8 @@ export default function CreateJob() {
                 </p>
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {mode === 'manual' ? (
         <>
@@ -517,17 +539,21 @@ export default function CreateJob() {
             variant="outline"
             onClick={() => createJob.mutate('draft')}
             disabled={!isValid || createJob.isPending}
+            className="rounded-lg h-11 border-border font-sans"
           >
-            {createJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {createJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
             Save as Draft
           </Button>
           <Button
             onClick={() => createJob.mutate('published')}
             disabled={!isValid || createJob.isPending}
+            className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold"
           >
-            {createJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {createJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
             Publish Job
           </Button>
+        </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>
