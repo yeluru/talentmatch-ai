@@ -286,6 +286,7 @@ export default function CandidateEngagementRequest() {
             )}
           </div>
         </div>
+        </div>
       </div>
     </DashboardLayout>
   );

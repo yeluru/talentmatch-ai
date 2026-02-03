@@ -339,7 +339,10 @@ export default function JobApplicants() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
+                  </div>
+                </div>
               </div>
+            </div>
             ))}
           </div>
         )}
