@@ -188,8 +188,8 @@ export default function CandidatePipeline() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
-          <div className="flex items-center justify-center flex-1">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-center flex-1 py-12">
             <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
         </div>
@@ -201,32 +201,33 @@ export default function CandidatePipeline() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
         {isViewingAsManager && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0 mt-4">
             <Users className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.5} />
             <p className="text-sm font-sans font-medium text-amber-800 dark:text-amber-200">
-              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>'s application pipeline. Use the Manager home button above to return to your dashboard.
+              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>&apos;s application pipeline. Use the Manager home button above to return to your dashboard.
             </p>
           </div>
         )}
-        <div className="shrink-0 flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+        {/* Header - clearly separated from pipeline */}
+        <div className="shrink-0 py-6 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="min-w-0">
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20 shrink-0">
                   <Users className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold tracking-tight text-foreground">
                   Candidate <span className="text-gradient-recruiter">Pipeline</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-base sm:text-lg text-muted-foreground font-sans mt-1">
                 Manage and track candidate progress through stages.
               </p>
             </div>
             <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-              <SelectTrigger className="w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
+              <SelectTrigger className="w-full md:w-56 lg:w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
                 <SelectValue placeholder="Filter by job" />
               </SelectTrigger>
               <SelectContent>
@@ -241,27 +242,28 @@ export default function CandidatePipeline() {
           </div>
         </div>
 
-        {/* Kanban Board */}
-        <ScrollArea className="flex-1 min-h-0 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-6">
+        {/* Kanban Board - column headers have room so titles are not squeezed */}
+        <ScrollArea className="flex-1 min-h-0 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-6 min-w-0">
             {PIPELINE_STAGES.map(stage => (
               <div
                 key={stage.id}
-                className="flex flex-col h-full"
+                className="flex flex-col h-full min-w-0"
                 onDragOver={(e) => handleDragOver(e, stage.id)}
                 onDrop={(e) => handleDrop(e, stage.id)}
                 onDragLeave={() => {
                   if (dragOverStage === stage.id) setDragOverStage(null);
                 }}
               >
-                {/* Column Header */}
-                <div className={`mb-3 flex items-center justify-between p-3 rounded-xl bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 ${dragOverStage === stage.id ? 'ring-2 ring-primary/50' : ''
-                  }`}>
-                  <div className="flex items-center gap-2">
-                    <div className={`h-3 w-3 rounded-full ${stage.dot} shadow-[0_0_10px_currentColor]`} />
-                    <span className="font-bold text-sm tracking-tight">{stage.label}</span>
+                {/* Column Header - enough space for title and count; title can wrap */}
+                <div className={`mb-3 flex items-start justify-between gap-2 p-3 min-h-[72px] rounded-xl bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 ${dragOverStage === stage.id ? 'ring-2 ring-primary/50' : ''}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className={`h-3 w-3 rounded-full shrink-0 ${stage.dot} shadow-[0_0_10px_currentColor]`} />
+                      <span className="font-display font-bold text-sm tracking-tight text-foreground break-words">{stage.label}</span>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="bg-black/5 dark:bg-white/10 text-foreground font-mono">
+                  <Badge variant="secondary" className="bg-black/5 dark:bg-white/10 text-foreground font-mono text-xs shrink-0 ml-1">
                     {appsByStage.get(stage.id)?.length || 0}
                   </Badge>
                 </div>

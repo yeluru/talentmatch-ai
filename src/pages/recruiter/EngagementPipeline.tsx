@@ -288,33 +288,33 @@ export default function EngagementPipeline() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
         {isViewingAsManager && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0 mt-4">
             <Users className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.5} />
             <p className="text-sm font-sans font-medium text-amber-800 dark:text-amber-200">
-              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>'s pipeline. Use the Manager home button above to return to your dashboard.
+              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>&apos;s pipeline. Use the Manager home button above to return to your dashboard.
             </p>
           </div>
         )}
-        {/* Header */}
-        <div className="shrink-0 flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+        {/* Header - clearly separated from pipeline */}
+        <div className="shrink-0 py-6 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="min-w-0">
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20 shrink-0">
                   <Mail className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold tracking-tight text-foreground">
                   Engagement <span className="text-gradient-recruiter">Pipeline</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-base sm:text-lg text-muted-foreground font-sans mt-1">
                 Engage internal candidates: outreach → rate → RTR → screening → submission → offer → onboarding.
               </p>
             </div>
             <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-              <SelectTrigger className="w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
+              <SelectTrigger className="w-full md:w-56 lg:w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
                 <SelectValue placeholder="Filter by job" />
               </SelectTrigger>
               <SelectContent>
@@ -331,17 +331,17 @@ export default function EngagementPipeline() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex items-center justify-center flex-1 min-h-0">
+          <div className="flex items-center justify-center flex-1 min-h-0 py-12">
             <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
         ) : (
-          <ScrollArea className="flex-1 min-h-0 w-full -mx-4 px-4 sm:mx-0 sm:px-0">
-            {/* Premium Kanban Board - Responsive Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-6">
+          <ScrollArea className="flex-1 min-h-0 w-full">
+            {/* Kanban columns - responsive; column headers have min height and wrapping so titles are not squeezed */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-6 min-w-0">
               {PIPELINE_STAGES.map((stage) => (
                 <div
                   key={stage.id}
-                  className="flex flex-col h-full"
+                  className="flex flex-col h-full min-w-0"
                   onDragOver={(e) => {
                     e.preventDefault();
                     if (dragOverStage !== stage.id) setDragOverStage(stage.id);
@@ -378,21 +378,21 @@ export default function EngagementPipeline() {
                     if (dragOverStage === stage.id) setDragOverStage(null);
                   }}
                 >
-                  {/* Column Header */}
-                  <div className={`mb-3 flex items-center justify-between p-3 rounded-xl border font-sans ${dragOverStage === stage.id ? 'ring-2 ring-recruiter/50 bg-recruiter/10 border-recruiter/30' : 'bg-card border-border'}`}>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-3 w-3 rounded-full ${stage.dot} shadow-[0_0_10px_currentColor]`} />
-                        <span className="font-display font-bold text-sm tracking-tight text-foreground">{stage.label}</span>
+                  {/* Column Header - enough space for title and count; title can wrap */}
+                  <div className={`mb-3 flex items-start justify-between gap-2 p-3 min-h-[72px] rounded-xl border font-sans ${dragOverStage === stage.id ? 'ring-2 ring-recruiter/50 bg-recruiter/10 border-recruiter/30' : 'bg-card border-border'}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className={`h-3 w-3 rounded-full shrink-0 ${stage.dot} shadow-[0_0_10px_currentColor]`} />
+                        <span className="font-display font-bold text-sm tracking-tight text-foreground break-words">{stage.label}</span>
                       </div>
                       {STAGE_EMAIL_CONFIG[stage.id] ? (
                         <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 pl-5">
-                          <Mail className="h-3 w-3" strokeWidth={1.5} />
+                          <Mail className="h-3 w-3 shrink-0" strokeWidth={1.5} />
                           Auto-email
                         </div>
                       ) : null}
                     </div>
-                    <Badge variant="secondary" className="bg-muted text-foreground font-mono font-sans text-xs shrink-0 border-border">
+                    <Badge variant="secondary" className="bg-muted text-foreground font-mono font-sans text-xs shrink-0 border-border ml-1">
                       {(appsByStage.get(stage.id)?.length || 0)}
                     </Badge>
                   </div>

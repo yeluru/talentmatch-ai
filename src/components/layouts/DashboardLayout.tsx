@@ -124,6 +124,10 @@ const recruiterNavGroups: NavGroup[] = [
     label: 'Automation',
     items: [{ title: 'AI Agents', href: '/recruiter/agents', icon: Bot }],
   },
+  {
+    label: 'Support',
+    items: [{ title: 'Help & How-to', href: '/recruiter/help', icon: BookOpen }],
+  },
 ];
 
 const managerNavItems = [
@@ -134,6 +138,7 @@ const managerNavItems = [
   { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
+  { title: 'Help & How-to', href: '/manager/help', icon: BookOpen },
 ];
 
 /** Account Manager: oversight-only nav (Manager Dashboard, Team, etc.). */
@@ -145,6 +150,7 @@ const accountManagerOversightNavItems: NavItem[] = [
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
+  { title: 'Help & How-to', href: '/manager/help', icon: BookOpen },
 ];
 
 const orgAdminNavItems = [
@@ -361,24 +367,6 @@ function DashboardLayoutInner({
                       </SidebarMenuItem>
                     );
                   })}
-                </div>
-
-                {/* Switch to Recruiter — all AMs can work as recruiter */}
-                <div className="mt-3 pt-3 border-t border-sidebar-border group-data-[collapsible=icon]:mt-2 group-data-[collapsible=icon]:pt-2">
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Switch to Recruiter"
-                      onClick={() => handleRoleSwitch('recruiter')}
-                      className={cn(
-                        "relative w-full justify-start gap-3 px-3 py-2 rounded-lg transition-colors text-sm",
-                        "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
-                        "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-recruiter/5 border border-transparent hover:border-recruiter/20"
-                      )}
-                    >
-                      <Briefcase className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-                      <span className="font-medium group-data-[collapsible=icon]:hidden">Switch to Recruiter</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
                 </div>
               </>
             ) : (

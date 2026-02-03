@@ -179,109 +179,145 @@ export default function ManagerRecruiterProgress() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto">
-        <div className="shrink-0 flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 mb-1">
-                <Button asChild variant="ghost" size="sm" className="rounded-lg -ml-2 text-muted-foreground hover:text-manager hover:bg-manager/5 font-sans shrink-0">
-                  <Link to="/manager/team">
-                    <ArrowLeft className="h-4 w-4 mr-2" strokeWidth={1.5} />
-                    Team
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+        {/* Header */}
+        <div className="shrink-0 py-6">
+          <div className="flex flex-col gap-4 sm:gap-6">
+            <Button asChild variant="ghost" size="sm" className="rounded-lg -ml-2 w-fit text-muted-foreground hover:text-manager hover:bg-manager/5 font-sans">
+              <Link to="/manager/team">
+                <ArrowLeft className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                Back to Team
+              </Link>
+            </Button>
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20 shrink-0">
+                    <Users className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground truncate">
+                      {recruiterProfile?.full_name || 'Recruiter'}
+                    </h1>
+                    <p className="text-sm sm:text-base text-muted-foreground font-sans truncate">{recruiterProfile?.email || ''}</p>
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground font-sans md:ml-14">Recruiter progress overview</p>
+              </div>
+              <div className="flex flex-wrap gap-3 shrink-0 md:ml-4">
+                <Button asChild className="rounded-lg h-11 px-5 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold text-sm whitespace-nowrap">
+                  <Link to={`/recruiter/engagements?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
+                    Engagement Pipeline
+                    <ArrowUpRight className="h-4 w-4 ml-2 shrink-0" strokeWidth={1.5} />
                   </Link>
                 </Button>
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20 shrink-0">
-                  <Users className="h-5 w-5" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground truncate">
-                  {recruiterProfile?.full_name || 'Recruiter'} · <span className="text-gradient-manager">Progress</span>
-                </h1>
+                <Button asChild variant="outline" className="rounded-lg h-11 px-5 border-manager/20 hover:bg-manager/10 text-manager font-sans font-semibold text-sm whitespace-nowrap">
+                  <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
+                    Application Pipeline
+                    <ArrowUpRight className="h-4 w-4 ml-2 shrink-0" strokeWidth={1.5} />
+                  </Link>
+                </Button>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">{recruiterProfile?.email || ''}</p>
-            </div>
-            <div className="flex flex-wrap gap-3 shrink-0">
-              <Button asChild className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
-                <Link to={`/recruiter/engagements?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                  Open {recruiterProfile?.full_name || 'Recruiter'}'s Engagement Pipeline
-                  <ArrowUpRight className="h-4 w-4 ml-2" strokeWidth={1.5} />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-lg h-11 px-6 border-manager/20 hover:bg-manager/10 text-manager font-sans font-semibold">
-                <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                  Open {recruiterProfile?.full_name || 'Recruiter'}'s Application Pipeline
-                  <ArrowUpRight className="h-4 w-4 ml-2" strokeWidth={1.5} />
-                </Link>
-              </Button>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-6 pt-6 pb-6">
-        {/* Application pipeline */}
-        <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText className="h-5 w-5 text-manager" strokeWidth={1.5} />
-            <h2 className="font-display text-lg font-bold text-foreground">Application pipeline</h2>
-          </div>
-          <p className="text-sm text-muted-foreground font-sans mb-4">Applications on {recruiterProfile?.full_name || 'this recruiter'}'s jobs by status.</p>
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            {APP_STATUS_ORDER.map((s) => (
-              <div key={s} className="rounded-xl border border-border bg-muted/30 p-4 transition-all duration-300 hover:border-manager/20">
-                <p className="text-sm font-sans font-medium text-muted-foreground capitalize mb-1">{s.replace(/_/g, ' ')}</p>
-                <div className="text-2xl font-display font-bold text-foreground">{appByStatus[s] || 0}</div>
+        {/* Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+          <div className="space-y-8">
+            {/* Application pipeline */}
+            <section className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="h-5 w-5 text-manager shrink-0" strokeWidth={1.5} />
+                <h2 className="font-display text-lg font-bold text-foreground">Application pipeline</h2>
               </div>
-            ))}
-          </div>
-          <Button variant="ghost" size="sm" asChild className="rounded-lg text-manager hover:bg-manager/10 font-sans font-medium mt-4">
-            <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-              Open full Application Pipeline <ArrowUpRight className="ml-1 h-3 w-3" strokeWidth={1.5} />
-            </Link>
-          </Button>
-        </div>
-
-        {/* Engagement pipeline stages */}
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          {STAGES.map((s) => (
-            <div key={s} className="rounded-xl border border-border bg-card p-4 transition-all duration-300 hover:border-manager/20">
-              <p className="text-sm font-sans font-medium text-muted-foreground capitalize mb-2">{s.replaceAll('_', ' ')}</p>
-              <div className="text-2xl font-display font-bold text-foreground">{counts[s] || 0}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="h-5 w-5 text-manager" strokeWidth={1.5} />
-            <h2 className="font-display text-lg font-bold text-foreground">Recent engagements</h2>
-          </div>
-          <p className="text-sm text-muted-foreground font-sans mb-4">Latest 200 engagements owned by this recruiter.</p>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-6 w-6 animate-spin text-manager" strokeWidth={1.5} />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {(engagements || []).length === 0 ? (
-                <div className="text-sm font-sans text-muted-foreground">No engagements yet.</div>
-              ) : (
-                (engagements || []).map((e) => (
-                  <div key={e.id} className="group flex items-center justify-between rounded-xl border border-border p-3 bg-muted/30 hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all">
-                    <div className="min-w-0">
-                      <div className="font-sans font-medium truncate">{e.candidate_profiles?.full_name || 'Candidate'}</div>
-                      <div className="text-sm font-sans text-muted-foreground truncate">
-                        {e.jobs?.title ? e.jobs.title : 'No job'} · Updated {new Date(e.updated_at).toLocaleString()}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0 font-sans border-manager/20 bg-manager/10 text-manager">
-                      {String(e.stage || 'started').replaceAll('_', ' ')}
-                    </Badge>
+              <p className="text-sm text-muted-foreground font-sans mb-4">
+                Applications on this recruiter&apos;s jobs by status.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                {APP_STATUS_ORDER.map((s) => (
+                  <div
+                    key={s}
+                    className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20"
+                  >
+                    <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      {s.replace(/_/g, ' ')}
+                    </p>
+                    <p className="text-2xl font-display font-bold text-foreground tabular-nums">{appByStatus[s] ?? 0}</p>
                   </div>
-                ))
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" asChild className="rounded-lg text-manager hover:bg-manager/10 font-sans font-medium mt-4">
+                <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
+                  Open full Application Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
+                </Link>
+              </Button>
+            </section>
+
+            {/* Engagement pipeline stages */}
+            <section className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="h-5 w-5 text-manager shrink-0" strokeWidth={1.5} />
+                <h2 className="font-display text-lg font-bold text-foreground">Engagement pipeline</h2>
+              </div>
+              <p className="text-sm text-muted-foreground font-sans mb-4">
+                Candidates in each engagement stage (sourced by this recruiter).
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                {STAGES.map((s) => (
+                  <div
+                    key={s}
+                    className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20"
+                  >
+                    <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      {s.replaceAll('_', ' ')}
+                    </p>
+                    <p className="text-2xl font-display font-bold text-foreground tabular-nums">{counts[s] ?? 0}</p>
+                  </div>
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" asChild className="rounded-lg text-manager hover:bg-manager/10 font-sans font-medium mt-4">
+                <Link to={`/recruiter/engagements?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
+                  Open full Engagement Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
+                </Link>
+              </Button>
+            </section>
+
+            {/* Recent engagements */}
+            <section className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="h-5 w-5 text-manager shrink-0" strokeWidth={1.5} />
+                <h2 className="font-display text-lg font-bold text-foreground">Recent engagements</h2>
+              </div>
+              <p className="text-sm text-muted-foreground font-sans mb-4">
+                Latest engagements owned by this recruiter.
+              </p>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-manager" strokeWidth={1.5} />
+                </div>
+              ) : (engagements || []).length === 0 ? (
+                <p className="text-sm font-sans text-muted-foreground py-6">No engagements yet.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {(engagements || []).map((e) => (
+                    <li key={e.id}>
+                      <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-4 bg-muted/30 hover:bg-manager/5 hover:border-manager/20 transition-all">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-sans font-medium text-foreground truncate">{e.candidate_profiles?.full_name || 'Candidate'}</p>
+                          <p className="text-sm font-sans text-muted-foreground truncate mt-0.5">
+                            {e.jobs?.title ?? 'No job'} · {new Date(e.updated_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0 font-sans text-xs border-manager/20 bg-manager/10 text-manager capitalize">
+                          {String(e.stage || 'started').replaceAll('_', ' ')}
+                        </Badge>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </div>
-          )}
-        </div>
+            </section>
           </div>
         </div>
       </div>

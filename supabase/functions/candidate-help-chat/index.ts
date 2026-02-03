@@ -40,9 +40,10 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { messages, guideContext } = body as {
+    const { messages, guideContext, audience } = body as {
       messages: Array<{ role: string; content: string }>;
       guideContext: string;
+      audience?: "candidate" | "recruiter" | "manager";
     };
 
     if (!messages?.length || typeof guideContext !== "string") {
@@ -52,7 +53,14 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are a friendly help assistant for job seekers using this career platform. Your job is to answer their "how do I..." questions using the following How-to Guide. Keep answers clear, short, and in plain English. If the answer is not in the guide, say so and give brief general advice. Do not make up features that are not in the guide.
+    const audienceRole = audience === "recruiter" || audience === "manager" ? audience : "candidate";
+    const who =
+      audienceRole === "candidate"
+        ? "job seekers using this career platform"
+        : audienceRole === "recruiter"
+          ? "recruiters and hiring staff using this recruiting platform (talent pool, jobs, pipelines, outreach, AI matching, etc.)"
+          : "account managers and team leads using this platform for oversight (dashboard, team, analytics, clients, audit logs, etc.)";
+    const systemPrompt = `You are a friendly help assistant for ${who}. Your job is to answer their "how do I..." questions using the following How-to Guide. Keep answers clear, short, and in plain English. If the answer is not in the guide, say so and give brief general advice. Do not make up features that are not in the guide.
 
 Format your replies in Markdown for readability:
 - Use **bold** for emphasis on key terms or steps.

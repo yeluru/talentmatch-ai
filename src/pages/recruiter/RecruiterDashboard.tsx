@@ -56,7 +56,8 @@ interface RecentApplication {
 }
 
 export default function RecruiterDashboard() {
-  const { roles, organizationId, user, currentRole } = useAuth();
+  const { roles, organizationId, user, currentRole, switchRole } = useAuth();
+  const hasAccountManagerRole = roles.some((r) => r.role === 'account_manager');
   const [searchParams] = useSearchParams();
   const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const [stats, setStats] = useState<RecruiterStats>({
@@ -390,7 +391,27 @@ export default function RecruiterDashboard() {
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-8 pt-6 pb-6 animate-in-view">
 
-        {/* Stats Grid */}
+        {/* Switch to Account Manager CTA — only when user has both Recruiter and AM roles */}
+        {hasAccountManagerRole && (
+          <div className="rounded-xl border border-recruiter/20 bg-recruiter/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                <Users className="h-5 w-5" strokeWidth={1.5} />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-foreground">Team &amp; oversight</h2>
+                <p className="text-sm text-muted-foreground font-sans">Switch to Account Manager to view org metrics, team progress, and audit logs.</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => { switchRole('account_manager'); navigate('/manager'); }}
+              className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shrink-0"
+            >
+              Switch to Account Manager <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} />
+            </Button>
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard

@@ -67,6 +67,7 @@ const InterviewSchedule = lazy(() => import("./pages/recruiter/InterviewSchedule
 const MarketplaceProfiles = lazy(() => import("./pages/recruiter/MarketplaceProfiles"));
 const EngagementPipeline = lazy(() => import("./pages/recruiter/EngagementPipeline"));
 const CategoryLandingPage = lazy(() => import("./pages/recruiter/CategoryLandingPage"));
+const RecruiterHowToGuide = lazy(() => import("./pages/recruiter/RecruiterHowToGuide"));
 
 // Manager Pages
 const ManagerDashboard = lazy(() => import("./pages/manager/ManagerDashboard"));
@@ -77,6 +78,7 @@ const ManagerOrganization = lazy(() => import("./pages/manager/ManagerOrganizati
 const ManagerAnalytics = lazy(() => import("./pages/manager/ManagerAnalytics"));
 const ClientManagement = lazy(() => import("./pages/manager/ClientManagement"));
 const AuditLogs = lazy(() => import("./pages/manager/AuditLogs"));
+const ManagerHowToGuide = lazy(() => import("./pages/manager/ManagerHowToGuide"));
 
 // Super Admin Pages
 const SuperAdminDashboard = lazy(() => import("./pages/admin/SuperAdminDashboard"));
@@ -462,6 +464,14 @@ const App = () => (
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/recruiter/help"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<RecruiterHowToGuide />)}
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Manager Routes */}
                   <Route
@@ -545,6 +555,14 @@ const App = () => (
                         <RouteErrorBoundary title="Manager audit logs failed to load">
                           {withSuspense(<AuditLogs />)}
                         </RouteErrorBoundary>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/help"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        {withSuspense(<ManagerHowToGuide />)}
                       </ProtectedRoute>
                     }
                   />
