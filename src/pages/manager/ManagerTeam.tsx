@@ -267,9 +267,12 @@ export default function ManagerTeam() {
 
   // Derived data (must be above any early returns; no hooks used here)
   const recruitersAll = teamMembers.filter((m) => m.role === 'recruiter');
-  const recruiters = assignedRecruiterIds.size
-    ? recruitersAll.filter((r) => assignedRecruiterIds.has(String(r.user_id)))
-    : [];
+  // When no explicit assignments exist (e.g. single-AM org), show all org recruiters.
+  // When assignments exist (multiple AMs), show only recruiters assigned to this AM.
+  const recruiters =
+    assignedRecruiterIds.size > 0
+      ? recruitersAll.filter((r) => assignedRecruiterIds.has(String(r.user_id)))
+      : recruitersAll;
   const managers = teamMembers.filter((m) => m.role === 'account_manager');
 
   if (isLoading) {
