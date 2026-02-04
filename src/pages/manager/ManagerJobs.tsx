@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Users, Calendar, Briefcase } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Link, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Job {
   id: string;
@@ -13,12 +25,28 @@ interface Job {
   applications_count: number;
   posted_at: string | null;
   is_remote: boolean;
+  recruiter_id: string;
+}
+
+interface Assignment {
+  job_id: string;
+  user_id: string;
 }
 
 export default function ManagerJobs() {
-  const { organizationId, isLoading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { organizationId, user, isLoading: authLoading } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
+  const [assignedNames, setAssignedNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+
+  const [assignDialogJobId, setAssignDialogJobId] = useState<string | null>(null);
+  const [orgRecruiters, setOrgRecruiters] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
+  const [assignDialogLoading, setAssignDialogLoading] = useState(false);
+  const [selectedRecruiterIds, setSelectedRecruiterIds] = useState<Set<string>>(new Set());
+  const [assignSaving, setAssignSaving] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -26,23 +54,116 @@ export default function ManagerJobs() {
     else setIsLoading(false);
   }, [organizationId, authLoading]);
 
+  const assignJobIdFromUrl = searchParams.get('assign');
+
+  useEffect(() => {
+    if (!assignJobIdFromUrl || jobs.length === 0) return;
+    const job = jobs.find((j) => j.id === assignJobIdFromUrl);
+    if (job) {
+      setAssignDialogJobId(assignJobIdFromUrl);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('assign');
+        return next;
+      }, { replace: true });
+    }
+  }, [assignJobIdFromUrl, jobs, setSearchParams]);
+
   const fetchJobs = async () => {
     if (!organizationId) return;
 
     try {
-      const { data } = await supabase
+      const { data: jobsData } = await supabase
         .from('jobs')
-        .select('id, title, location, status, applications_count, posted_at, is_remote')
+        .select('id, title, location, status, applications_count, posted_at, is_remote, recruiter_id')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
-      if (data) {
-        setJobs(data);
+      if (jobsData) {
+        setJobs(jobsData as Job[]);
+        const jobIds = jobsData.map((j: { id: string }) => j.id);
+        const ownerIds = [...new Set((jobsData as Job[]).map((j) => j.recruiter_id))];
+
+        const [{ data: assignData }, { data: profiles }] = await Promise.all([
+          jobIds.length > 0
+            ? supabase
+                .from('job_recruiter_assignments')
+                .select('job_id, user_id')
+                .in('job_id', jobIds)
+            : Promise.resolve({ data: [] as Assignment[] }),
+          supabase.from('profiles').select('user_id, full_name, email').in('user_id', ownerIds),
+        ]);
+
+        const assignList = (assignData || []) as Assignment[];
+        setAssignments(assignList);
+        const assignedIds = [...new Set(assignList.map((a) => a.user_id))];
+        const allUserIds = [...new Set([...ownerIds, ...assignedIds])];
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, email')
+          .in('user_id', allUserIds);
+        const byUserId = new Map((allProfiles || []).map((p: { user_id: string; full_name: string | null; email: string }) => [p.user_id, p.full_name || p.email || p.user_id]));
+        setOwnerNames(Object.fromEntries([...byUserId]));
+        setAssignedNames(Object.fromEntries([...byUserId]));
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const getAssignedForJob = (jobId: string) => assignments.filter((a) => a.job_id === jobId).map((a) => a.user_id);
+  const isJobOwnedByMe = (job: Job) => user?.id && job.recruiter_id === user.id;
+
+  const openAssignDialog = async (jobId: string) => {
+    setAssignDialogJobId(jobId);
+    setSelectedRecruiterIds(new Set(getAssignedForJob(jobId)));
+    setAssignDialogLoading(true);
+    if (!organizationId) {
+      setAssignDialogLoading(false);
+      return;
+    }
+    try {
+    const { data: rolesData } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('organization_id', organizationId)
+      .eq('role', 'recruiter');
+    const userIds = (rolesData || []).map((r: { user_id: string }) => r.user_id);
+    if (userIds.length === 0) {
+      setOrgRecruiters([]);
+      return;
+    }
+    const { data: profiles } = await supabase.from('profiles').select('user_id, full_name, email').in('user_id', userIds);
+    setOrgRecruiters((profiles || []).map((p: { user_id: string; full_name: string | null; email: string }) => ({ user_id: p.user_id, full_name: p.full_name || p.email || 'Recruiter', email: p.email || '' })));
+    } finally {
+      setAssignDialogLoading(false);
+    }
+  };
+
+  const saveAssignments = async () => {
+    if (!assignDialogJobId || !organizationId || !user) return;
+    setAssignSaving(true);
+    try {
+      const current = getAssignedForJob(assignDialogJobId);
+      const toAdd = [...selectedRecruiterIds].filter((id) => !current.includes(id));
+      const toRemove = current.filter((id) => !selectedRecruiterIds.has(id));
+      for (const uid of toAdd) {
+        const { error } = await supabase.from('job_recruiter_assignments').insert({ job_id: assignDialogJobId, user_id: uid, assigned_by: user.id });
+        if (error) throw error;
+      }
+      for (const uid of toRemove) {
+        const { error } = await supabase.from('job_recruiter_assignments').delete().eq('job_id', assignDialogJobId).eq('user_id', uid);
+        if (error) throw error;
+      }
+      toast.success('Assignments updated');
+      setAssignDialogJobId(null);
+      fetchJobs();
+    } catch (e: unknown) {
+      toast.error((e as Error)?.message || 'Failed to update assignments');
+    } finally {
+      setAssignSaving(false);
     }
   };
 
@@ -123,6 +244,14 @@ export default function ManagerJobs() {
             <p className="text-lg text-muted-foreground font-sans">
               All jobs in your organization
             </p>
+            <div className="mt-4">
+              <Button asChild variant="default" className="bg-manager hover:bg-manager/90">
+                <Link to="/recruiter/jobs/new">
+                  <Plus className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                  Create job
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -149,38 +278,103 @@ export default function ManagerJobs() {
             <p className="text-sm font-sans text-muted-foreground">No jobs created yet.</p>
           ) : (
             <div className="space-y-3">
-              {jobs.map((job) => (
-                <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex items-center justify-between">
-                  <div className="space-y-1 min-w-0">
-                    <p className="font-sans font-medium truncate">{job.title}</p>
-                    <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
-                      {job.location && (
+              {jobs.map((job) => {
+                const assignedIds = getAssignedForJob(job.id);
+                const ownedByMe = isJobOwnedByMe(job);
+                return (
+                  <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex flex-wrap items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <p className="font-sans font-medium truncate">{job.title}</p>
+                      <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
+                        {job.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" strokeWidth={1.5} />
+                            {job.location}
+                            {job.is_remote && ' (Remote)'}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" strokeWidth={1.5} />
-                          {job.location}
-                          {job.is_remote && ' (Remote)'}
+                          <Calendar className="h-3 w-3" strokeWidth={1.5} />
+                          {formatDate(job.posted_at)}
                         </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" strokeWidth={1.5} />
-                        {formatDate(job.posted_at)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0 text-sm font-sans text-muted-foreground">
+                      <span title="Owner">Owner: {ownerNames[job.recruiter_id] ?? '—'}</span>
+                      <span title="Assigned to">
+                        Assigned: {assignedIds.length ? assignedIds.map((id) => assignedNames[id] ?? '—').join(', ') : '—'}
                       </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="flex items-center gap-1 text-sm font-sans text-muted-foreground">
-                      <Users className="h-4 w-4" strokeWidth={1.5} />
-                      {job.applications_count || 0} applicants
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 text-sm font-sans text-muted-foreground">
+                        <Users className="h-4 w-4" strokeWidth={1.5} />
+                        {job.applications_count || 0} applicants
+                      </div>
+                      <Badge className={`font-sans ${getStatusColor(job.status || 'draft')}`}>
+                        {job.status || 'draft'}
+                      </Badge>
+                      {ownedByMe && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-manager/30 text-manager hover:bg-manager/10"
+                          onClick={() => openAssignDialog(job.id)}
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                          Assign recruiters
+                        </Button>
+                      )}
                     </div>
-                    <Badge className={`font-sans ${getStatusColor(job.status || 'draft')}`}>
-                      {job.status || 'draft'}
-                    </Badge>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
+
+        <Dialog open={!!assignDialogJobId} onOpenChange={(open) => !open && setAssignDialogJobId(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assign recruiters to job</DialogTitle>
+              <DialogDescription>Select recruiters who can work on this job. They will see it in their job list.</DialogDescription>
+            </DialogHeader>
+            {assignDialogLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-manager" strokeWidth={1.5} />
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto py-2">
+                {orgRecruiters.map((r) => (
+                  <label key={r.user_id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-border p-3 hover:bg-muted/50">
+                    <Checkbox
+                      checked={selectedRecruiterIds.has(r.user_id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedRecruiterIds((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(r.user_id);
+                          else next.delete(r.user_id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className="font-sans font-medium">{r.full_name}</span>
+                    <span className="text-sm text-muted-foreground truncate">{r.email}</span>
+                  </label>
+                ))}
+                {orgRecruiters.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No recruiters in this organization.</p>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAssignDialogJobId(null)}>Cancel</Button>
+              <Button onClick={saveAssignments} disabled={assignSaving || assignDialogLoading} className="bg-manager hover:bg-manager/90">
+                {assignSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
           </div>
         </div>
       </div>

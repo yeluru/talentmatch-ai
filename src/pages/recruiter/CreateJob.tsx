@@ -60,7 +60,7 @@ export default function CreateJob() {
     mutationFn: async (status: 'draft' | 'published') => {
       if (!user || !organizationId) throw new Error('Not authorized');
       
-      const { error } = await supabase.from('jobs').insert({
+      const { data, error } = await supabase.from('jobs').insert({
         title: formData.title,
         description: formData.description,
         location: formData.location || null,
@@ -78,14 +78,20 @@ export default function CreateJob() {
         organization_id: organizationId,
         status,
         posted_at: status === 'published' ? new Date().toISOString() : null,
-      });
+      }).select('id').single();
       
       if (error) throw error;
+      return { jobId: data?.id, status };
     },
-    onSuccess: (_, status) => {
+    onSuccess: (result, _variables) => {
       queryClient.invalidateQueries({ queryKey: ['recruiter-jobs', organizationId] });
-      toast.success(status === 'published' ? 'Job published!' : 'Job saved as draft');
-      navigate('/recruiter/jobs');
+      toast.success(result.status === 'published' ? 'Job published!' : 'Job saved as draft');
+      const isAm = roles.some((r) => r.role === 'account_manager');
+      if (isAm && result.jobId) {
+        navigate(`/manager/jobs?assign=${result.jobId}`);
+      } else {
+        navigate('/recruiter/jobs');
+      }
     },
     onError: (err: any) => {
       console.error('Failed to create job', err);

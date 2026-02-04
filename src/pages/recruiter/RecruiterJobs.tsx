@@ -80,7 +80,9 @@ export default function RecruiterJobs() {
         `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
-      if (ownerId) q = q.eq('recruiter_id', ownerId);
+      // When AM/org_admin views as a specific recruiter (?owner=), filter to that owner's jobs.
+      // When recruiter views their list, no filter: RLS returns own + assigned jobs.
+      if (ownerId && currentRole !== 'recruiter') q = q.eq('recruiter_id', ownerId);
       const { data, error } = await q;
       if (error) throw error;
       return data;
