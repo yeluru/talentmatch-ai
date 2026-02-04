@@ -1,17 +1,29 @@
 import { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Shield, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { AdminShell, type AdminNavItem } from "@/components/layouts/AdminShell";
+import { LayoutDashboard, Users, UserPlus, UserCheck, FileText, User } from "lucide-react";
+
+const ORG_ADMIN_NAV: AdminNavItem[] = [
+  { label: "Overview", href: "/org-admin", icon: LayoutDashboard, end: true },
+  { label: "Account Managers", href: "/org-admin?tab=account_managers", icon: Users, end: true },
+  { label: "Recruiters", href: "/org-admin?tab=recruiters", icon: Users, end: true },
+  { label: "Candidates", href: "/org-admin?tab=candidates", icon: UserCheck, end: true },
+  { label: "All Users", href: "/org-admin?tab=users", icon: UserPlus, end: true },
+  { label: "Audit Logs", href: "/org-admin?tab=audit_logs", icon: FileText, end: true },
+  { label: "Profile", href: "/org-admin/profile", icon: User, end: true },
+];
 
 type Props = {
   children: ReactNode;
+  /** Ignored for header; title bar always shows name + "Org Admin" */
   title?: string;
   subtitle?: string;
+  /** Org name: shown under UltraHire in sidebar and in footer as userLabel */
   orgName?: string;
 };
 
-export function OrgAdminLayout({ children, title, subtitle, orgName }: Props) {
+export function OrgAdminLayout({ children, orgName }: Props) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -20,31 +32,19 @@ export function OrgAdminLayout({ children, title, subtitle, orgName }: Props) {
     navigate("/auth");
   };
 
-  return (
-    <div className="min-h-screen bg-[var(--gradient-subtle)]">
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-accent/10">
-              <Shield className="h-6 w-6 text-accent" />
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-bold tracking-tight">{title ?? "Org Admin"}</h1>
-              <p className="text-sm">
-                {subtitle ?? (orgName ? `Organization: ${orgName}` : profile?.email)}
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </header>
+  const displayName = profile?.full_name?.trim() || profile?.email || "Org Admin";
 
-      <main className="container mx-auto px-4 py-8">{children}</main>
-    </div>
+  return (
+    <AdminShell
+      theme="org"
+      navItems={ORG_ADMIN_NAV}
+      title={displayName}
+      subtitle="Org Admin"
+      userLabel={(profile?.full_name?.trim() || profile?.email) ?? undefined}
+      sidebarOrgName={orgName}
+      onLogout={handleLogout}
+    >
+      {children}
+    </AdminShell>
   );
 }
-
-

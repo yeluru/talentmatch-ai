@@ -82,7 +82,9 @@ const ManagerHowToGuide = lazy(() => import("./pages/manager/ManagerHowToGuide")
 
 // Super Admin Pages
 const SuperAdminDashboard = lazy(() => import("./pages/admin/SuperAdminDashboard"));
+const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage"));
 const OrgAdminDashboard = lazy(() => import("./pages/orgAdmin/OrgAdminDashboard"));
+const OrgAdminProfilePage = lazy(() => import("./pages/orgAdmin/OrgAdminProfilePage"));
 
 // Shared Pages
 const Settings = lazy(() => import("./pages/Settings"));
@@ -569,6 +571,14 @@ const App = () => (
 
                   {/* Super Admin Routes */}
                   <Route
+                    path="/admin/audit"
+                    element={
+                      <ProtectedRoute allowedRoles={["super_admin"]}>
+                        <Navigate to="/admin?tab=audit" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin"
                     element={
                       <ProtectedRoute allowedRoles={["super_admin"]}>
@@ -576,8 +586,24 @@ const App = () => (
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/admin/profile"
+                    element={
+                      <ProtectedRoute allowedRoles={["super_admin"]}>
+                        {withSuspense(<AdminProfilePage />)}
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Org Admin Routes (tenant) */}
+                  <Route
+                    path="/org-admin/audit"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        <Navigate to="/org-admin?tab=audit_logs" replace />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/org-admin"
                     element={
@@ -599,6 +625,14 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["org_admin"]}>
                         <Navigate to="/org-admin?tab=audit_logs" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/org-admin/profile"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        {withSuspense(<OrgAdminProfilePage />)}
                       </ProtectedRoute>
                     }
                   />

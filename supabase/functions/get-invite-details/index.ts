@@ -31,13 +31,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch invite details using service role (bypasses RLS)
-    // We support 3 invite types:
+    // We support 4 invite types:
     // - org_admin_invites -> role: org_admin (tenant org super admin)
     // - manager_invites   -> role: account_manager
     // - recruiter_invites -> role: recruiter
+    // - candidate_invites -> role: candidate
 
     const findInvite = async (
-      table: "org_admin_invites" | "manager_invites" | "recruiter_invites",
+      table: "org_admin_invites" | "manager_invites" | "recruiter_invites" | "candidate_invites",
     ) => {
       const { data, error } = await supabase
         .from(table)
@@ -52,11 +53,15 @@ const handler = async (req: Request): Promise<Response> => {
     const recruiterRes = orgAdminRes.invite || managerRes?.invite
       ? null
       : await findInvite("recruiter_invites");
+    const candidateRes = orgAdminRes.invite || managerRes?.invite || recruiterRes?.invite
+      ? null
+      : await findInvite("candidate_invites");
 
     const invite =
       orgAdminRes.invite ||
       managerRes?.invite ||
-      recruiterRes?.invite;
+      recruiterRes?.invite ||
+      candidateRes?.invite;
 
     if (!invite) {
       return new Response(
@@ -69,7 +74,9 @@ const handler = async (req: Request): Promise<Response> => {
       ? "org_admin"
       : managerRes?.invite
         ? "account_manager"
-        : "recruiter";
+        : recruiterRes?.invite
+          ? "recruiter"
+          : "candidate";
 
     // Check if invite is still valid
     if (invite.status !== "pending") {

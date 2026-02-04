@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -48,11 +48,14 @@ import {
   CheckCircle,
   LogOut,
   Loader2,
+  Mail,
+  Plus,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
 import { SEOHead } from '@/components/SEOHead';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { sortBy } from '@/lib/sort';
 import { useTableSort } from '@/hooks/useTableSort';
 
@@ -153,7 +156,8 @@ export default function SuperAdminDashboard() {
   const [tenantInviteFullName, setTenantInviteFullName] = useState('');
   const [tenantInviteSubmitting, setTenantInviteSubmitting] = useState(false);
 
-  // Tenant creation (Org + Org Admin invite)
+  // Tenant creation (Org + Org Admin invite) — in dialog like Invite Recruiter
+  const [createTenantDialogOpen, setCreateTenantDialogOpen] = useState(false);
   const [tenantOrgName, setTenantOrgName] = useState('');
   const [tenantAdminName, setTenantAdminName] = useState('');
   const [tenantAdminEmail, setTenantAdminEmail] = useState('');
@@ -180,8 +184,14 @@ export default function SuperAdminDashboard() {
   const [candidateReason, setCandidateReason] = useState('');
   const [candidateActionLoading, setCandidateActionLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'users' | 'candidates' | 'audit'>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = (searchParams.get('tab') || 'overview') as 'overview' | 'tenants' | 'users' | 'candidates' | 'audit';
+  const [activeTab, setActiveTab] = useState<'overview' | 'tenants' | 'users' | 'candidates' | 'audit'>(tabFromUrl);
   const [isRevoking, setIsRevoking] = useState(false);
+
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -553,8 +563,7 @@ export default function SuperAdminDashboard() {
       setTenantOrgName('');
       setTenantAdminName('');
       setTenantAdminEmail('');
-
-      // Refresh counts
+      fetchTenants();
       fetchDashboardData();
     } catch (err: any) {
       console.error('Create tenant error:', err);
@@ -748,7 +757,7 @@ export default function SuperAdminDashboard() {
 
       // UX: if the lookup started from the Overview tab, jump to the full Candidate support tools.
       // (Keeps the overview card lightweight but still “one-click” to action.)
-      setActiveTab('candidates');
+      setTab('candidates');
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Failed to lookup candidate');
@@ -767,88 +776,78 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const tabTitles: Record<typeof activeTab, string> = {
+    overview: 'Overview',
+    tenants: 'Tenants',
+    users: 'Users',
+    candidates: 'Candidates',
+    audit: 'Audit logs',
+  };
+
+  const setTab = (v: typeof activeTab) => {
+    setActiveTab(v);
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (v === 'overview') p.delete('tab');
+      else p.set('tab', v);
+      return p;
+    });
+  };
+
   return (
     <>
       <SEOHead
         title="Super Admin Dashboard"
         description="Platform administration and user management"
       />
-      <div className="min-h-screen bg-[var(--gradient-subtle)]">
-        {/* Header */}
-        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <Shield className="h-6 w-6 text-destructive" />
-              </div>
-              <div>
-                <h1 className="font-display text-xl font-bold tracking-tight">Platform Admin</h1>
-                <p className="text-sm">{profile?.email}</p>
-              </div>
+      <SuperAdminLayout title={tabTitles[activeTab]} subtitle={profile?.email}>
+        <PageShell>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
+                {tabTitles[activeTab]}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {activeTab === 'overview' && 'Create tenants, manage Org Admin lifecycle, and audit activity.'}
+                {activeTab === 'tenants' && 'Each tenant is an organization. Invite Org Admins and manage pending invites.'}
+                {activeTab === 'users' && 'Platform-wide user directory.'}
+                {activeTab === 'candidates' && 'Link/unlink candidates to tenants and manage discoverability.'}
+                {activeTab === 'audit' && 'Platform audit activity.'}
+              </p>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                fetchDashboardData();
+                fetchTenants();
+                fetchAuditLogs(true);
+              }}
+              disabled={isLoading || tenantsLoading || auditLoading}
+            >
+              {isLoading || tenantsLoading || auditLoading ? 'Refreshing…' : 'Refresh all'}
             </Button>
           </div>
-        </header>
 
-        <main className="container mx-auto px-4 py-8">
-          <PageShell>
-            <PageHeader
-              title={
-                <>
-                  Platform <span className="text-accent">Console</span>
-                </>
-              }
-              description="Create tenants, manage Org Admin lifecycle, and audit activity across the platform."
-              actions={
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    fetchDashboardData();
-                    fetchTenants();
-                    fetchAuditLogs(true);
-                  }}
-                  disabled={isLoading || tenantsLoading || auditLoading}
-                >
-                  {isLoading || tenantsLoading || auditLoading ? 'Refreshing…' : 'Refresh all'}
-                </Button>
-              }
-            />
-
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mt-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <TabsList className="w-full md:w-auto">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="tenants">Tenants</TabsTrigger>
-                  <TabsTrigger value="users">Users</TabsTrigger>
-                  <TabsTrigger value="candidates">Candidate support</TabsTrigger>
-                  <TabsTrigger value="audit">Audit logs</TabsTrigger>
-                </TabsList>
-                <div className="flex items-center justify-between md:justify-end gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    Read-only by default
-                  </Badge>
-                </div>
-              </div>
-
-              <TabsContent value="overview" className="mt-4 space-y-6">
+            <div className="mt-6 space-y-6">
+              {activeTab === 'overview' && (
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div
-                    onClick={() => setActiveTab('users')}
+                    onClick={() => setTab('users')}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab('users')}
+                    onKeyDown={(e) => e.key === 'Enter' && setTab('users')}
                     className="focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
                   >
                     <StatCard title="Total users" value={stats.totalUsers} icon={Users} className="cursor-pointer" />
                   </div>
                   <div
-                    onClick={() => setActiveTab('tenants')}
+                    onClick={() => setTab('tenants')}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab('tenants')}
+                    onKeyDown={(e) => e.key === 'Enter' && setTab('tenants')}
                     className="focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
                   >
                     <StatCard title="Organizations" value={stats.totalOrganizations} icon={Building2} className="cursor-pointer" />
@@ -859,60 +858,23 @@ export default function SuperAdminDashboard() {
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <div className="glass-panel p-6 rounded-xl hover-card-premium">
-                    <div className="mb-6">
-                      <h3 className="text-xl font-bold flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-primary" />
+                    <div className="mb-6 flex flex-row items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-xl font-bold flex items-center gap-2">
+                          <Building2 className="h-5 w-5 text-primary" />
+                          Tenants
+                        </h3>
+                        <p className="text-sm text-muted-foreground">Create an organization and generate an Org Admin invite link.</p>
+                      </div>
+                      <Button
+                        className="glass-panel text-primary-foreground hover:bg-primary/90"
+                        onClick={() => setCreateTenantDialogOpen(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
                         Create tenant
-                      </h3>
-                      <p className="text-sm text-muted-foreground">Create an organization and generate an Org Admin invite link.</p>
+                      </Button>
                     </div>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <div className="space-y-2">
-                          <Label>Organization name</Label>
-                          <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" className="bg-transparent border-white/10" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Org admin full name</Label>
-                          <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" className="bg-transparent border-white/10" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Org admin email</Label>
-                          <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" className="bg-transparent border-white/10" />
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
-                        <Button
-                          variant="default"
-                          onClick={handleCreateTenantAndInviteOrgAdmin}
-                          disabled={tenantCreateLoading || !tenantOrgName.trim() || !tenantAdminName.trim() || !tenantAdminEmail.trim()}
-                          className="w-full sm:w-auto"
-                        >
-                          {tenantCreateLoading ? 'Creating…' : 'Create tenant + generate invite'}
-                        </Button>
-                        {tenantInviteUrl && (
-                          <div className="flex-1 rounded-xl border border-white/10 bg-black/20 p-3 ml-0 sm:ml-4">
-                            <p className="text-xs text-muted-foreground mb-1">Invite link</p>
-                            <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
-                            <div className="mt-2 flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async () => {
-                                  await navigator.clipboard.writeText(tenantInviteUrl);
-                                  toast.success('Copied invite link');
-                                }}
-                              >
-                                Copy
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
-                                Open
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <p className="text-sm text-muted-foreground">Go to the <button type="button" className="text-primary underline underline-offset-2" onClick={() => setTab('tenants')}>Tenants</button> tab to manage organizations and invite Org Admins.</p>
                   </div>
 
                   <div className="glass-panel p-6 rounded-xl hover-card-premium">
@@ -970,25 +932,21 @@ export default function SuperAdminDashboard() {
                     </div>
                   </div>
                 </div>
-              </TabsContent>
+              </div>
+              )}
 
-              <TabsContent value="tenants" className="mt-4 space-y-4">
+              {activeTab === 'tenants' && (
+              <div className="space-y-4">
                 <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
-                  <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-primary" />
-                        Tenants
-                      </h3>
-                      <p className="text-sm text-muted-foreground">Each tenant is an organization. Pending Org Admin invites show here until accepted.</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={fetchTenants} disabled={tenantsLoading}>
-                      {tenantsLoading ? 'Refreshing…' : 'Refresh'}
+                  <div className="p-4 sm:p-6 border-b border-white/5 bg-white/5 flex flex-wrap gap-2 justify-end">
+                    <Button className="glass-panel text-primary-foreground hover:bg-primary/90" onClick={() => setCreateTenantDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create tenant
                     </Button>
                   </div>
 
-                  <div className="p-0">
-                    <Table>
+                  <div className="p-0 overflow-x-auto">
+                    <Table className="min-w-[640px]">
                       <TableHeader className="bg-white/5">
                         <TableRow className="hover:bg-white/5 border-white/5">
                           <SortableTableHead
@@ -1105,19 +1063,14 @@ export default function SuperAdminDashboard() {
                     </Table>
                   </div>
                 </div>
-              </TabsContent>
+              </div>
+              )}
 
-              <TabsContent value="users" className="mt-4 space-y-4">
+              {activeTab === 'users' && (
+              <div className="space-y-4">
                 <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
-                  <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Users className="h-5 w-5 text-primary" />
-                        Users
-                      </h3>
-                      <p className="text-sm text-muted-foreground">Platform-wide directory.</p>
-                    </div>
-                    <div className="relative flex-1 max-w-sm">
+                  <div className="p-4 sm:p-6 border-b border-white/5 bg-white/5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+                    <div className="relative w-full sm:max-w-sm">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search users..."
@@ -1127,8 +1080,8 @@ export default function SuperAdminDashboard() {
                       />
                     </div>
                   </div>
-                  <div className="p-0">
-                    <Table>
+                  <div className="p-0 overflow-x-auto">
+                    <Table className="min-w-[640px]">
                       <TableHeader className="bg-white/5">
                         <TableRow className="hover:bg-white/5 border-white/5">
                           <SortableTableHead label="User" sortKey="full_name" sort={usersTableSort.sort} onToggle={usersTableSort.toggle} />
@@ -1194,17 +1147,13 @@ export default function SuperAdminDashboard() {
                     </Table>
                   </div>
                 </div>
-              </TabsContent>
+              </div>
+              )}
 
-              <TabsContent value="candidates" className="mt-4 space-y-4">
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <CardTitle>Candidate support tools</CardTitle>
-                    <CardDescription>
-                      Link/unlink candidates to tenants, toggle marketplace discoverability, and suspend accounts (soft-disable).
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
+              {activeTab === 'candidates' && (
+              <div className="space-y-4">
+                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
+                  <div className="p-4 sm:p-6">
                     {/* reuse existing candidate support block (moved here visually) */}
                     <div className="rounded-lg border bg-muted/20 p-4">
                       <div className="flex flex-col gap-3 md:flex-row md:items-end">
@@ -1353,43 +1302,36 @@ export default function SuperAdminDashboard() {
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="audit" className="mt-4 space-y-4">
-                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
-                  <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Shield className="h-5 w-5 text-primary" />
-                        Audit Logs (platform-wide)
-                      </h3>
-                      <p className="text-sm text-muted-foreground">Default view shows the last 4 hours.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={auditSearch}
-                        onChange={(e) => setAuditSearch(e.target.value)}
-                        placeholder="Search audit logs…"
-                        className="w-[200px] bg-black/20 border-white/10"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setAuditCursor(null);
-                          setAuditExpanded(false);
-                          fetchAuditLogs(true);
-                        }}
-                        disabled={auditLoading}
-                      >
-                        {auditLoading ? 'Refreshing…' : 'Refresh'}
-                      </Button>
-                    </div>
                   </div>
-                  <div className="p-0">
-                    <Table>
+                </div>
+              </div>
+              )}
+
+              {activeTab === 'audit' && (
+              <div className="space-y-4">
+                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
+                  <div className="p-4 sm:p-6 border-b border-white/5 bg-white/5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                    <Input
+                      value={auditSearch}
+                      onChange={(e) => setAuditSearch(e.target.value)}
+                      placeholder="Search audit logs…"
+                      className="w-full min-w-0 sm:w-[200px] bg-black/20 border-white/10"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setAuditCursor(null);
+                        setAuditExpanded(false);
+                        fetchAuditLogs(true);
+                      }}
+                      disabled={auditLoading}
+                    >
+                      {auditLoading ? 'Refreshing…' : 'Refresh'}
+                    </Button>
+                  </div>
+                  <div className="p-0 overflow-x-auto">
+                    <Table className="min-w-[720px]">
                       <TableHeader className="bg-white/5">
                         <TableRow className="hover:bg-white/5 border-white/5">
                           <SortableTableHead label="Time" sortKey="created_at" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
@@ -1486,18 +1428,17 @@ export default function SuperAdminDashboard() {
                     </div>
                   </div>
                 </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+              )}
+            </div>
 
-            {/* Tenants moved into the Tenants tab */}
-
-            {/* Invite / Re-invite Org Admin dialog */}
+            {/* Invite Org Admin for existing tenant (same pattern as Invite Recruiter) */}
             <Dialog open={tenantInviteDialogOpen} onOpenChange={setTenantInviteDialogOpen}>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Invite Org Admin</DialogTitle>
                   <DialogDescription>
-                    Generate an invite link for an existing tenant. Any previous pending invites for this tenant will be expired.
+                    Send an invite link to create an Org Admin account for this organization. Any previous pending invite for this tenant will be expired.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -1507,11 +1448,11 @@ export default function SuperAdminDashboard() {
                     <Input value={tenantInviteTarget?.organization_name || ''} disabled />
                   </div>
                   <div className="space-y-2">
-                    <Label>Org admin full name</Label>
-                    <Input value={tenantInviteFullName} onChange={(e) => setTenantInviteFullName(e.target.value)} placeholder="Uma Mokkarala" />
+                    <Label>Full name</Label>
+                    <Input value={tenantInviteFullName} onChange={(e) => setTenantInviteFullName(e.target.value)} placeholder="Jane Doe" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Org admin email</Label>
+                    <Label>Email</Label>
                     <Input value={tenantInviteEmail} onChange={(e) => setTenantInviteEmail(e.target.value)} placeholder="admin@acme.com" />
                   </div>
                 </div>
@@ -1524,24 +1465,75 @@ export default function SuperAdminDashboard() {
                     onClick={handleInviteOrgAdminForExistingTenant}
                     disabled={tenantInviteSubmitting || !tenantInviteEmail.trim() || !tenantInviteFullName.trim() || !tenantInviteTarget}
                   >
-                    {tenantInviteSubmitting ? 'Generating…' : 'Generate invite'}
+                    {tenantInviteSubmitting ? 'Generating…' : 'Create invite'}
                   </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Create tenant (org + Org Admin invite) — same popup pattern as Invite Recruiter */}
+            <Dialog open={createTenantDialogOpen} onOpenChange={(open) => { setCreateTenantDialogOpen(open); if (!open) setTenantInviteUrl(null); }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create tenant</DialogTitle>
+                  <DialogDescription>
+                    Create an organization and generate an Org Admin invite link.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label>Organization name</Label>
+                    <Input value={tenantOrgName} onChange={(e) => setTenantOrgName(e.target.value)} placeholder="Acme Inc" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Org admin full name</Label>
+                    <Input value={tenantAdminName} onChange={(e) => setTenantAdminName(e.target.value)} placeholder="Jane Doe" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Org admin email</Label>
+                    <Input value={tenantAdminEmail} onChange={(e) => setTenantAdminEmail(e.target.value)} placeholder="admin@acme.com" />
+                  </div>
+                  {tenantInviteUrl && (
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <p className="text-xs text-muted-foreground">Invite link (local email may be skipped)</p>
+                      <p className="mt-1 break-all text-sm font-medium">{tenantInviteUrl}</p>
+                      <div className="mt-2 flex gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={async () => { await navigator.clipboard.writeText(tenantInviteUrl); toast.success('Copied invite link'); }}>
+                          Copy
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => window.open(tenantInviteUrl, '_blank')}>
+                          Open
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setCreateTenantDialogOpen(false)} disabled={tenantCreateLoading}>
+                    {tenantInviteUrl ? 'Done' : 'Cancel'}
+                  </Button>
+                  {!tenantInviteUrl ? (
+                    <Button
+                      onClick={handleCreateTenantAndInviteOrgAdmin}
+                      disabled={tenantCreateLoading || !tenantOrgName.trim() || !tenantAdminName.trim() || !tenantAdminEmail.trim()}
+                    >
+                      {tenantCreateLoading ? 'Creating…' : 'Create invite'}
+                    </Button>
+                  ) : null}
                 </DialogFooter>
               </DialogContent>
             </Dialog>
 
             {/* Audit logs moved into the Audit logs tab */}
           </PageShell>
-        </main>
 
-        {/* Revoke Org Admin Confirmation Dialog */}
+        {/* Remove Org Admin — same pattern as Remove recruiter in Org Admin */}
         <AlertDialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Revoke Org Admin Access</AlertDialogTitle>
+              <AlertDialogTitle>Remove Org Admin</AlertDialogTitle>
               <AlertDialogDescription>
-                This will remove Org Admin privileges for <strong>{userToRevoke?.email}</strong>.
-                They will lose access to the org admin console.
+                This will remove Org Admin privileges for <strong>{userToRevoke?.email}</strong>. They will lose access to the org admin console.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1551,12 +1543,12 @@ export default function SuperAdminDashboard() {
                 disabled={isRevoking}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isRevoking ? 'Revoking…' : 'Revoke'}
+                {isRevoking ? 'Removing…' : 'Remove'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+      </SuperAdminLayout>
     </>
   );
 }

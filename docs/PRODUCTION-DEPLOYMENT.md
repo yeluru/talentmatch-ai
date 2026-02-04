@@ -85,7 +85,10 @@ Or deploy individually, e.g.:
 ```bash
 npx supabase functions deploy send-recruiter-invite
 npx supabase functions deploy send-org-admin-invite
+npx supabase functions deploy send-org-admin-invite-existing
 npx supabase functions deploy send-manager-invite
+npx supabase functions deploy send-candidate-invite
+npx supabase functions deploy get-invite-details
 npx supabase functions deploy send-engagement-email
 # ... etc.
 ```
@@ -198,6 +201,10 @@ At your domain registrar or DNS provider:
 2. **For apex domain (`yourdomain.com`):** Follow Render’s instructions (often A record to Render’s IP or CNAME flattening if supported).
 
 3. **For Resend:** Add the MX and DKIM records Resend gives you for the domain you want to send from.
+
+---
+
+**Quick checklist for "since last deploy":** See [PRE-PROD-CHECKLIST.md](./PRE-PROD-CHECKLIST.md) for a concise list of migrations and Edge Functions added in the latest release.
 
 ---
 

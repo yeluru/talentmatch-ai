@@ -8,17 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Mail, Trash2, Users, Shield, FileText, Search } from "lucide-react";
+import { Loader2, Mail, Trash2, Users, Shield, FileText, Search, UserPlus, Briefcase, UserCheck } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { format } from "date-fns";
 import { StatCard } from "@/components/ui/stat-card";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { sortBy, type SortState } from "@/lib/sort";
 import { useTableSort } from "@/hooks/useTableSort";
 import OrgAdminAuditLogs from "./OrgAdminAuditLogs";
@@ -54,17 +53,23 @@ export default function OrgAdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [organizationName, setOrganizationName] = useState("");
-  const tabFromUrl = (searchParams.get("tab") || "account_managers") as any;
-  const [tab, setTab] = useState<"account_managers" | "recruiters" | "candidates" | "users" | "audit_logs">(tabFromUrl);
+  const tabFromUrl = (searchParams.get("tab") || "overview") as any;
+  const [tab, setTab] = useState<"overview" | "account_managers" | "recruiters" | "candidates" | "users" | "audit_logs">(tabFromUrl);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [pendingRecruiterInvites, setPendingRecruiterInvites] = useState<PendingInvite[]>([]);
+  const [pendingCandidateInvites, setPendingCandidateInvites] = useState<PendingInvite[]>([]);
   const [orgCandidates, setOrgCandidates] = useState<CandidateRow[]>([]);
   const [amByRecruiter, setAmByRecruiter] = useState<Record<string, string>>({});
 
+  const [candidateInviteEmail, setCandidateInviteEmail] = useState("");
+  const [candidateInviteName, setCandidateInviteName] = useState("");
+  const [candidateInviting, setCandidateInviting] = useState(false);
+  const [lastCandidateInviteUrl, setLastCandidateInviteUrl] = useState<string | null>(null);
+
   const [allUsersSearch, setAllUsersSearch] = useState("");
-  const usersSort = useTableSort<"full_name" | "user_type" | "roles" | "candidate_status">({
+  const usersSort = useTableSort<"full_name" | "user_type" | "roles" | "status">({
     key: "full_name",
     dir: "asc",
   });
@@ -88,7 +93,7 @@ export default function OrgAdminDashboard() {
   });
 
   useEffect(() => {
-    const next = (searchParams.get("tab") || "account_managers") as any;
+    const next = (searchParams.get("tab") || "overview") as any;
     if (next && next !== tab) setTab(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -199,6 +204,7 @@ export default function OrgAdminDashboard() {
 
   const sortedUsers = useMemo(() => {
     return sortBy(combinedUsers, usersSort.sort, (row, key) => {
+      const status = row.roles.includes("candidate") ? (row.candidate_status || "Linked") : "Active";
       switch (key) {
         case "full_name":
           return row.full_name;
@@ -206,8 +212,8 @@ export default function OrgAdminDashboard() {
           return row.roles.includes("candidate") ? "Candidate" : "Staff";
         case "roles":
           return (row.roles || []).join(", ");
-        case "candidate_status":
-          return row.candidate_status || "";
+        case "status":
+          return status;
         default:
           return row.full_name;
       }
@@ -352,6 +358,14 @@ export default function OrgAdminDashboard() {
         .eq("status", "pending")
         .order("created_at", { ascending: false });
       setPendingRecruiterInvites((recruiterInvites ?? []) as PendingInvite[]);
+
+      const { data: candidateInvites } = await sb
+        .from("candidate_invites")
+        .select("*")
+        .eq("organization_id", organizationId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      setPendingCandidateInvites((candidateInvites ?? []) as PendingInvite[]);
 
       // Org candidates (linked to this org)
       // NOTE: org linking is many-to-many via candidate_org_links.
@@ -566,6 +580,84 @@ export default function OrgAdminDashboard() {
     }
   };
 
+  const sendCandidateInvite = async () => {
+    if (!organizationId || !organizationName || !candidateInviteEmail.trim()) return;
+    setCandidateInviting(true);
+    setLastCandidateInviteUrl(null);
+    try {
+      const { data, error } = await sb.functions.invoke("send-candidate-invite", {
+        body: {
+          email: candidateInviteEmail.trim(),
+          fullName: candidateInviteName.trim() || undefined,
+          organizationId,
+          organizationName,
+        },
+      });
+      if (error) throw error;
+      const inviteUrl = (data as any)?.inviteUrl as string | undefined;
+      if (inviteUrl) {
+        setLastCandidateInviteUrl(inviteUrl);
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+          toast.success("Candidate invite created (link copied to clipboard)");
+        } catch {
+          toast.success("Candidate invite created");
+        }
+        toast.message(inviteUrl);
+      } else {
+        toast.success(`Invitation created for ${candidateInviteEmail}`);
+      }
+      setCandidateInviteEmail("");
+      setCandidateInviteName("");
+      await fetchData();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send candidate invite");
+    } finally {
+      setCandidateInviting(false);
+    }
+  };
+
+  const reSendCandidateInvite = async (inv: PendingInvite) => {
+    try {
+      const { data, error } = await sb.functions.invoke("send-candidate-invite", {
+        body: {
+          email: inv.email,
+          fullName: inv.full_name || undefined,
+          organizationId,
+          organizationName,
+        },
+      });
+      if (error) throw error;
+      await sb.from("candidate_invites").delete().eq("id", inv.id);
+      const inviteUrl = (data as any)?.inviteUrl as string | undefined;
+      if (inviteUrl) {
+        setLastCandidateInviteUrl(inviteUrl);
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+          toast.success("Candidate re-invited (new link copied)");
+        } catch {
+          toast.success("Candidate re-invited");
+        }
+      } else {
+        toast.success("Candidate re-invited");
+      }
+      await fetchData();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to re-invite candidate");
+    }
+  };
+
+  const cancelCandidateInvite = async (inviteId: string) => {
+    try {
+      const { error } = await sb.from("candidate_invites").delete().eq("id", inviteId);
+      if (error) throw error;
+      toast.success("Candidate invite cancelled");
+      await fetchData();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to cancel candidate invite");
+    }
+  };
+
   const removeRecruiter = async (recruiterUserId: string) => {
     try {
       const { error } = await sb.rpc("remove_recruiter_from_org", { _user_id: recruiterUserId });
@@ -656,134 +748,228 @@ export default function OrgAdminDashboard() {
     }
   };
 
+  const tabTitles: Record<typeof tab, string> = {
+    overview: "Overview",
+    account_managers: "Account Managers",
+    recruiters: "Recruiters",
+    candidates: "Candidates",
+    users: "All Users",
+    audit_logs: "Audit Logs",
+  };
+
   if (isLoading) {
     return (
-      <OrgAdminLayout orgName={organizationName}>
+      <OrgAdminLayout orgName={organizationName} title={tabTitles[tab]} subtitle={organizationName}>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       </OrgAdminLayout>
     );
   }
 
   return (
-    <OrgAdminLayout orgName={organizationName}>
+    <OrgAdminLayout orgName={organizationName} title={tabTitles[tab]} subtitle={organizationName}>
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <StatCard
-            title="Account Managers"
-            value={managers.length}
-            icon={Users}
-            href="/org-admin?tab=account_managers"
-          />
-          <StatCard
-            title="Recruiters"
-            value={recruiters.length}
-            icon={Users}
-            href="/org-admin?tab=recruiters"
-          />
-          <StatCard
-            title="Candidates"
-            value={orgCandidates.length}
-            icon={Users}
-            href="/org-admin?tab=candidates"
-          />
-          <StatCard
-            title="All Users"
-            value={combinedUsers.length}
-            icon={Users}
-            href="/org-admin?tab=users"
-          />
-          <StatCard
-            title="Audit Logs"
-            value={auditLogs.length}
-            icon={FileText}
-            href="/org-admin?tab=audit_logs"
-          />
-        </div>
-        <div className="flex items-center justify-end">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Mail className="h-4 w-4 mr-2" />
-                Invite Account Manager
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invite Account Manager</DialogTitle>
-                <DialogDescription>
-                  Send an invite link to create an account manager account for this organization.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="accountmanager@example.com" />
+        {tab === "overview" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Organization summary</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Headcount and activity at a glance. Use the cards below to jump to each area.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <StatCard
+                title="Account Managers"
+                value={managers.length}
+                icon={Users}
+                href="/org-admin?tab=account_managers"
+              />
+              <StatCard
+                title="Recruiters"
+                value={recruiters.length}
+                icon={Briefcase}
+                href="/org-admin?tab=recruiters"
+              />
+              <StatCard
+                title="Candidates"
+                value={orgCandidates.length}
+                icon={UserCheck}
+                href="/org-admin?tab=candidates"
+              />
+              <StatCard
+                title="All Users"
+                value={combinedUsers.length}
+                icon={Users}
+                href="/org-admin?tab=users"
+              />
+              <StatCard
+                title="Audit Logs"
+                value={auditLogs.length}
+                icon={FileText}
+                href="/org-admin?tab=audit_logs"
+              />
+            </div>
+
+            {(pendingInvites.length > 0 || pendingRecruiterInvites.length > 0 || pendingCandidateInvites.length > 0) && (
+              <div className="glass-panel p-4 rounded-xl border border-white/10 bg-white/5">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Pending invitations</p>
+                <div className="flex flex-wrap gap-2">
+                  {pendingInvites.length > 0 && (
+                    <span className="text-sm">
+                      <strong>{pendingInvites.length}</strong> account manager{pendingInvites.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {pendingRecruiterInvites.length > 0 && (
+                    <span className="text-sm">
+                      <strong>{pendingRecruiterInvites.length}</strong> recruiter{pendingRecruiterInvites.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {pendingCandidateInvites.length > 0 && (
+                    <span className="text-sm">
+                      <strong>{pendingCandidateInvites.length}</strong> candidate{pendingCandidateInvites.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label>Full name</Label>
-                  <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="Jane Doe" />
-                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Go to the relevant tab to copy links, resend, or cancel.
+                </p>
               </div>
-              {lastInviteUrl && (
-                <div className="rounded-md border bg-muted/20 p-3">
-                  <p className="text-xs">Invite link (local email may be skipped)</p>
-                  <p className="mt-1 break-all text-sm font-medium">{lastInviteUrl}</p>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(lastInviteUrl);
-                        toast.success("Copied invite link");
-                      }}
-                    >
-                      Copy
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(lastInviteUrl, "_blank")}
-                    >
-                      Open
-                    </Button>
-                  </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <UserPlus className="h-5 w-5" />
                 </div>
-              )}
-              <DialogFooter>
-                <Button onClick={sendManagerInvite} disabled={inviting || !inviteEmail || !inviteName}>
-                  {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Send invite
+                <h3 className="font-semibold mb-2">Invite account manager</h3>
+                <p className="text-sm text-muted-foreground flex-1">
+                  Send an invite link so someone can join as an account manager and oversee recruiters and clients for your organization.
+                </p>
+                <Button variant="outline" className="gap-2 mt-4 w-full sm:w-auto" asChild>
+                  <Link to="/org-admin?tab=account_managers">
+                    <UserPlus className="h-4 w-4" />
+                    Invite account manager
+                  </Link>
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+              </div>
 
-        <Tabs
-          value={tab}
-          onValueChange={(v) => {
-            const next = v as any;
-            setTab(next);
-            setSearchParams((prev) => {
-              const p = new URLSearchParams(prev);
-              p.set("tab", next);
-              return p;
-            });
-          }}
-        >
-          <TabsList>
-            <TabsTrigger value="account_managers">Account Managers</TabsTrigger>
-            <TabsTrigger value="recruiters">Recruiters</TabsTrigger>
-            <TabsTrigger value="candidates">Candidates</TabsTrigger>
-            <TabsTrigger value="users">All Users</TabsTrigger>
-            <TabsTrigger value="audit_logs">Audit Logs</TabsTrigger>
-          </TabsList>
+              <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Mail className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold mb-2">Invite recruiter</h3>
+                <p className="text-sm text-muted-foreground flex-1">
+                  Add a recruiter to your org. They’ll get an invite link to sign up and then can post jobs, source candidates, and manage pipelines.
+                </p>
+                <Button variant="outline" className="gap-2 mt-4 w-full sm:w-auto" asChild>
+                  <Link to="/org-admin?tab=recruiters">
+                    <Mail className="h-4 w-4" />
+                    Invite recruiter
+                  </Link>
+                </Button>
+              </div>
 
-          <TabsContent value="account_managers" className="mt-6 space-y-6">
+              <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <UserCheck className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold mb-2">Invite or link candidate</h3>
+                <p className="text-sm text-muted-foreground flex-1">
+                  Invite someone by email to join as a candidate, or link an existing candidate to your org so you can manage them in your talent pool.
+                </p>
+                <Button variant="outline" className="gap-2 mt-4 w-full sm:w-auto" asChild>
+                  <Link to="/org-admin?tab=candidates">
+                    <UserCheck className="h-4 w-4" />
+                    Go to candidates
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Users className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold mb-2">View all users</h3>
+                <p className="text-sm text-muted-foreground flex-1">
+                  See everyone in your organization: account managers, recruiters, and linked candidates. Search, filter, and manage access from one place.
+                </p>
+                <Button variant="outline" className="gap-2 mt-4 w-full sm:w-auto" asChild>
+                  <Link to="/org-admin?tab=users">
+                    <Users className="h-4 w-4" />
+                    View all users
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {tab === "account_managers" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-end">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Invite Account Manager
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Invite Account Manager</DialogTitle>
+                    <DialogDescription>
+                      Send an invite link to create an account manager account for this organization.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="accountmanager@example.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Full name</Label>
+                      <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="Jane Doe" />
+                    </div>
+                  </div>
+                  {lastInviteUrl && (
+                    <div className="rounded-md border bg-muted/20 p-3">
+                      <p className="text-xs">Invite link (local email may be skipped)</p>
+                      <p className="mt-1 break-all text-sm font-medium">{lastInviteUrl}</p>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(lastInviteUrl);
+                            toast.success("Copied invite link");
+                          }}
+                        >
+                          Copy
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(lastInviteUrl, "_blank")}
+                        >
+                          Open
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button onClick={sendManagerInvite} disabled={inviting || !inviteEmail || !inviteName}>
+                      {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Send invite
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
             {pendingInvites.length > 0 && (
               <div className="glass-panel p-6 rounded-xl hover-card-premium">
                 <div className="mb-4">
@@ -894,9 +1080,10 @@ export default function OrgAdminDashboard() {
                 )}
               </div>
             </div>
-          </TabsContent>
+          </div>
+          )}
 
-          <TabsContent value="users" className="mt-6">
+          {tab === "users" && (
             <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="space-y-1">
@@ -919,8 +1106,8 @@ export default function OrgAdminDashboard() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-white/5 overflow-hidden">
-                <Table>
+              <div className="rounded-xl border border-white/5 overflow-hidden overflow-x-auto">
+                <Table className="min-w-[640px]">
                   <TableHeader className="bg-white/5">
                     <TableRow className="hover:bg-white/5 border-white/5">
                       <SortableTableHead
@@ -942,65 +1129,151 @@ export default function OrgAdminDashboard() {
                         onToggle={usersSort.toggle}
                       />
                       <SortableTableHead
-                        label="Candidate status"
-                        sortKey="candidate_status"
+                        label="Status"
+                        sortKey="status"
                         sort={usersSort.sort}
                         onToggle={usersSort.toggle}
                       />
+                      <TableHead className="w-[100px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                           <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
                           No users found matching your search.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortedUsers.map((r) => (
-                        <TableRow key={r.user_id} className="hover:bg-white/5 border-white/5 transition-colors">
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-foreground">{r.full_name}</p>
-                              <p className="text-sm text-muted-foreground">{r.email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
-                              {r.roles.includes("candidate") ? "Candidate" : "Staff"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {r.roles.map((role) => (
-                                <Badge key={role} variant="secondary" className="text-xs bg-secondary/50 text-secondary-foreground border-transparent">
-                                  {role === "account_manager" ? "account manager" : role.replace("_", " ")}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {r.candidate_status ? (
-                              <Badge variant="outline" className="text-xs border-white/10">{r.candidate_status}</Badge>
-                            ) : (
-                              <span className="opacity-50">—</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      sortedUsers.map((r) => {
+                        const statusDisplay = r.roles.includes("candidate") ? (r.candidate_status || "Linked") : "Active";
+                        const isSelf = r.user_id === user?.id;
+                        return (
+                          <TableRow key={r.user_id} className="hover:bg-white/5 border-white/5 transition-colors">
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-foreground">{r.full_name}</p>
+                                <p className="text-sm text-muted-foreground">{r.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
+                                {r.roles.includes("candidate") ? "Candidate" : "Staff"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {r.roles.map((role) => (
+                                  <Badge key={role} variant="secondary" className="text-xs bg-secondary/50 text-secondary-foreground border-transparent">
+                                    {role === "account_manager" ? "account manager" : role.replace("_", " ")}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              <Badge variant="outline" className="text-xs border-white/10">{statusDisplay}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {isSelf ? (
+                                <span className="text-xs text-muted-foreground">You</span>
+                              ) : r.roles.includes("account_manager") ? (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                      Remove
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove account manager</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will revoke account manager access for <strong>{r.email}</strong>.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => removeManager(r.user_id)}
+                                      >
+                                        Remove
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              ) : r.roles.includes("recruiter") ? (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                      Remove
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove recruiter</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will revoke recruiter access for <strong>{r.email}</strong>.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => removeRecruiter(r.user_id)}
+                                      >
+                                        Remove
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              ) : r.roles.includes("candidate") ? (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                      Unlink
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Unlink candidate</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Remove <strong>{r.email}</strong> from your organization. They will no longer appear in your candidates list.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => unlinkCandidate(r.user_id)}
+                                      >
+                                        Unlink
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
               </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="audit_logs" className="mt-6 space-y-6">
-            <OrgAdminAuditLogs embedded />
-          </TabsContent>
+          {tab === "audit_logs" && (
+            <div className="space-y-6">
+              <OrgAdminAuditLogs embedded />
+            </div>
+          )}
 
-          <TabsContent value="recruiters" className="mt-6 space-y-6">
+          {tab === "recruiters" && (
+            <div className="space-y-6">
             <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
               <div className="flex flex-row items-center justify-between mb-6">
                 <div>
@@ -1176,9 +1449,11 @@ export default function OrgAdminDashboard() {
                 )}
               </div>
             </div>
-          </TabsContent>
+          </div>
+          )}
 
-          <TabsContent value="candidates" className="mt-6 space-y-6">
+          {tab === "candidates" && (
+            <div className="space-y-6">
             <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
               <div className="flex flex-row items-center justify-between mb-6">
                 <div>
@@ -1187,12 +1462,107 @@ export default function OrgAdminDashboard() {
                     Candidates in your organization
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Public candidates are not visible by default. Link a candidate to your org by email to manage them here.
+                    Invite candidates by email to create an account and join your org, or link an existing candidate by email.
                   </p>
                 </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="glass-panel text-primary-foreground hover:bg-primary/90">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Invite Candidate
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Invite Candidate</DialogTitle>
+                      <DialogDescription>
+                        Send an invite link so they can sign up as a candidate and be linked to your organization.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input value={candidateInviteEmail} onChange={(e) => setCandidateInviteEmail(e.target.value)} placeholder="candidate@example.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Full name (optional)</Label>
+                        <Input value={candidateInviteName} onChange={(e) => setCandidateInviteName(e.target.value)} placeholder="Jane Doe" />
+                      </div>
+                      {lastCandidateInviteUrl && (
+                        <div className="rounded-md border bg-muted/20 p-3">
+                          <p className="text-xs">Invite link (local email may be skipped)</p>
+                          <p className="mt-1 break-all text-sm font-medium">{lastCandidateInviteUrl}</p>
+                          <div className="mt-2 flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={async () => {
+                              await navigator.clipboard.writeText(lastCandidateInviteUrl);
+                              toast.success("Copied invite link");
+                            }}>
+                              Copy
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => window.open(lastCandidateInviteUrl, "_blank")}>
+                              Open
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={sendCandidateInvite} disabled={candidateInviting || !candidateInviteEmail.trim()}>
+                        {candidateInviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Create invite
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="space-y-4">
+                {pendingCandidateInvites.length > 0 && (
+                  <div className="space-y-2 mb-6 p-4 glass-panel rounded-xl bg-muted/5">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      Pending candidate invitations
+                    </p>
+                    {pendingCandidateInvites.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-black/10 p-3">
+                        <div>
+                          <p className="font-medium">{inv.full_name || inv.email}</p>
+                          <p className="text-sm text-muted-foreground">{inv.email}</p>
+                          <p className="mt-1 text-xs break-all opacity-50">
+                            Invite link: {buildInviteUrl(inv.invite_token)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              await navigator.clipboard.writeText(buildInviteUrl(inv.invite_token));
+                              toast.success("Copied invite link");
+                            }}
+                          >
+                            Copy
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(buildInviteUrl(inv.invite_token), "_blank")}
+                          >
+                            Open
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => reSendCandidateInvite(inv)} disabled={candidateInviting}>
+                            Resend
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => cancelCandidateInvite(inv.id)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Link existing candidate by email */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end glass-panel p-4 rounded-xl bg-muted/5">
                   <div className="flex-1 space-y-2">
                     <Label>Link candidate by email</Label>
@@ -1262,8 +1632,9 @@ export default function OrgAdminDashboard() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
       </div>
     </OrgAdminLayout >
   );

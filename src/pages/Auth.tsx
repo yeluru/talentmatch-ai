@@ -122,14 +122,14 @@ export default function AuthPage() {
   const effectiveInviteToken = inviteToken || pendingInviteToken;
 
   // Invite details (pre-filled for recruiter invite flow)
-  const [inviteDetails, setInviteDetails] = useState<{ email: string; fullName: string; organizationName: string; role: 'recruiter' | 'account_manager' | 'org_admin' } | null>(null);
+  const [inviteDetails, setInviteDetails] = useState<{ email: string; fullName: string; organizationName: string; role: 'recruiter' | 'account_manager' | 'org_admin' | 'candidate' } | null>(null);
   const [inviteLoading, setInviteLoading] = useState(!!effectiveInviteToken);
   const [otpExpired, setOtpExpired] = useState(false);
   const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
   // Only candidates can self-sign up. Staff roles are invite-only.
   const [selectedRole, setSelectedRole] = useState<'candidate' | 'recruiter' | 'account_manager' | 'org_admin'>(
-    inviteToken ? 'recruiter' : 'candidate'
+    inviteToken ? 'recruiter' : 'candidate' // get-invite-details will override when invite is candidate
   );
   const [authView, setAuthView] = useState<AuthView>('main');
 
@@ -277,7 +277,7 @@ export default function AuthPage() {
         email: data.email as string,
         fullName: data.fullName as string,
         organizationName: (data.organizationName as string) || '',
-        role: (data.role as any) as 'recruiter' | 'account_manager' | 'org_admin',
+        role: (data.role as any) as 'recruiter' | 'account_manager' | 'org_admin' | 'candidate',
       };
     } catch {
       return null;
@@ -297,7 +297,9 @@ export default function AuthPage() {
         ? 'accept_org_admin_invite'
         : role === 'account_manager'
           ? 'accept_manager_invite'
-          : 'accept_recruiter_invite';
+          : role === 'candidate'
+            ? 'accept_candidate_invite'
+            : 'accept_recruiter_invite';
 
     const { data, error } = await supabase.rpc(rpcName as any, { _invite_token: token } as any);
 
@@ -336,7 +338,9 @@ export default function AuthPage() {
             ? '/org-admin'
             : role === 'account_manager'
               ? '/manager'
-              : '/recruiter';
+              : role === 'candidate'
+                ? '/candidate'
+                : '/recruiter';
         navigate(nextPath || dest, { replace: true });
       }
     })();
@@ -373,7 +377,9 @@ export default function AuthPage() {
               ? '/org-admin'
               : role === 'account_manager'
                 ? '/manager'
-                : '/recruiter';
+                : role === 'candidate'
+                  ? '/candidate'
+                  : '/recruiter';
           navigate(nextPath || dest);
           return;
         }
@@ -487,7 +493,9 @@ export default function AuthPage() {
               ? '/org-admin'
               : role === 'account_manager'
                 ? '/manager'
-                : '/recruiter';
+                : role === 'candidate'
+                  ? '/candidate'
+                  : '/recruiter';
           navigate(nextPath || dest);
           return;
         }
@@ -552,7 +560,16 @@ export default function AuthPage() {
       toast.success('Password updated successfully');
 
       if (accepted) {
-        navigate(nextPath || '/recruiter', { replace: true });
+        const role = inviteDetails?.role || 'recruiter';
+        const dest =
+          role === 'org_admin'
+            ? '/org-admin'
+            : role === 'account_manager'
+              ? '/manager'
+              : role === 'candidate'
+                ? '/candidate'
+                : '/recruiter';
+        navigate(nextPath || dest, { replace: true });
         return;
       }
 
@@ -854,7 +871,16 @@ export default function AuthPage() {
                     {inviteDetails && (
                       <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
                         <Briefcase className="h-5 w-5 text-violet-500" />
-                        <span className="text-sm font-medium">Joining {inviteDetails.organizationName} as Recruiter</span>
+                        <span className="text-sm font-medium">
+                          Joining {inviteDetails.organizationName} as{' '}
+                          {inviteDetails.role === 'org_admin'
+                            ? 'Org Admin'
+                            : inviteDetails.role === 'account_manager'
+                              ? 'Manager'
+                              : inviteDetails.role === 'candidate'
+                                ? 'Candidate'
+                                : 'Recruiter'}
+                        </span>
                       </div>
                     )}
                     <div className="space-y-2">
@@ -937,7 +963,9 @@ export default function AuthPage() {
                             ? 'Org Admin'
                             : inviteDetails?.role === 'account_manager'
                               ? 'Manager'
-                              : 'Recruiter'}
+                              : inviteDetails?.role === 'candidate'
+                                ? 'Candidate'
+                                : 'Recruiter'}
                         </span>
                       </div>
                     )}

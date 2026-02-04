@@ -10,7 +10,9 @@ interface UserProfile {
   user_id: string;
   email: string;
   full_name: string;
-  phone?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
   location?: string;
   avatar_url?: string;
   bio?: string;
@@ -45,6 +47,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null; role?: AppRole }>;
   signOut: () => Promise<void>;
   switchRole: (role: AppRole) => void;
+  /** Refetch current user profile (e.g. after editing profile). */
+  refetchProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -460,6 +464,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refetchProfile = async () => {
+    if (user?.id) await fetchUserData(user.id, { silent: true });
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -473,7 +481,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signOut,
-      switchRole
+      switchRole,
+      refetchProfile
     }}>
       {children}
     </AuthContext.Provider>
