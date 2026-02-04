@@ -815,5 +815,3 @@ This project is proprietary software.
 For questions or issues, please open a GitHub issue or contact the development team.
 
 ---
-
-Built with ❤️ using [Lovable](https://lovable.dev)
