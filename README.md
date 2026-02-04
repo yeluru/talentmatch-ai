@@ -1,6 +1,6 @@
-# TalentMatch AI - AI-Powered Recruitment Platform
+# UltraHire — AI-Powered Recruitment Platform
 
-A modern, full-stack recruitment platform that connects candidates with recruiters using AI-powered matching, resume analysis, and talent insights.
+**UltraHire** (formerly TalentMatch AI) is a modern, full-stack recruitment platform that connects candidates with recruiters using AI-powered matching, resume analysis, and talent insights.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
@@ -23,17 +23,20 @@ A modern, full-stack recruitment platform that connects candidates with recruite
 - [Testing Guide](#testing-guide)
 - [Edge Functions](#edge-functions)
 - [Deployment](#deployment)
+- [Documentation](#documentation)
 - [Contributing](#contributing)
 
 ## Overview
 
-TalentMatch AI is a comprehensive recruitment solution designed to streamline the hiring process for organizations of all sizes. The platform leverages AI to match candidates with job opportunities, analyze resumes, and provide actionable talent insights.
+UltraHire is a comprehensive recruitment solution designed to streamline the hiring process for organizations of all sizes. The platform leverages AI to match candidates with job opportunities, analyze resumes, and provide actionable talent insights.
 
 ### Key Capabilities
 
-- **For Candidates**: Job search, application tracking, resume management, AI-powered career analysis
-- **For Recruiters**: Talent pool management, AI matching, outreach campaigns, shortlist creation
-- **For Account Managers**: Team oversight, analytics, organization management
+- **For Candidates**: Job search, application tracking, resume management, AI-powered career analysis, resume workspace (tailor to job), engagement request flows
+- **For Recruiters**: Talent pool management, AI matching, outreach campaigns, shortlists, pipelines (applications + engagements), talent sourcing, marketplace profiles
+- **For Account Managers**: Team oversight, recruiter assignments, analytics, client management, audit logs; can switch to Recruiter role when they have both
+- **For Org Admins**: Invite account managers, recruiters, and **candidates** by email; manage users and audit logs; profile editing (name, phone); candidate linking
+- **For Platform Admins**: Tenant provisioning, org admin lifecycle, audit visibility
 
 ## Architecture
 
@@ -332,58 +335,31 @@ If a user already exists and has no role, the app will attempt a safe bootstrap 
 
 ## Database Migrations
 
-The project includes 22 database migrations in `supabase/migrations/`. These set up:
+The project includes **70+** database migrations in `supabase/migrations/`. They set up core tables, RLS, and features. Key additions in recent releases:
 
-### Tables Created
-- `organizations` - Company data
-- `profiles` - User profiles
-- `user_roles` - Role assignments (candidate, recruiter, account_manager)
-- `jobs` - Job postings
-- `applications` - Job applications
-- `candidate_profiles` - Extended candidate info
-- `candidate_skills` - Skills data
-- `candidate_experience` - Work history
-- `candidate_education` - Education records
-- `resumes` - Resume files
-- `candidate_shortlists` - Recruiter shortlists
-- `shortlist_candidates` - Candidates in shortlists
-- `outreach_campaigns` - Email campaigns
-- `campaign_recipients` - Campaign targets
-- `email_sequences` - Email templates
-- `ai_recruiting_agents` - AI agent configs
-- `agent_recommendations` - AI recommendations
-- `ai_resume_analyses` - Resume analysis results
-- `talent_insights` - Generated insights
-- `notifications` - User notifications
-- `organization_invite_codes` - Invite codes
+### Core Tables (examples)
+- `organizations`, `profiles` (with `first_name`, `last_name`), `user_roles`, `jobs`, `applications`
+- `candidate_profiles`, `candidate_skills`, `candidate_experience`, `candidate_education`, `resumes`
+- `candidate_shortlists`, `shortlist_candidates`, `outreach_campaigns`, `campaign_recipients`
+- `candidate_invites` — Org Admin email invites for candidates; `accept_candidate_invite` RPC links invitee to org
+- `account_manager_recruiter_assignments` — Assign recruiters to account managers
+- Engagement workflow tables, notifications, invite codes, audit logging, etc.
 
-### Database Functions
-- `has_role()` - Check if user has specific role
-- `get_user_organization()` - Get user's organization ID
-- `assign_user_role()` - Securely assign roles
-- `recruiter_can_access_candidate()` - Check candidate access
-- `generate_invite_code()` - Generate org invite codes
-- `use_invite_code()` - Validate and use invite codes
-- `handle_new_user()` - Trigger for new user setup
-- `update_updated_at_column()` - Timestamp trigger
+### Database Functions (examples)
+- `has_role()`, `get_user_organization()`, `assign_user_role()`, `recruiter_can_access_candidate()`
+- `update_own_profile()` — Profile editing (first name, last name, phone) for admins/candidates
+- `accept_candidate_invite()` — Link invited user to org as candidate on signup/sign-in
+- `generate_invite_code()`, `use_invite_code()`, `handle_new_user()`, `update_updated_at_column()`
 
 ### Verifying Migration Success
 
 After running migrations, verify in Supabase Dashboard:
 
-1. **Tables**: Go to Table Editor - should see all 20+ tables
-2. **Functions**: Go to Database → Functions - should see 8 functions
-3. **Policies**: Each table should have RLS enabled with policies
+1. **Tables**: Table Editor — e.g. `candidate_invites`, `profiles` (with `first_name`, `last_name`), core tables
+2. **Functions**: Database → Functions — e.g. `update_own_profile`, `accept_candidate_invite`, `has_role`, etc.
+3. **Policies**: RLS enabled on tables with role/org-scoped policies
 
-Or via CLI:
-
-```bash
-# List all tables
-supabase db diff
-
-# Check migration status
-supabase migration list
-```
+Or via CLI: `supabase db diff`, `supabase migration list`
 
 ---
 
@@ -422,55 +398,38 @@ cp env.example .env
 ## Project Structure
 
 ```
-├── public/                  # Static assets
-│   ├── favicon.ico
-│   ├── placeholder.svg
-│   └── robots.txt
+├── public/                  # Static assets (favicon, og-image, robots.txt, etc.)
 ├── src/
-│   ├── components/          # React components
-│   │   ├── layouts/         # Layout components
-│   │   ├── recruiter/       # Recruiter-specific components
+│   ├── components/
+│   │   ├── admin/           # Admin shared (e.g. AdminProfileForm)
+│   │   ├── layouts/         # DashboardLayout, AdminShell, OrgAdminLayout, SuperAdminLayout
+│   │   ├── recruiter/       # Recruiter-specific (CategoryLanding, etc.)
+│   │   ├── candidate/       # Candidate-specific components
 │   │   └── ui/              # shadcn/ui components
-│   ├── hooks/               # Custom React hooks
-│   │   ├── useAuth.tsx      # Authentication hook
-│   │   ├── use-mobile.tsx   # Mobile detection
-│   │   └── use-toast.ts     # Toast notifications
-│   ├── integrations/        # External service integrations
-│   │   └── supabase/        # Supabase client and types
-│   ├── lib/                 # Utility libraries
-│   │   ├── orgSlug.ts       # Organization slug helpers
-│   │   └── utils.ts         # General utilities
-│   ├── pages/               # Page components (routes)
-│   │   ├── candidate/       # Candidate pages
-│   │   ├── manager/         # Account manager pages
-│   │   ├── public/          # Public pages
-│   │   └── recruiter/       # Recruiter pages
-│   ├── stores/              # Zustand state stores
-│   ├── App.tsx              # Main app component with routing
-│   ├── App.css              # Global styles
-│   ├── index.css            # Tailwind imports and CSS variables
-│   └── main.tsx             # Application entry point
+│   ├── hooks/               # useAuth, use-mobile, use-toast, useTableSort, etc.
+│   ├── integrations/supabase/
+│   ├── lib/                 # orgSlug, utils, org, permissions, storagePaths, statusOptions, etc.
+│   ├── pages/
+│   │   ├── admin/           # SuperAdminDashboard, AdminProfilePage
+│   │   ├── orgAdmin/        # OrgAdminDashboard, OrgAdminProfilePage, OrgAdminUsers, etc.
+│   │   ├── candidate/       # Dashboard, profile, resumes, job search, applications, etc.
+│   │   ├── manager/         # Account manager: dashboard, team, jobs, analytics, audit logs
+│   │   ├── public/          # Landings, PublicJobPage
+│   │   └── recruiter/       # Jobs, talent pool, pipelines, shortlists, etc.
+│   ├── stores/
+│   ├── App.tsx
+│   ├── index.css
+│   └── main.tsx
 ├── supabase/
-│   ├── config.toml          # Supabase configuration
-│   ├── functions/           # Edge functions
-│   │   ├── analyze-resume/
-│   │   ├── bulk-import-candidates/
-│   │   ├── generate-email/
-│   │   ├── generate-insights/
-│   │   ├── linkedin-search/
-│   │   ├── match-candidates/
-│   │   ├── parse-resume/
-│   │   ├── recommend-jobs/
-│   │   ├── run-agent/
-│   │   └── talent-search/
-│   └── migrations/          # Database migrations
-├── env.example              # Environment variables template (copy to .env)
-├── .env                     # Environment variables (DO NOT COMMIT)
-├── index.html               # HTML entry point
-├── package.json             # Dependencies and scripts
-├── tailwind.config.ts       # Tailwind configuration
-├── tsconfig.json            # TypeScript configuration
-└── vite.config.ts           # Vite configuration
+│   ├── config.toml
+│   ├── functions/           # 35+ edge functions (invites, AI, talent search, etc.)
+│   └── migrations/         # 70+ SQL migrations
+├── docs/                    # PRE-PROD-CHECKLIST, PRODUCTION-DEPLOYMENT, PAGE-WIDTH-AUDIT, etc.
+├── env.example
+├── package.json
+├── tailwind.config.ts
+├── tsconfig.json
+└── vite.config.ts
 ```
 
 ## User Roles
@@ -491,15 +450,19 @@ The platform supports **five** roles (see `docs/RBAC-for-Product.txt` for the pr
 - Access talent insights
 
 ### 3. Account Manager (`account_manager`) — invite-only
-- Invites/removes recruiters in their org
-- Org-level oversight
+- Invites/removes recruiters in their org; can be assigned to specific recruiters (`account_manager_recruiter_assignments`)
+- Org-level oversight: team, jobs, analytics, clients, audit logs
+- Can **switch to Recruiter** role when they have both (e.g. to do hands-on recruiting)
 
 ### 4. Org Admin (`org_admin`) — invite-only
-- Manages account managers + recruiters inside their organization
-- Can link/unlink candidates to the org + add internal notes/status
+- Manages account managers and recruiters inside their organization
+- **Invites candidates by email** (invite link → signup → user linked to org as candidate)
+- Can link/unlink candidates to the org and add internal notes/status
+- Profile page to edit first name, last name, and phone
 
 ### 5. Platform Admin (`super_admin`) — internal ops
-- Read-only across the platform **except** Org Admin lifecycle (invite/revoke) and tenant provisioning tools.
+- Read-only across the platform **except** Org Admin lifecycle (invite/revoke) and tenant provisioning tools
+- Profile page for name and contact details
 
 ## Database Schema
 
@@ -527,6 +490,7 @@ The platform supports **five** roles (see `docs/RBAC-for-Product.txt` for the pr
 | `talent_insights` | Generated insights |
 | `notifications` | User notifications |
 | `organization_invite_codes` | Invite codes |
+| `candidate_invites` | Org Admin candidate email invites |
 | `email_sequences` | Email templates |
 
 ## Security Features
@@ -566,7 +530,7 @@ All tables are protected with Row Level Security policies:
 
 **Staff onboarding (invite-only):**
 - Platform Admin invites Org Admin (tenant provisioning)
-- Org Admin invites Manager
+- Org Admin invites Account Manager or Recruiter (or **Candidate** — invite link → signup → user linked to org as candidate)
 - Org Admin / Account Manager invites Recruiter
 - Invited user uses invite link → signs up → confirms email → signs in → invite is claimed and dashboard opens
 
@@ -606,29 +570,40 @@ All tables are protected with Row Level Security policies:
 
 ## Edge Functions
 
-The platform includes several Supabase Edge Functions:
+The platform includes **35+** Supabase Edge Functions in `supabase/functions/`. Key ones:
 
 | Function | Purpose |
 |----------|---------|
-| `analyze-resume` | AI-powered resume analysis (deterministic keyword coverage + model score blend) |
-| `bulk-import-candidates` | Batch candidate import |
-| `generate-email` | AI email generation |
-| `generate-insights` | Talent insights generation |
-| `linkedin-search` | LinkedIn profile search |
-| `match-candidates` | AI candidate matching |
-| `parse-resume` | Resume text extraction (PDF + DOCX supported) |
-| `tailor-resume` | ATS-optimized resume tailoring with content-preservation guarantees + retry-to-target |
-| `recommend-jobs` | Job recommendations |
+| **Invites & auth** | |
+| `send-candidate-invite` | Org Admin invites candidates by email (invite link) |
+| `send-recruiter-invite`, `send-manager-invite`, `send-org-admin-invite` | Invite staff by email |
+| `get-invite-details` | Resolve invite token (org_admin, manager, recruiter, candidate) |
+| `send-engagement-email` | Send engagement emails (e.g. "Review & respond") |
+| **AI & matching** | |
+| `analyze-resume` | AI resume analysis (keyword coverage + model score) |
+| `match-candidates` | AI candidate-job matching |
+| `parse-resume`, `parse-job-description` | Text extraction (PDF/DOCX) |
+| `tailor-resume` | ATS-optimized resume tailoring |
+| `generate-email`, `generate-insights`, `recommend-jobs` | AI generation and recommendations |
 | `run-agent` | Execute AI agents |
-| `talent-search` | Advanced talent search |
+| **Talent & sourcing** | |
+| `bulk-import-candidates`, `talent-search` | Bulk import and talent search |
+| `linkedin-search`, `fetch-linkedin-text`, `enrich-linkedin-profile` | LinkedIn integration |
+| `google-search-linkedin`, `serpapi-search-linkedin`, `web-search` | Sourcing search |
+| **Other** | `notify-application`, `bootstrap-platform-admin`, super-admin helpers |
+
+For production deployment and secrets, see [docs/PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md) and [docs/PRE-PROD-CHECKLIST.md](docs/PRE-PROD-CHECKLIST.md).
 
 ## Deployment
 
-### Option 1: Lovable Deployment
+**Recommended for production:** Supabase (backend) + **Render** (frontend static site). See **[docs/PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md)** for the full guide (migrations, Edge Functions, secrets, Render env vars, SPA routing). Use **[docs/PRE-PROD-CHECKLIST.md](docs/PRE-PROD-CHECKLIST.md)** when shipping a new release.
 
-1. Open project in Lovable
-2. Click "Publish" button
-3. Your app is live!
+### Option 1: Render (recommended)
+
+- Create a **Static Site** on Render; connect your repo.
+- Build: `npm run build` (or `npm ci && npm run build`); Publish: `dist`.
+- Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (and optional `VITE_SUPABASE_PROJECT_ID`).
+- Add a **rewrite** rule: `/*` → `/index.html` (status 200) for SPA routing.
 
 ### Option 2: Vercel Deployment
 
@@ -758,6 +733,16 @@ aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 | `supabase functions deploy NAME` | Deploy specific function |
 | `supabase secrets set KEY=VALUE` | Set edge function secret |
 | `supabase secrets list` | List all secrets |
+
+## Documentation
+
+| Doc | Description |
+|-----|--------------|
+| [docs/PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md) | Production deploy (Supabase + Render, migrations, Edge Functions, secrets) |
+| [docs/PRE-PROD-CHECKLIST.md](docs/PRE-PROD-CHECKLIST.md) | Pre-release checklist (migrations, functions, verification) |
+| [docs/PAGE-WIDTH-AUDIT.md](docs/PAGE-WIDTH-AUDIT.md) | Page width standards and route audit |
+| [docs/RBAC-for-Product.txt](docs/RBAC-for-Product.txt) | Role-based access (product view) |
+| [LOCAL-DEV.md](LOCAL-DEV.md) | Local development notes |
 
 ## Contributing
 
