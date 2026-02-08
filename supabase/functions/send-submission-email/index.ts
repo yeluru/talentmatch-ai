@@ -159,7 +159,8 @@ serve(async (req: Request) => {
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
     const smtpTls = (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
-    const fromEmail = (Deno.env.get("SMTP_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
+    const fromRaw = (Deno.env.get("SMTP_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
+    const fromEmail = fromRaw.includes("<") && fromRaw.includes(">") ? fromRaw : `UltraHire <${fromRaw}>`;
 
     const client = new SMTPClient({
       connection: {
