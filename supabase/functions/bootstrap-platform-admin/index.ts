@@ -48,19 +48,17 @@ serve(async (req: Request) => {
       });
     }
 
-    // Check allowlist (service role bypasses RLS)
-    const { data: allow, error: allowErr } = await supabase
+    // Check allowlist (service role bypasses RLS). Match case-insensitively.
+    const { data: allowRows, error: allowErr } = await supabase
       .from("platform_admin_allowlist")
-      .select("email")
-      .eq("email", email)
-      .maybeSingle();
-
+      .select("email");
     if (allowErr) {
       return new Response(JSON.stringify({ error: allowErr.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const allow = (allowRows ?? []).find((r: { email: string }) => (r.email || "").toLowerCase().trim() === email);
 
     if (!allow) {
       return new Response(JSON.stringify({ ok: true, bootstrapped: false }), {

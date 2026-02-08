@@ -347,9 +347,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch roles via edge function (avoids RLS 500 on user_roles)
       if (data.user) {
-        const { data: authData } = await supabase.functions.invoke('get-my-auth-data', {
+        const { data: authData, error: authError } = await supabase.functions.invoke('get-my-auth-data', {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
+        // Distinguish "function failed" (401/500) from "success but no roles"
+        if (authError) {
+          console.error('get-my-auth-data error:', authError);
+          return {
+            error: new Error(
+              'We couldn\'t load your permissions. Please try again, or sign out and sign in again. If this persists, check that Edge Functions are deployed and the app is using the correct Supabase project.',
+            ),
+          };
+        }
         const rolesData = (authData as { roles?: { role: string }[] } | null)?.roles ?? [];
         if (rolesData.length > 0) {
           return { error: null, role: rolesData[0].role as AppRole };
@@ -357,13 +366,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // If the user has no roles, attempt platform-admin bootstrap (allowlist-based).
         try {
-          await supabase.functions.invoke('bootstrap-platform-admin', {
+          const { error: bootstrapErr } = await supabase.functions.invoke('bootstrap-platform-admin', {
             body: {},
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           });
-          const { data: authDataAfter } = await supabase.functions.invoke('get-my-auth-data', {
+          if (bootstrapErr) throw bootstrapErr;
+          const { data: authDataAfter, error: authErrorAfter } = await supabase.functions.invoke('get-my-auth-data', {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           });
+          if (authErrorAfter) throw authErrorAfter;
           const rolesAfter = (authDataAfter as { roles?: { role: string }[] } | null)?.roles ?? [];
           if (rolesAfter.length > 0) {
             return { error: null, role: rolesAfter[0].role as AppRole };

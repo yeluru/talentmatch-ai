@@ -175,7 +175,48 @@ Without this, the production site gets CORS or "Failed to send request to Edge F
 
 ---
 
-## 6. Quick checklist
+## 6. Assigning roles in production (“No role has been assigned”)
+
+If a user signs in successfully but sees **“Your account is active, but no role has been assigned yet”**, the app is working; that user has no row in `public.user_roles` in production.
+
+**Option A — Platform admin (super_admin)**  
+Add their email to the allowlist so the next sign-in auto-assigns the role:
+
+1. In **Supabase Dashboard** → your **production** project → **Table Editor**.
+2. Open table **`platform_admin_allowlist`**.
+3. **Insert row:** set `email` to the user’s email (e.g. `admin@yourcompany.com`).
+4. User signs out and signs in again; `handle_new_user` does not run again, but **`bootstrap-platform-admin`** Edge Function runs on sign-in and grants `super_admin` if the email is in the allowlist.  
+   - If the user was created before the allowlist existed, they already have a profile; the **bootstrap-platform-admin** function (called during sign-in) checks the allowlist and inserts into `user_roles`. So adding the email and having them sign in again is enough.
+
+**Option B — Assign any role manually (SQL)**  
+In **Supabase Dashboard → SQL Editor** (production project), run:
+
+```sql
+-- Replace with the user's email and desired role
+INSERT INTO public.user_roles (user_id, role, organization_id)
+SELECT id, 'super_admin', NULL FROM auth.users WHERE email = 'admin@yourcompany.com'
+ON CONFLICT (user_id, role) DO NOTHING;
+```
+
+For `recruiter` or `account_manager` or `org_admin`, you need an `organization_id` (from `public.organizations`). Example:
+
+```sql
+-- Get an org id first: SELECT id, name FROM public.organizations;
+INSERT INTO public.user_roles (user_id, role, organization_id)
+SELECT u.id, 'org_admin', '<org-uuid>' FROM auth.users u WHERE u.email = 'admin@yourcompany.com'
+ON CONFLICT (user_id, role) DO NOTHING;
+```
+
+**If the message is “We couldn’t load your permissions…”**  
+That means the **get-my-auth-data** Edge Function failed (e.g. 401/500). Ensure:
+
+1. **Edge Functions are deployed** for the production project: `npx supabase functions deploy get-my-auth-data` (and `bootstrap-platform-admin` if you use it).
+2. The **frontend** uses the **same** Supabase project (same `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` as the project where you deployed the functions).
+3. In the browser **Network** tab, check the response of the `get-my-auth-data` request (status and body) to see the actual error.
+
+---
+
+## 7. Quick checklist
 
 - [ ] Code committed and pushed to `main`
 - [ ] **Edge Functions deployed to prod** (`npx supabase functions deploy get-my-auth-data` or `supabase functions deploy`)
@@ -184,4 +225,4 @@ Without this, the production site gets CORS or "Failed to send request to Edge F
 - [ ] All three RPCs exist in prod (fix with RUN_IF_* SQL if not)
 - [ ] Smoke tests: login, AM/recruiter switch, comments, start engagement, pipeline moves, manager candidates page
 
-After that, you’re ready to test the new functionality in production.
+After that, you’re ready to test the new functionality in production. If users see "no role assigned", see **Section 6**.

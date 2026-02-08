@@ -30,7 +30,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
         <div className="max-w-md rounded-lg border bg-card p-6 text-center">
           <h1 className="text-lg font-semibold text-foreground">We couldn’t load your access</h1>
           <p className="mt-2 text-sm">
-            Your session is active, but your role/permissions couldn’t be loaded. Please sign out and sign in again.
+            Your session is active, but your role/permissions couldn’t be loaded. Try signing out and signing in again. If you believe you should have access, contact your administrator.
           </p>
           <div className="mt-4 flex items-center justify-center gap-3">
             <button
