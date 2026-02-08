@@ -144,10 +144,57 @@ serve(async (req: Request) => {
     const smtpPort = getEnvInt("SMTP_PORT", getEnvInt("MAILPIT_SMTP_PORT", 1025));
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
-    const smtpTls = (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
 
-    const fromRaw = (Deno.env.get("SMTP_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
+    const fromRaw = (Deno.env.get("SMTP_FROM") || Deno.env.get("RESEND_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
     const fromEmail = fromRaw.includes("<") && fromRaw.includes(">") ? fromRaw : `UltraHire <${fromRaw}>`;
+
+    const resendApiKey = (Deno.env.get("RESEND_API_KEY") || "").trim();
+    if (resendApiKey) {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
+        body: JSON.stringify({ from: fromEmail, to: [toEmail], subject, html }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[send-engagement-email] Resend API error:", res.status, errText);
+        return new Response(
+          JSON.stringify({ error: "Failed to send email", details: errText || `Resend ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const { error: updErr } = await svc
+        .from("candidate_engagement_requests")
+        .update({ status: "sent", sent_at: new Date().toISOString() } as any)
+        .eq("id", requestId);
+      if (updErr) throw updErr;
+      try {
+        await svc.from("candidate_engagements").update({ last_activity_at: new Date().toISOString() } as any).eq("id", engagement?.id);
+      } catch { /* ignore */ }
+      try {
+        const candidateUserId = candidate?.user_id || null;
+        if (candidateUserId && requestUrl) {
+          const title = "Engagement action needed";
+          const label = String(reqRow.request_type || "request").replaceAll("_", " ");
+          const msg = job?.title ? `Please respond to ${label} for ${job.title}.` : `Please respond to ${label}.`;
+          const link = new URL(requestUrl).pathname;
+          await svc.from("notifications").insert({
+            user_id: candidateUserId,
+            title,
+            message: msg,
+            type: "engagement",
+            link,
+          } as any);
+        }
+      } catch { /* ignore */ }
+      return new Response(
+        JSON.stringify({ ok: true, to: toEmail, requestId, engagementId: engagement?.id || null }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const smtpTls =
+      smtpPort === 587 ? false : smtpPort === 465 ? true : (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
 
     const client = new SMTPClient({
       connection: {
@@ -158,18 +205,27 @@ serve(async (req: Request) => {
       },
     });
 
+    const rawTimeout = Number(Deno.env.get("SMTP_TIMEOUT_MS"));
+    const smtpTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? Math.min(rawTimeout, 120000) : 45000;
+
     try {
-      await client.send({
+      const sendPromise = client.send({
         from: fromEmail,
         to: toEmail,
         subject,
         content: bodyText,
         html,
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`SMTP timeout after ${smtpTimeoutMs / 1000}s`)), smtpTimeoutMs)
+      );
+      await Promise.race([sendPromise, timeoutPromise]);
     } catch (smtpErr: unknown) {
       const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
+      console.error("[send-engagement-email] SMTP error:", msg);
       const isConnectionRefused =
         msg.includes("ECONNREFUSED") || msg.toLowerCase().includes("connection refused") || msg.includes("os error 111");
+      const isTimeout = msg.includes("timeout");
       // Default: do not skip. Set SKIP_SMTP_DEV=true or ALLOW_SKIP_SMTP=true only for local dev (no Mailpit).
       const skipSmtpDev = (Deno.env.get("SKIP_SMTP_DEV") || "").trim().toLowerCase() === "true";
       const allowSkipSmtp = (Deno.env.get("ALLOW_SKIP_SMTP") || "").trim().toLowerCase() === "true";
@@ -187,7 +243,9 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           error: "Failed to send email",
-          details: isConnectionRefused
+          details: isTimeout
+            ? `SMTP timed out (${smtpTimeoutMs / 1000}s). Check SMTP_HOST (e.g. smtp.resend.com), SMTP_PORT (465 or 587), and Resend API key.`
+            : isConnectionRefused
             ? "SMTP not reachable. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM in Edge Function secrets (or ALLOW_SKIP_SMTP=true to skip sending)."
             : msg,
         }),

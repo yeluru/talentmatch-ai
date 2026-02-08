@@ -21,6 +21,16 @@ function getEnvInt(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    for (let j = 0; j < chunk.length; j++) binary += String.fromCharCode(chunk[j]);
+  }
+  return btoa(binary);
+}
+
 /** Extract storage object path from resume file_url (full URL or path). */
 function resumesObjectPath(fileUrlOrPath: string | null | undefined): string | null {
   if (!fileUrlOrPath) return null;
@@ -158,9 +168,40 @@ serve(async (req: Request) => {
     const smtpPort = getEnvInt("SMTP_PORT", getEnvInt("MAILPIT_SMTP_PORT", 1025));
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
-    const smtpTls = (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
-    const fromRaw = (Deno.env.get("SMTP_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
+    const fromRaw = (Deno.env.get("SMTP_FROM") || Deno.env.get("RESEND_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
     const fromEmail = fromRaw.includes("<") && fromRaw.includes(">") ? fromRaw : `UltraHire <${fromRaw}>`;
+
+    const resendApiKey = (Deno.env.get("RESEND_API_KEY") || "").trim();
+    if (resendApiKey) {
+      const payload: { from: string; to: string[]; subject: string; html: string; attachments?: { filename: string; content: string }[] } = {
+        from: fromEmail,
+        to: toEmails,
+        subject,
+        html,
+      };
+      if (attachment) {
+        payload.attachments = [{ filename: attachment.filename, content: bytesToBase64(attachment.content) }];
+      }
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendApiKey}` },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        return new Response(
+          JSON.stringify({ error: "Failed to send email", details: errText || `Resend ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ ok: true, to: toEmails, attachmentIncluded: !!attachment }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const smtpTls =
+      smtpPort === 587 ? false : smtpPort === 465 ? true : (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
 
     const client = new SMTPClient({
       connection: {

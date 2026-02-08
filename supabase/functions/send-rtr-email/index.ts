@@ -31,6 +31,17 @@ function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+/** Encode Uint8Array to base64 (no std dependency for Supabase runtime). */
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    for (let j = 0; j < chunk.length; j++) binary += String.fromCharCode(chunk[j]);
+  }
+  return btoa(binary);
+}
+
 /** Load RTR template: RTR_TEMPLATE_BASE64 env, then RTR_TEMPLATE_URL, then bundled template_b64.ts, then file paths. */
 async function loadRtrTemplate(): Promise<Uint8Array> {
   const b64Env = (Deno.env.get("RTR_TEMPLATE_BASE64") || "").trim();
@@ -44,9 +55,21 @@ async function loadRtrTemplate(): Promise<Uint8Array> {
   }
   const url = (Deno.env.get("RTR_TEMPLATE_URL") || "").trim();
   if (url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch RTR template: ${res.status}`);
-    return new Uint8Array(await res.arrayBuffer());
+    const templateFetchMs = Math.min(Number(Deno.env.get("RTR_TEMPLATE_FETCH_TIMEOUT_MS")) || 15000, 60000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), templateFetchMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Failed to fetch RTR template: ${res.status}`);
+      return new Uint8Array(await res.arrayBuffer());
+    } catch (e) {
+      if ((e as Error)?.name === "AbortError") {
+        throw new Error(`RTR template fetch timed out after ${templateFetchMs / 1000}s`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
   try {
     const { RTR_TEMPLATE_BASE64 } = await import("./template_b64.ts");
@@ -120,7 +143,7 @@ async function fillRtrPdf(templateBytes: Uint8Array, rate: string, rateFieldName
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -220,9 +243,43 @@ serve(async (req: Request) => {
     const smtpPort = getEnvInt("SMTP_PORT", getEnvInt("MAILPIT_SMTP_PORT", 1025));
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
-    const smtpTls = (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
-    const fromRaw = (Deno.env.get("SMTP_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
+    const fromRaw = (Deno.env.get("SMTP_FROM") || Deno.env.get("RESEND_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
     const fromEmail = fromRaw.includes("<") && fromRaw.includes(">") ? fromRaw : `UltraHire <${fromRaw}>`;
+
+    // Supabase Edge Functions block outbound SMTP (ports 25, 465, 587). Use Resend HTTP API when key is set.
+    const resendApiKey = (Deno.env.get("RESEND_API_KEY") || "").trim();
+    if (resendApiKey) {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [toEmail],
+          subject,
+          html,
+          attachments: [{ filename: "RTR.pdf", content: bytesToBase64(filledPdfBytes) }],
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[send-rtr-email] Resend API error:", res.status, errText);
+        return new Response(
+          JSON.stringify({ error: "Failed to send email", details: errText || `Resend ${res.status}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ ok: true, to: toEmail }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Fallback: SMTP (e.g. Mailpit locally). Supabase prod blocks ports 465/587 so use RESEND_API_KEY there.
+    const smtpTls =
+      smtpPort === 587 ? false : smtpPort === 465 ? true : (Deno.env.get("SMTP_TLS") || "").trim().toLowerCase() === "true";
 
     const client = new SMTPClient({
       connection: {
@@ -240,8 +297,11 @@ serve(async (req: Request) => {
       encoding: "binary" as const,
     };
 
+    const rawTimeout = Number(Deno.env.get("SMTP_TIMEOUT_MS"));
+    const smtpTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? Math.min(rawTimeout, 120000) : 45000;
+
     try {
-      await client.send({
+      const sendPromise = client.send({
         from: fromEmail,
         to: toEmail,
         subject,
@@ -249,10 +309,16 @@ serve(async (req: Request) => {
         html,
         attachments: [attachment],
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`SMTP timeout after ${smtpTimeoutMs / 1000}s`)), smtpTimeoutMs)
+      );
+      await Promise.race([sendPromise, timeoutPromise]);
     } catch (smtpErr: unknown) {
       const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
+      console.error("[send-rtr-email] SMTP error:", msg);
       const isConnectionRefused =
         msg.includes("ECONNREFUSED") || msg.toLowerCase().includes("connection refused") || msg.includes("os error 111");
+      const isTimeout = msg.includes("timeout");
       // Default: do not skip. Set SKIP_SMTP_DEV=true or ALLOW_SKIP_SMTP=true only for local dev (no Mailpit).
       const skipSmtpDev = (Deno.env.get("SKIP_SMTP_DEV") || "").trim().toLowerCase() === "true";
       const allowSkipSmtp = (Deno.env.get("ALLOW_SKIP_SMTP") || "").trim().toLowerCase() === "true";
@@ -266,7 +332,9 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           error: "Failed to send email",
-          details: isConnectionRefused
+          details: isTimeout
+            ? `SMTP timed out (${smtpTimeoutMs / 1000}s). Check SMTP_HOST (e.g. smtp.resend.com), SMTP_PORT (465 or 587), and Resend domain/API key.`
+            : isConnectionRefused
             ? "SMTP not reachable. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM in Edge Function secrets (or ALLOW_SKIP_SMTP=true to skip sending)."
             : msg,
         }),

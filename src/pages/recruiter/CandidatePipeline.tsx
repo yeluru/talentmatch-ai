@@ -83,9 +83,9 @@ const DEFAULT_RTR_SUBJECT = (jobTitle: string) =>
 const DEFAULT_RTR_BODY = (candidateName: string, jobTitle: string, recruiterName: string) =>
   `Hi ${candidateName || 'there'},
 
-Please find attached the Right to Represent (RTR) form for ${jobTitle}. The rate has been filled in.
+Please find attached the Right to Represent (RTR) form for ${jobTitle}.
 
-Please open the PDF, complete the remaining fields (address, last 4 of SSN, name, date, signature), sign it, and reply to this email with the signed document attached.
+Please open the PDF, complete the remaining fields (address, last 4 of SSN, name, date, signature), sign it, and reply to this email with the signed document attached. This gives us your consent to represent you to the client at the hourly rate you confirmed in the RTR.
 
 Thanks,
 ${recruiterName || 'Recruiting team'}`;
