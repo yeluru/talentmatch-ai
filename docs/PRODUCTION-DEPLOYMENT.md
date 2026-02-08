@@ -290,6 +290,66 @@ Keep `PUBLIC_APP_URL` and `APP_URL` in sync with your production frontend URL (e
 
 ---
 
+## 7b. Production reset and platform admin setup
+
+When you need to **wipe all data and start over** (e.g. after testing or to re-onboard):
+
+### 1. Run the reset SQL
+
+1. Open **Supabase Dashboard** → your project → **SQL Editor**.
+2. Open the script **`supabase/scripts/clear-all-data.sql`** from this repo (or paste the SQL below).
+3. Run it. This will:
+   - Truncate all tables in the `public` schema (all app data: orgs, jobs, applications, invites, user_roles, profiles, etc.).
+   - Delete all rows from `auth.users`, `auth.sessions`, `auth.refresh_tokens`, `auth.identities` (all sign-in accounts are removed).
+   - **Not** change schema, RLS, functions, or Edge Function secrets.
+
+**WARNING:** This cannot be undone. All organizations, users, and auth accounts will be gone.
+
+Optional: In **Storage → Buckets → resumes**, delete objects if you want no leftover files.
+
+### 2. Add your platform admin email to the allowlist
+
+After the reset, `platform_admin_allowlist` is empty. Add your email so the first account you create becomes the platform (super) admin.
+
+**Option A – Table Editor**
+
+1. In Supabase Dashboard → **Table Editor** → **platform_admin_allowlist**.
+2. **Insert row** → set `email` to the address you will use to sign up (e.g. `admin@yourcompany.com`) → Save.
+
+**Option B – SQL Editor**
+
+Run (replace with your email):
+
+```sql
+INSERT INTO public.platform_admin_allowlist (email) VALUES ('your-admin@example.com');
+```
+
+### 3. Deploy / ensure Edge Function is available
+
+Ensure **`bootstrap-platform-admin`** is deployed so sign-in can grant the super_admin role:
+
+```bash
+npx supabase functions deploy bootstrap-platform-admin
+```
+
+In Supabase Dashboard → **Edge Functions** → `bootstrap-platform-admin` → ensure **Verify JWT** is **off** (or that `config.toml` has `verify_jwt = false` for this function and you’ve deployed).
+
+### 4. Sign up and sign in as platform admin
+
+1. Open your **production app URL** (e.g. `https://yourdomain.com`).
+2. **Sign up** with the **same email** you added to `platform_admin_allowlist` (e.g. `admin@yourcompany.com`). Use Sign up with email (or your configured auth provider).
+3. After sign-up you’ll be signed in. The app calls **`get-my-auth-data`** (no roles yet), then **`bootstrap-platform-admin`**. That function sees your email in the allowlist and inserts a **super_admin** role for your user.
+4. Reload or navigate; you should see the **Super Admin** dashboard (e.g. Super Admin in the nav, ability to invite org admins, etc.).
+
+If you see “no role” or get stuck, sign out and sign in again so `bootstrap-platform-admin` runs once more; ensure the email in the allowlist matches the auth user’s email exactly (case-insensitive).
+
+### 5. Next steps from platform admin
+
+- **Invite an Org Admin:** Super Admin dashboard → invite org admin by email. They accept the invite and become the first org admin for a new organization (or you create an organization and assign them).
+- From there, the org admin can invite managers and recruiters, create jobs, and run the pipeline as in the rest of this guide.
+
+---
+
 ## 8. Troubleshooting
 
 - **Invite emails not sent:** Ensure `RESEND_API_KEY` is set in Supabase and Resend domain is verified; check Edge Function logs.

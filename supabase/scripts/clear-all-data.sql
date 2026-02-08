@@ -1,6 +1,10 @@
--- Clear all application data and auth users; keep schema, RLS, and settings.
--- Run this in Supabase Dashboard → SQL Editor (as postgres).
--- After running: re-add your super-admin email to platform_admin_allowlist if you use it.
+-- =============================================================================
+-- PRODUCTION RESET: Delete all data and auth users; keep schema, RLS, functions.
+-- =============================================================================
+-- Run in Supabase Dashboard → SQL Editor (Project runs as postgres).
+-- WARNING: This cannot be undone. All organizations, jobs, applications, users,
+-- and auth accounts will be removed. Use only when you want to start completely over.
+-- =============================================================================
 
 BEGIN;
 
@@ -33,8 +37,15 @@ DELETE FROM auth.users;
 
 COMMIT;
 
--- After this:
+-- =============================================================================
+-- AFTER RUNNING:
 -- - All app data (orgs, jobs, applications, invites, etc.) is gone.
--- - All auth users are gone. You can sign up again as candidate, and create super admin via allowlist.
--- - Schema, RLS, Edge Function secrets, Auth URL config, and RESEND_FROM are unchanged.
--- - Re-add your super-admin email in Table Editor → platform_admin_allowlist if needed.
+-- - All auth users are gone. platform_admin_allowlist is also empty.
+-- - Schema, RLS, Edge Function secrets, Auth URL config unchanged.
+-- Optionally: Storage → Buckets → resumes: delete objects if you want no leftover files.
+-- =============================================================================
+-- STEP: Re-add your platform admin email so the first sign-in becomes super_admin.
+-- Run the following ONCE, replacing with your email (same one you will use to sign up):
+-- =============================================================================
+
+-- INSERT INTO public.platform_admin_allowlist (email) VALUES ('your-admin@example.com');

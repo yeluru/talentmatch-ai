@@ -39,10 +39,11 @@ BEGIN
     RAISE EXCEPTION 'Application job not in your organization';
   END IF;
 
+  -- When moving off Outcome (final_update), clear outcome so applications_outcome_check is satisfied.
   UPDATE public.applications
   SET
     status = _status,
-    outcome = CASE WHEN _status = 'final_update' AND _outcome IS NOT NULL THEN _outcome ELSE outcome END
+    outcome = CASE WHEN _status = 'final_update' THEN _outcome ELSE NULL END
   WHERE id = _application_id;
 
   IF _candidate_id IS NOT NULL AND public.recruiter_can_access_candidate(_candidate_id) THEN

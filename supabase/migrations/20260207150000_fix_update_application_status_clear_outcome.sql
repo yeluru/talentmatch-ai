@@ -1,5 +1,5 @@
--- Run this in Supabase Dashboard > SQL Editor if pipeline status updates (e.g. RTR move) don't persist.
--- Creates update_application_status RPC so staff can move candidates without RLS blocking.
+-- Fix: when moving from Outcome (final_update) back to Submission (or any other stage),
+-- clear outcome so applications_outcome_check (outcome IS NULL when status <> 'final_update') is satisfied.
 
 CREATE OR REPLACE FUNCTION public.update_application_status(
   _application_id uuid,
@@ -59,6 +59,3 @@ BEGIN
   END IF;
 END;
 $$;
-
-GRANT EXECUTE ON FUNCTION public.update_application_status(uuid, text, uuid, text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_application_status(uuid, text, uuid, text, text) TO service_role;
