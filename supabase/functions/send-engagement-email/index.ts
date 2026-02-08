@@ -165,6 +165,33 @@ serve(async (req: Request) => {
         content: bodyText,
         html,
       });
+    } catch (smtpErr: unknown) {
+      const msg = smtpErr instanceof Error ? smtpErr.message : String(smtpErr);
+      const isConnectionRefused =
+        msg.includes("ECONNREFUSED") || msg.toLowerCase().includes("connection refused") || msg.includes("os error 111");
+      // Default: do not skip. Set SKIP_SMTP_DEV=true or ALLOW_SKIP_SMTP=true only for local dev (no Mailpit).
+      const skipSmtpDev = (Deno.env.get("SKIP_SMTP_DEV") || "").trim().toLowerCase() === "true";
+      const allowSkipSmtp = (Deno.env.get("ALLOW_SKIP_SMTP") || "").trim().toLowerCase() === "true";
+      if (isConnectionRefused && (skipSmtpDev || allowSkipSmtp)) {
+        console.log("[send-engagement-email] Skipping send. Would have sent to", toEmail);
+        await svc
+          .from("candidate_engagement_requests")
+          .update({ status: "sent", sent_at: new Date().toISOString() } as any)
+          .eq("id", requestId);
+        return new Response(
+          JSON.stringify({ ok: true, to: toEmail, requestId, skipped: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          error: "Failed to send email",
+          details: isConnectionRefused
+            ? "SMTP not reachable. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM in Edge Function secrets (or ALLOW_SKIP_SMTP=true to skip sending)."
+            : msg,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     } finally {
       try {
         await client.close();

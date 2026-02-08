@@ -148,6 +148,21 @@ npx supabase functions deploy
 
 Without this, the production site gets CORS or "Failed to send request to Edge Function" because the function doesn’t exist on the project and the gateway returns a non-2xx response without CORS headers.
 
+### 4.1 Email (RTR, engagement, submission) in production
+
+Moving a candidate to RTR or sending engagement/submission emails uses **send-rtr-email**, **send-engagement-email**, or **send-submission-email**. These send mail via SMTP. In production you must set SMTP secrets or you'll see **"Edge Function returned a non-2xx status code"** or **"Failed to send email"** with "SMTP not reachable".
+
+In **Supabase Dashboard** → your project → **Edge Functions** → **Secrets**, add:
+
+- `SMTP_HOST` – e.g. `smtp.sendgrid.net`, `email-smtp.us-east-1.amazonaws.com`
+- `SMTP_PORT` – usually `587` (TLS) or `465` (SSL)
+- `SMTP_USER` and `SMTP_PASS` – your SMTP credentials
+- `SMTP_FROM` – e.g. `UltraHire <noreply@yourdomain.com>`
+- `SMTP_TLS` – set to `true` for port 587
+
+For **send-rtr-email** you may need `RTR_TEMPLATE_BASE64` or `RTR_TEMPLATE_URL` (and optionally `RTR_RATE_FIELD_NAME`). Then redeploy:  
+`npx supabase functions deploy send-rtr-email send-engagement-email send-submission-email`
+
 ---
 
 ## 5. After deploy: what to do

@@ -79,8 +79,9 @@ verify_jwt = false
 [functions.send-org-admin-invite]
 verify_jwt = false
 
+# Gateway JWT check disabled; function validates JWT via auth.getUser().
 [functions.bootstrap-platform-admin]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-org-admin-invite-existing]
 verify_jwt = false
@@ -97,14 +98,20 @@ verify_jwt = true
 [functions.fetch-jd-text]
 verify_jwt = true
 
+# Gateway JWT disabled; function validates via auth.getUser().
 [functions.send-rtr-email]
-verify_jwt = true
+verify_jwt = false
+
+[functions.send-engagement-email]
+verify_jwt = false
 
 [functions.send-submission-email]
 verify_jwt = true
 
+# Gateway JWT disabled; function validates via auth.getUser().
 [functions.get-org-account-managers]
-verify_jwt = true
+verify_jwt = false
 
+# Gateway JWT check disabled so request reaches the function; the function validates the JWT via auth.getUser().
 [functions.get-my-auth-data]
-verify_jwt = true
+verify_jwt = false
