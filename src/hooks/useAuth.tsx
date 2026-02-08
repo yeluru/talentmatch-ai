@@ -1,7 +1,7 @@
 // Auth provider and hook for managing user sessions
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, supabaseUrl, supabaseAnonKey } from '@/integrations/supabase/client';
 
 type AppRole = 'candidate' | 'recruiter' | 'account_manager' | 'org_admin' | 'super_admin';
 
@@ -52,6 +52,26 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/** Call get-my-auth-data with explicit user JWT (fetch so gateway receives Authorization when verify_jwt=true). */
+async function getMyAuthDataWithFetch(accessToken: string): Promise<{ profile?: UserProfile | null; roles?: { role: string; organization_id?: string }[] }> {
+  const res = await fetch(`${supabaseUrl}/functions/v1/get-my-auth-data`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      apikey: supabaseAnonKey,
+    },
+    body: '{}',
+  });
+  const raw = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error((raw?.error as string) || `get-my-auth-data ${res.status}`);
+    (err as any).status = res.status;
+    throw err;
+  }
+  return raw as { profile?: UserProfile | null; roles?: { role: string; organization_id?: string }[] };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -124,12 +144,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Never re-enable the global loading gate after first hydration.
     if (!silent && !hasHydrated) setIsLoading(true);
     try {
-      // Pass token explicitly when we have it (e.g. right after sign-in) so the Edge Function receives it
-      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
-      const { data, error } = await supabase.functions.invoke('get-my-auth-data', { headers });
-      if (error) throw error;
-      const profileRow = (data as { profile?: UserProfile | null } | null)?.profile ?? null;
-      const rolesData = (data as { roles?: { role: string; organization_id?: string }[] } | null)?.roles ?? [];
+      // Call Edge Function via fetch with explicit Authorization so the user JWT is sent (invoke() can fail to forward it with verify_jwt=true).
+      let data: { profile?: UserProfile | null; roles?: { role: string; organization_id?: string }[] } | null;
+      if (accessToken) {
+        data = await getMyAuthDataWithFetch(accessToken);
+      } else {
+        const { data: invData, error } = await supabase.functions.invoke('get-my-auth-data', {});
+        if (error) throw error;
+        data = invData as typeof data;
+      }
+      const profileRow = data?.profile ?? null;
+      const rolesData = data?.roles ?? [];
 
       if (profileRow) setProfile(profileRow as UserProfile);
 
@@ -344,14 +369,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       const token = data.session?.access_token;
+      if (!data.user || !token) {
+        return { error: new Error('Session or token missing after sign-in') };
+      }
 
-      // Fetch roles via edge function (avoids RLS 500 on user_roles)
-      if (data.user) {
-        const { data: authData, error: authError } = await supabase.functions.invoke('get-my-auth-data', {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        // Distinguish "function failed" (401/500) from "success but no roles"
-        if (authError) {
+      // Fetch roles via edge function (avoids RLS 500 on user_roles). Use fetch() so user JWT is sent reliably.
+      {
+        let authData: { profile?: UserProfile | null; roles?: { role: string }[] };
+        try {
+          authData = await getMyAuthDataWithFetch(token);
+        } catch (authError) {
           console.error('get-my-auth-data error:', authError);
           return {
             error: new Error(
@@ -359,23 +386,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ),
           };
         }
-        const rolesData = (authData as { roles?: { role: string }[] } | null)?.roles ?? [];
+        const rolesData = authData?.roles ?? [];
         if (rolesData.length > 0) {
           return { error: null, role: rolesData[0].role as AppRole };
         }
 
-        // If the user has no roles, attempt platform-admin bootstrap (allowlist-based).
+        // If the user has no roles, attempt platform-admin bootstrap (allowlist-based). Use fetch so JWT is sent.
         try {
-          const { error: bootstrapErr } = await supabase.functions.invoke('bootstrap-platform-admin', {
-            body: {},
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          const bootstrapRes = await fetch(`${supabaseUrl}/functions/v1/bootstrap-platform-admin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+              apikey: supabaseAnonKey,
+            },
+            body: '{}',
           });
-          if (bootstrapErr) throw bootstrapErr;
-          const { data: authDataAfter, error: authErrorAfter } = await supabase.functions.invoke('get-my-auth-data', {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          });
-          if (authErrorAfter) throw authErrorAfter;
-          const rolesAfter = (authDataAfter as { roles?: { role: string }[] } | null)?.roles ?? [];
+          if (!bootstrapRes.ok) throw new Error('Bootstrap failed');
+          const authDataAfter = await getMyAuthDataWithFetch(token);
+          const rolesAfter = authDataAfter?.roles ?? [];
           if (rolesAfter.length > 0) {
             return { error: null, role: rolesAfter[0].role as AppRole };
           }

@@ -40,3 +40,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+/** Used when calling Edge Functions with verify_jwt=true via fetch() so the user JWT is sent reliably. */
+export const supabaseUrl = SUPABASE_URL;
+export const supabaseAnonKey = SUPABASE_PUBLISHABLE_KEY;
