@@ -92,14 +92,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (isBlockingAllowed && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
           setIsLoading(true);
+          const token = session.access_token;
           setTimeout(() => {
-            fetchUserData(session.user.id, { silent: false });
+            fetchUserData(session.user.id, { silent: false, accessToken: token });
           }, 0);
           return;
         }
 
         // Everything else (TOKEN_REFRESHED, USER_UPDATED, etc.) should be silent.
-        fetchUserData(session.user.id, { silent: true }).catch(() => { });
+        fetchUserData(session.user.id, { silent: true, accessToken: session.access_token }).catch(() => { });
       }
     );
 
@@ -108,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         setIsLoading(true);
-        fetchUserData(session.user.id, { silent: false });
+        fetchUserData(session.user.id, { silent: false, accessToken: session.access_token });
       } else {
         setIsLoading(false);
       }
@@ -117,13 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserData = async (userId: string, opts?: { silent?: boolean }) => {
+  const fetchUserData = async (userId: string, opts?: { silent?: boolean; accessToken?: string }) => {
     const silent = Boolean(opts?.silent);
+    const accessToken = opts?.accessToken;
     // Never re-enable the global loading gate after first hydration.
     if (!silent && !hasHydrated) setIsLoading(true);
     try {
-      // Use edge function with service role so login works even when RLS on user_roles/profiles returns 500
-      const { data, error } = await supabase.functions.invoke('get-my-auth-data');
+      // Pass token explicitly when we have it (e.g. right after sign-in) so the Edge Function receives it
+      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+      const { data, error } = await supabase.functions.invoke('get-my-auth-data', { headers });
       if (error) throw error;
       const profileRow = (data as { profile?: UserProfile | null } | null)?.profile ?? null;
       const rolesData = (data as { roles?: { role: string; organization_id?: string }[] } | null)?.roles ?? [];
@@ -268,7 +271,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Safety: if this user was bootstrapped as a platform admin (e.g. via allowlist trigger),
         // do NOT also assign candidate role / create candidate profile.
         if (role === 'candidate') {
-          const { data: authDataCheck } = await supabase.functions.invoke('get-my-auth-data');
+          const signUpToken = authData.session?.access_token;
+          const { data: authDataCheck } = await supabase.functions.invoke('get-my-auth-data', {
+            headers: signUpToken ? { Authorization: `Bearer ${signUpToken}` } : undefined,
+          });
           const rolesCheck = (authDataCheck as { roles?: { role: string }[] } | null)?.roles ?? [];
           if (rolesCheck.some((r: { role: string }) => r.role === 'super_admin')) {
             return { error: null };
@@ -337,9 +343,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
+      const token = data.session?.access_token;
+
       // Fetch roles via edge function (avoids RLS 500 on user_roles)
       if (data.user) {
-        const { data: authData } = await supabase.functions.invoke('get-my-auth-data');
+        const { data: authData } = await supabase.functions.invoke('get-my-auth-data', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         const rolesData = (authData as { roles?: { role: string }[] } | null)?.roles ?? [];
         if (rolesData.length > 0) {
           return { error: null, role: rolesData[0].role as AppRole };
@@ -347,8 +357,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // If the user has no roles, attempt platform-admin bootstrap (allowlist-based).
         try {
-          await supabase.functions.invoke('bootstrap-platform-admin', { body: {} });
-          const { data: authDataAfter } = await supabase.functions.invoke('get-my-auth-data');
+          await supabase.functions.invoke('bootstrap-platform-admin', {
+            body: {},
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
+          const { data: authDataAfter } = await supabase.functions.invoke('get-my-auth-data', {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
           const rolesAfter = (authDataAfter as { roles?: { role: string }[] } | null)?.roles ?? [];
           if (rolesAfter.length > 0) {
             return { error: null, role: rolesAfter[0].role as AppRole };

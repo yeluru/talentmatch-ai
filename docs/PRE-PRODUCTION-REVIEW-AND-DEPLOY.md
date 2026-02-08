@@ -57,15 +57,46 @@ If you prefer to exclude certain files (e.g. extra docs or PDFs), adjust `git ad
 
 Production already has earlier migrations. You need to apply **only the new ones** and ensure the **three RPCs** exist.
 
-### 3.1 Option A: Supabase CLI (recommended if you use it)
+### 3.1 Option A: Supabase CLI — link to prod, then push
 
-From repo root, linked to **production** project:
+`npx supabase db push` applies migrations to **whichever project is currently linked**, not to “local” or “prod” by default. So you need to **link this repo to your production project** before pushing to prod.
+
+**Get your production project ref**
+
+- In [Supabase Dashboard](https://app.supabase.com), open your **production** project.
+- Go to **Settings → General**.
+- Copy **Reference ID** (e.g. `abcdefghijklmnop`). Or use the project ref from the URL: `https://app.supabase.com/project/<project-ref>`.
+
+**Link to production and push**
+
+From repo root:
 
 ```bash
+# Log in if you haven’t (uses browser or token)
+npx supabase login
+
+# Link this repo to your production project (use your prod Reference ID)
+npx supabase link --project-ref <YOUR_PROD_PROJECT_REF>
+
+# Push pending migrations to the linked (prod) project
 npx supabase db push
 ```
 
-This runs any migrations that haven’t been applied yet, in order.
+After `link`, the CLI stores the linked project in `.supabase/` (typically gitignored). So:
+
+- **Local dev:** If you use `supabase start`, that’s a local Postgres; migrations you apply there are local only. To push those same migrations to prod, you run `link --project-ref <prod-ref>` once, then `db push` whenever you want to update prod.
+- **Switching projects:** To push to a different project later, run `supabase link --project-ref <other-ref>` again; then `db push` targets that project.
+
+**Check which project is linked**
+
+```bash
+npx supabase projects list
+npx supabase status   # shows linked project when run in repo
+```
+
+**Summary:** Use the production project’s Reference ID with `supabase link --project-ref <prod-ref>`, then run `npx supabase db push` to apply migrations to prod.
+
+**Note:** `supabase/config.toml` has a `project_id`; that is used by **local** Supabase (`supabase start`), not by `db push`. Where `db push` goes is determined only by **the project you linked** with `supabase link --project-ref`.
 
 ### 3.2 Option B: Run migrations manually in SQL Editor
 
@@ -103,34 +134,54 @@ More detail: `docs/PROD-MIGRATION-CHECKLIST.md`.
 
 ---
 
-## 4. After deploy: what to do
+## 4. Deploy Edge Functions to production
+
+**`supabase db push` does not deploy Edge Functions.** If your app calls any function (e.g. `get-my-auth-data` for login), you must deploy it to the linked project:
+
+```bash
+# Deploy the auth bootstrap function (required for login)
+npx supabase functions deploy get-my-auth-data
+
+# Or deploy all functions
+npx supabase functions deploy
+```
+
+Without this, the production site gets CORS or "Failed to send request to Edge Function" because the function doesn’t exist on the project and the gateway returns a non-2xx response without CORS headers.
+
+---
+
+## 5. After deploy: what to do
 
 1. **Deploy frontend on Render**  
    Trigger a deploy from `main` (or let auto-deploy run). No extra env changes needed if already set.
 
-2. **Confirm migrations**  
+2. **Deploy Edge Functions**  
+   Run `npx supabase functions deploy get-my-auth-data` (and any other functions the app uses). See section 4.
+
+3. **Confirm migrations**  
    - Either run `npx supabase db push` (Option A) or run the migration files in order (Option B).  
    - If you get “function … does not exist”, run the corresponding RUN_IF_MISSING / RUN_IF_RPC_MISSING script from section 3.3.
 
-3. **Smoke-test new behaviour**  
+4. **Smoke-test new behaviour**  
    - **AM → Recruiter:** Log in as AM, switch to Recruiter; confirm URL and pipeline load correctly.  
    - **Comments:** As recruiter or AM, add/edit comments in pipeline, talent pool, or applicant detail; save and reload to confirm they persist.  
    - **Start engagement:** Talent Pool → pick candidate → Start engagement → choose job; confirm candidate appears in pipeline and talent pool stage updates.  
    - **Pipeline moves:** Move a candidate (e.g. to RTR, screening, outcome); confirm status persists and RTR/email flow works if used.  
    - **Manager candidates:** As manager/AM, open **Candidates**; confirm list by job, status labels match pipeline (Engaged, RTR & rate, etc.), filters work, candidate name opens detail drawer, comments column shows.
 
-4. **If something breaks**  
+5. **If something breaks**  
    - Check browser console and network for RPC/auth errors.  
    - In Supabase Dashboard, confirm the three RPCs exist under Database → Functions and that policies/triggers from the migrations are present.
 
 ---
 
-## 5. Quick checklist
+## 6. Quick checklist
 
 - [ ] Code committed and pushed to `main`
+- [ ] **Edge Functions deployed to prod** (`npx supabase functions deploy get-my-auth-data` or `supabase functions deploy`)
 - [ ] Render deploy triggered (or auto-deploy from `main`)
 - [ ] Migrations applied in prod (CLI or SQL Editor)
 - [ ] All three RPCs exist in prod (fix with RUN_IF_* SQL if not)
-- [ ] Smoke tests: AM/recruiter switch, comments, start engagement, pipeline moves, manager candidates page
+- [ ] Smoke tests: login, AM/recruiter switch, comments, start engagement, pipeline moves, manager candidates page
 
 After that, you’re ready to test the new functionality in production.
