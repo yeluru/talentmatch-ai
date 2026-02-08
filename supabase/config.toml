@@ -105,8 +105,15 @@ verify_jwt = false
 [functions.send-engagement-email]
 verify_jwt = false
 
+# Gateway JWT disabled; function validates via auth.getUser().
+[functions.send-pipeline-email]
+verify_jwt = false
+
 [functions.send-submission-email]
-verify_jwt = true
+verify_jwt = false
+
+[functions.send-screening-invite]
+verify_jwt = false
 
 # Gateway JWT disabled; function validates via auth.getUser().
 [functions.get-org-account-managers]

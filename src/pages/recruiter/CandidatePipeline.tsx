@@ -184,6 +184,7 @@ export default function CandidatePipeline() {
   const [screeningType, setScreeningType] = useState('video');
   const [screeningMeetingLink, setScreeningMeetingLink] = useState('');
   const [screeningNotes, setScreeningNotes] = useState('');
+  const [screeningToEmail, setScreeningToEmail] = useState('');
   const [sendingScreening, setSendingScreening] = useState(false);
   const [submissionPending, setSubmissionPending] = useState<{ app: Application } | null>(null);
   const [submissionToEmails, setSubmissionToEmails] = useState<string[]>([]);
@@ -239,12 +240,13 @@ export default function CandidatePipeline() {
           type: screeningType,
           meetingLink: screeningMeetingLink,
           notes: screeningNotes,
+          to: screeningToEmail,
         }),
       );
     } catch {
       // ignore
     }
-  }, [screeningPending?.app.id, screeningDate, screeningTime, screeningDuration, screeningType, screeningMeetingLink, screeningNotes]);
+  }, [screeningPending?.app.id, screeningDate, screeningTime, screeningDuration, screeningType, screeningMeetingLink, screeningNotes, screeningToEmail]);
 
   useEffect(() => {
     if (!submissionPending?.app.id) return;
@@ -426,6 +428,7 @@ export default function CandidatePipeline() {
         }
         setRtrPending({ app });
       } else if (type === 'screening') {
+        const candidateEmail = app.candidate_profiles?.email ?? '';
         const draftRaw = sessionStorage.getItem(PIPELINE_DRAFT_KEY('screening', appId));
         if (draftRaw) {
           const d = JSON.parse(draftRaw) as {
@@ -435,6 +438,7 @@ export default function CandidatePipeline() {
             type?: string;
             meetingLink?: string;
             notes?: string;
+            to?: string;
           };
           if (d.date) setScreeningDate(new Date(d.date));
           if (d.time != null) setScreeningTime(d.time);
@@ -442,6 +446,7 @@ export default function CandidatePipeline() {
           if (d.type != null) setScreeningType(d.type);
           if (d.meetingLink != null) setScreeningMeetingLink(d.meetingLink);
           if (d.notes != null) setScreeningNotes(d.notes);
+          setScreeningToEmail(d.to ?? candidateEmail);
         } else {
           setScreeningDate(undefined);
           setScreeningTime('10:00');
@@ -449,6 +454,7 @@ export default function CandidatePipeline() {
           setScreeningType('video');
           setScreeningMeetingLink('');
           setScreeningNotes('');
+          setScreeningToEmail(candidateEmail);
         }
         setScreeningPending({ app });
       } else if (type === 'submission') {
@@ -653,6 +659,7 @@ export default function CandidatePipeline() {
       if (!isSameCandidate) {
         try {
           const raw = sessionStorage.getItem(PIPELINE_DRAFT_KEY('screening', app.id));
+          const candidateEmail = app.candidate_profiles?.email ?? '';
           if (raw) {
             const d = JSON.parse(raw) as {
               date?: string;
@@ -661,6 +668,7 @@ export default function CandidatePipeline() {
               type?: string;
               meetingLink?: string;
               notes?: string;
+              to?: string;
             };
             if (d.date) setScreeningDate(new Date(d.date));
             if (d.time != null) setScreeningTime(d.time);
@@ -668,6 +676,8 @@ export default function CandidatePipeline() {
             if (d.type != null) setScreeningType(d.type);
             if (d.meetingLink != null) setScreeningMeetingLink(d.meetingLink);
             if (d.notes != null) setScreeningNotes(d.notes);
+            if (d.to != null) setScreeningToEmail(d.to);
+            else setScreeningToEmail(candidateEmail);
           } else {
             setScreeningDate(undefined);
             setScreeningTime('10:00');
@@ -675,6 +685,7 @@ export default function CandidatePipeline() {
             setScreeningType('video');
             setScreeningMeetingLink('');
             setScreeningNotes('');
+            setScreeningToEmail(candidateEmail);
           }
         } catch {
           setScreeningDate(undefined);
@@ -683,6 +694,7 @@ export default function CandidatePipeline() {
           setScreeningType('video');
           setScreeningMeetingLink('');
           setScreeningNotes('');
+          setScreeningToEmail(app.candidate_profiles?.email ?? '');
         }
       }
       setScreeningPending({ app });
@@ -1263,7 +1275,7 @@ export default function CandidatePipeline() {
           setScreeningPending(null);
         }}
         title="Schedule screening interview"
-        description="Set the interview date and details. Once scheduled, the candidate will move to Screening and the interview will appear under Interviews."
+        description="Set the interview date and details. A calendar invite (.ics) will be emailed to the address below so the candidate can add it to their calendar. The candidate will move to Screening and the interview will appear under Interviews."
       >
         {screeningPending && (
           <div className="space-y-4 pt-2">
@@ -1272,6 +1284,16 @@ export default function CandidatePipeline() {
                 {screeningPending.app.candidate_profiles?.full_name || screeningPending.app.candidate_profiles?.email?.split('@')[0] || 'Candidate'}
               </p>
               <p className="text-muted-foreground">{screeningPending.app.jobs?.title || '—'}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Send calendar invite to</Label>
+              <Input
+                type="email"
+                value={screeningToEmail}
+                onChange={(e) => setScreeningToEmail(e.target.value)}
+                placeholder="candidate@example.com"
+                className="font-sans"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1365,7 +1387,7 @@ export default function CandidatePipeline() {
                 Cancel
               </Button>
               <Button
-                disabled={sendingScreening || !screeningDate || !user?.id}
+                disabled={sendingScreening || !screeningDate || !screeningToEmail.trim() || !user?.id}
                 onClick={async () => {
                   if (!screeningPending || !user?.id) return;
                   setSendingScreening(true);
@@ -1385,6 +1407,26 @@ export default function CandidatePipeline() {
                     });
                     if (insertErr) throw insertErr;
                     const appId = screeningPending.app.id;
+                    const jobTitle = screeningPending.app.jobs?.title || 'Screening';
+                    const candidateName = screeningPending.app.candidate_profiles?.full_name || screeningPending.app.candidate_profiles?.email || '';
+                    let inviteSent = false;
+                    try {
+                      const { error: inviteErr } = await supabase.functions.invoke('send-screening-invite', {
+                        body: {
+                          toEmail: screeningToEmail.trim(),
+                          scheduledAt: scheduledAt.toISOString(),
+                          durationMinutes: screeningDuration,
+                          meetingLink: screeningMeetingLink.trim() || undefined,
+                          jobTitle,
+                          candidateName,
+                          organizationId: organizationId ?? undefined,
+                        },
+                      });
+                      if (!inviteErr) inviteSent = true;
+                      else console.warn('Screening invite failed:', inviteErr);
+                    } catch (e) {
+                      console.warn('Screening invite error:', e);
+                    }
                     try {
                       sessionStorage.removeItem(PIPELINE_DRAFT_KEY('screening', appId));
                       sessionStorage.removeItem(PIPELINE_OPEN_MODAL_KEY);
@@ -1396,7 +1438,9 @@ export default function CandidatePipeline() {
                     });
                     queryClient.invalidateQueries({ queryKey: ['interviews'], exact: false });
                     setScreeningPending(null);
-                    toast.success('Interview scheduled and candidate moved to Screening');
+                    toast.success(inviteSent
+                      ? 'Interview scheduled, calendar invite sent, and candidate moved to Screening'
+                      : 'Interview scheduled and candidate moved to Screening (calendar invite could not be sent)');
                   } catch (err: unknown) {
                     toast.error(err instanceof Error ? err.message : 'Failed to schedule');
                   } finally {
