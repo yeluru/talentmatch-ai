@@ -10,6 +10,7 @@ type Body = {
   toEmail: string;
   subject?: string;
   body?: string;
+  notes?: string;
   scheduledAt: string;
   durationMinutes: number;
   meetingLink?: string;
@@ -134,13 +135,16 @@ serve(async (req: Request) => {
       });
     }
 
+    const notes = (body?.notes || "").trim() || undefined;
     const endAt = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
     const summary = `Screening: ${jobTitle}`;
-    const description = [
+    const descriptionParts = [
       `Screening interview for ${jobTitle}.`,
       candidateName ? `Candidate: ${candidateName}.` : "",
       meetingLink ? `Join: ${meetingLink}` : "",
-    ].filter(Boolean).join(" ");
+      notes || "",
+    ].filter(Boolean);
+    const description = descriptionParts.join(" ");
 
     const icsContent = buildIcs({
       summary,
@@ -180,10 +184,12 @@ serve(async (req: Request) => {
     }
 
     const subject = (body?.subject || "").trim() || `Screening interview: ${jobTitle}`;
-    const bodyText = (body?.body || "").trim() || `You have been invited to a screening interview for ${jobTitle}. Please find the calendar invite attached.${meetingLink ? `\n\nJoin link: ${meetingLink}` : ""}`;
+    const defaultBody = `You have been invited to a screening interview for ${jobTitle}. Please find the calendar invite attached.${meetingLink ? `\n\nJoin link: ${meetingLink}` : ""}`;
+    const bodyText = (body?.body || "").trim() || defaultBody;
+    const bodyWithNotes = notes ? `${bodyText}\n\n${notes}` : bodyText;
     const html = `
       <div style="font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.5;">
-        <p>${bodyText.replaceAll("\n", "<br/>")}</p>
+        <p>${bodyWithNotes.replaceAll("\n", "<br/>")}</p>
         <p style="color:#6b7280;font-size:12px;">Add the attached .ics file to your calendar, or open it to add the event.</p>
       </div>
     `;

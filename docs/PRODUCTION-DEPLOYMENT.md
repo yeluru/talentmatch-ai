@@ -54,7 +54,7 @@ In **Project → Edge Functions → Manage secrets** (or **Settings → Edge Fun
 
 | Secret | Description | Required for |
 |--------|-------------|--------------|
-| `RESEND_API_KEY` | Resend API key (from Resend dashboard) | Invite emails (org admin, manager, recruiter) |
+| `RESEND_API_KEY` | Resend API key (from Resend dashboard) | Invites, pipeline emails (RTR, document check, **submission to account manager**), screening calendar invite |
 | `PUBLIC_APP_URL` | Production app URL, e.g. `https://yourdomain.com` | Invite links in emails |
 | `APP_URL` | Same as `PUBLIC_APP_URL` | Engagement email “Review & respond” links |
 | `OPENAI_API_KEY` | OpenAI API key | Resume/job parsing, AI matching, etc. |
@@ -293,6 +293,7 @@ Keep `PUBLIC_APP_URL` and `APP_URL` in sync with your production frontend URL (e
 ## 8. Troubleshooting
 
 - **Invite emails not sent:** Ensure `RESEND_API_KEY` is set in Supabase and Resend domain is verified; check Edge Function logs.
+- **Submission email to account manager not sent:** Requires `RESEND_API_KEY` in Edge Function secrets. If you see “Edge Function returned non-2xx” or 401, in Supabase Dashboard → Edge Functions → `send-submission-email` ensure JWT verification is disabled (same as other pipeline email functions), or set `verify_jwt = false` in `config.toml` and redeploy.
 - **Invite links point to wrong URL:** Set `PUBLIC_APP_URL` in Supabase secrets to your production URL (no trailing slash).
 - **Engagement email “Review & respond” broken:** Set `APP_URL` in Supabase secrets to the same production URL.
 - **CORS errors:** Supabase project URL is in **Authentication → URL configuration** and redirect URLs include your production origin.

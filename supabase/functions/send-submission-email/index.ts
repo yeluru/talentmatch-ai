@@ -43,7 +43,7 @@ function resumesObjectPath(fileUrlOrPath: string | null | undefined): string | n
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -172,7 +172,13 @@ serve(async (req: Request) => {
     const fromEmail = fromRaw.includes("<") && fromRaw.includes(">") ? fromRaw : `UltraHire <${fromRaw}>`;
 
     const resendApiKey = (Deno.env.get("RESEND_API_KEY") || "").trim();
-    if (resendApiKey) {
+    if (!resendApiKey) {
+      return new Response(
+        JSON.stringify({ error: "RESEND_API_KEY not set; cannot send submission email. Set it in Supabase Edge Function secrets." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    {
       const payload: { from: string; to: string[]; subject: string; html: string; attachments?: { filename: string; content: string }[] } = {
         from: fromEmail,
         to: toEmails,

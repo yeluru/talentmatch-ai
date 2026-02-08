@@ -1419,6 +1419,7 @@ export default function CandidatePipeline() {
                           meetingLink: screeningMeetingLink.trim() || undefined,
                           jobTitle,
                           candidateName,
+                          notes: screeningNotes.trim() || undefined,
                           organizationId: organizationId ?? undefined,
                         },
                       });
