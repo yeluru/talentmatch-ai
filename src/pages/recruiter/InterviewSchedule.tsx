@@ -56,6 +56,7 @@ export default function InterviewSchedule() {
   const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogReopenKey, setDialogReopenKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [form, setForm] = useState({
     application_id: '',
@@ -141,7 +142,7 @@ export default function InterviewSchedule() {
         `)
         .eq('jobs.organization_id', organizationId)
         // Allow scheduling interviews starting from screening stage.
-        .in('status', ['screening', 'shortlisted', 'interviewing']);
+        .in('status', ['screening', 'rtr_rate', 'submission', 'client_shortlist', 'client_interview']);
       if (error) throw error;
       return data;
     },
@@ -210,7 +211,21 @@ export default function InterviewSchedule() {
     setSelectedDate(undefined);
   };
 
-  // Draft persistence (so navigating away doesn't lose the form)
+  // Re-show Schedule Interview dialog when user returns to the tab/window (e.g. from copying a Zoom link).
+  useEffect(() => {
+    const reopenIfOpen = () => {
+      if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+      if (isDialogOpen) setDialogReopenKey((k) => k + 1);
+    };
+    document.addEventListener('visibilitychange', reopenIfOpen);
+    window.addEventListener('focus', reopenIfOpen);
+    return () => {
+      document.removeEventListener('visibilitychange', reopenIfOpen);
+      window.removeEventListener('focus', reopenIfOpen);
+    };
+  }, [isDialogOpen]);
+
+  // Draft persistence (form + date only). Do not restore isDialogOpen — dialog should open only when user clicks "Schedule Interview" or drags to Screening on pipeline.
   useEffect(() => {
     if (!organizationId || !user?.id) return;
     try {
@@ -219,7 +234,6 @@ export default function InterviewSchedule() {
       const parsed = JSON.parse(raw);
       if (parsed?.form) setForm((prev) => ({ ...prev, ...parsed.form }));
       if (parsed?.selectedDate) setSelectedDate(new Date(parsed.selectedDate));
-      if (typeof parsed?.isDialogOpen === 'boolean') setIsDialogOpen(parsed.isDialogOpen);
     } catch {
       // ignore
     }
@@ -234,15 +248,37 @@ export default function InterviewSchedule() {
         DRAFT_KEY,
         JSON.stringify({
           ts: Date.now(),
-          isDialogOpen,
           selectedDate: selectedDate ? selectedDate.toISOString() : null,
           form,
         }),
       );
+      sessionStorage.setItem('interviews-schedule-dialog-open', '1');
     } catch {
       // ignore
     }
   }, [DRAFT_KEY, organizationId, user?.id, isDialogOpen, selectedDate, form]);
+
+  // Re-open Schedule Interview dialog when user navigates back to this page (restore from draft).
+  useEffect(() => {
+    if (!organizationId || !user?.id) return;
+    try {
+      if (sessionStorage.getItem('interviews-schedule-dialog-open') !== '1') return;
+      sessionStorage.removeItem('interviews-schedule-dialog-open');
+      setIsDialogOpen(true);
+    } catch {
+      // ignore
+    }
+  }, [DRAFT_KEY, organizationId, user?.id]);
+
+  // Clear "dialog was open" flag when user closes the dialog so we don't reopen on next visit.
+  useEffect(() => {
+    if (isDialogOpen) return;
+    try {
+      sessionStorage.removeItem('interviews-schedule-dialog-open');
+    } catch {
+      // ignore
+    }
+  }, [isDialogOpen]);
 
   const upcomingInterviews = interviews?.filter(i =>
     i.status === 'scheduled' && new Date(i.scheduled_at) >= new Date()
@@ -277,7 +313,7 @@ export default function InterviewSchedule() {
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-6 pt-6 pb-6">
+          <div className="space-y-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
@@ -290,7 +326,15 @@ export default function InterviewSchedule() {
             </div>
             <p className="text-lg text-muted-foreground font-sans">Manage your upcoming interviews</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog
+            key={`schedule-${dialogReopenKey}`}
+            modal={false}
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              if (open) setIsDialogOpen(true);
+              else if (document.hasFocus()) setIsDialogOpen(false);
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />

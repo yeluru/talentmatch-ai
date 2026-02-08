@@ -1,5 +1,23 @@
 # Local development notes (Supabase)
 
+## Email (Document check / engagement emails)
+
+Edge functions that send email (e.g. **Document check** in the pipeline, engagement emails) use SMTP. By default they try **127.0.0.1:1025** (Mailpit).
+
+- **Option A – Run Mailpit** so emails are actually sent and viewable at http://localhost:8025:
+  ```bash
+  docker run -d -p 1025:1025 -p 8025:8025 --name mailpit axllent/mailpit
+  ```
+- **Option B – Skip sending in dev:** set env for the function so the flow still completes but no email is sent:
+  ```bash
+  supabase secrets set SKIP_SMTP_DEV=true
+  ```
+  For **local** functions, pass env when serving, e.g. in `.env.local` or:
+  ```bash
+  SKIP_SMTP_DEV=true supabase functions serve
+  ```
+  With `SKIP_SMTP_DEV=true`, when SMTP connection fails (e.g. Mailpit not running), the function returns success and the candidate still moves to Document check.
+
 ## Important: `supabase db reset` is destructive
 
 Running `supabase db reset` **recreates the local Postgres database** and will wipe local data, including **local Auth users**.

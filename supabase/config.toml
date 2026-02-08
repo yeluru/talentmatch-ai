@@ -96,3 +96,15 @@ verify_jwt = true
 
 [functions.fetch-jd-text]
 verify_jwt = true
+
+[functions.send-rtr-email]
+verify_jwt = true
+
+[functions.send-submission-email]
+verify_jwt = true
+
+[functions.get-org-account-managers]
+verify_jwt = true
+
+[functions.get-my-auth-data]
+verify_jwt = true

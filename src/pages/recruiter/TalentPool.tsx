@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -56,7 +56,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Users, Briefcase, MapPin, Filter, X, ListPlus, Plus, Send, MessageSquare, Save, Trash2, Upload } from 'lucide-react';
+import { Search, Loader2, Users, Briefcase, MapPin, Filter, X, ListPlus, Plus, Send, MessageSquare, Save, Trash2, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -73,9 +73,11 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { MobileListHeader } from '@/components/ui/mobile-list-header';
-import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
-import { orgIdForRole } from '@/lib/org';
+import { normalizeStatusForDisplay, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
+import { orgIdForRecruiterSuite, orgIdForRole } from '@/lib/org';
+import { useBulkResumeUpload } from '@/hooks/useBulkResumeUpload';
 import { useNavigate, Link } from 'react-router-dom';
+import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TalentProfile {
@@ -99,7 +101,8 @@ interface TalentProfile {
 
 type TalentPoolSortKey = 'full_name' | 'current_title' | 'location' | 'years_of_experience' | 'recruiter_status' | 'ats_score' | 'created_at';
 
-const STATUS_OPTIONS = TALENT_POOL_STATUS_OPTIONS;
+/** Same status options as pipeline so status is consistent everywhere. */
+const STATUS_OPTIONS = TALENT_POOL_STAGE_OPTIONS;
 
 /**
  * Boolean query parser:
@@ -227,7 +230,20 @@ export default function TalentPool() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  const organizationId = orgIdForRole(roles as any, currentRole);
+  const organizationId = orgIdForRecruiterSuite(roles) ?? orgIdForRole(roles as any, currentRole);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    handleFileUpload,
+    uploadResults,
+    clearResults: clearUploadResults,
+    cancelUpload,
+    isUploading,
+    completedCount,
+    errorCount,
+    cancelledCount,
+    processingCount,
+  } = useBulkResumeUpload(organizationId ?? undefined);
 
   const [searchQuery, setSearchQuery] = useState('');
   const tableSort = useTableSort<TalentPoolSortKey>({ key: 'created_at', dir: 'desc' });
@@ -284,105 +300,42 @@ export default function TalentPool() {
     queryFn: async (): Promise<TalentProfile[]> => {
       if (!organizationId) return [];
 
-
-      // 1) Candidates sourced into this org (uploaded/imported)
-      //
-      // IMPORTANT:
-      // Recruiter visibility is enforced via RLS using candidate_org_links (see recruiter_can_access_candidate()).
-      // The legacy candidate_profiles.organization_id field is no longer authoritative for access decisions.
-      //
-      // So we derive sourced candidates from candidate_org_links, then fetch their profiles.
-      const { data: sourcedLinks, error: sourcedLinksError } = await supabase
-        .from('candidate_org_links')
-        .select('candidate_id')
-        .eq('organization_id', organizationId)
-        .eq('status', 'active')
-        // link_type is not an enum; bulk import currently writes the request `source` string.
-        // Support both current values and legacy/backfill values.
-        .in('link_type', [
-          'resume_upload',
-          'web_search',
-          'google_xray',
-          'linkedin_search',
-          'sourced_resume',
-          'sourced_web',
-          'sourced',
-          'unknown',
-        ]);
-
-      if (sourcedLinksError) throw sourcedLinksError;
-
-      const sourcedIds = Array.from(
-        new Set((sourcedLinks || []).map((l: any) => l.candidate_id).filter(Boolean))
-      ) as string[];
-
-      let sourced: TalentProfile[] = [];
-      if (sourcedIds.length) {
-        const { data: sourcedProfiles, error: sourcedProfilesError } = await supabase
-          .from('candidate_profiles')
-          .select(
-            `
-            id,
-            full_name,
-            email,
-            location,
-            current_title,
-            current_company,
-            years_of_experience,
-            headline,
-            ats_score,
-            created_at,
-            recruiter_notes,
-            recruiter_status
-          `
-          )
-          .in('id', sourcedIds)
-          .is('user_id', null);
-
-        if (sourcedProfilesError) throw sourcedProfilesError;
-        sourced = (sourcedProfiles || []) as TalentProfile[];
+      let candidateIds: string[] = [];
+      const { data: poolIds, error: rpcError } = await supabase.rpc('get_talent_pool_candidate_ids');
+      if (!rpcError && poolIds?.length) {
+        candidateIds = Array.from(new Set((poolIds as { candidate_id: string }[]).map((r) => r.candidate_id).filter(Boolean)));
       }
-
-      // 2) Candidates who applied to this org's jobs
-      const { data: applicantLinks, error: applicantLinksError } = await supabase
-        .from('applications')
-        .select('candidate_id, jobs!inner(organization_id)')
-        .eq('jobs.organization_id', organizationId);
-
-      if (applicantLinksError) throw applicantLinksError;
-
-      const applicantIds = Array.from(
-        new Set((applicantLinks || []).map((a) => a.candidate_id).filter(Boolean))
-      ) as string[];
-
-      let applicants: TalentProfile[] = [];
-      if (applicantIds.length) {
-        const { data: applicantProfiles, error: applicantProfilesError } = await supabase
-          .from('candidate_profiles')
-          .select(
-            `
-            id,
-            full_name,
-            email,
-            location,
-            current_title,
-            current_company,
-            years_of_experience,
-            headline,
-            ats_score,
-            created_at,
-            recruiter_notes,
-            recruiter_status
-          `
-          )
-          .in('id', applicantIds);
-
-        if (applicantProfilesError) throw applicantProfilesError;
-        applicants = (applicantProfiles || []) as TalentProfile[];
+      if (candidateIds.length === 0) {
+        const { data: sourcedLinks, error: sourcedLinksError } = await supabase
+          .from('candidate_org_links')
+          .select('candidate_id')
+          .eq('organization_id', organizationId)
+          .eq('status', 'active')
+          .in('link_type', [
+            'resume_upload', 'web_search', 'google_xray', 'linkedin_search',
+            'sourced_resume', 'sourced_web', 'sourced', 'unknown',
+          ]);
+        if (sourcedLinksError) throw sourcedLinksError;
+        const sourcedIds = Array.from(new Set((sourcedLinks || []).map((l: { candidate_id: string }) => l.candidate_id).filter(Boolean)));
+        const { data: applicantLinks, error: applicantLinksError } = await supabase
+          .from('applications')
+          .select('candidate_id, jobs!inner(organization_id)')
+          .eq('jobs.organization_id', organizationId);
+        if (applicantLinksError) throw applicantLinksError;
+        const applicantIds = Array.from(new Set((applicantLinks || []).map((a: { candidate_id: string }) => a.candidate_id).filter(Boolean)));
+        candidateIds = Array.from(new Set([...sourcedIds, ...applicantIds]));
       }
+      if (candidateIds.length === 0) return [];
 
-      const candidates = [...(sourced || []), ...(applicants || [])];
-      console.debug('[TalentPool] sourced:', sourced?.length || 0, 'applicants:', applicants?.length || 0);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('candidate_profiles')
+        .select(
+          `id, full_name, email, location, current_title, current_company, years_of_experience,
+           headline, ats_score, created_at, recruiter_notes, recruiter_status`
+        )
+        .in('id', candidateIds);
+      if (profilesError) throw profilesError;
+      const candidates = (profiles || []) as TalentProfile[];
 
       if (!candidates.length) return [];
 
@@ -406,17 +359,17 @@ export default function TalentPool() {
       const deduped = Array.from(byIdentity.values());
 
       // Get skills
-      const candidateIds = deduped.map((c) => c.id);
+      const dedupedIds = deduped.map((c) => c.id);
       const { data: skills } = await supabase
         .from('candidate_skills')
         .select('candidate_id, skill_name')
-        .in('candidate_id', candidateIds);
+        .in('candidate_id', dedupedIds);
 
       // Get experience for company list
       const { data: experience } = await supabase
         .from('candidate_experience')
         .select('candidate_id, company_name')
-        .in('candidate_id', candidateIds);
+        .in('candidate_id', dedupedIds);
 
       const result = deduped
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -456,17 +409,10 @@ export default function TalentPool() {
       if (!organizationId || !user) throw new Error('Not authorized');
       if (!jobId) throw new Error('Select a job');
 
-      const { error } = await supabase.from('candidate_engagements').upsert(
-        {
-          organization_id: organizationId,
-          candidate_id: candidateId,
-          job_id: jobId,
-          stage: 'outreach',
-          created_by: user.id,
-          owner_user_id: user.id,
-        } as any,
-        { onConflict: 'organization_id,candidate_id,job_id' }
-      );
+      const { error } = await supabase.rpc('start_engagement', {
+        _candidate_id: candidateId,
+        _job_id: jobId,
+      });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -475,7 +421,10 @@ export default function TalentPool() {
       setEngageCandidateId(null);
       setEngageJobId('');
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
-      navigate('/recruiter/engagements');
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      await queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      navigate('/recruiter/pipeline');
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to start engagement'),
   });
@@ -696,10 +645,10 @@ export default function TalentPool() {
         !locationFilter ||
         (t.location && t.location.toLowerCase().includes(locationFilter.toLowerCase()));
 
-      // Status filter
+      // Status filter (compare normalized stage; New and Engaged are distinct)
       const matchesStatus =
         !statusFilter ||
-        ((t.recruiter_status || '').toLowerCase().trim() === statusFilter.toLowerCase().trim());
+        ((normalizeStatusForDisplay(t.recruiter_status) || 'new') as string) === statusFilter.toLowerCase().trim();
 
       // Experience filter
       let matchesExperience = true;
@@ -1075,11 +1024,22 @@ export default function TalentPool() {
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <Button asChild variant="outline" className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold">
-                <Link to="/recruiter/talent-search/uploads">
-                  <Upload className="h-4 w-4 mr-2" strokeWidth={1.5} />
-                  Upload
-                </Link>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                variant="outline"
+                className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!organizationId}
+              >
+                <Upload className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                Upload
               </Button>
               <Button asChild className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
                 <Link to="/recruiter/talent-search/search">
@@ -1090,6 +1050,78 @@ export default function TalentPool() {
             </div>
           </div>
         </div>
+
+        {/* Upload status bar – shown while uploads are in progress or when there are recent results */}
+        {uploadResults.length > 0 && (
+          <div className="rounded-xl border border-amber-200/60 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-950/40 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-200">
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>
+                      Uploading {uploadResults.length} file{uploadResults.length !== 1 ? 's' : ''}… {completedCount} done
+                      {errorCount > 0 ? `, ${errorCount} failed` : ''}
+                      {cancelledCount > 0 ? `, ${cancelledCount} cancelled` : ''}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+                    <span>
+                      Import complete: {completedCount} added to Talent Pool
+                      {errorCount > 0 ? `, ${errorCount} failed` : ''}
+                      {cancelledCount > 0 ? `, ${cancelledCount} cancelled` : ''}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {isUploading && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-200/50 dark:hover:bg-amber-800/50"
+                    onClick={cancelUpload}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-amber-700 dark:text-amber-300 hover:bg-amber-200/50 dark:hover:bg-amber-800/50"
+                  onClick={clearUploadResults}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+            <Progress
+              value={uploadResults.length ? ((completedCount + errorCount + cancelledCount) / uploadResults.length) * 100 : 0}
+              className="h-1.5"
+            />
+            <details className="text-xs text-amber-700 dark:text-amber-300">
+              <summary className="cursor-pointer hover:underline">View file status</summary>
+              <ul className="mt-2 space-y-1 pl-4">
+                {uploadResults.map((r, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    {r.status === 'done' && <CheckCircle className="h-3.5 w-3.5 text-green-600 shrink-0" />}
+                    {r.status === 'error' && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                    {r.status === 'cancelled' && <X className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                    {(r.status === 'pending' || r.status === 'parsing' || r.status === 'importing') && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                    )}
+                    <span className="truncate">{r.fileName}</span>
+                    {r.status === 'done' && r.note && <span className="text-muted-foreground">({r.note})</span>}
+                    {r.status === 'error' && r.error && <span className="text-destructive truncate">{r.error}</span>}
+                    {r.status === 'cancelled' && <span className="text-muted-foreground">Cancelled</span>}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 pt-6 pb-6">
@@ -1125,7 +1157,7 @@ export default function TalentPool() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span className="font-semibold text-lg text-foreground truncate">{talent.full_name || 'Unknown'}</span>
-                            <StatusBadge status={talent.recruiter_status || 'new'} />
+                            <StatusBadge status={normalizeStatusForDisplay(talent.recruiter_status) || 'new'} />
                           </div>
                           {(talent.current_title || talent.current_company) && (() => {
                             const sub = talent.current_title
@@ -1228,13 +1260,14 @@ export default function TalentPool() {
                 {/* Header Row */}
                 <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
                   <div className="flex-1">Candidate</div>
-                  <div className="w-[180px] hidden xl:block">Title</div>
-                  <div className="w-[120px] hidden 2xl:block">Location</div>
-                  <div className="w-20 hidden 2xl:block">Exp</div>
+                  <div className="w-[140px] hidden xl:block">Title</div>
+                  <div className="w-[100px] hidden 2xl:block">Location</div>
+                  <div className="w-16 hidden 2xl:block">Exp</div>
+                  <div className="w-[140px] hidden lg:block">Comments</div>
                   <div className="w-[140px]">Status</div>
                   <div className="w-16 text-center" title="Resume quality (ATS-friendly)">ATS</div>
                   <div className="w-12 text-center">Contact</div>
-                  <div className="w-24 hidden 2xl:block text-right">Added</div>
+                  <div className="w-20 hidden 2xl:block text-right">Added</div>
                   <div className="w-[100px] text-right">Shortlist</div>
                   <div className="w-10"></div>
                 </div>

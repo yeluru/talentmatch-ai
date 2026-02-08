@@ -54,41 +54,27 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'Browse and manage the organization’s shared candidate profiles.',
     route: '/recruiter/talent-pool',
     overview:
-      'The Talent Pool is shared across your organization. Every recruiter and Account Manager sees the same pool of candidate profiles. You can browse by group (e.g. by job, by source), search, and open a profile to view details, add to a shortlist, or start an engagement. Profiles are added when candidates apply, when you bulk-upload resumes, or when you add someone from Talent Search or Marketplace. You do not own individual profiles; the pool is one shared repository.',
+      'The Talent Pool is shared across your organization. Every recruiter and Account Manager sees the same pool of candidate profiles. You can browse by group (e.g. by job, by source), search, filter by stage, and open a profile to view details, add to a shortlist, or start an engagement. Profiles are added when candidates apply, when you upload resumes (Upload button on this page), or when you add someone from Talent Search or Marketplace. Newly added candidates show stage **New** until you start an engagement; then they move to **Engaged** and pipeline stages. The stage shown is the same in the list row and in the detail drawer.',
     steps: [
       'Go to Talent Management → Talent Pool in the left menu.',
-      'Use the list or grouped view to see candidates; filter or search by name, skills, or source.',
-      'Click a row to open the candidate detail sheet (resume, skills, experience, contact).',
+      'Use the list or grouped view to see candidates; filter or search by name, skills, source, or stage.',
+      'Click a row to open the candidate detail sheet (resume, skills, experience, contact, stage).',
       'From the detail sheet you can add the candidate to a shortlist, start an engagement, or link them to a job.',
+      'To add many candidates at once: click **Upload**, select one or more resume files; a status bar shows progress. You can Cancel to stop; already-uploaded candidates stay in the pool.',
     ],
   },
   {
     id: 'bulk-upload',
-    title: 'Bulk Upload Profiles',
-    description: 'Upload many resumes at once to add candidates to the talent pool.',
-    route: '/recruiter/talent-search/uploads',
+    title: 'Upload resumes from Talent Pool',
+    description: 'Add many candidates at once by uploading resumes from the Talent Pool page.',
+    route: '/recruiter/talent-pool',
     overview:
-      'Bulk Upload lets you add many candidates to the organization’s talent pool in one go. You upload a batch of resumes (PDF or Word); the system parses each file and creates or updates a candidate profile. You can map columns if you upload a CSV with profile data. After upload, candidates appear in the Talent Pool and can be searched, shortlisted, or engaged. This is the fastest way to build the pool from a batch of files or a spreadsheet.',
+      'You can bulk-add candidates to the talent pool directly from the Talent Pool page. Click **Upload**, select one or more resume files (PDF or Word). The system parses each file and creates or updates a candidate profile in the background. A status bar on the same page shows progress per file (parsing, importing, done, or error). You can Cancel to stop further processing; candidates already imported remain in the pool. Each new upload run starts fresh (previous run’s status is cleared). New candidates appear with stage **New** until you start an engagement.',
     steps: [
-      'Go to Talent Management → Bulk Upload Profiles (or Talent Search → uploads section).',
-      'Choose to upload files (resumes) or a CSV. For resumes, select multiple PDF/Word files.',
-      'Start the upload; the system parses each resume and creates profiles.',
-      'Review any errors or duplicates; resolve duplicates if prompted.',
-      'When done, go to Talent Pool to see the new candidates.',
-    ],
-  },
-  {
-    id: 'ats-match-search',
-    title: 'ATS Match Search',
-    description: 'Search candidates by skills and criteria with ATS-style matching.',
-    route: '/recruiter/ats-match-search',
-    overview:
-      'ATS Match Search lets you find candidates in the talent pool (or marketplace) by skills, keywords, and other criteria. Results can be ranked by how well they match a job or a custom set of requirements. You can then shortlist or contact candidates directly. This is useful when you have a job in mind and want to see who in the pool best fits before opening the job or moving applicants.',
-    steps: [
-      'Go to Talent Management → ATS Match Search.',
-      'Enter a job title or paste a job description; optionally add keywords, skills, or filters.',
-      'Run the search; results show match scores and key details.',
-      'Open a candidate to view full profile, or add several to a shortlist.',
+      'Go to Talent Management → Talent Pool.',
+      'Click **Upload** and select one or more resume files (PDF or Word).',
+      'Watch the status bar for progress; use **Cancel** to stop, or **Dismiss** when done.',
+      'New candidates appear in the list with stage **New**; open the Talent Pool to search or start engagement.',
     ],
   },
   {
@@ -106,20 +92,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
     ],
   },
   {
-    id: 'marketplace',
-    title: 'Marketplace Profiles',
-    description: 'Discover candidates who have opted in to recruiter discovery.',
-    route: '/recruiter/marketplace',
-    overview:
-      'Marketplace Profiles are candidates who have opted in to be discoverable by recruiters. They are not necessarily in your talent pool yet; they have chosen to appear in marketplace search. You can search and filter by skills, location, and other criteria, then view profiles and invite or add them to your pool (e.g. by starting an engagement or adding to a shortlist). Only candidates who have allowed “recruiters to discover my profile” in their settings appear here.',
-    steps: [
-      'Go to Talent Management → Marketplace Profiles.',
-      'Use search and filters to find candidates by skills, location, or keywords.',
-      'Click a profile to view details; you can then start an engagement or add them to a shortlist.',
-      'Starting an engagement typically creates a link between the candidate and your organization and opens the Engagement Pipeline.',
-    ],
-  },
-  {
     id: 'talent-search',
     title: 'Talent Search',
     description: 'Search the web or external sources and import candidates.',
@@ -131,20 +103,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
       'Enter search terms (role, skills, location) and run the search.',
       'Review results; open a result to see more details or to enrich the profile.',
       'Import or add selected candidates to your talent pool; they will appear in Talent Pool and can be shortlisted or engaged.',
-    ],
-  },
-  {
-    id: 'api-integration',
-    title: 'API Integration',
-    description: 'Connect external ATS or sourcing tools via API.',
-    route: '/recruiter/talent-search/api',
-    overview:
-      'The API Integration section explains how to connect external systems (e.g. an ATS, HRIS, or sourcing tool) to this platform via API. You can sync jobs, push candidates, or pull applications depending on the integration. This is typically used by admins or technical users to set up one-way or two-way sync so that recruiters see unified data in this platform.',
-    steps: [
-      'Go to Talent Management → API Integration.',
-      'Follow the on-page instructions or docs to obtain API keys and endpoints.',
-      'Configure your external system to call the platform’s APIs (e.g. create job, add candidate).',
-      'Verify sync in the platform (e.g. new jobs or candidates appearing in Talent Pool or My Jobs).',
     ],
   },
   {
@@ -163,128 +121,58 @@ const GUIDE_SECTIONS: GuideSection[] = [
   },
   {
     id: 'post-job',
-    title: 'Post a Job',
+    title: 'Post a New Job',
     description: 'Create a new job and publish it for applications.',
     route: '/recruiter/jobs/new',
     overview:
-      'Post a Job is the flow to create a new job. You enter the job title, description, location, job type, experience level, and optionally salary or other fields. You can set visibility (e.g. public or private). Once saved and published, the job appears in My Jobs and candidates can apply (if public) or be linked via invite. You are set as the job owner (recruiter), so it appears under My Jobs and its applicants under My Applicants.',
+      'Post a New Job is the flow to create a job. The page has one heading at the top and a left-aligned form. You can paste a job description to auto-fill fields (Paste & Auto-Fill) or enter details manually. Enter title, description, location, job type, experience level, and optionally requirements, responsibilities, and skills. You can set visibility (public or private). Once saved and published, the job appears in My Jobs and candidates can apply (if public) or be linked via invite. You are set as the job owner, so it appears under My Jobs and its applicants under My Candidates.',
     steps: [
-      'Go to Jobs → Post a Job (or My Jobs → Create / Post a Job).',
-      'Fill in required fields: title, description, location, job type, experience level.',
-      'Add optional details (salary range, benefits, team) and set visibility (public/private).',
-      'Save and publish; the job then appears in My Jobs and can accept applications or be shared by link.',
+      'Go to Jobs → My Jobs, then **Post a Job** (or open **Post a New Job** from the menu).',
+      'Optionally paste a job blurb and click **Extract fields**, or switch to **Manual** and fill the form.',
+      'Fill in required fields: title, description, location, job type, experience level; add skills or other details as needed.',
+      'Save as draft or publish; the job then appears in My Jobs and can accept applications or be shared by link.',
     ],
   },
   {
     id: 'applicants',
-    title: 'My Applicants',
+    title: 'My Candidates',
     description: 'See all applicants for your jobs in one place.',
     route: '/recruiter/candidates',
     overview:
-      'My Applicants lists every candidate who has applied to any of your jobs. You can filter by job, status, or date. Each row shows the candidate, the job they applied to, and current status (e.g. applied, reviewing, interviewing, offered). Clicking a row opens the applicant detail where you can update status, add notes, or move them in the pipeline. This view is scoped to your jobs only; you do not see applicants for other recruiters’ jobs.',
+      'My Candidates lists every candidate who has applied to any of your jobs. The page has one main section: the **My Candidates** heading, search and filters (job, status), and the list. You can filter by job or status and search by name or title. Each row shows the candidate, the job they applied to, and current status. Clicking a row opens the applicant detail where you can update status, add notes, or move them in the pipeline. This view is scoped to your jobs only; you do not see applicants for other recruiters’ jobs.',
     steps: [
       'Go to Jobs → My Applicants in the left menu.',
-      'Use the job filter or search to narrow to one job or status.',
+      'Use the search box and filters (job, status) to narrow the list.',
       'Click an applicant row to open the detail sheet (resume, timeline, status).',
-      'Update status (e.g. reviewing, interviewing, rejected) or add notes; changes are saved automatically.',
+      'Update status or add notes; changes are saved automatically.',
     ],
   },
   {
-    id: 'ai-matching',
-    title: 'AI Matching',
-    description: 'Get AI-ranked candidates for a job from your pool or applicants.',
-    route: '/recruiter/ai-matching',
-    overview:
-      'AI Matching takes a job (from your jobs or a pasted description) and ranks candidates—from your applicants or from the talent pool—by how well they fit. You see a list with match scores and short reasons. You can then shortlist or contact the top matches. This speeds up screening when you have many applicants or a large pool. Matching is run per job and uses the same AI model as other analysis features.',
-    steps: [
-      'Go to Jobs → AI Matching.',
-      'Select one of your jobs or paste a job description.',
-      'Choose to match against applicants for that job or against the talent pool.',
-      'Run the match; review the ranked list and open or shortlist candidates.',
-    ],
-  },
-  {
-    id: 'applications-pipeline',
-    title: 'Applications Pipeline',
-    description: 'Manage applicants by stage (e.g. applied, screening, interview, offer).',
+    id: 'pipeline',
+    title: 'Pipeline',
+    description: 'One pipeline for all candidates: applicants and engaged. Move by stage from Applied/Engaged to outcome.',
     route: '/recruiter/pipeline',
     overview:
-      'The Applications Pipeline shows applicants for your jobs grouped by stage (e.g. applied, reviewing, interviewing, offered, rejected). You can drag and drop candidates between stages, open a candidate to update status or add notes, and see at a glance how many are in each stage. The pipeline is per job or across your jobs; either way it is scoped to jobs you own. Account Managers can view a specific recruiter’s pipeline when in oversight mode.',
+      'The Pipeline (Jobs → Candidates Pipeline) shows all candidates for your jobs in one place. Candidates who applied via the job page start at **Applied**; candidates you add from the talent pool start at **New** until you start an engagement, then they appear at **Engaged**. Stages run from Applied/Engaged → RTR & rate → Document check → Screening → Submission → Outcome. You can drag and drop cards between stages, open a candidate for notes or status change, and filter by job. The page header aligns with other recruiter pages (no extra top spacing). Scoped to jobs you own; Account Managers can view a specific recruiter’s pipeline in oversight mode.',
     steps: [
-      'Go to Pipelines → Applications Pipeline.',
-      'Select a job (or “All my jobs”) to see applicants by stage.',
+      'Go to Pipelines → Pipelines.',
+      'Select a job (or “All Jobs”) to see candidates by stage.',
       'Drag a candidate card to a new stage to update their status.',
       'Click a card to open the applicant detail for notes or full status change.',
     ],
   },
   {
-    id: 'engagement-pipeline',
-    title: 'Engagement Pipeline',
-    description: 'Manage outreach and engagement (rate confirmation, RTR, offer).',
-    route: '/recruiter/engagements',
-    overview:
-      'The Engagement Pipeline tracks candidates you are actively engaging: rate confirmation, ready-to-recruit (RTR), screening, submission, or onboarding. You send engagement requests (e.g. rate, offer); candidates respond (accept, reject, counter). The pipeline is scoped to engagements you own (owner_user_id). You can move candidates between stages, send emails, and see who has responded. This is separate from the applications pipeline; it is for sourced or marketplace candidates you are nurturing.',
-    steps: [
-      'Go to Pipelines → Engagement Pipeline.',
-      'View candidates by stage (rate confirmation, RTR, screening, etc.).',
-      'Open a candidate to send or resend an engagement request (rate, offer) or to see their response.',
-      'Update stage when the candidate responds or when you move them to the next step.',
-    ],
-  },
-  {
     id: 'interviews',
-    title: 'Interviews',
+    title: 'Interview Schedule',
     description: 'Schedule and track interviews for your jobs.',
     route: '/recruiter/interviews',
     overview:
-      'The Interviews page helps you manage interview scheduling for your jobs. You can see which applicants are in the “interview” stage, propose times, and track upcoming or past interviews. Calendar integration or meeting links may be available depending on configuration. All data is scoped to your jobs and your applicants.',
+      'The Interview Schedule page helps you manage interview scheduling for your jobs. You can see which applicants are in the interview stage, propose times, and track upcoming or past interviews. The page layout matches other recruiter pages (same title spacing). Calendar integration or meeting links may be available depending on configuration. All data is scoped to your jobs and your applicants.',
     steps: [
       'Go to Pipelines → Interviews.',
       'Filter by job or date to see scheduled or pending interviews.',
-      'Open an applicant to propose times or send a calendar invite.',
+      'Click **Schedule Interview** or open an applicant to propose times or send a calendar invite.',
       'Mark interviews as completed or update status from the applicant detail.',
-    ],
-  },
-  {
-    id: 'outreach',
-    title: 'Outreach / Campaigns',
-    description: 'Run email campaigns to candidates or prospects.',
-    route: '/recruiter/outreach',
-    overview:
-      'Outreach (or Campaigns) lets you send bulk or templated emails to candidates—e.g. in your talent pool, on a shortlist, or from a search. You choose a template (or write ad hoc), select recipients, and send. Campaigns are owned by you; you see only your own campaigns and templates. This is useful for nurturing leads or inviting candidates to apply.',
-    steps: [
-      'Go to Communications → Outreach.',
-      'Create a new campaign or choose an existing template.',
-      'Select recipients (e.g. from a shortlist, pool, or search result).',
-      'Edit the email content and send; track opens or replies if the system supports it.',
-    ],
-  },
-  {
-    id: 'email-templates',
-    title: 'Email Templates',
-    description: 'Create and reuse email templates for outreach and notifications.',
-    route: '/recruiter/email-templates',
-    overview:
-      'Email Templates are reusable message bodies (and optionally subjects) that you use in outreach, engagement emails, or other flows. You create a template with placeholders (e.g. candidate name, job title); when you send, the system fills them in. Templates are per recruiter: you see and edit only your own. This keeps messaging consistent and saves time when sending many similar emails.',
-    steps: [
-      'Go to Communications → Email Templates.',
-      'Create a new template: name, subject line, body; use placeholders like {{candidate_name}} or {{job_title}}.',
-      'Save the template; it then appears in the template list when composing outreach or engagement emails.',
-      'Edit or duplicate templates as needed from the templates list.',
-    ],
-  },
-  {
-    id: 'insights',
-    title: 'Insights',
-    description: 'View analytics and reports on your recruiting activity.',
-    route: '/recruiter/insights',
-    overview:
-      'Insights (or Analytics) shows reports and charts on your recruiting activity: applications over time, time-to-fill, pipeline conversion, source effectiveness, etc. Data is scoped to your jobs and your pipelines so you can see your own performance. Use it to spot bottlenecks, compare jobs, or report to hiring managers.',
-    steps: [
-      'Go to Insights in the left menu.',
-      'Choose a report or dashboard (e.g. applications by job, pipeline funnel).',
-      'Use date range or filters to narrow the view.',
-      'Export or share if the option is available.',
     ],
   },
   {
@@ -293,12 +181,12 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'Configure AI agents to recommend candidates for your criteria.',
     route: '/recruiter/agents',
     overview:
-      'AI Agents are automated recommenders: you set criteria (e.g. skills, experience, location) and the agent periodically finds and ranks candidates from the pool or marketplace. You can enable or disable agents, view their recommendations, and then shortlist or contact candidates. Agents are owned by you; each recruiter has their own agents. Useful for ongoing sourcing without manual search every time.',
+      'AI Agents let you match candidates from the talent pool against job criteria. You create an agent (name and criteria), then click **Run** to analyze; the agent uses candidates already in your organization’s talent pool. You can view recommendations, approve or reject, and shortlist or contact candidates. Agents are owned by you; each recruiter has their own agents. If there are no candidates in the pool, Run will notify you—add candidates via Talent Pool (e.g. upload or import) first. The page has one main section: heading, Create Agent, and your agents list with Run and recommendations.',
     steps: [
       'Go to Automation → AI Agents.',
-      'Create an agent: name it and set search criteria (skills, job type, location, etc.).',
-      'Save and turn the agent on; it will run on a schedule and produce recommendations.',
-      'Open the recommendations list to review and act on suggested candidates.',
+      'Click **Create Agent**: name it and set search criteria (e.g. job, skills, location).',
+      'Click **Run** on an agent to analyze candidates from the talent pool; review recommendations.',
+      'Approve or reject recommendations; shortlist or contact candidates from the recommendations list.',
     ],
   },
   {
@@ -307,12 +195,12 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'What you see: shared talent pool vs your own jobs and pipelines.',
     route: '/recruiter',
     overview:
-      'Talent Management (Talent Pool, Bulk Upload, Search, Marketplace, Shortlists, API) is shared across the organization: all recruiters and Account Managers see the same pool of candidates. Jobs, My Applicants, Applications Pipeline, Engagement Pipeline, Interviews, Outreach, Email Templates, and AI Agents are per recruiter: you see only jobs you own, applicants to your jobs, and your own pipelines and campaigns. When an Account Manager switches to Recruiter role, they see their own recruiter data (their jobs and pipelines), not every recruiter’s data. AMs can use a “view as” or “recruiter” filter to see a specific recruiter’s pipeline or progress when in oversight mode.',
+      'Talent Management (Talent Pool with in-page Upload, Shortlists, Talent Search) is shared across the organization: all recruiters and Account Managers see the same pool of candidates. Jobs (My Jobs, Post a Job, My Applicants), Pipelines, and Automation (AI Agents) are per recruiter: you see only jobs you own, applicants to your jobs, and your own pipeline. When an Account Manager switches to Recruiter role, they see their own recruiter data. AMs can use a “view as” or “recruiter” filter to see a specific recruiter’s pipeline or progress when in oversight mode.',
     steps: [
-      'Talent Pool, Marketplace, Bulk Upload, Talent Search: shared; everyone in the org sees the same candidates.',
-      'My Jobs, Post a Job, My Applicants, AI Matching: only jobs you own and their applicants.',
-      'Applications Pipeline, Engagement Pipeline, Interviews: only your pipelines and engagements.',
-      'Outreach, Email Templates, AI Agents: only your campaigns, templates, and agents.',
+      'Talent Management (Talent Pool, Shortlists, Talent Search): shared; everyone in the org sees the same candidates.',
+      'Jobs (My Jobs, Post a Job, My Applicants): only jobs you own and their applicants.',
+      'Pipelines (Pipelines, Interviews): only your pipeline and interviews.',
+      'Automation (AI Agents): only your agents.',
       'As an AM, switch role to Recruiter to see your own recruiter dashboard; use oversight views to see a specific recruiter’s progress.',
     ],
   },

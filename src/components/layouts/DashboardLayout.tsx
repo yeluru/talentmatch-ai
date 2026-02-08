@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -84,12 +85,12 @@ const recruiterNavGroups: NavGroup[] = [
     label: 'TALENT MANAGEMENT',
     items: [
       { title: 'Talent Pool', href: '/recruiter/talent-pool', icon: Users },
-      { title: 'Bulk Upload Profiles', href: '/recruiter/talent-search/uploads', icon: Upload },
-      { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
+      // { title: 'Bulk Upload Profiles', href: '/recruiter/talent-search/uploads', icon: Upload },
+      // { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
       { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
-      { title: 'Marketplace Profiles', href: '/recruiter/marketplace', icon: Search },
+      // { title: 'Marketplace Profiles', href: '/recruiter/marketplace', icon: Search },
       { title: 'Talent Search', href: '/recruiter/talent-search/search', icon: Search },
-      { title: 'API Integration', href: '/recruiter/talent-search/api', icon: Sparkles },
+      // { title: 'API Integration', href: '/recruiter/talent-search/api', icon: Sparkles },
     ],
   },
   {
@@ -98,28 +99,28 @@ const recruiterNavGroups: NavGroup[] = [
       { title: 'My Jobs', href: '/recruiter/jobs', icon: Briefcase },
       { title: 'Post a Job', href: '/recruiter/jobs/new', icon: PlusCircle },
       { title: 'My Applicants', href: '/recruiter/candidates', icon: Users },
-      { title: 'AI Matching', href: '/recruiter/ai-matching', icon: Sparkles },
+      // { title: 'AI Matching', href: '/recruiter/ai-matching', icon: Sparkles },
     ],
   },
   {
     label: 'Pipelines',
     items: [
-      { title: 'Applications Pipeline', href: '/recruiter/pipeline', icon: ListChecks },
-      { title: 'Engagement Pipeline', href: '/recruiter/engagements', icon: ListChecks },
+      { title: 'Pipelines', href: '/recruiter/pipeline', icon: ListChecks },
       { title: 'Interviews', href: '/recruiter/interviews', icon: Briefcase },
     ],
   },
-  {
-    label: 'Communications',
-    items: [
-      { title: 'Outreach', href: '/recruiter/outreach', icon: Mail },
-      { title: 'Email Templates', href: '/recruiter/email-templates', icon: Mail },
-    ],
-  },
-  {
-    label: 'Insights',
-    items: [{ title: 'Insights', href: '/recruiter/insights', icon: BarChart3 }],
-  },
+  // Hidden for prod push – code/routes remain; uncomment to re-enable in nav
+  // {
+  //   label: 'Communications',
+  //   items: [
+  //     { title: 'Outreach', href: '/recruiter/outreach', icon: Mail },
+  //     { title: 'Email Templates', href: '/recruiter/email-templates', icon: Mail },
+  //   ],
+  // },
+  // {
+  //   label: 'Insights',
+  //   items: [{ title: 'Insights', href: '/recruiter/insights', icon: BarChart3 }],
+  // },
   {
     label: 'Automation',
     items: [{ title: 'AI Agents', href: '/recruiter/agents', icon: Bot }],
@@ -132,10 +133,10 @@ const recruiterNavGroups: NavGroup[] = [
 
 const managerNavItems = [
   { title: 'Dashboard', href: '/manager', icon: Home },
-  { title: 'Analytics', href: '/manager/analytics', icon: BarChart3 },
   { title: 'Team', href: '/manager/team', icon: Users },
+  { title: 'Candidates', href: '/manager/candidates', icon: User },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
-  { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
+  { title: 'Jobs', href: '/manager/jobs', icon: Briefcase },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
   { title: 'Help & How-to', href: '/manager/help', icon: BookOpen },
@@ -145,8 +146,8 @@ const managerNavItems = [
 const accountManagerOversightNavItems: NavItem[] = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Team', href: '/manager/team', icon: Users },
-  { title: 'Jobs Overview', href: '/manager/jobs', icon: Briefcase },
-  { title: 'Analytics', href: '/manager/analytics', icon: BarChart3 },
+  { title: 'Candidates', href: '/manager/candidates', icon: User },
+  { title: 'Jobs', href: '/manager/jobs', icon: Briefcase },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
@@ -165,6 +166,7 @@ function DashboardLayoutInner({
   const { profile, currentRole, roles, signOut, switchRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isMobile, setOpenMobile } = useSidebar();
 
   // Auto-close mobile nav after navigation
@@ -210,11 +212,36 @@ function DashboardLayoutInner({
 
   const handleRoleSwitch = (role: 'candidate' | 'recruiter' | 'account_manager' | 'org_admin' | 'super_admin') => {
     switchRole(role);
-    if (role === 'super_admin') navigate('/admin');
-    else if (role === 'org_admin') navigate('/org-admin');
-    else if (role === 'candidate') navigate('/candidate');
-    else if (role === 'recruiter') navigate('/recruiter');
-    else navigate('/manager');
+    if (role === 'super_admin') {
+      navigate('/admin');
+    } else if (role === 'org_admin') {
+      navigate('/org-admin');
+    } else if (role === 'candidate') {
+      navigate('/candidate');
+    } else if (role === 'recruiter') {
+      // Stay on current recruiter path but strip ?owner= so we're 100% in recruiter mode (no AM view-as state).
+      if (location.pathname.startsWith('/recruiter')) {
+        const params = new URLSearchParams(location.search);
+        params.delete('owner');
+        const search = params.toString();
+        navigate(location.pathname + (search ? `?${search}` : ''), { replace: true });
+      } else {
+        navigate('/recruiter');
+      }
+      // Invalidate recruiter-scoped queries so no stale data from AM view (e.g. pipeline, jobs, applications).
+      queryClient.invalidateQueries({ predicate: (q) => {
+        const key = q.queryKey[0];
+        return typeof key === 'string' && (
+          key.startsWith('pipeline-') || key.startsWith('recruiter-') || key.startsWith('owner-') ||
+          key === 'talent-pool' || key === 'talent-detail' || key === 'job-applicants' ||
+          key.startsWith('job-applicants') || key === 'interviews' || key === 'ai-agents' ||
+          key === 'org-jobs-agents' || key === 'org-jobs-outreach' || key === 'outreach-campaigns' ||
+          key === 'email-templates' || key === 'shortlist-candidates' || key === 'shortlists'
+        );
+      } });
+    } else {
+      navigate('/manager');
+    }
   };
 
   const isCandidate = currentRole === 'candidate';
@@ -428,9 +455,9 @@ function DashboardLayoutInner({
       </Sidebar>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-40 h-16 border-b bg-background/80 backdrop-blur-lg">
-          <div className="flex h-full items-center justify-between px-4 lg:px-6">
-            <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-40 h-12 border-b bg-background/80 backdrop-blur-lg">
+          <div className="flex h-full items-center justify-between px-3 lg:px-4">
+            <div className="flex items-center gap-3">
               <SidebarTrigger />
               {(() => {
                 const full = profile?.full_name?.trim() || '';
@@ -438,7 +465,7 @@ function DashboardLayoutInner({
                 const firstName = spaceIdx > 0 ? full.slice(0, spaceIdx) : full;
                 const lastName = spaceIdx > 0 ? full.slice(spaceIdx + 1) : '';
                 return (
-                  <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  <span className="text-lg font-semibold tracking-tight sm:text-xl">
                     {firstName && <span className="text-foreground">{firstName}</span>}
                     {lastName && <span className="ml-1.5">{lastName}</span>}
                   </span>
@@ -447,28 +474,28 @@ function DashboardLayoutInner({
               <Breadcrumbs />
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsDark(!isDark)}
-                className="hover:text-foreground"
+                className="h-8 w-8 hover:text-foreground"
               >
-                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
 
               <NotificationsDropdown />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2">
-                    <Avatar className="h-8 w-8">
+                  <Button variant="ghost" className="h-8 gap-1.5 px-2">
+                    <Avatar className="h-7 w-7">
                       <AvatarImage src={profile?.avatar_url || ''} />
-                      <AvatarFallback className="bg-accent text-accent-foreground text-sm">
+                      <AvatarFallback className="bg-accent text-accent-foreground text-xs">
                         {profile?.full_name?.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">

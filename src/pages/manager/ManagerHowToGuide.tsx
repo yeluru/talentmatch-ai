@@ -40,7 +40,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'Organization-wide overview: activity, team, and key metrics.',
     route: '/manager',
     overview:
-      'The Manager Dashboard gives you a bird’s-eye view of your organization’s recruiting activity. You see high-level metrics (e.g. open jobs, applications, pipeline movement), recent activity across the org, and quick links to Team, Jobs, Analytics, or Audit Logs. As a hiring manager or Account Manager you use this to monitor overall health and drill into specific recruiters or jobs. Account Managers can also switch to Recruiter role to do hands-on recruiting; when in Manager role you see org-wide data.',
+      'The Manager Dashboard gives you a bird’s-eye view of your organization’s recruiting activity. You see high-level metrics (e.g. open jobs, applications, pipeline movement), recent activity across the org, and quick links to Team, Jobs, or Audit Logs. As a hiring manager or Account Manager you use this to monitor overall health and drill into specific recruiters or jobs. Account Managers can also switch to Recruiter role to do hands-on recruiting; when in Manager role you see org-wide data.',
     steps: [
       'Open the Manager Dashboard from the left menu (first item when in Manager or Account Manager role).',
       'Review the summary cards and any charts or recent-activity list.',
@@ -49,17 +49,17 @@ const GUIDE_SECTIONS: GuideSection[] = [
     ],
   },
   {
-    id: 'analytics',
-    title: 'Analytics',
-    description: 'Reports and charts on recruiting performance across the org.',
-    route: '/manager/analytics',
+    id: 'analytics-removed',
+    title: 'Analytics (on Dashboard)',
+    description: 'Pipeline and metrics are now on the Manager Dashboard.',
+    route: '/manager',
     overview:
       'Analytics provides reports and visualizations on your organization’s recruiting performance: applications over time, time-to-fill, pipeline conversion, source effectiveness, recruiter activity, and more. Data is scoped to your organization so you can compare jobs, recruiters, or periods. Use it to spot trends, allocate resources, or report to leadership. Filters typically let you narrow by date range, job, or recruiter.',
     steps: [
       'Go to Analytics from the left menu.',
-      'Choose a report or dashboard (e.g. applications by job, funnel, recruiter activity).',
+      'View Pipeline funnel and Applications (last 30d) with trend on the Dashboard.',
       'Apply date range or filters as needed.',
-      'Export or share the view if the option is available.',
+      'Needs attention and invite codes are also on the Dashboard.',
     ],
   },
   {
@@ -82,7 +82,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'See a specific recruiter’s pipeline and activity (AM oversight).',
     route: '/manager/team',
     overview:
-      'When you are an Account Manager (or manager with oversight), you can “view as” a specific recruiter to see their pipeline, jobs, and applicants as they see it. This is called Recruiter Progress or “view as recruiter.” You select a recruiter from the team; the system then shows that recruiter’s Applications Pipeline, Engagement Pipeline, or related views so you can coach or audit without taking over their account. Data is read-only in this mode; you are observing, not acting as that user.',
+      'When you are an Account Manager (or manager with oversight), you can “view as” a specific recruiter to see their pipeline, jobs, and applicants as they see it. This is called Recruiter Progress or “view as recruiter.” You select a recruiter from the team; the system then shows that recruiter’s Pipeline or related views so you can coach or audit without taking over their account. Data is read-only in this mode; you are observing, not acting as that user.',
     steps: [
       'Go to Team from the left menu.',
       'Find the recruiter you want to oversee and open their profile or “View progress” (or equivalent).',

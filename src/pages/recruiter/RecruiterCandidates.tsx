@@ -52,7 +52,6 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import { MobileListHeader } from '@/components/ui/mobile-list-header';
 import { SwipeableRow } from '@/components/ui/swipeable-row';
 import { APPLICATION_STAGE_OPTIONS } from '@/lib/statusOptions';
 import { openResumeInNewTab } from '@/lib/resumeLinks';
@@ -264,7 +263,7 @@ export default function RecruiterCandidates() {
     onRefresh: handleRefresh,
   });
 
-  // Fetch jobs for filter (only this recruiter's jobs when ownerId is set)
+  // Fetch jobs for filter. Candidate = belongs to job owner. Recruiter: only jobs I own; AM with ?owner=: that owner's jobs.
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs-filter', organizationId, ownerId],
     queryFn: async () => {
@@ -278,7 +277,7 @@ export default function RecruiterCandidates() {
     enabled: !!organizationId,
   });
 
-  // Fetch applications with candidate info (only for this recruiter's jobs when ownerId is set)
+  // Fetch applications. Candidate belongs to job owner: recruiter sees only applicants to jobs they own; AM with ?owner=: that owner's.
   const { data: applications, isLoading } = useQuery<ApplicationWithProfile[]>({
     queryKey: ['recruiter-applications', organizationId, selectedJobFilter, ownerId],
     queryFn: async (): Promise<ApplicationWithProfile[]> => {
@@ -456,53 +455,6 @@ export default function RecruiterCandidates() {
   return (
     <DashboardLayout>
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
-      <MobileListHeader
-        title="Candidates"
-        subtitle="Review and manage job applicants"
-        filterCount={
-          (statusFilter !== 'all' ? 1 : 0) +
-          (selectedJobFilter !== 'all' ? 1 : 0)
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-            <Input
-              placeholder="Search candidates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
-            />
-          </div>
-          <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
-            <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
-              <SelectValue placeholder="All Jobs" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Jobs</SelectItem>
-              {jobs?.map((job) => (
-                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="applied">Applied</SelectItem>
-              <SelectItem value="reviewing">Reviewing</SelectItem>
-              <SelectItem value="shortlisted">Shortlisted</SelectItem>
-              <SelectItem value="interviewing">Interviewing</SelectItem>
-              <SelectItem value="offered">Offered</SelectItem>
-              <SelectItem value="hired">Hired</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </MobileListHeader>
-
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -524,8 +476,8 @@ export default function RecruiterCandidates() {
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 pt-6 pb-6">
-        {/* Filters - desktop */}
-        <div className="hidden md:flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 rounded-xl border border-border bg-card p-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <Input
@@ -536,7 +488,7 @@ export default function RecruiterCandidates() {
             />
           </div>
           <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
-            <SelectTrigger className="w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
               <SelectValue placeholder="All Jobs" />
             </SelectTrigger>
             <SelectContent>
@@ -547,18 +499,14 @@ export default function RecruiterCandidates() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="applied">Applied</SelectItem>
-              <SelectItem value="reviewing">Reviewing</SelectItem>
-              <SelectItem value="shortlisted">Shortlisted</SelectItem>
-              <SelectItem value="interviewing">Interviewing</SelectItem>
-              <SelectItem value="offered">Offered</SelectItem>
-              <SelectItem value="hired">Hired</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              {APPLICATION_STAGE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -599,7 +547,7 @@ export default function RecruiterCandidates() {
                   <SwipeableRow
                     key={app.id}
                     leftActions={[
-                      { icon: <CheckCircle className="h-5 w-5" strokeWidth={1.5} />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'shortlisted' }) },
+                      { icon: <CheckCircle className="h-5 w-5" strokeWidth={1.5} />, label: 'Shortlist', className: 'bg-green-600 text-white', onAction: () => updateApplication.mutate({ appId: app.id, status: 'client_shortlist' }) },
                     ]}
                     rightActions={[
                       { icon: <XCircle className="h-5 w-5" strokeWidth={1.5} />, label: 'Reject', className: 'bg-destructive text-destructive-foreground', onAction: () => updateApplication.mutate({ appId: app.id, status: 'rejected' }) },

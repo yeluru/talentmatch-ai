@@ -74,8 +74,8 @@ const ManagerDashboard = lazy(() => import("./pages/manager/ManagerDashboard"));
 const ManagerTeam = lazy(() => import("./pages/manager/ManagerTeam"));
 const ManagerRecruiterProgress = lazy(() => import("./pages/manager/ManagerRecruiterProgress"));
 const ManagerJobs = lazy(() => import("./pages/manager/ManagerJobs"));
+const ManagerCandidates = lazy(() => import("./pages/manager/ManagerCandidates"));
 const ManagerOrganization = lazy(() => import("./pages/manager/ManagerOrganization"));
-const ManagerAnalytics = lazy(() => import("./pages/manager/ManagerAnalytics"));
 const ClientManagement = lazy(() => import("./pages/manager/ClientManagement"));
 const AuditLogs = lazy(() => import("./pages/manager/AuditLogs"));
 const ManagerHowToGuide = lazy(() => import("./pages/manager/ManagerHowToGuide"));
@@ -444,11 +444,7 @@ const App = () => (
                   />
                   <Route
                     path="/recruiter/engagements"
-                    element={
-                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
-                        {withSuspense(<EngagementPipeline />)}
-                      </ProtectedRoute>
-                    }
+                    element={<Navigate to="/recruiter/pipeline" replace />}
                   />
                   <Route
                     path="/recruiter/email-templates"
@@ -487,16 +483,6 @@ const App = () => (
                     }
                   />
                   <Route
-                    path="/manager/analytics"
-                    element={
-                      <ProtectedRoute allowedRoles={["account_manager"]}>
-                        <RouteErrorBoundary title="Manager analytics failed to load">
-                          {withSuspense(<ManagerAnalytics />)}
-                        </RouteErrorBoundary>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
                     path="/manager/team"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
@@ -528,7 +514,13 @@ const App = () => (
                   />
                   <Route
                     path="/manager/candidates"
-                    element={<Navigate to="/recruiter/talent-pool" replace />}
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        <RouteErrorBoundary title="Manager candidates failed to load">
+                          {withSuspense(<ManagerCandidates />)}
+                        </RouteErrorBoundary>
+                      </ProtectedRoute>
+                    }
                   />
                   <Route
                     path="/manager/organization"

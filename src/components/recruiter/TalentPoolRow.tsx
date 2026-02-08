@@ -16,6 +16,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Collapsible,
   CollapsibleContent,
@@ -29,9 +30,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SwipeableRow } from '@/components/ui/swipeable-row';
-import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { normalizeStatusForDisplay, STAGE_READONLY_MESSAGE, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 
-const CANDIDATE_STATUSES = TALENT_POOL_STATUS_OPTIONS;
+const CANDIDATE_STATUSES = TALENT_POOL_STAGE_OPTIONS;
+const COMMENTS_PREVIEW_LEN = 50;
 
 interface TalentProfile {
   id: string;
@@ -97,6 +99,7 @@ export function TalentPoolRow({
         .update({ recruiter_status: newStatus })
         .eq('id', talent.id);
       if (profileError) throw profileError;
+      await supabase.from('applications').update({ status: newStatus }).eq('candidate_id', talent.id);
 
       const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
@@ -128,6 +131,8 @@ export function TalentPoolRow({
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
 
       toast.success('Status updated');
     },
@@ -138,10 +143,10 @@ export function TalentPoolRow({
 
   const updateNotes = useMutation({
     mutationFn: async (newNotes: string) => {
-      const { error: profileError } = await supabase
-        .from('candidate_profiles')
-        .update({ recruiter_notes: newNotes })
-        .eq('id', talent.id);
+      const { error: profileError } = await supabase.rpc('update_candidate_recruiter_notes', {
+        _candidate_id: talent.id,
+        _notes: newNotes ?? '',
+      });
       if (profileError) throw profileError;
 
       const { error: shortlistError, count: shortlistCount } = await supabase
@@ -248,7 +253,7 @@ export function TalentPoolRow({
                     e.stopPropagation();
                     onViewProfile(talent.id);
                   }}
-                  className="font-semibold text-left hover:text-primary hover:underline transition-colors cursor-pointer truncate"
+                  className="font-semibold text-sm text-left hover:text-primary hover:underline transition-colors cursor-pointer truncate"
                 >
                   {talent.full_name || 'Unknown'}
                 </button>
@@ -284,7 +289,7 @@ export function TalentPoolRow({
 
           {/* Middle Section: Title, Location, Experience */}
           <div className="ml-[52px] space-y-2">
-            <div className="flex min-w-0 flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-sm">
+            <div className="flex min-w-0 flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs">
               {talent.current_title && (
                 <span className="flex items-center gap-1.5 min-w-0 flex-1">
                   <Briefcase className="h-3.5 w-3.5 shrink-0" />
@@ -305,16 +310,55 @@ export function TalentPoolRow({
               )}
             </div>
 
+            {/* Comments preview: first 50 chars, full text on hover */}
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <MessageSquare className="h-3 w-3 shrink-0 flex-shrink-0" />
+              {(talent.recruiter_notes != null && talent.recruiter_notes !== '') ? (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsExpanded(true);
+                        }}
+                        className="text-left truncate max-w-[200px] sm:max-w-[280px] hover:text-foreground cursor-pointer"
+                      >
+                        {talent.recruiter_notes.length <= COMMENTS_PREVIEW_LEN
+                          ? talent.recruiter_notes
+                          : `${talent.recruiter_notes.slice(0, COMMENTS_PREVIEW_LEN)}…`}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap text-left text-xs">
+                      {talent.recruiter_notes}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(true);
+                  }}
+                  className="text-left truncate max-w-[200px] sm:max-w-[280px] hover:text-foreground cursor-pointer italic"
+                >
+                  Add comment…
+                </button>
+              )}
+            </div>
+
             {/* Skills Row */}
             {talent.skills.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {talent.skills.slice(0, isMobile ? 3 : 4).map((skill, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs">
+                  <Badge key={i} variant="secondary" className="text-[11px]">
                     {skill.skill_name}
                   </Badge>
                 ))}
                 {talent.skills.length > (isMobile ? 3 : 4) && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-[11px]">
                     +{talent.skills.length - (isMobile ? 3 : 4)}
                   </Badge>
                 )}
@@ -371,8 +415,8 @@ export function TalentPoolRow({
             ) : null}
 
             <Select
-              value={talent.recruiter_status || 'new'}
-              onValueChange={(value) => updateStatus.mutate(value)}
+              value={(normalizeStatusForDisplay(talent.recruiter_status) || 'new') as string}
+              onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
               disabled={updateStatus.isPending}
             >
               <SelectTrigger className="w-[120px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>

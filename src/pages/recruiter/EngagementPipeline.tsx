@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { can } from '@/lib/permissions';
 import { useSearchParams } from 'react-router-dom';
+import { applicationStageColumnKey } from '@/lib/statusOptions';
 
 type EngagementRow = {
   id: string;
@@ -35,17 +36,20 @@ type EngagementRow = {
   jobs?: { id: string; title: string } | null;
 };
 
+// Unified pipeline stages (same as applications.status); legacy names mapped in appsByStage via applicationStageColumnKey
 const PIPELINE_STAGES = [
-  { id: 'started', label: 'Started', dot: 'bg-slate-500', border: 'border-slate-400/60' },
-  { id: 'outreach', label: 'Outreach', dot: 'bg-blue-500', border: 'border-blue-500/40' },
-  { id: 'rate_confirmation', label: 'Rate', dot: 'bg-indigo-500', border: 'border-indigo-500/40' },
-  { id: 'right_to_represent', label: 'RTR', dot: 'bg-purple-500', border: 'border-purple-500/40' },
+  { id: 'outreach', label: 'Outreach', dot: 'bg-slate-500', border: 'border-slate-400/60' },
+  { id: 'rate_confirmation', label: 'Rate', dot: 'bg-blue-500', border: 'border-blue-500/40' },
+  { id: 'right_to_represent', label: 'RTR', dot: 'bg-indigo-500', border: 'border-indigo-500/40' },
+  { id: 'applied', label: 'Applied', dot: 'bg-blue-400', border: 'border-blue-400/40' },
+  { id: 'reviewing', label: 'Reviewing', dot: 'bg-sky-500', border: 'border-sky-500/40' },
   { id: 'screening', label: 'Screening', dot: 'bg-yellow-500', border: 'border-yellow-500/40' },
-  { id: 'submission', label: 'Submission', dot: 'bg-teal-500', border: 'border-teal-500/40' },
-  { id: 'interview', label: 'Interview', dot: 'bg-orange-500', border: 'border-orange-500/40' },
-  { id: 'offer', label: 'Offer', dot: 'bg-green-500', border: 'border-green-500/40' },
-  { id: 'onboarding', label: 'Onboarding', dot: 'bg-emerald-600', border: 'border-emerald-600/40' },
-  { id: 'closed', label: 'Closed', dot: 'bg-red-500', border: 'border-red-500/40' },
+  { id: 'shortlisted', label: 'Shortlisted', dot: 'bg-teal-500', border: 'border-teal-500/40' },
+  { id: 'interviewing', label: 'Interviewing', dot: 'bg-orange-500', border: 'border-orange-500/40' },
+  { id: 'offered', label: 'Offered', dot: 'bg-green-500', border: 'border-green-500/40' },
+  { id: 'hired', label: 'Hired', dot: 'bg-emerald-600', border: 'border-emerald-600/40' },
+  { id: 'rejected', label: 'Rejected', dot: 'bg-red-500', border: 'border-red-500/40' },
+  { id: 'withdrawn', label: 'Withdrawn', dot: 'bg-gray-500', border: 'border-gray-500/40' },
 ] as const;
 
 const STAGE_EMAIL_CONFIG: Record<
@@ -78,7 +82,7 @@ const STAGE_EMAIL_CONFIG: Record<
     defaultBody: ({ candidateName, jobTitle, companyName, recruiterName }) =>
       `Hi ${candidateName},\n\nBefore we submit you for ${jobTitle} at ${companyName}, we need your Right to Represent (RTR) confirmation.\n\nPlease review and accept using the link below.\n\nThanks,\n${recruiterName}\n`,
   },
-  offer: {
+  offered: {
     requestType: 'offer',
     templateCategory: 'offer',
     defaultSubject: ({ jobTitle, companyName }) => `Offer update for ${jobTitle} (${companyName})`,
@@ -116,12 +120,16 @@ export default function EngagementPipeline() {
   const [skipEmailOverride, setSkipEmailOverride] = useState(false);
 
   const { data: jobs } = useQuery({
-    queryKey: ['recruiter-jobs', organizationId, effectiveOwnerUserId],
+    queryKey: ['recruiter-jobs', organizationId, effectiveOwnerUserId, user?.id],
     queryFn: async () => {
       if (!organizationId) return [];
-      let q = supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, recruiter_id, visibility').eq('organization_id', organizationId);
       if (effectiveOwnerUserId) {
-        q = q.eq('recruiter_id', effectiveOwnerUserId);
+        if (effectiveOwnerUserId === user?.id) {
+          q = q.or(`recruiter_id.eq.${effectiveOwnerUserId},visibility.eq.public`);
+        } else {
+          q = q.eq('recruiter_id', effectiveOwnerUserId);
+        }
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -166,19 +174,21 @@ export default function EngagementPipeline() {
     enabled: !!organizationId,
   });
 
+  const jobIdsForEngagements = (jobs ?? []).map((j: { id: string }) => j.id);
   const { data, isLoading } = useQuery({
-    queryKey: ['recruiter-engagements', organizationId, selectedJob, effectiveOwnerUserId],
+    queryKey: ['recruiter-engagements', organizationId, selectedJob, effectiveOwnerUserId, user?.id, jobIdsForEngagements.join(',')],
     queryFn: async (): Promise<EngagementRow[]> => {
       if (!organizationId) return [];
+      const jobIds = jobIdsForEngagements;
       let q = supabase
         .from('candidate_engagements' as any)
         .select(
           `
-          id, stage, updated_at, notes, job_id,
+          id, stage, updated_at, notes, job_id, owner_user_id,
           candidate_profiles(
             id, full_name, current_title, current_company, location, years_of_experience, email
           ),
-          jobs:job_id(id, title)
+          jobs:job_id(id, title, recruiter_id, visibility)
         `
         )
         .eq('organization_id', organizationId)
@@ -188,22 +198,34 @@ export default function EngagementPipeline() {
         q = q.eq('job_id', selectedJob);
       }
 
-      if (effectiveOwnerUserId) {
-        q = q.eq('owner_user_id', effectiveOwnerUserId);
+      if (effectiveOwnerUserId && jobIds.length > 0) {
+        if (effectiveOwnerUserId === user?.id) {
+          q = q.in('job_id', jobIds);
+        } else {
+          const ownerJobIds = (jobs ?? []).filter((j: any) => j.recruiter_id === effectiveOwnerUserId).map((j: { id: string }) => j.id);
+          if (ownerJobIds.length === 0) return [];
+          q = q.in('job_id', ownerJobIds);
+        }
       }
 
-      const { data, error } = await q;
+      const { data: rows, error } = await q;
       if (error) throw error;
-      return (data || []) as any;
+      let list = (rows || []) as any[];
+
+      if (effectiveOwnerUserId && list.length > 0) {
+        list = list.filter((row: any) => row.owner_user_id === effectiveOwnerUserId);
+      }
+
+      return list;
     },
-    enabled: !!organizationId,
+    enabled: !!organizationId && (effectiveOwnerUserId ? (jobs != null) : true),
   });
 
   const appsByStage = useMemo(() => {
     const map = new Map<string, EngagementRow[]>();
     for (const s of PIPELINE_STAGES) map.set(s.id, []);
     for (const row of (data || [])) {
-      const k = String(row.stage || 'started');
+      const k = applicationStageColumnKey(row.stage) ?? String(row.stage || 'outreach');
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(row);
     }
@@ -211,12 +233,32 @@ export default function EngagementPipeline() {
   }, [data]);
 
   const updateStageOnly = useMutation({
-    mutationFn: async ({ engagementId, stage }: { engagementId: string; stage: string }) => {
+    mutationFn: async ({
+      engagementId,
+      stage,
+      jobId,
+      candidateId,
+    }: {
+      engagementId: string;
+      stage: string;
+      jobId?: string | null;
+      candidateId?: string | null;
+    }) => {
       const { error } = await supabase.from('candidate_engagements' as any).update({ stage } as any).eq('id', engagementId);
       if (error) throw error;
+      if (jobId && candidateId) {
+        const { error: appErr } = await supabase
+          .from('applications')
+          .update({ status: stage })
+          .eq('job_id', jobId)
+          .eq('candidate_id', candidateId);
+        if (appErr) throw appErr;
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to move stage'),
   });
@@ -263,6 +305,13 @@ export default function EngagementPipeline() {
         .from('candidate_engagements' as any)
         .update({ stage: moveToStage } as any)
         .eq('id', moveEngagement.id);
+      if (moveEngagement.job_id && (moveEngagement.candidate_profiles as any)?.id) {
+        await supabase
+          .from('applications')
+          .update({ status: moveToStage })
+          .eq('job_id', moveEngagement.job_id)
+          .eq('candidate_id', (moveEngagement.candidate_profiles as any).id);
+      }
     },
     onSuccess: async () => {
       toast.success('Email sent and stage updated');
@@ -275,6 +324,8 @@ export default function EngagementPipeline() {
       setSkipEmailOverride(false);
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagement-requests'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to send email'),
   });
@@ -293,7 +344,7 @@ export default function EngagementPipeline() {
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0 mt-4">
             <Users className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.5} />
             <p className="text-sm font-sans font-medium text-amber-800 dark:text-amber-200">
-              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>&apos;s pipeline. Use the Manager home button above to return to your dashboard.
+              Viewing <span className="font-semibold">{ownerProfile?.full_name || 'this recruiter'}</span>&apos;s pipeline.
             </p>
           </div>
         )}
@@ -371,7 +422,12 @@ export default function EngagementPipeline() {
                       return;
                     }
 
-                    updateStageOnly.mutate({ engagementId: row.id, stage: stage.id });
+                    updateStageOnly.mutate({
+                      engagementId: row.id,
+                      stage: stage.id,
+                      jobId: row.job_id ?? undefined,
+                      candidateId: (row.candidate_profiles as any)?.id ?? undefined,
+                    });
                     toast.success(`Moved to ${stage.label}`);
                   }}
                   onDragLeave={() => {
@@ -592,7 +648,12 @@ export default function EngagementPipeline() {
                     variant="destructive"
                     onClick={() => {
                       if (!moveEngagement || !moveToStage) return;
-                      updateStageOnly.mutate({ engagementId: moveEngagement.id, stage: moveToStage });
+                      updateStageOnly.mutate({
+                        engagementId: moveEngagement.id,
+                        stage: moveToStage,
+                        jobId: moveEngagement.job_id ?? undefined,
+                        candidateId: (moveEngagement.candidate_profiles as any)?.id ?? undefined,
+                      });
                       toast.success('Stage overridden');
                       setMoveOpen(false);
                       setSkipEmailOverride(false);

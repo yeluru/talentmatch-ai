@@ -8,7 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
-const APP_STATUS_ORDER = ['applied', 'reviewing', 'screening', 'interview', 'offer', 'hired'];
+import { applicationStageColumnKey } from '@/lib/statusOptions';
+
+const APP_STATUS_ORDER = ['outreach', 'applied', 'rtr_rate', 'document_check', 'screening', 'submission', 'client_shortlist', 'client_interview', 'offered', 'hired'];
 
 type EngagementRow = {
   id: string;
@@ -19,18 +21,7 @@ type EngagementRow = {
   jobs: { title: string } | null;
 };
 
-const STAGES = [
-  'started',
-  'outreach',
-  'rate_confirmation',
-  'right_to_represent',
-  'screening',
-  'submission',
-  'interview',
-  'offer',
-  'onboarding',
-  'closed',
-];
+const STAGES = ['outreach', 'applied', 'rtr_rate', 'document_check', 'screening', 'submission', 'client_shortlist', 'client_interview', 'offered', 'hired', 'rejected', 'withdrawn'];
 
 export default function ManagerRecruiterProgress() {
   const { recruiterUserId } = useParams();
@@ -89,7 +80,7 @@ export default function ManagerRecruiterProgress() {
     const map: Record<string, number> = {};
     STAGES.forEach((s) => (map[s] = 0));
     (engagements || []).forEach((e) => {
-      const k = String(e.stage || 'started');
+      const k = applicationStageColumnKey(e.stage) ?? String(e.stage || 'outreach');
       map[k] = (map[k] || 0) + 1;
     });
     return map;
@@ -129,7 +120,7 @@ export default function ManagerRecruiterProgress() {
     const map: Record<string, number> = {};
     APP_STATUS_ORDER.forEach((s) => (map[s] = 0));
     (applications || []).forEach((a) => {
-      const s = a.status || 'applied';
+      const s = applicationStageColumnKey(a.status) ?? a.status ?? 'applied';
       map[s] = (map[s] || 0) + 1;
     });
     return map;
@@ -206,14 +197,8 @@ export default function ManagerRecruiterProgress() {
               </div>
               <div className="flex flex-wrap gap-3 shrink-0 md:ml-4">
                 <Button asChild className="rounded-lg h-11 px-5 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold text-sm whitespace-nowrap">
-                  <Link to={`/recruiter/engagements?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                    Engagement Pipeline
-                    <ArrowUpRight className="h-4 w-4 ml-2 shrink-0" strokeWidth={1.5} />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="rounded-lg h-11 px-5 border-manager/20 hover:bg-manager/10 text-manager font-sans font-semibold text-sm whitespace-nowrap">
                   <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                    Application Pipeline
+                    Pipeline
                     <ArrowUpRight className="h-4 w-4 ml-2 shrink-0" strokeWidth={1.5} />
                   </Link>
                 </Button>
@@ -277,8 +262,8 @@ export default function ManagerRecruiterProgress() {
                 ))}
               </div>
               <Button variant="ghost" size="sm" asChild className="rounded-lg text-manager hover:bg-manager/10 font-sans font-medium mt-4">
-                <Link to={`/recruiter/engagements?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                  Open full Engagement Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
+                <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
+                  Open full Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
                 </Link>
               </Button>
             </section>

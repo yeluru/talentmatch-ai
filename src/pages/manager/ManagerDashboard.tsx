@@ -3,7 +3,7 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
-import { Briefcase, Users, Clock, Copy, Plus, Loader2, Key, Target, Award, ArrowRight, LayoutDashboard, AlertCircle, Activity, UserCircle, FileText } from 'lucide-react';
+import { Briefcase, Users, Clock, Copy, Plus, Loader2, Key, Target, Award, ArrowRight, LayoutDashboard, AlertCircle, Activity, UserCircle, FileText, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -89,6 +89,9 @@ export default function ManagerDashboard() {
   const [recruiterActivity, setRecruiterActivity] = useState<RecruiterActivity[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
   const [assignedRecruiterIds, setAssignedRecruiterIds] = useState<Set<string>>(new Set());
+  const [applicationsLast30, setApplicationsLast30] = useState(0);
+  const [applicationsPrev30, setApplicationsPrev30] = useState(0);
+  const [applicationsByStatus, setApplicationsByStatus] = useState<{ status: string; count: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingCode, setIsCreatingCode] = useState(false);
 
@@ -274,18 +277,41 @@ export default function ManagerDashboard() {
         if (j.recruiter_id) jobIdToRecruiter[j.id] = j.recruiter_id;
       });
       const statusCountByRecruiter: Record<string, Record<string, number>> = {};
+      const PIPELINE_ORDER = ['applied', 'reviewing', 'screening', 'interview', 'offer', 'hired'];
       if (jobIds.length > 0) {
         const { data: appStatusRows } = await supabase
           .from('applications')
-          .select('job_id, status')
+          .select('job_id, status, applied_at')
           .in('job_id', jobIds);
-        (appStatusRows || []).forEach((row: { job_id: string; status: string }) => {
+        const rows = (appStatusRows || []) as { job_id: string; status: string; applied_at?: string }[];
+        rows.forEach((row) => {
           const recId = jobIdToRecruiter[row.job_id];
-          if (!recId) return;
-          if (!statusCountByRecruiter[recId]) statusCountByRecruiter[recId] = {};
-          const s = row.status || 'applied';
-          statusCountByRecruiter[recId][s] = (statusCountByRecruiter[recId][s] || 0) + 1;
+          if (recId) {
+            if (!statusCountByRecruiter[recId]) statusCountByRecruiter[recId] = {};
+            const s = row.status || 'applied';
+            statusCountByRecruiter[recId][s] = (statusCountByRecruiter[recId][s] || 0) + 1;
+          }
         });
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const sixtyDaysAgo = new Date(); sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        const statusCounts: Record<string, number> = {};
+        let last30 = 0, prev30 = 0;
+        rows.forEach((row) => {
+          const s = row.status || 'applied';
+          statusCounts[s] = (statusCounts[s] || 0) + 1;
+          const at = row.applied_at ? new Date(row.applied_at).getTime() : 0;
+          if (at >= thirtyDaysAgo.getTime()) last30++;
+          if (at >= sixtyDaysAgo.getTime() && at < thirtyDaysAgo.getTime()) prev30++;
+        });
+        setApplicationsLast30(last30);
+        setApplicationsPrev30(prev30);
+        setApplicationsByStatus(
+          PIPELINE_ORDER.filter((s) => (statusCounts[s] ?? 0) > 0).map((s) => ({ status: s, count: statusCounts[s] || 0 }))
+        );
+      } else {
+        setApplicationsLast30(0);
+        setApplicationsPrev30(0);
+        setApplicationsByStatus([]);
       }
 
       // Candidates added / imports per recruiter (candidate_org_links created_by)
@@ -598,7 +624,7 @@ export default function ManagerDashboard() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           <StatCard
             title="Open Jobs"
             value={stats.openJobs.toString()}
@@ -631,10 +657,108 @@ export default function ManagerDashboard() {
             value={stats.totalApplications.toString()}
             icon={Clock}
             iconColor="text-manager"
-            change="Recent Activity"
+            change="All time"
             changeType="neutral"
             className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20"
           />
+          <StatCard
+            title="Applications (last 30d)"
+            value={applicationsLast30.toString()}
+            icon={TrendingUp}
+            iconColor="text-manager"
+            change={
+              applicationsPrev30 > 0
+                ? `${applicationsLast30 > applicationsPrev30 ? '+' : ''}${Math.round(((applicationsLast30 - applicationsPrev30) / applicationsPrev30) * 100)}% vs prior 30d`
+                : applicationsLast30 > 0
+                  ? 'New activity'
+                  : '—'
+            }
+            changeType={
+              applicationsPrev30 > 0
+                ? applicationsLast30 > applicationsPrev30
+                  ? 'positive'
+                  : 'negative'
+                : 'neutral'
+            }
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20"
+          />
+        </div>
+
+        {/* Your Team — moved up for quick access */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
+              <Users className="h-5 w-5 text-manager" strokeWidth={1.5} />
+              Your Team
+            </h2>
+            <Button variant="link" size="sm" asChild className="rounded-lg text-manager hover:text-manager/80 hover:bg-manager/10 font-sans">
+              <Link to="/manager/team">View All <ArrowRight className="ml-1 h-3 w-3" strokeWidth={1.5} /></Link>
+            </Button>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+            {teamMembers.length === 0 ? (
+              <p className="text-sm p-6 text-center text-muted-foreground font-sans">No team members found.</p>
+            ) : (
+              <div className="space-y-3">
+                {teamMembers.slice(0, 5).map((member) => (
+                  <div key={member.id} className="p-3 rounded-xl border border-border hover:bg-manager/5 transition-all flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-manager/10 text-manager flex items-center justify-center font-bold text-sm border border-manager/20 font-sans">
+                        {member.full_name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-sans font-medium text-sm">{member.full_name}</p>
+                        <p className="text-xs text-muted-foreground font-sans">{member.email}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-xs font-sans border-border bg-muted/30">
+                      {member.role === 'recruiter' ? 'Recruiter' :
+                        member.role === 'account_manager' ? 'Manager' : member.role}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pipeline funnel — where applicants sit today; spot bottlenecks */}
+        <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
+          <h2 className="font-display text-lg font-bold text-foreground mb-1 flex items-center gap-2">
+            <Target className="h-5 w-5 text-manager" strokeWidth={1.5} />
+            Application pipeline
+          </h2>
+          <p className="text-sm text-muted-foreground font-sans mb-4">
+            Where your applicants are right now. Use this to spot bottlenecks — e.g. many in &quot;Applied&quot; means review and screen more; many in &quot;Interview&quot; means schedule or close the loop.
+          </p>
+          {applicationsByStatus.length === 0 ? (
+            <p className="text-sm font-sans text-muted-foreground">No application data yet. Applications will appear here as candidates move through stages.</p>
+          ) : (
+            <div className="space-y-3">
+              {applicationsByStatus.map((item) => {
+                const pct = stats.totalApplications ? Math.round((item.count / stats.totalApplications) * 100) : 0;
+                const isBottleneck = item.status === 'applied' && pct > 50;
+                return (
+                  <div key={item.status} className="flex items-center gap-4">
+                    <span className="w-28 text-sm font-sans capitalize">{item.status.replace(/_/g, ' ')}</span>
+                    <div className="flex-1 h-4 rounded-full bg-muted overflow-hidden min-w-[80px]">
+                      <div
+                        className={`h-full rounded-full transition-all ${isBottleneck ? 'bg-amber-500/80' : 'bg-manager/80'}`}
+                        style={{ width: `${stats.totalApplications ? (item.count / stats.totalApplications) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <span className="w-10 text-sm font-sans font-medium text-right">{item.count}</span>
+                    {stats.totalApplications > 0 && (
+                      <span className="w-12 text-xs text-muted-foreground text-right">{pct}%</span>
+                    )}
+                    {isBottleneck && (
+                      <span className="text-xs font-sans text-amber-600 dark:text-amber-400">Review & screen</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Team activity — recruiters + recent moves merged */}
@@ -765,15 +889,18 @@ export default function ManagerDashboard() {
           </div>
         </div>
 
-        {/* Needs attention — jobs */}
+        {/* Jobs to nudge — published but cold */}
         <div className="rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-manager/20">
           <div className="border-b border-manager/10 bg-manager/5 px-6 py-4 flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-manager" strokeWidth={1.5} />
-            <h2 className="font-display text-lg font-semibold text-foreground">Needs attention</h2>
+            <h2 className="font-display text-lg font-semibold text-foreground">Jobs to nudge</h2>
           </div>
+          <p className="px-6 pt-3 text-sm text-muted-foreground font-sans">
+            Published jobs with <strong>no applicants yet</strong> or <strong>no activity in the last 14 days</strong>. Consider reposting, broadening the listing, or reassigning to another recruiter.
+          </p>
           <div className="p-4 max-h-[280px] overflow-y-auto">
             {needsAttentionJobs.length === 0 ? (
-              <p className="text-sm text-muted-foreground font-sans py-6 text-center">No jobs need attention. All published jobs have recent activity.</p>
+              <p className="text-sm text-muted-foreground font-sans py-6 text-center">No cold jobs. All published jobs have applicants or recent activity.</p>
             ) : (
               <ul className="space-y-2">
                 {needsAttentionJobs.map((job) => (
@@ -784,10 +911,12 @@ export default function ManagerDashboard() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-sans font-medium text-foreground group-hover:text-manager transition-colors truncate">{job.title}</span>
-                        <Badge variant="outline" className="shrink-0 text-xs font-sans border-border bg-muted/30">{job.applications_count} apps</Badge>
+                        <Badge variant="outline" className="shrink-0 text-xs font-sans border-border bg-muted/30">
+                          {job.applications_count === 0 ? 'No applicants' : 'Stale'}
+                        </Badge>
                       </div>
                       {job.recruiter_name && (
-                        <p className="text-xs text-muted-foreground font-sans mt-1 truncate">{job.recruiter_name}</p>
+                        <p className="text-xs text-muted-foreground font-sans mt-1 truncate">Owner: {job.recruiter_name}</p>
                       )}
                     </Link>
                   </li>
@@ -805,7 +934,7 @@ export default function ManagerDashboard() {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Invite Codes & Team */}
+          {/* Invite Codes */}
           <div className="space-y-6">
             <div>
               <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2 text-foreground">
@@ -846,43 +975,6 @@ export default function ManagerDashboard() {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
-                  <Users className="h-5 w-5 text-manager" strokeWidth={1.5} />
-                  Your Team
-                </h2>
-                <Button variant="link" size="sm" asChild className="rounded-lg text-manager hover:text-manager/80 hover:bg-manager/10 font-sans">
-                  <Link to="/manager/team">View All <ArrowRight className="ml-1 h-3 w-3" strokeWidth={1.5} /></Link>
-                </Button>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
-                {teamMembers.length === 0 ? (
-                  <p className="text-sm p-6 text-center text-muted-foreground font-sans">No team members found.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {teamMembers.slice(0, 5).map((member) => (
-                      <div key={member.id} className="p-3 rounded-xl border border-border hover:bg-manager/5 transition-all flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-manager/10 text-manager flex items-center justify-center font-bold text-sm border border-manager/20 font-sans">
-                            {member.full_name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="font-sans font-medium text-sm">{member.full_name}</p>
-                            <p className="text-xs text-muted-foreground font-sans">{member.email}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="text-xs font-sans border-border bg-muted/30">
-                          {member.role === 'recruiter' ? 'Recruiter' :
-                            member.role === 'account_manager' ? 'Manager' : member.role}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>

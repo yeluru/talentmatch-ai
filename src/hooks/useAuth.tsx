@@ -122,22 +122,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Never re-enable the global loading gate after first hydration.
     if (!silent && !hasHydrated) setIsLoading(true);
     try {
-      // Defensive: avoid maybeSingle() coercion errors if duplicate profiles exist.
-      const [profileRowsResult, rolesResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*, updated_at')
-          .eq('user_id', userId)
-          .order('updated_at', { ascending: false })
-          .limit(1),
-        supabase.from('user_roles').select('role, organization_id').eq('user_id', userId),
-      ]);
+      // Use edge function with service role so login works even when RLS on user_roles/profiles returns 500
+      const { data, error } = await supabase.functions.invoke('get-my-auth-data');
+      if (error) throw error;
+      const profileRow = (data as { profile?: UserProfile | null } | null)?.profile ?? null;
+      const rolesData = (data as { roles?: { role: string; organization_id?: string }[] } | null)?.roles ?? [];
 
-      const profileRow = (profileRowsResult.data || [])[0];
       if (profileRow) setProfile(profileRow as UserProfile);
 
-      if (rolesResult.data && rolesResult.data.length > 0) {
-        const userRoles = rolesResult.data.map(r => ({
+      if (rolesData.length > 0) {
+        const userRoles = rolesData.map(r => ({
           role: r.role as AppRole,
           organization_id: r.organization_id ?? undefined
         }));
@@ -274,14 +268,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Safety: if this user was bootstrapped as a platform admin (e.g. via allowlist trigger),
         // do NOT also assign candidate role / create candidate profile.
         if (role === 'candidate') {
-          const { data: isBootstrappedSuperAdmin } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', authData.user.id)
-            .eq('role', 'super_admin')
-            .maybeSingle();
-
-          if (isBootstrappedSuperAdmin) {
+          const { data: authDataCheck } = await supabase.functions.invoke('get-my-auth-data');
+          const rolesCheck = (authDataCheck as { roles?: { role: string }[] } | null)?.roles ?? [];
+          if (rolesCheck.some((r: { role: string }) => r.role === 'super_admin')) {
             return { error: null };
           }
         }
@@ -348,28 +337,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
-      // Fetch user role to determine redirect
+      // Fetch roles via edge function (avoids RLS 500 on user_roles)
       if (data.user) {
-        const { data: rolesData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id);
-
-        if (rolesData && rolesData.length > 0) {
+        const { data: authData } = await supabase.functions.invoke('get-my-auth-data');
+        const rolesData = (authData as { roles?: { role: string }[] } | null)?.roles ?? [];
+        if (rolesData.length > 0) {
           return { error: null, role: rolesData[0].role as AppRole };
         }
 
         // If the user has no roles, attempt platform-admin bootstrap (allowlist-based).
-        // This prevents the "no role assigned" dead-end when a platform admin was created in Studio
-        // but the trigger didn't run (or allowlist was added after the user existed).
         try {
           await supabase.functions.invoke('bootstrap-platform-admin', { body: {} });
-          const { data: rolesAfter } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', data.user.id);
-
-          if (rolesAfter && rolesAfter.length > 0) {
+          const { data: authDataAfter } = await supabase.functions.invoke('get-my-auth-data');
+          const rolesAfter = (authDataAfter as { roles?: { role: string }[] } | null)?.roles ?? [];
+          if (rolesAfter.length > 0) {
             return { error: null, role: rolesAfter[0].role as AppRole };
           }
         } catch {

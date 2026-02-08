@@ -14,15 +14,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TableCell, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScoreBadge } from '@/components/ui/score-badge';
-import { ListPlus, Mail, MoreHorizontal, Send, Trash2 } from 'lucide-react';
+import { ListPlus, Mail, MessageSquare, MoreHorizontal, Send, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { normalizeStatusForDisplay, STAGE_READONLY_MESSAGE, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 
-const CANDIDATE_STATUSES = TALENT_POOL_STATUS_OPTIONS;
+const CANDIDATE_STATUSES = TALENT_POOL_STAGE_OPTIONS;
+const COMMENTS_PREVIEW_LEN = 50;
 
 interface TalentProfile {
   id: string;
@@ -69,6 +71,7 @@ export function CompactTalentPoolRow({
         .update({ recruiter_status: newStatus })
         .eq('id', talent.id);
       if (profileError) throw profileError;
+      await supabase.from('applications').update({ status: newStatus }).eq('candidate_id', talent.id);
       const { error: shortlistError } = await supabase
         .from('shortlist_candidates')
         .update({ status: newStatus })
@@ -80,6 +83,8 @@ export function CompactTalentPoolRow({
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
       toast.success('Status updated');
     },
     onError: () => toast.error('Failed to update status'),
@@ -106,29 +111,51 @@ export function CompactTalentPoolRow({
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <div className="font-bold text-foreground truncate">{name}</div>
+          <div className="font-bold text-xs text-foreground truncate">{name}</div>
           {company && company !== '—' && (
-            <div className="text-xs text-muted-foreground truncate">{company}</div>
+            <div className="text-[11px] text-muted-foreground truncate">{company}</div>
           )}
         </div>
       </div>
 
-      <div className="w-[180px] hidden xl:block" title={rawTitle}>
-        <span className="text-sm text-foreground/80 truncate block">{title}</span>
+      <div className="w-[140px] hidden xl:block" title={rawTitle}>
+        <span className="text-xs text-foreground/80 truncate block">{title}</span>
       </div>
 
-      <div className="w-[120px] hidden 2xl:block truncate text-sm text-muted-foreground" title={location}>
+      <div className="w-[100px] hidden 2xl:block truncate text-xs text-muted-foreground" title={location}>
         {location}
       </div>
 
-      <div className="w-20 hidden 2xl:block text-sm text-muted-foreground">
+      <div className="w-16 hidden 2xl:block text-xs text-muted-foreground">
         {experience}
+      </div>
+
+      <div className="w-[140px] hidden lg:block min-w-0" onClick={(e) => e.stopPropagation()}>
+        {(talent.recruiter_notes != null && talent.recruiter_notes !== '') ? (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground truncate cursor-default">
+                  <MessageSquare className="h-3 w-3 shrink-0" />
+                  {talent.recruiter_notes.length <= COMMENTS_PREVIEW_LEN
+                    ? talent.recruiter_notes
+                    : `${talent.recruiter_notes.slice(0, COMMENTS_PREVIEW_LEN)}…`}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap text-left text-xs">
+                {talent.recruiter_notes}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span className="text-xs text-muted-foreground/70 italic">—</span>
+        )}
       </div>
 
       <div className="w-[140px] hidden lg:block" onClick={(e) => e.stopPropagation()}>
         <Select
-          value={talent.recruiter_status || 'new'}
-          onValueChange={(value) => updateStatus.mutate(value)}
+          value={(normalizeStatusForDisplay(talent.recruiter_status) || 'new') as string}
+          onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
           disabled={updateStatus.isPending}
         >
           <SelectTrigger className="h-8 text-xs w-full bg-white/5 border-white/10" onClick={(e) => e.stopPropagation()}>
@@ -162,7 +189,7 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-24 hidden 2xl:block text-sm text-muted-foreground whitespace-nowrap text-right">
+      <div className="w-20 hidden 2xl:block text-xs text-muted-foreground whitespace-nowrap text-right">
         {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
       </div>
 

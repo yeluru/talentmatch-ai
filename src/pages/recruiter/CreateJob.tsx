@@ -20,7 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Wand2, X, Loader2 } from 'lucide-react';
+import { Sparkles, Wand2, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function CreateJob() {
@@ -232,38 +232,24 @@ export default function CreateJob() {
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-lg -ml-2 text-muted-foreground hover:text-recruiter hover:bg-recruiter/5">
-                <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
-              </Button>
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
-                    <Sparkles className="h-5 w-5" strokeWidth={1.5} />
-                  </div>
-                  <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
-                    Post a New <span className="text-gradient-recruiter">Job</span>
-                  </h1>
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Sparkles className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <p className="text-lg text-muted-foreground font-sans">
-                  Create a job posting to attract top talent
-                </p>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  Post a New <span className="text-gradient-recruiter">Job</span>
+                </h1>
               </div>
+              <p className="text-lg text-muted-foreground font-sans">
+                Create a job posting to attract top talent
+              </p>
             </div>
           </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto w-full">
-          <div className="space-y-6 pt-6 pb-6 w-full max-w-5xl mx-auto">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold">Post a New Job</h1>
-            <p className="mt-1">
-              Create a job posting to attract top talent
-            </p>
-          </div>
-        </div>
-
+          <div className="space-y-6 pt-6 pb-6 w-full max-w-5xl">
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="border-b border-recruiter/10 bg-recruiter/5 px-6 pt-6 pb-2">
             <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">

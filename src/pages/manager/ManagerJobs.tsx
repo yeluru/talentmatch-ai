@@ -205,7 +205,7 @@ export default function ManagerJobs() {
                 <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
                   <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Jobs <span className="text-gradient-manager">Overview</span></h1>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground"><span className="text-gradient-manager">Jobs</span></h1>
               </div>
             <p className="text-lg text-muted-foreground font-sans">Your account manager role is active, but it isn’t linked to an organization yet.</p>
           </div>
@@ -232,19 +232,21 @@ export default function ManagerJobs() {
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
         <div className="shrink-0 flex flex-col gap-6">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
-                <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <Briefcase className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                  <span className="text-gradient-manager">Jobs</span>
+                </h1>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
-                Jobs <span className="text-gradient-manager">Overview</span>
-              </h1>
+              <p className="text-lg text-muted-foreground font-sans">
+                All jobs in your organization
+              </p>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">
-              All jobs in your organization
-            </p>
-            <div className="mt-4">
+            <div className="flex justify-end shrink-0">
               <Button asChild variant="default" className="bg-manager hover:bg-manager/90">
                 <Link to="/recruiter/jobs/new">
                   <Plus className="h-4 w-4 mr-2" strokeWidth={1.5} />

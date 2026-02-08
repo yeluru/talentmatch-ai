@@ -103,7 +103,7 @@ export default function JobApplicants() {
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ applicationId, status }: { applicationId: string; status: string }) => {
+    mutationFn: async ({ applicationId, status, outcome }: { applicationId: string; status: string; outcome?: string | null }) => {
       // Get application details for notification
       const { data: app } = await supabase
         .from('applications')
@@ -111,9 +111,12 @@ export default function JobApplicants() {
         .eq('id', applicationId)
         .single();
 
+      const payload: { status: string; outcome?: string | null } = { status };
+      if (status === 'final_update' && outcome !== undefined) payload.outcome = outcome;
+
       const { error } = await supabase
         .from('applications')
-        .update({ status })
+        .update(payload)
         .eq('id', applicationId);
       if (error) throw error;
 
@@ -320,21 +323,13 @@ export default function JobApplicants() {
                       <DropdownMenuItem
                         onClick={() => updateStatus.mutate({
                           applicationId: application.id,
-                          status: 'interviewing'
-                        })}
-                      >
-                        <Check className="h-4 w-4 mr-2" strokeWidth={1.5} />
-                        Move to Interviewing
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => updateStatus.mutate({
-                          applicationId: application.id,
-                          status: 'rejected'
+                          status: 'final_update',
+                          outcome: 'client_rejected',
                         })}
                         className="text-red-500 focus:text-red-600"
                       >
                         <X className="h-4 w-4 mr-2" strokeWidth={1.5} />
-                        Reject
+                        Reject (record outcome)
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

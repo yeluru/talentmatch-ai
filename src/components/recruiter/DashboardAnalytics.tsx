@@ -37,12 +37,23 @@ interface ConversionData {
 }
 
 const PIPELINE_COLORS: Record<string, string> = {
+  outreach: 'hsl(var(--chart-1))',
   applied: 'hsl(var(--chart-1))',
-  screening: 'hsl(var(--chart-2))',
-  interviewing: 'hsl(var(--chart-3))',
-  offered: 'hsl(var(--chart-4))',
-  hired: 'hsl(var(--chart-5))',
-  rejected: 'hsl(var(--destructive))',
+  rtr_rate: 'hsl(var(--chart-2))',
+  document_check: 'hsl(var(--chart-2))',
+  screening: 'hsl(var(--chart-3))',
+  submission: 'hsl(var(--chart-3))',
+  final_update: 'hsl(var(--chart-4))',
+};
+
+const STAGE_LABEL: Record<string, string> = {
+  outreach: 'Engaged',
+  applied: 'Applied',
+  rtr_rate: 'RTR & rate',
+  document_check: 'Document check',
+  screening: 'Screening',
+  submission: 'Submission',
+  final_update: 'Outcome',
 };
 
 export function DashboardAnalytics() {
@@ -122,22 +133,21 @@ export function DashboardAnalytics() {
       });
 
       const pipeline: PipelineStage[] = Object.entries(statusCounts)
-        .filter(([name]) => name !== 'rejected')
         .map(([name, value]) => ({
-          name: name.charAt(0).toUpperCase() + name.slice(1),
+          name: STAGE_LABEL[name] || name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
           value,
           color: PIPELINE_COLORS[name] || 'hsl(var(--muted))',
         }));
 
       setPipelineData(pipeline);
 
-      // Calculate conversion rates
+      // Calculate conversion rates (recruiter pipeline stages only)
       const total = applications.length;
-      const stages = ['applied', 'screening', 'interviewing', 'offered', 'hired'];
+      const stages = ['outreach', 'applied', 'rtr_rate', 'document_check', 'screening', 'submission', 'final_update'];
       const conversions: ConversionData[] = stages.map(stage => {
         const count = statusCounts[stage] || 0;
         return {
-          stage: stage.charAt(0).toUpperCase() + stage.slice(1),
+          stage: STAGE_LABEL[stage] || stage.replace(/_/g, ' '),
           count,
           rate: total > 0 ? Math.round((count / total) * 100) : 0,
         };

@@ -10,7 +10,13 @@ export async function getEdgeFunctionErrorMessage(error: unknown): Promise<strin
     if (ctx && typeof (ctx as Response).json === 'function') {
       try {
         const body = await (ctx as Response).json();
-        if (body && typeof body.error === 'string') return body.error;
+        if (body && typeof body === 'object') {
+          const err = typeof body.error === 'string' ? body.error : '';
+          const details = typeof (body as { details?: string }).details === 'string' ? (body as { details: string }).details : '';
+          if (details && err) return `${err}: ${details}`;
+          if (err) return err;
+          if (details) return details;
+        }
       } catch {
         // ignore parse errors
       }

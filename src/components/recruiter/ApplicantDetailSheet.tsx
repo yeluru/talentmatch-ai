@@ -68,6 +68,7 @@ interface ApplicationWithExtras {
     summary: string | null;
     years_of_experience: number | null;
     linkedin_url: string | null;
+    recruiter_notes: string | null;
   } | null;
   jobs: { id: string; title: string } | null;
   resumes: { id: string; file_name: string; file_url: string } | null;
@@ -103,7 +104,8 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
             headline,
             summary,
             years_of_experience,
-            linkedin_url
+            linkedin_url,
+            recruiter_notes
           ),
           jobs (
             id,
@@ -141,26 +143,37 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
     enabled: !!applicationId && open,
   });
 
-  // Set notes and rating when application loads / changes
+  // Set notes from candidate profile (shared comments) and rating when application loads / changes
   useEffect(() => {
     if (!application) return;
-    setNotes(application.recruiter_notes || '');
+    setNotes(application.candidate_profiles?.recruiter_notes ?? application.recruiter_notes ?? '');
     setRating(application.recruiter_rating || 0);
   }, [application]);
 
   const updateApplication = useMutation({
-    mutationFn: async (updates: { status?: string; recruiter_notes?: string; recruiter_rating?: number }) => {
+    mutationFn: async (updates: { status?: string; recruiter_notes?: string; recruiter_rating?: number; candidate_id?: string }) => {
       if (!applicationId) return;
-      const { error } = await supabase
-        .from('applications')
-        .update(updates)
-        .eq('id', applicationId);
-      if (error) throw error;
+      const appUpdates: Record<string, unknown> = {};
+      if (updates.status !== undefined) appUpdates.status = updates.status;
+      if (updates.recruiter_rating !== undefined) appUpdates.recruiter_rating = updates.recruiter_rating;
+      if (Object.keys(appUpdates).length > 0) {
+        const { error } = await supabase.from('applications').update(appUpdates).eq('id', applicationId);
+        if (error) throw error;
+      }
+      if (updates.recruiter_notes !== undefined && updates.candidate_id) {
+        const { error } = await supabase.rpc('update_candidate_recruiter_notes', {
+          _candidate_id: updates.candidate_id,
+          _notes: updates.recruiter_notes ?? '',
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['application-detail', applicationId] });
       queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       toast.success('Application updated');
     },
     onError: () => {
@@ -173,7 +186,11 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
   };
 
   const handleSaveNotes = () => {
-    updateApplication.mutate({ recruiter_notes: notes, recruiter_rating: rating });
+    updateApplication.mutate({
+      recruiter_notes: notes,
+      recruiter_rating: rating,
+      candidate_id: application?.candidate_id,
+    });
   };
 
   const handleDownloadResume = async () => {
@@ -415,13 +432,14 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
           </div>
         </div>
 
-        {/* Notes */}
+        {/* Comments (same as pipeline & Talent Pool) */}
         <div>
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Private Notes</Label>
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Comments</Label>
+          <p className="text-xs text-muted-foreground mb-2">Shown on pipeline cards and in Talent Pool. Add or update notes anytime.</p>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add your notes about this candidate..."
+            placeholder="Add or update notes about this candidate…"
             rows={4}
             className="bg-black/20 border-white/10 focus:border-primary/50 text-sm resize-none"
           />
@@ -434,7 +452,7 @@ export function ApplicantDetailSheet({ applicationId, open, onOpenChange }: Appl
             {updateApplication.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            Save Notes
+            Save Comments
           </Button>
         </div>
       </div>

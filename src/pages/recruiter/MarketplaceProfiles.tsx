@@ -35,7 +35,7 @@ type ProfileRow = {
 };
 
 const STAGES = [
-  { value: 'outreach', label: 'Outreach' },
+  { value: 'outreach', label: 'Engaged' },
   { value: 'rate_confirmation', label: 'Rate confirmation' },
   { value: 'right_to_represent', label: 'Right to represent' },
   { value: 'screening', label: 'Screening' },
@@ -200,11 +200,23 @@ export default function MarketplaceProfiles() {
         { onConflict: 'organization_id,candidate_id,job_id' }
       );
       if (engErr) throw engErr;
+
+      const { error: appErr } = await supabase.from('applications').upsert(
+        {
+          job_id: jobId,
+          candidate_id: candidateId,
+          status: 'outreach',
+          applied_at: new Date().toISOString(),
+        } as any,
+        { onConflict: 'job_id,candidate_id', ignoreDuplicates: true }
+      );
+      if (appErr) throw appErr;
     },
     onSuccess: async () => {
       toast.success('Engagement started');
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements', organizationId] });
-      navigate('/recruiter/engagements');
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
+      navigate('/recruiter/pipeline');
     },
     onError: (err: any) => {
       console.error(err);

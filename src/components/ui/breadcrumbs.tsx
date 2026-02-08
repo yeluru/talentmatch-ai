@@ -35,12 +35,13 @@ const routeLabels: Record<string, string> = {
   'outreach': 'Outreach',
   'insights': 'Insights',
   'new': 'Create New',
-  'candidates': 'My Applicants',
+  'candidates': 'My Candidates',
   'ai-matching': 'AI Matching',
   'edit': 'Edit',
   'applicants': 'Applicants',
   'jobs': 'Jobs',
-  
+  'pipeline': 'Candidates Pipeline',
+
   // Manager routes
   'analytics': 'Analytics',
   'team': 'Team',
@@ -75,7 +76,7 @@ export function Breadcrumbs() {
     return null;
   }
 
-  // When AM or Org Admin is viewing a recruiter URL (e.g. Open Engagement Pipeline), Home should go to their dashboard, not recruiter
+  // When AM or Org Admin is viewing a recruiter URL (e.g. Open Pipeline), Home should go to their dashboard, not recruiter
   const homeLabel =
     currentRole === 'account_manager' && roleKey === 'recruiter'
       ? 'Manager'

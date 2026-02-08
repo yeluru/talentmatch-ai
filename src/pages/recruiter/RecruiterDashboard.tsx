@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,6 @@ import { StatCard } from '@/components/ui/stat-card';
 import {
   Briefcase,
   Users,
-  Sparkles,
   Clock,
   PlusCircle,
   ArrowRight,
@@ -18,12 +17,9 @@ import {
   GitBranch,
   CalendarDays,
   Layers,
-  Search,
-  Megaphone,
-  Upload,
-  Globe,
-  TrendingUp,
   LayoutDashboard,
+  Bot,
+  ListChecks,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,9 +31,6 @@ interface RecruiterStats {
   openJobs: number;
   totalApplications: number;
   totalCandidates: number;
-  sourcedResumeUploads: number;
-  sourcedGoogleXray: number;
-  sourcedWebSearch: number;
 }
 
 interface InviteCode {
@@ -53,6 +46,39 @@ interface RecentApplication {
   candidate_name: string;
   job_title: string;
   applied_at: string;
+  status?: string;
+}
+
+interface RecentJob {
+  id: string;
+  title: string;
+  status: string;
+}
+
+interface RecentTalent {
+  id: string;
+  full_name: string | null;
+  current_title: string | null;
+}
+
+interface RecentShortlist {
+  id: string;
+  name: string;
+  candidates_count: number;
+}
+
+interface UpcomingInterview {
+  id: string;
+  scheduled_at: string;
+  candidate_name: string;
+  job_title: string;
+}
+
+interface RecentAgent {
+  id: string;
+  name: string;
+  job_title: string | null;
+  last_run_at: string | null;
 }
 
 export default function RecruiterDashboard() {
@@ -64,12 +90,14 @@ export default function RecruiterDashboard() {
     openJobs: 0,
     totalApplications: 0,
     totalCandidates: 0,
-    sourcedResumeUploads: 0,
-    sourcedGoogleXray: 0,
-    sourcedWebSearch: 0,
   });
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [recentApplications, setRecentApplications] = useState<RecentApplication[]>([]);
+  const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
+  const [recentTalent, setRecentTalent] = useState<RecentTalent[]>([]);
+  const [recentShortlists, setRecentShortlists] = useState<RecentShortlist[]>([]);
+  const [upcomingInterviews, setUpcomingInterviews] = useState<UpcomingInterview[]>([]);
+  const [recentAgents, setRecentAgents] = useState<RecentAgent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingCode, setIsCreatingCode] = useState(false);
   const navigate = useNavigate();
@@ -89,12 +117,13 @@ export default function RecruiterDashboard() {
 
     try {
       // Fetch jobs (only this recruiter's when effectiveOwnerId is set)
-      let jobsQuery = supabase.from('jobs').select('id, status').eq('organization_id', orgId);
+      let jobsQuery = supabase.from('jobs').select('id, title, status, updated_at').eq('organization_id', orgId).order('updated_at', { ascending: false });
       if (effectiveOwnerId) jobsQuery = jobsQuery.eq('recruiter_id', effectiveOwnerId);
       const { data: jobs } = await jobsQuery;
 
       const openJobs = jobs?.filter(j => j.status === 'published').length || 0;
       const jobIds = jobs?.map(j => j.id) || [];
+      setRecentJobs((jobs || []).slice(0, 3).map(j => ({ id: j.id, title: j.title || 'Untitled', status: j.status || 'draft' })));
 
       // Fetch applications for org's jobs
       let totalApplications = 0;
@@ -109,11 +138,11 @@ export default function RecruiterDashboard() {
 
         totalApplications = appsCount || 0;
 
-        // Recent applications list
+        // Recent applications list (include status for pipeline block)
         const { data: applications } = await supabase
           .from('applications')
           .select(`
-            id, applied_at, candidate_id,
+            id, applied_at, candidate_id, status,
             jobs!inner(title),
             candidate_profiles(full_name, email)
           `)
@@ -134,6 +163,7 @@ export default function RecruiterDashboard() {
             candidate_name: name,
             job_title: (app.jobs as any)?.title || 'Job',
             applied_at: app.applied_at,
+            status: app.status || undefined,
           });
         });
 
@@ -165,35 +195,93 @@ export default function RecruiterDashboard() {
 
       setRecentApplications(appsList);
 
-      // Fetch candidates in org
+      // Fetch candidates in org (talent pool size) and 3 most recently linked
       const { data: links } = await supabase
         .from('candidate_org_links')
-        .select('candidate_id')
+        .select('candidate_id, created_at')
         .eq('organization_id', orgId)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
       const candidateIds = Array.from(new Set((links || []).map((l: any) => String(l.candidate_id)).filter(Boolean)));
+      const recentCandidateIds = (links || []).slice(0, 3).map((l: any) => l.candidate_id).filter(Boolean);
+      if (recentCandidateIds.length > 0) {
+        const { data: recentProfiles } = await supabase
+          .from('candidate_profiles')
+          .select('id, full_name, current_title')
+          .in('id', recentCandidateIds);
+        setRecentTalent((recentProfiles || []).map((p: any) => ({ id: p.id, full_name: p.full_name, current_title: p.current_title })));
+      } else {
+        setRecentTalent([]);
+      }
 
-      // Talent sourcing counters (distinct candidates by source)
-      const [resumeCount, googleCount, webCount] = await Promise.all([
-        supabase
-          .from('candidate_org_links')
-          .select('candidate_id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('status', 'active')
-          .eq('link_type', 'resume_upload'),
-        supabase
-          .from('candidate_org_links')
-          .select('candidate_id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('status', 'active')
-          .eq('link_type', 'google_xray'),
-        supabase
-          .from('candidate_org_links')
-          .select('candidate_id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('status', 'active')
-          .eq('link_type', 'web_search'),
-      ]);
+      // Shortlists (recent 3)
+      const { data: shortlistRows } = await supabase
+        .from('candidate_shortlists')
+        .select('id, name')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (shortlistRows?.length) {
+        const { data: sc } = await supabase.from('shortlist_candidates').select('shortlist_id').in('shortlist_id', shortlistRows.map((s: any) => s.id));
+        const countByShortlist = new Map<string, number>();
+        (sc || []).forEach((r: any) => countByShortlist.set(r.shortlist_id, (countByShortlist.get(r.shortlist_id) || 0) + 1));
+        setRecentShortlists(shortlistRows.map((s: any) => ({ id: s.id, name: s.name || 'Unnamed', candidates_count: countByShortlist.get(s.id) || 0 })));
+      } else {
+        setRecentShortlists([]);
+      }
+
+      // Upcoming interviews (next 3)
+      if (jobIds.length > 0) {
+        const { data: appIds } = await supabase.from('applications').select('id').in('job_id', jobIds);
+        const applicationIds = (appIds || []).map((a: any) => a.id).filter(Boolean);
+        if (applicationIds.length > 0) {
+          const { data: interviewRows } = await supabase
+            .from('interview_schedules')
+            .select('id, application_id, scheduled_at')
+            .in('application_id', applicationIds)
+            .eq('status', 'scheduled')
+            .gte('scheduled_at', new Date().toISOString())
+            .order('scheduled_at', { ascending: true })
+            .limit(3);
+          if (interviewRows?.length) {
+            const ids = interviewRows.map((r: any) => r.application_id).filter(Boolean);
+            const { data: appDetails } = await supabase
+              .from('applications')
+              .select('id, candidate_profiles(full_name, current_title), jobs(title)')
+              .in('id', ids);
+            const appMap = new Map((appDetails || []).map((a: any) => [a.id, a]));
+            setUpcomingInterviews(interviewRows.map((r: any) => {
+              const app = appMap.get(r.application_id) as any;
+              const cp = app?.candidate_profiles;
+              const name = cp?.full_name || cp?.current_title || 'Candidate';
+              const jobTitle = app?.jobs?.title || 'Job';
+              return { id: r.id, scheduled_at: r.scheduled_at, candidate_name: name, job_title: jobTitle };
+            }));
+          } else {
+            setUpcomingInterviews([]);
+          }
+        } else {
+          setUpcomingInterviews([]);
+        }
+      } else {
+        setUpcomingInterviews([]);
+      }
+
+      // AI agents (recent 3)
+      let agentsQuery = supabase
+        .from('ai_recruiting_agents')
+        .select('id, name, last_run_at, jobs(title)')
+        .eq('organization_id', orgId)
+        .order('last_run_at', { ascending: false, nullsFirst: false })
+        .limit(3);
+      if (effectiveOwnerId) agentsQuery = agentsQuery.eq('created_by', effectiveOwnerId);
+      const { data: agentRows } = await agentsQuery;
+      setRecentAgents((agentRows || []).map((a: any) => ({
+        id: a.id,
+        name: a.name || 'Unnamed',
+        job_title: a.jobs?.title ?? null,
+        last_run_at: a.last_run_at ?? null,
+      })));
 
       // Fetch invite codes
       const { data: codes } = await supabase
@@ -211,9 +299,6 @@ export default function RecruiterDashboard() {
         openJobs,
         totalApplications,
         totalCandidates: candidateIds.length || 0,
-        sourcedResumeUploads: resumeCount.count || 0,
-        sourcedGoogleXray: googleCount.count || 0,
-        sourcedWebSearch: webCount.count || 0,
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -266,99 +351,46 @@ export default function RecruiterDashboard() {
     });
   };
 
-  const recommendations = useMemo(() => {
-    const recs: Array<{ title: string; description: string; href: string; icon: any }> = [];
-    if (stats.openJobs === 0) {
-      recs.push({
-        title: 'Post your first job',
-        description: 'Create a job so candidates can apply and your pipeline starts flowing.',
-        href: '/recruiter/jobs/new',
-        icon: PlusCircle,
-      });
-    } else if (stats.totalApplications === 0) {
-      recs.push({
-        title: 'Share your job posting',
-        description: 'Publish and promote your job to start receiving applicants.',
-        href: '/recruiter/jobs',
-        icon: Megaphone,
-      });
-    } else {
-      recs.push({
-        title: 'Review new applicants',
-        description: 'Triage and move applicants into Screening or Interviewing.',
-        href: '/recruiter/candidates',
-        icon: ClipboardList,
-      });
-      recs.push({
-        title: 'Keep your pipeline moving',
-        description: 'Drag/drop candidates across stages to maintain momentum.',
-        href: '/recruiter/pipeline',
-        icon: GitBranch,
-      });
-    }
-
-    if (stats.totalCandidates === 0) {
-      recs.push({
-        title: 'Build your talent pool',
-        description: 'Invite or upload candidates so you can shortlist and match instantly.',
-        href: '/recruiter/talent-pool',
-        icon: Users,
-      });
-    } else {
-      recs.push({
-        title: 'Run matching against a job',
-        description: 'Rank your talent pool or applicants against a job in seconds.',
-        href: '/recruiter/ai-matching',
-        icon: Sparkles,
-      });
-    }
-
-    return recs.slice(0, 4);
-  }, [stats.openJobs, stats.totalApplications, stats.totalCandidates]);
-
-
-
-
-  const ActionCardPremium = ({
+  /** Big rectangle block: title, up to 3 recent rows, then "Go to X" button. */
+  const QuickActionBlock = ({
     title,
-    description,
     href,
     icon: Icon,
-    badge,
+    children,
+    emptyMessage,
   }: {
     title: string;
-    description: string;
     href: string;
     icon: any;
-    badge?: string;
+    children: React.ReactNode;
+    emptyMessage: string;
   }) => (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => navigate(href)}
-      className="rounded-xl border border-border bg-card p-5 cursor-pointer transition-all duration-300 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md group relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
-    >
-      <div className="flex items-start justify-between gap-3 relative z-10">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
-            <Icon className="h-5 w-5" strokeWidth={1.5} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="font-display font-semibold truncate group-hover:text-recruiter transition-colors">{title}</div>
-              {badge ? (
-                <Badge variant="secondary" className="bg-recruiter/20 text-recruiter border-recruiter/20 font-sans">
-                  {badge}
-                </Badge>
-              ) : null}
-            </div>
-            <div className="text-sm text-muted-foreground font-sans line-clamp-2 mt-1">{description}</div>
-          </div>
+    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col min-h-[200px]">
+      <div className="shrink-0 flex items-center gap-2 p-4 border-b border-border bg-muted/30">
+        <div className="h-9 w-9 rounded-lg bg-recruiter/10 text-recruiter border border-recruiter/20 flex items-center justify-center">
+          <Icon className="h-4 w-4" strokeWidth={1.5} />
         </div>
-        <ArrowRight className="h-4 w-4 mt-1 shrink-0 text-muted-foreground group-hover:text-recruiter transition-colors" strokeWidth={1.5} />
+        <h3 className="font-display font-semibold text-foreground">{title}</h3>
+      </div>
+      <div className="flex-1 p-4 flex flex-col gap-2 min-h-0">
+        {children}
+        {(!children || (Array.isArray(children) && (children as unknown[]).length === 0)) && (
+          <p className="text-sm text-muted-foreground font-sans py-2">{emptyMessage}</p>
+        )}
+      </div>
+      <div className="shrink-0 p-4 pt-0">
+        <Button variant="outline" size="sm" className="w-full rounded-lg border-recruiter/20 text-recruiter hover:bg-recruiter/10" asChild>
+          <Link to={href}>Go to {title} <ArrowRight className="ml-2 h-3.5 w-3.5" strokeWidth={1.5} /></Link>
+        </Button>
       </div>
     </div>
   );
+
+  const statusLabel = (s: string | undefined) => {
+    if (!s) return 'Applied';
+    const lower = s.toLowerCase().replace(/_/g, ' ');
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  };
 
   return (
     <DashboardLayout>
@@ -375,7 +407,7 @@ export default function RecruiterDashboard() {
                 </h1>
               </div>
               <p className="text-lg text-muted-foreground font-sans">
-                Overview of your hiring pipeline and sourcing activities.
+                Your open jobs, applicants, talent pool, and recent activity at a glance.
               </p>
             </div>
             <div className="flex gap-3 shrink-0">
@@ -412,93 +444,113 @@ export default function RecruiterDashboard() {
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Stats — what matters for daily work */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
-            title="Bulk Uploads"
-            value={stats.sourcedResumeUploads.toString()}
-            icon={Upload}
+            title="Open jobs"
+            value={stats.openJobs.toString()}
+            icon={Briefcase}
             iconColor="text-recruiter"
-            change="Total processed"
+            change="Published and accepting applications"
             changeType="neutral"
-            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20"
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20 cursor-pointer"
+            onClick={() => navigate('/recruiter/jobs')}
           />
           <StatCard
-            title="LinkedIn Imports"
-            value={stats.sourcedGoogleXray.toString()}
-            icon={Globe}
+            title="Applicants"
+            value={stats.totalApplications.toString()}
+            icon={ClipboardList}
             iconColor="text-recruiter"
-            change="X-Ray Search"
+            change="Across your jobs"
             changeType="neutral"
-            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20"
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20 cursor-pointer"
+            onClick={() => navigate('/recruiter/candidates')}
           />
           <StatCard
-            title="Web Imports"
-            value={stats.sourcedWebSearch.toString()}
-            icon={Search}
+            title="Talent pool"
+            value={stats.totalCandidates.toString()}
+            icon={Users}
             iconColor="text-recruiter"
-            change="Web Sourced"
+            change="Candidates in your org"
             changeType="neutral"
-            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20"
+            className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-recruiter/20 cursor-pointer"
+            onClick={() => navigate('/recruiter/talent-pool')}
           />
         </div>
 
-        {/* Quick Actions Grid */}
+        {/* Quick actions — 2 big blocks per row; each shows 3 recent rows + link */}
         <div className="space-y-4">
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
-                <Sparkles className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
-                Quick Actions
-              </h2>
-              <p className="text-sm text-muted-foreground font-sans">Jump into your most common workflows.</p>
-            </div>
-            <Button variant="ghost" size="sm" asChild className="rounded-lg text-recruiter hover:text-recruiter/80 hover:bg-recruiter/10 font-sans">
-              <Link to="/recruiter/insights">
-                View Insights <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} />
-              </Link>
-            </Button>
+          <div>
+            <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">
+              <ListChecks className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
+              Quick actions
+            </h2>
+            <p className="text-sm text-muted-foreground font-sans mt-1">Recent items and a link to each page.</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <ActionCardPremium
-              title="My Jobs"
-              description="Create and manage job postings."
-              href="/recruiter/jobs"
-              icon={Briefcase}
-              badge={stats.openJobs ? `${stats.openJobs} open` : undefined}
-            />
-            <ActionCardPremium
-              title="My Applicants"
-              description="Review applicants and update statuses."
-              href="/recruiter/candidates"
-              icon={ClipboardList}
-              badge={stats.totalApplications ? `${stats.totalApplications}` : undefined}
-            />
-            <ActionCardPremium
-              title="Candidate Pipeline"
-              description="Move candidates through stages."
-              href="/recruiter/pipeline"
-              icon={GitBranch}
-            />
-            <ActionCardPremium
-              title="Interview Schedule"
-              description="Manage upcoming interviews."
-              href="/recruiter/interviews"
-              icon={CalendarDays}
-            />
-            <ActionCardPremium
-              title="ATS Match Search"
-              description="Find best fits in your database."
-              href="/recruiter/ats-match-search"
-              icon={Search}
-            />
-            <ActionCardPremium
-              title="Shortlists"
-              description="Curated candidate lists."
-              href="/recruiter/shortlists"
-              icon={Layers}
-            />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <QuickActionBlock title="My Jobs" href="/recruiter/jobs" icon={Briefcase} emptyMessage="No jobs yet. Post one to get started.">
+              {recentJobs.slice(0, 3).map((j) => (
+                <div key={j.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/jobs')}>
+                  <p className="font-sans font-medium text-foreground truncate">{j.title}</p>
+                  <p className="text-xs text-muted-foreground font-sans capitalize">{j.status}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
+
+            <QuickActionBlock title="My Candidates" href="/recruiter/candidates" icon={ClipboardList} emptyMessage="No applicants yet. They’ll appear when candidates apply.">
+              {recentApplications.slice(0, 3).map((app) => (
+                <div key={app.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/candidates')}>
+                  <p className="font-sans font-medium text-foreground truncate">{app.candidate_name}</p>
+                  <p className="text-xs text-muted-foreground font-sans truncate">{app.job_title} · {formatDate(app.applied_at)}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
+
+            <QuickActionBlock title="Pipelines" href="/recruiter/pipeline" icon={GitBranch} emptyMessage="No pipeline activity yet. Move candidates in the pipeline.">
+              {recentApplications.slice(0, 3).map((app) => (
+                <div key={app.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/pipeline')}>
+                  <p className="font-sans font-medium text-foreground truncate">{app.candidate_name}</p>
+                  <p className="text-xs text-muted-foreground font-sans truncate">{app.job_title} · {statusLabel(app.status)}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
+
+            <QuickActionBlock title="Talent Pool" href="/recruiter/talent-pool" icon={Users} emptyMessage="Talent pool is empty. Upload resumes or add from Talent Search.">
+              {recentTalent.slice(0, 3).map((t) => (
+                <div key={t.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/talent-pool')}>
+                  <p className="font-sans font-medium text-foreground truncate">{t.full_name || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground font-sans truncate">{t.current_title || '—'}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
+
+            <QuickActionBlock title="Shortlists" href="/recruiter/shortlists" icon={Layers} emptyMessage="No shortlists yet. Create one from Shortlists.">
+              {recentShortlists.slice(0, 3).map((s) => (
+                <div key={s.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/shortlists')}>
+                  <p className="font-sans font-medium text-foreground truncate">{s.name}</p>
+                  <p className="text-xs text-muted-foreground font-sans">{s.candidates_count} candidate{s.candidates_count !== 1 ? 's' : ''}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
+
+            <QuickActionBlock title="Interview Schedule" href="/recruiter/interviews" icon={CalendarDays} emptyMessage="No upcoming interviews. Schedule from the Interviews page.">
+              {upcomingInterviews.slice(0, 3).map((i) => (
+                <div key={i.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/interviews')}>
+                  <p className="font-sans font-medium text-foreground truncate">{i.candidate_name}</p>
+                  <p className="text-xs text-muted-foreground font-sans truncate">{i.job_title} · {formatDate(i.scheduled_at)}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
+
+            <QuickActionBlock title="AI Agents" href="/recruiter/agents" icon={Bot} emptyMessage="No AI agents yet. Create one to match candidates to jobs.">
+              {recentAgents.slice(0, 3).map((a) => (
+                <div key={a.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/agents')}>
+                  <p className="font-sans font-medium text-foreground truncate">{a.name}</p>
+                  <p className="text-xs text-muted-foreground font-sans truncate">{a.job_title || 'No job linked'}{a.last_run_at ? ` · Ran ${formatDate(a.last_run_at)}` : ''}</p>
+                </div>
+              ))}
+            </QuickActionBlock>
           </div>
         </div>
 
@@ -513,9 +565,9 @@ export default function RecruiterDashboard() {
               <div className="flex flex-row items-center justify-between pb-4 border-b border-recruiter/10 bg-recruiter/5 -mx-6 px-6 -mt-6 mb-4 rounded-t-xl">
                 <div className="space-y-1">
                   <h3 className="text-base font-display font-medium flex items-center gap-2 text-foreground">
-                    Active Codes
+                    Invite codes
                   </h3>
-                  <p className="text-sm text-muted-foreground font-sans">Share these to invite talent.</p>
+                  <p className="text-sm text-muted-foreground font-sans">Share a code so candidates can sign up and apply to your jobs.</p>
                 </div>
                 <Button onClick={createInviteCode} disabled={isCreatingCode} size="sm" className="rounded-lg border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
                   {isCreatingCode ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} /> : <><Plus className="h-4 w-4 mr-1" strokeWidth={1.5} /> Generate</>}

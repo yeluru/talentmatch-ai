@@ -50,28 +50,16 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { normalizeStatusForDisplay, STAGE_READONLY_MESSAGE, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 import { openResumeInNewTab } from '@/lib/resumeLinks';
+
+const STATUS_OPTIONS = TALENT_POOL_STAGE_OPTIONS;
 
 interface TalentDetailSheetProps {
   talentId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const STATUS_OPTIONS = TALENT_POOL_STATUS_OPTIONS.map((s) => ({
-  ...s,
-  variant:
-    s.value === 'rejected'
-      ? ('destructive' as const)
-      : s.value === 'contacted'
-        ? ('info' as const)
-        : s.value === 'interviewing' || s.value === 'screening'
-          ? ('warning' as const)
-          : s.value === 'offered' || s.value === 'hired'
-            ? ('success' as const)
-            : ('default' as const),
-}));
 
 interface TalentData {
   id: string;
@@ -371,22 +359,19 @@ function TalentDetailContent({
         <div>
           <h3 className="font-semibold mb-2 text-xs uppercase tracking-wider text-muted-foreground">Status</h3>
           <Select
-            value={talent.recruiter_status || 'new'}
-            onValueChange={onStatusChange}
+            value={(normalizeStatusForDisplay(talent.recruiter_status) || 'new') as string}
+            onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
             disabled={isStatusPending}
           >
             <SelectTrigger className="w-full sm:w-[200px] bg-white/5 border-white/10 text-foreground">
               <SelectValue>
-                <StatusBadge
-                  status={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.label || 'New'}
-                  variant={STATUS_OPTIONS.find(s => s.value === (talent.recruiter_status || 'new'))?.variant || 'default'}
-                />
+                <StatusBadge status={normalizeStatusForDisplay(talent.recruiter_status) || 'new'} />
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((status) => (
                 <SelectItem key={status.value} value={status.value}>
-                  <StatusBadge status={status.label} variant={status.variant} />
+                  <StatusBadge status={status.value} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -695,11 +680,14 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
         .update({ recruiter_status: newStatus })
         .eq('id', talentId!);
       if (error) throw error;
+      await supabase.from('applications').update({ status: newStatus }).eq('candidate_id', talentId!);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-detail', talentId] });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
       toast.success('Status updated');
     },
     onError: () => {
@@ -709,10 +697,10 @@ export function TalentDetailSheet({ talentId, open, onOpenChange }: TalentDetail
 
   const updateNotesMutation = useMutation({
     mutationFn: async (notes: string) => {
-      const { error } = await supabase
-        .from('candidate_profiles')
-        .update({ recruiter_notes: notes })
-        .eq('id', talentId!);
+      const { error } = await supabase.rpc('update_candidate_recruiter_notes', {
+        _candidate_id: talentId!,
+        _notes: notes ?? '',
+      });
       if (error) throw error;
     },
     onSuccess: () => {

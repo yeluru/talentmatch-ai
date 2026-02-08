@@ -50,19 +50,9 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { APPLICATION_STAGE_OPTIONS, STAGE_READONLY_MESSAGE } from '@/lib/statusOptions';
 
-const CANDIDATE_STATUSES = TALENT_POOL_STATUS_OPTIONS.map((s) => ({
-  ...s,
-  variant:
-    s.value === 'rejected'
-      ? ('destructive' as const)
-      : s.value === 'contacted'
-        ? ('secondary' as const)
-        : s.value === 'new' || s.value === 'withdrawn'
-          ? ('outline' as const)
-          : ('default' as const),
-}));
+const CANDIDATE_STATUSES = APPLICATION_STAGE_OPTIONS;
 
 interface ShortlistCandidate {
   id: string;
@@ -127,10 +117,10 @@ export function ShortlistCandidateCard({
   // If so, sync it into candidate_profiles so Talent Pool shows it too.
   const syncLegacyNotesToProfile = useMutation({
     mutationFn: async (legacyNotes: string) => {
-      const { error } = await supabase
-        .from('candidate_profiles')
-        .update({ recruiter_notes: legacyNotes })
-        .eq('id', candidate.candidate_id);
+      const { error } = await supabase.rpc('update_candidate_recruiter_notes', {
+        _candidate_id: candidate.candidate_id,
+        _notes: legacyNotes ?? '',
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -151,14 +141,14 @@ export function ShortlistCandidateCard({
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
-      // Candidate-level status: keep candidate_profiles as source of truth...
       const { error: profileError } = await supabase
         .from('candidate_profiles')
         .update({ recruiter_status: newStatus })
         .eq('id', candidate.candidate_id);
       if (profileError) throw profileError;
 
-      // ...and mirror to shortlist rows so status sort + other screens stay consistent.
+      await supabase.from('applications').update({ status: newStatus }).eq('candidate_id', candidate.candidate_id);
+
       const { error: shortlistError, count: shortlistCount } = await supabase
         .from('shortlist_candidates')
         .update({ status: newStatus }, { count: 'exact' })
@@ -190,6 +180,8 @@ export function ShortlistCandidateCard({
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
       toast.success('Status updated');
     },
     onError: () => {
@@ -200,10 +192,10 @@ export function ShortlistCandidateCard({
   const updateProfileNotes = useMutation({
     mutationFn: async (newNotes: string) => {
       // Keep notes in candidate_profiles as the single source of truth.
-      const { error: profileError } = await supabase
-        .from('candidate_profiles')
-        .update({ recruiter_notes: newNotes })
-        .eq('id', candidate.candidate_id);
+      const { error: profileError } = await supabase.rpc('update_candidate_recruiter_notes', {
+        _candidate_id: candidate.candidate_id,
+        _notes: newNotes ?? '',
+      });
       if (profileError) throw profileError;
 
       // Also mirror into shortlist_candidates.notes so older UI/queries stay consistent.
@@ -253,8 +245,8 @@ export function ShortlistCandidateCard({
   };
 
   const statusValues = new Set(CANDIDATE_STATUSES.map((s) => s.value));
-  const rawStatus = candidate.candidate_profiles?.recruiter_status ?? candidate.status ?? 'new';
-  const currentStatus = statusValues.has(rawStatus) ? rawStatus : 'new';
+  const rawStatus = candidate.candidate_profiles?.recruiter_status ?? candidate.status ?? 'outreach';
+  const currentStatus = statusValues.has(rawStatus) ? rawStatus : 'outreach';
   const otherShortlists = shortlists?.filter(s => s.id !== selectedShortlistId) || [];
 
   const handleSwipeEmail = () => {
@@ -313,7 +305,7 @@ export function ShortlistCandidateCard({
           <div className={`flex items-center gap-2 shrink-0 ${isMobile ? 'w-full justify-between' : ''}`}>
             <Select
               value={currentStatus}
-              onValueChange={(value) => updateStatus.mutate(value)}
+              onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
               disabled={updateStatus.isPending}
             >
               <SelectTrigger className="w-[130px] h-8">

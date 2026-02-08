@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export interface UploadResult {
   fileName: string;
-  status: 'pending' | 'parsing' | 'importing' | 'done' | 'error';
+  status: 'pending' | 'parsing' | 'importing' | 'done' | 'error' | 'cancelled';
   error?: string;
   note?: string;
   parsed?: {

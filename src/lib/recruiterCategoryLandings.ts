@@ -45,72 +45,33 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
       {
         title: 'Talent Pool',
         description:
-          'Your central hub for every candidate in your organization. Add people from sourcing, imports, or applications; group them by role or campaign; and run bulk actions. Use filters by skills, location, and status so you can quickly build shortlists and move candidates into jobs.',
+          'Your central hub for every candidate in your organization. Add people via the Upload button on this page (resumes), from applications, or from Talent Search; group them by role or campaign; filter by skills, location, and stage. New candidates show as New until you start an engagement.',
         details: [
           'Filter and search by skills, location, status, and source',
-          'Bulk tag, move between groups, and export for hiring managers',
-          'View full profiles, match scores, and activity in one place',
+          'Upload resumes in-page: select files, see progress, Cancel or Dismiss',
+          'View full profiles, match scores, and activity; add to shortlists or start engagement',
         ],
         href: '/recruiter/talent-pool',
         icon: Users,
         image: IMG.talent,
       },
       {
-        title: 'Bulk Upload Profiles',
-        description:
-          'Upload resume files (PDF, DOC, DOCX, TXT) to parse, score, and import candidates in bulk. Resumes are parsed for skills, experience, and contact info; you get quality scores and duplicate detection. Use this for application batches or one-off imports.',
-        details: [
-          'Drag-and-drop or select multiple files at once',
-          'Auto-parse skills, experience, and contact info',
-          'Quality score and duplicate detection before import',
-        ],
-        href: '/recruiter/talent-search/uploads',
-        icon: Upload,
-        image: IMG.upload,
-      },
-      {
-        title: 'ATS Match Search',
-        description:
-          'Search your ATS by skills, experience, and job criteria. Get AI-ranked match scores so you can see who fits each role best. One-click import into shortlists or talent pool keeps your workflow fast when filling multiple positions.',
-        details: [
-          'Search by skills, job titles, experience level, and requirements',
-          'See AI-ranked match scores and short reasons for each match',
-          'Import matches into shortlists or talent pool in one click',
-        ],
-        href: '/recruiter/ats-match-search',
-        icon: Search,
-        image: IMG.search,
-      },
-      {
         title: 'Shortlists',
         description:
-          'Build and maintain shortlists for specific roles or hiring managers. Add candidates from talent pool or ATS search, share lists for feedback, and track stage and notes. Move people from applied through to hired in one place.',
+          'Build and maintain shortlists for specific roles or hiring managers. Add candidates from Talent Pool or Talent Search, share lists for feedback, and track stage and notes.',
         details: [
           'Create shortlists per job, campaign, or hiring manager',
           'Share with hiring managers and capture feedback in one place',
-          'Track stage (e.g. screen, interview, offer) and add notes',
+          'Track stage and add notes; start engagement from a shortlist',
         ],
         href: '/recruiter/shortlists',
         icon: ListChecks,
         image: IMG.shortlist,
       },
       {
-        title: 'Marketplace Profiles',
-        description:
-          'Browse pre-vetted candidate profiles from the marketplace. Filter by skills, experience, and availability; compare fit for your roles; and add the best candidates to your talent pool or shortlists without re-entering data.',
-        details: [
-          'Browse and filter by skills, experience, and availability',
-          'Compare profiles and fit against your open roles',
-          'Import into talent pool or shortlists with one click',
-        ],
-        href: '/recruiter/marketplace',
-        icon: Search,
-        image: IMG.marketplace,
-      },
-      {
         title: 'Talent Search',
         description:
-          'Find candidates on the web and LinkedIn. Use Web Search for broad discovery, Basic Search (Google X-ray) for LinkedIn profiles, or Deep Search (Serp API) for paginated LinkedIn results. Enrich and import profiles into your talent pool or shortlists.',
+          'Find candidates on the web and LinkedIn. Use Web Search for broad discovery, Basic Search (Google X-ray) for LinkedIn profiles, or Deep Search (Serp API) for paginated results. Enrich and import profiles into your talent pool or shortlists.',
         details: [
           'Web Search for broad web and profile discovery',
           'Basic Search: Google X-ray for LinkedIn profiles',
@@ -120,33 +81,20 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
         icon: Search,
         image: IMG.search,
       },
-      {
-        title: 'API Integration',
-        description:
-          'Import candidates programmatically via our API. Sync from your ATS or job boards, run bulk imports, and build custom sourcing workflows. Webhooks let you react to events and keep systems in sync.',
-        details: [
-          'REST API for candidate create, update, and bulk import',
-          'Sync from ATS, job boards, or internal tools',
-          'Webhooks for events and automation',
-        ],
-        href: '/recruiter/talent-search/api',
-        icon: Sparkles,
-        image: IMG.api,
-      },
     ],
   },
   Jobs: {
     title: 'Jobs',
-    description: 'Manage job postings, applicants, and AI-powered matching.',
+    description: 'Manage job postings and applicants.',
     blocks: [
       {
         title: 'My Jobs',
         description:
-          'View and manage all your job postings in one place. See status (draft, published, closed), applicant counts, and quick links to edit, view applicants, or run AI matching. Keep roles organized and fill them faster.',
+          'View and manage all your job postings in one place. See status (draft, published, closed), applicant counts, and quick links to edit or view applicants. Keep roles organized and fill them faster.',
         details: [
           'See all jobs with status, applicant counts, and last activity',
           'Edit title, description, requirements, and visibility',
-          'Open applicants pipeline or AI matching per job',
+          'Open applicants or pipeline per job',
         ],
         href: '/recruiter/jobs',
         icon: Briefcase,
@@ -155,10 +103,10 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
       {
         title: 'Post a Job',
         description:
-          'Create a new job posting with title, description, location, and requirements. Set visibility and application options, then publish immediately or save as draft. New roles appear in My Jobs and can use AI matching.',
+          'Create a new job posting with title, description, location, and requirements. Paste a job blurb to auto-fill or enter manually. Set visibility, then publish or save as draft. New roles appear in My Jobs.',
         details: [
-          'Add title, description, location, and requirements',
-          'Set visibility and application options',
+          'Paste & Auto-Fill or Manual entry',
+          'Add title, description, location, job type, experience, skills',
           'Publish or save as draft',
         ],
         href: '/recruiter/jobs/new',
@@ -168,28 +116,15 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
       {
         title: 'My Applicants',
         description:
-          'See every applicant across your jobs in one list. Filter by job, status, or stage; move candidates through pipeline stages; and use bulk actions or export. Coordinate with hiring managers without switching tools.',
+          'See every applicant across your jobs in one list (My Candidates page). Filter by job or status, search by name or title; open a row for resume, timeline, and status. Update status or add notes.',
         details: [
-          'Filter by job, status, and pipeline stage',
-          'Move candidates through stages and add notes',
-          'Bulk actions and export for hiring managers',
+          'Filter by job and status; search by name or title',
+          'Click a row to open detail sheet (resume, timeline, status)',
+          'Update status or add notes; changes save automatically',
         ],
         href: '/recruiter/candidates',
         icon: Users,
         image: IMG.applicants,
-      },
-      {
-        title: 'AI Matching',
-        description:
-          'Get AI-ranked candidate recommendations for each job. See match scores and short reasons (skills, experience). Shortlist the best fits and add them to the pipeline in one click so you spend less time screening.',
-        details: [
-          'AI-ranked match scores and reasons per job',
-          'See why candidates match (skills, experience)',
-          'Shortlist and add to pipeline in one click',
-        ],
-        href: '/recruiter/ai-matching',
-        icon: Sparkles,
-        image: IMG.aiMatch,
       },
     ],
   },
@@ -198,30 +133,17 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
     description: 'Track applications, engagement, and interviews in one place.',
     blocks: [
       {
-        title: 'Applications Pipeline',
+        title: 'Pipelines',
         description:
-          'Move candidate applications through stages from applied to hired. Use a Kanban-style board to drag-and-drop or bulk-update stages. See funnel metrics and where candidates drop off so you can fix bottlenecks.',
+          'One pipeline for all candidates: applicants (from job page) and people you engage (from talent pool). Candidates start at New until you start engagement, then Applied/Engaged → RTR & rate → Document check → Screening → Submission → Outcome. Kanban-style board with drag-and-drop.',
         details: [
-          'Kanban-style stages (e.g. Applied → Screen → Interview → Offer)',
-          'Drag-and-drop and bulk stage updates',
-          'Funnel metrics and stage conversion',
+          'Stages: Applied/Engaged → RTR & rate → Document check → Screening → Submission → Outcome',
+          'Drag-and-drop and stage updates; filter by job',
+          'Applicants and engaged candidates in one view',
         ],
         href: '/recruiter/pipeline',
         icon: ListChecks,
         image: IMG.pipeline,
-      },
-      {
-        title: 'Engagement Pipeline',
-        description:
-          'Track outreach and engagement with candidates. See who you’ve contacted, response status, and follow-ups. Keep engagement history in one place.',
-        details: [
-          'Track outreach and response status',
-          'Schedule and log follow-ups',
-          'View engagement history per candidate',
-        ],
-        href: '/recruiter/engagements',
-        icon: ListChecks,
-        image: IMG.engagement,
       },
       {
         title: 'Interviews',
@@ -310,12 +232,10 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
   },
 };
 
-/** Base path for each category landing (for sidebar links). */
+/** Base path for each category landing (for sidebar links). Only categories that appear in the recruiter nav are linked. */
 export const CATEGORY_LANDING_HREFS: Record<string, string> = {
   'TALENT MANAGEMENT': '/recruiter/talent-management',
   Jobs: '/recruiter/jobs-home',
   Pipelines: '/recruiter/pipelines',
-  Communications: '/recruiter/communications',
-  Insights: '/recruiter/insights-home',
   Automation: '/recruiter/automation-home',
 };

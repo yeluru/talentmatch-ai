@@ -16,6 +16,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronDown, ChevronRight, MapPin, Briefcase, Users, MessageSquare, Trash2, Send, ListPlus } from 'lucide-react';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { TalentPoolRow } from './TalentPoolRow';
@@ -23,9 +24,10 @@ import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TALENT_POOL_STATUS_OPTIONS } from '@/lib/statusOptions';
+import { normalizeStatusForDisplay, STAGE_READONLY_MESSAGE, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 
-const CANDIDATE_STATUSES = TALENT_POOL_STATUS_OPTIONS;
+const CANDIDATE_STATUSES = TALENT_POOL_STAGE_OPTIONS;
+const COMMENTS_PREVIEW_LEN = 50;
 
 interface TalentProfile {
   id: string;
@@ -316,6 +318,7 @@ function GroupedProfileRow({
         .eq('id', profile.id);
       if (profileError) throw profileError;
 
+      await supabase.from('applications').update({ status: newStatus }).eq('candidate_id', profile.id);
       await supabase
         .from('shortlist_candidates')
         .update({ status: newStatus })
@@ -326,6 +329,8 @@ function GroupedProfileRow({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
       toast.success('Status updated');
     },
     onError: () => {
@@ -352,7 +357,7 @@ function GroupedProfileRow({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium truncate">
+            <span className="text-xs font-medium truncate">
               {profile.current_title || 'No title'}
             </span>
             {isLatest && (
@@ -439,13 +444,31 @@ function GroupedProfileRow({
             </Button>
           ) : null}
 
+          {(profile.recruiter_notes != null && profile.recruiter_notes !== '') ? (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="max-w-[120px] truncate text-xs text-muted-foreground flex items-center gap-1 cursor-default">
+                    <MessageSquare className="h-3 w-3 shrink-0" />
+                    {profile.recruiter_notes.length <= COMMENTS_PREVIEW_LEN
+                      ? profile.recruiter_notes
+                      : `${profile.recruiter_notes.slice(0, COMMENTS_PREVIEW_LEN)}…`}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap text-left text-xs">
+                  {profile.recruiter_notes}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
+
           <Select
-            value={profile.recruiter_status || 'new'}
-            onValueChange={(value) => updateStatus.mutate(value)}
+            value={(normalizeStatusForDisplay(profile.recruiter_status) || 'new') as string}
+            onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
             disabled={updateStatus.isPending}
           >
-            <SelectTrigger 
-              className="w-[100px] h-7 text-xs" 
+            <SelectTrigger
+              className="w-[100px] h-7 text-xs"
               onClick={(e) => e.stopPropagation()}
             >
               <SelectValue />
@@ -475,11 +498,11 @@ function GroupedProfileRow({
             </HoverCardTrigger>
             <HoverCardContent className="w-72" align="end">
               {profile.recruiter_notes ? (
-                <p className="text-smwhitespace-pre-wrap line-clamp-6">
+                <p className="text-xs whitespace-pre-wrap line-clamp-6">
                   {profile.recruiter_notes}
                 </p>
               ) : (
-                <p className="text-smitalic">No notes added</p>
+                <p className="text-xs italic">No notes added</p>
               )}
             </HoverCardContent>
           </HoverCard>

@@ -26,16 +26,20 @@ interface Application {
 }
 
 const ACTIVE_STAGE_SET = new Set<string>([
-  'applied', 'reviewing', 'screening', 'shortlisted', 'interviewing', 'offered',
+  'outreach', 'applied', 'rtr_rate', 'document_check', 'screening', 'submission', 'client_shortlist', 'client_interview', 'offered',
 ]);
 const CLOSED_STAGE_SET = new Set<string>(['hired', 'rejected', 'withdrawn']);
 
 function statusLeadLabel(status: string): string {
   const s = (status || 'applied').toLowerCase();
-  if (s === 'shortlisted') return 'Shortlisted';
-  if (s === 'interviewing') return 'Interview stage';
+  if (s === 'outreach') return 'Engaged';
+  if (s === 'document_check') return 'Document check';
+  if (s === 'rtr_rate') return 'RTR & rate';
+  if (s === 'submission') return 'Submitted to client';
+  if (s === 'client_shortlist') return 'Client shortlist';
+  if (s === 'client_interview') return 'Client interview';
   if (s === 'offered') return 'Offer received';
-  if (s === 'reviewing' || s === 'screening') return 'In review';
+  if (s === 'screening') return 'Screening';
   if (s === 'hired') return 'Hired';
   if (s === 'rejected') return 'Not moving forward';
   if (s === 'withdrawn') return 'Withdrawn';

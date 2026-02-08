@@ -20,12 +20,14 @@ interface ApplicationTimelineProps {
 }
 
 const statusIcons: Record<string, React.ElementType> = {
+  outreach: Clock,
   applied: Clock,
-  reviewing: Clock,
-  reviewed: Clock,
+  document_check: Clock,
   screening: Clock,
-  shortlisted: CheckCircle2,
-  interviewing: Clock,
+  rtr_rate: Clock,
+  submission: CheckCircle2,
+  client_shortlist: CheckCircle2,
+  client_interview: Clock,
   offered: CheckCircle2,
   hired: CheckCircle2,
   rejected: XCircle,
@@ -33,12 +35,14 @@ const statusIcons: Record<string, React.ElementType> = {
 };
 
 const statusDotColors: Record<string, string> = {
+  outreach: 'bg-slate-500',
   applied: 'bg-blue-500',
-  reviewing: 'bg-blue-500',
-  reviewed: 'bg-blue-500',
+  document_check: 'bg-sky-500',
   screening: 'bg-yellow-500',
-  shortlisted: 'bg-green-500',
-  interviewing: 'bg-purple-500',
+  rtr_rate: 'bg-indigo-500',
+  submission: 'bg-purple-500',
+  client_shortlist: 'bg-violet-500',
+  client_interview: 'bg-orange-500',
   offered: 'bg-green-600',
   hired: 'bg-green-700',
   rejected: 'bg-red-500',

@@ -418,7 +418,7 @@ export default function AIAgents() {
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-6 pt-6 pb-6">
+          <div className="space-y-6 pb-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
@@ -436,33 +436,6 @@ export default function AIAgents() {
             Create Agent
           </Button>
         </div>
-
-        {/* Candidate Pool Status */}
-        <Card
-          className="border-dashed cursor-pointer hover:bg-muted/20 transition-colors"
-          onClick={() => navigate('/recruiter/talent-pool')}
-          role="button"
-        >
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Users className="h-5 w-5" />
-                <div>
-                  <p className="font-medium">Talent Pool</p>
-                  <p className="text-sm">
-                    {candidatesLoading ? 'Loading...' : `${candidates?.length || 0} candidates available for matching`}
-                  </p>
-                </div>
-              </div>
-              {!candidatesLoading && !candidates?.length && (
-                <Badge variant="destructive">No candidates</Badge>
-              )}
-              {!candidatesLoading && (candidates?.length || 0) > 0 && (
-                <Badge variant="default">{candidates?.length} ready to match</Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
         {!agents?.length ? (
           <EmptyState
