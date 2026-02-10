@@ -85,9 +85,11 @@ const DEFAULT_RTR_SUBJECT = (jobTitle: string) =>
 const DEFAULT_RTR_BODY = (candidateName: string, jobTitle: string, recruiterName: string) =>
   `Hi ${candidateName || 'there'},
 
-Please find attached the Right to Represent (RTR) form for ${jobTitle}.
+We're excited to represent you for the ${jobTitle} position!
 
-Please open the PDF, complete the remaining fields (address, last 4 of SSN, name, date, signature), sign it, and reply to this email with the signed document attached. This gives us your consent to represent you to the client at the hourly rate you confirmed in the RTR.
+Please review and electronically sign the Right to Represent (RTR) agreement using the button below. This document confirms your consent for us to represent you to the client at the hourly rate we discussed.
+
+The signing process takes just a few minutes - simply click the button, review the agreement, and add your electronic signature.
 
 Thanks,
 ${recruiterName || 'Recruiting team'}`;
@@ -1255,7 +1257,7 @@ export default function CandidatePipeline() {
                   setSendingRtr(true);
                   try {
                     const rateVal = (rtrFieldValues.rate ?? rtrRate).trim();
-                    const { error } = await invokeFunction('send-rtr-email', {
+                    const { data, error } = await invokeFunction('send-rtr-email', {
                       body: {
                         toEmail: rtrTo.trim(),
                         subject: rtrSubject.trim(),
@@ -1263,6 +1265,9 @@ export default function CandidatePipeline() {
                         rate: rateVal,
                         rtrFields: rtrFieldValues,
                         organizationId,
+                        candidateId: rtrPending.app.candidate_id,
+                        jobId: rtrPending.app.job_id,
+                        applicationId: rtrPending.app.id,
                       },
                     });
                     if (error) {
@@ -1281,7 +1286,10 @@ export default function CandidatePipeline() {
                       sessionStorage.removeItem(PIPELINE_OPEN_MODAL_KEY);
                     } catch { /* ignore */ }
                     setRtrPending(null);
-                    toast.success('RTR email sent and candidate moved to RTR & rate');
+                    const successMsg = data?.signing_url
+                      ? 'RTR sent! Candidate will receive signing link via email.'
+                      : 'RTR email sent and candidate moved to RTR & rate';
+                    toast.success(successMsg);
                   } catch (err: unknown) {
                     const message = err instanceof Error ? err.message : 'Failed to send RTR email or move candidate';
                     toast.error(message);

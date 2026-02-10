@@ -3,6 +3,7 @@ import { join, fromFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1";
+import { uploadToDocuSeal } from "./docuseal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,9 @@ type Body = {
   rate: string;
   rtrFields?: Record<string, string>;
   organizationId?: string;
+  candidateId?: string;
+  jobId?: string;
+  applicationId?: string;
 };
 
 /** Candidate PDF form field coords (pdf-lib: origin bottom-left, US Letter 612x792pt).
@@ -672,15 +676,29 @@ serve(async (req: Request) => {
 
     const rateFieldName = (Deno.env.get("RTR_RATE_FIELD_NAME") || "").trim() || "rate";
     const rtrFields = body.rtrFields && typeof body.rtrFields === "object" ? body.rtrFields : {};
+    const candidateId = body.candidateId ? String(body.candidateId).trim() : null;
+    const jobId = body.jobId ? String(body.jobId).trim() : null;
+    const applicationId = body.applicationId ? String(body.applicationId).trim() : null;
 
-    // Pipeline: DOCX template → merge recruiter values → convert to PDF → add fillable candidate fields.
+    // Pipeline: DOCX template → merge recruiter values → convert to PDF → add fillable candidate fields → upload to DocuSeal.
     let attachmentBytes: Uint8Array;
     const attachmentFilename = "RTR.pdf";
+    let docusealSubmission: { submissionId: string; signingUrl: string; templateId: string } | null = null;
+
     try {
       const rawDocx = await loadRtrDocxTemplate();
       const mergedDocx = await mergeDocxWithFields(rawDocx, rtrFields);
       const pdfBytes = await convertDocxToPdf(mergedDocx);
       attachmentBytes = await addFillableFieldsToPdf(pdfBytes);
+
+      // Upload to DocuSeal if API key is configured
+      const useDocuSeal = !!(Deno.env.get("DOCUSEAL_API_KEY") || "").trim();
+      if (useDocuSeal) {
+        const candidateName = rtrFields.candidate_name || "Candidate";
+        console.info("[send-rtr-email] Uploading to DocuSeal...");
+        docusealSubmission = await uploadToDocuSeal(attachmentBytes, toEmail, candidateName);
+        console.info("[send-rtr-email] DocuSeal submission created:", docusealSubmission.submissionId);
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return new Response(
@@ -692,9 +710,50 @@ serve(async (req: Request) => {
       );
     }
 
+    // Store RTR document record in database if DocuSeal was used
+    if (docusealSubmission && organizationId && candidateId) {
+      try {
+        const { error: insertError } = await svc.from("rtr_documents").insert({
+          organization_id: organizationId,
+          candidate_id: candidateId,
+          job_id: jobId,
+          application_id: applicationId,
+          docuseal_submission_id: docusealSubmission.submissionId,
+          docuseal_template_id: docusealSubmission.templateId,
+          signing_url: docusealSubmission.signingUrl,
+          rtr_fields: rtrFields,
+          status: "sent",
+          created_by: user.id,
+        });
+
+        if (insertError) {
+          console.error("[send-rtr-email] Failed to store RTR document:", insertError);
+          // Don't fail the request, just log the error
+        }
+      } catch (dbError) {
+        console.error("[send-rtr-email] Database error:", dbError);
+      }
+    }
+
+    // Build email HTML with DocuSeal signing link if available
+    const signingButton = docusealSubmission
+      ? `
+        <div style="margin: 24px 0;">
+          <a href="${docusealSubmission.signingUrl}"
+             style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:500;">
+            Sign RTR Document
+          </a>
+        </div>
+        <p style="color:#6b7280;font-size:14px;">
+          Click the button above to review and electronically sign your Right to Represent agreement.
+        </p>
+      `
+      : "";
+
     const html = `
       <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.5;">
         <p>${bodyText.replaceAll("\n", "<br/>")}</p>
+        ${signingButton}
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
         <p style="color:#6b7280;font-size:12px;">UltraHire</p>
       </div>
@@ -710,19 +769,25 @@ serve(async (req: Request) => {
     // Supabase Edge Functions block outbound SMTP (ports 25, 465, 587). Use Resend HTTP API when key is set.
     const resendApiKey = (Deno.env.get("RESEND_API_KEY") || "").trim();
     if (resendApiKey) {
+      // Only attach PDF if NOT using DocuSeal (DocuSeal provides signing link instead)
+      const emailPayload: any = {
+        from: fromEmail,
+        to: [toEmail],
+        subject,
+        html,
+      };
+
+      if (!docusealSubmission) {
+        emailPayload.attachments = [{ filename: attachmentFilename, content: bytesToBase64(attachmentBytes) }];
+      }
+
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${resendApiKey}`,
         },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [toEmail],
-          subject,
-          html,
-          attachments: [{ filename: attachmentFilename, content: bytesToBase64(attachmentBytes) }],
-        }),
+        body: JSON.stringify(emailPayload),
       });
       if (!res.ok) {
         const errText = await res.text();
@@ -732,8 +797,15 @@ serve(async (req: Request) => {
           { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+
+      const responseData: any = { ok: true, to: toEmail };
+      if (docusealSubmission) {
+        responseData.signing_url = docusealSubmission.signingUrl;
+        responseData.submission_id = docusealSubmission.submissionId;
+      }
+
       return new Response(
-        JSON.stringify({ ok: true, to: toEmail }),
+        JSON.stringify(responseData),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
