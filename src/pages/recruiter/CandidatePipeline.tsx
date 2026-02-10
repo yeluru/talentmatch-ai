@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
 import { getEdgeFunctionErrorMessage } from '@/lib/edgeFunctionError';
+import { invokeFunction } from '@/lib/invokeFunction';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, GripVertical, Users, Send, Calendar as CalendarIcon } from 'lucide-react';
@@ -19,6 +20,7 @@ import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { applicationStageColumnKey, FINAL_OUTCOME_OPTIONS, getFinalOutcomeLabel } from '@/lib/statusOptions';
+import { RTR_RECRUITER_FIELDS, getDefaultRtrFieldValue } from '@/lib/rtrFields';
 import { ApplicantDetailSheet } from '@/components/recruiter/ApplicantDetailSheet';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -176,6 +178,7 @@ export default function CandidatePipeline() {
   const [rtrSubject, setRtrSubject] = useState('');
   const [rtrBody, setRtrBody] = useState('');
   const [rtrRate, setRtrRate] = useState('');
+  const [rtrFieldValues, setRtrFieldValues] = useState<Record<string, string>>({});
   const [sendingRtr, setSendingRtr] = useState(false);
   const [screeningPending, setScreeningPending] = useState<{ app: Application } | null>(null);
   const [screeningDate, setScreeningDate] = useState<Date>();
@@ -221,12 +224,12 @@ export default function CandidatePipeline() {
     try {
       sessionStorage.setItem(
         PIPELINE_DRAFT_KEY('rtr', rtrPending.app.id),
-        JSON.stringify({ to: rtrTo, subject: rtrSubject, body: rtrBody, rate: rtrRate }),
+        JSON.stringify({ to: rtrTo, subject: rtrSubject, body: rtrBody, rate: rtrRate, rtrFields: rtrFieldValues }),
       );
     } catch {
       // ignore
     }
-  }, [rtrPending?.app.id, rtrTo, rtrSubject, rtrBody, rtrRate]);
+  }, [rtrPending?.app.id, rtrTo, rtrSubject, rtrBody, rtrRate, rtrFieldValues]);
 
   useEffect(() => {
     if (!screeningPending?.app.id) return;
@@ -411,11 +414,13 @@ export default function CandidatePipeline() {
       } else if (type === 'rtr') {
         const draftRaw = sessionStorage.getItem(PIPELINE_DRAFT_KEY('rtr', appId));
         if (draftRaw) {
-          const d = JSON.parse(draftRaw) as { to?: string; subject?: string; body?: string; rate?: string };
+          const d = JSON.parse(draftRaw) as { to?: string; subject?: string; body?: string; rate?: string; rtrFields?: Record<string, string> };
           if (d.to != null) setRtrTo(d.to);
           if (d.subject != null) setRtrSubject(d.subject);
           if (d.body != null) setRtrBody(d.body);
           if (d.rate != null) setRtrRate(d.rate);
+          if (d.rtrFields && typeof d.rtrFields === 'object') setRtrFieldValues(d.rtrFields);
+          else setRtrFieldValues({});
         } else {
           const email = app.candidate_profiles?.email?.trim() || '';
           const jobTitle = app.jobs?.title || 'this role';
@@ -425,6 +430,11 @@ export default function CandidatePipeline() {
           setRtrSubject(DEFAULT_RTR_SUBJECT(jobTitle));
           setRtrBody(DEFAULT_RTR_BODY(candidateName, jobTitle, recruiterName));
           setRtrRate('');
+          const defaults: Record<string, string> = {};
+          RTR_RECRUITER_FIELDS.forEach((f) => {
+            defaults[f.key] = getDefaultRtrFieldValue(f.key, { candidateName, jobTitle });
+          });
+          setRtrFieldValues(defaults);
         }
         setRtrPending({ app });
       } else if (type === 'screening') {
@@ -624,22 +634,34 @@ export default function CandidatePipeline() {
         try {
           const raw = sessionStorage.getItem(PIPELINE_DRAFT_KEY('rtr', app.id));
           if (raw) {
-            const d = JSON.parse(raw) as { to?: string; subject?: string; body?: string; rate?: string };
+            const d = JSON.parse(raw) as { to?: string; subject?: string; body?: string; rate?: string; rtrFields?: Record<string, string> };
             if (d.to != null) setRtrTo(d.to);
             if (d.subject != null) setRtrSubject(d.subject);
             if (d.body != null) setRtrBody(d.body);
             if (d.rate != null) setRtrRate(d.rate);
+            if (d.rtrFields && typeof d.rtrFields === 'object') setRtrFieldValues(d.rtrFields);
+            else setRtrFieldValues({});
           } else {
             setRtrTo(email);
             setRtrSubject(DEFAULT_RTR_SUBJECT(jobTitle));
             setRtrBody(DEFAULT_RTR_BODY(candidateName, jobTitle, recruiterName));
             setRtrRate('');
+            const defaults: Record<string, string> = {};
+            RTR_RECRUITER_FIELDS.forEach((f) => {
+              defaults[f.key] = getDefaultRtrFieldValue(f.key, { candidateName, jobTitle });
+            });
+            setRtrFieldValues(defaults);
           }
         } catch {
           setRtrTo(email);
           setRtrSubject(DEFAULT_RTR_SUBJECT(jobTitle));
           setRtrBody(DEFAULT_RTR_BODY(candidateName, jobTitle, recruiterName));
           setRtrRate('');
+          const defaults: Record<string, string> = {};
+          RTR_RECRUITER_FIELDS.forEach((f) => {
+            defaults[f.key] = getDefaultRtrFieldValue(f.key, { candidateName, jobTitle });
+          });
+          setRtrFieldValues(defaults);
         }
       }
       setRtrPending({ app });
@@ -1162,18 +1184,27 @@ export default function CandidatePipeline() {
           setRtrPending(null);
         }}
         title="Send RTR (Right to Represent)"
-        description="Enter the rate to fill in the RTR PDF. The filled PDF will be attached to the email. Candidate can complete and sign the form, then reply with the signed document."
+        description="Fill in the RTR form fields below. They will be merged into the template DOCX, converted to a fillable PDF (candidate can complete remaining fields), and attached to the email."
       >
         {rtrPending && (
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label>Rate (filled in PDF by recruiter)</Label>
-              <Input
-                value={rtrRate}
-                onChange={(e) => setRtrRate(e.target.value)}
-                className="font-sans"
-                placeholder="e.g. $65/hr or $120k"
-              />
+              <Label className="font-medium">RTR form fields (pre-filled in PDF)</Label>
+              <ScrollArea className="h-[220px] rounded-md border p-3">
+                <div className="space-y-3">
+                  {RTR_RECRUITER_FIELDS.map((f) => (
+                    <div key={f.key} className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                      <Input
+                        value={rtrFieldValues[f.key] ?? ''}
+                        onChange={(e) => setRtrFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        className="font-sans text-sm"
+                        placeholder={f.key === 'rate' ? 'e.g. $90 per hour' : f.label}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
             <div className="space-y-2">
               <Label>To</Label>
@@ -1218,17 +1249,19 @@ export default function CandidatePipeline() {
                 Cancel
               </Button>
               <Button
-                disabled={sendingRtr || !rtrTo.trim() || !rtrSubject.trim() || !rtrBody.trim() || !rtrRate.trim() || !organizationId}
+                disabled={sendingRtr || !rtrTo.trim() || !rtrSubject.trim() || !rtrBody.trim() || !(rtrFieldValues.rate ?? rtrRate).trim() || !organizationId}
                 onClick={async () => {
                   if (!rtrPending || !organizationId) return;
                   setSendingRtr(true);
                   try {
-                    const { error } = await supabase.functions.invoke('send-rtr-email', {
+                    const rateVal = (rtrFieldValues.rate ?? rtrRate).trim();
+                    const { error } = await invokeFunction('send-rtr-email', {
                       body: {
                         toEmail: rtrTo.trim(),
                         subject: rtrSubject.trim(),
                         body: rtrBody.trim(),
-                        rate: rtrRate.trim(),
+                        rate: rateVal,
+                        rtrFields: rtrFieldValues,
                         organizationId,
                       },
                     });

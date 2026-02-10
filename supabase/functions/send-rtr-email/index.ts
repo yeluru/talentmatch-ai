@@ -14,8 +14,42 @@ type Body = {
   subject: string;
   body: string;
   rate: string;
+  rtrFields?: Record<string, string>;
   organizationId?: string;
 };
+
+/** Candidate PDF form field coords (pdf-lib: origin bottom-left, US Letter 612x792pt).
+ *  These are the 5 fields the candidate fills after receiving the RTR PDF.
+ *  Coordinates derived from docs/Sneha_Ahi_RTR.pdf reference layout. */
+const RTR_CANDIDATE_FIELDS: { key: string; pdfFormName: string; pageIndex: number; x: number; y: number; width: number; height: number }[] = [
+  { key: "candidate_address",   pdfFormName: "candidate_address",   pageIndex: 0, x: 255, y: 627, width: 210, height: 15 },
+  { key: "candidate_signature", pdfFormName: "candidate_signature", pageIndex: 1, x: 270, y: 78,  width: 200, height: 15 },
+  { key: "printed_name",        pdfFormName: "printed_name",        pageIndex: 1, x: 190, y: 64,  width: 150, height: 15 },
+  { key: "ssn_last_four",       pdfFormName: "ssn_last_four",       pageIndex: 1, x: 462, y: 64,  width: 45,  height: 15 },
+  { key: "date",                pdfFormName: "date",                pageIndex: 1, x: 265, y: 50,  width: 120, height: 15 },
+];
+
+/**
+ * Ordered placeholder values for the 7 sequential [_______________________] (23-underscore)
+ * placeholders in the template. Position #3 (candidate_address) is null = skipped (candidate fills it).
+ * The position_title is handled separately (it uses [actual text] brackets, not underscores).
+ */
+function buildPlaceholderValues(rtrFields: Record<string, string>): (string | null)[] {
+  const get = (k: string) => (rtrFields[k] || "").trim();
+  const client = get("client");
+  const partner = get("client_partner");
+  const combinedClient = client && partner
+    ? `${client}'s partner client, ${partner}` : partner || client;
+  return [
+    get("sign_date"),                          // #1 — sign date
+    get("candidate_name") ? "[" + get("candidate_name") + "]" : "", // #2 — candidate name (keep brackets)
+    null,                                      // #3 — candidate address (SKIP, candidate fills)
+    get("subcontractor"),                      // #4 — subcontractor
+    combinedClient,                            // #5 — client + partner combined
+    get("client_location"),                    // #6 — client location
+    get("rate"),                               // #7 — rate
+  ];
+}
 
 function getEnvInt(name: string, fallback: number): number {
   const raw = Deno.env.get(name);
@@ -112,6 +146,406 @@ async function loadRtrTemplate(): Promise<Uint8Array> {
   );
 }
 
+/** Escape for XML text content. */
+function xmlEscape(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/** Escape a string for use inside a RegExp (literal match). */
+function regexEscape(s: string): string {
+  return s.replace(/[\\^$.|?*+()[\]{}]/g, "\\$&");
+}
+
+/** Ensure runs that contain replaced (recruiter-filled) values are bold and thus non-editable in the PDF.
+ *  Uses a non-backtracking rPr pattern to prevent matching across runs. */
+function ensureReplacedRunsBold(docXml: string, replacedValues: string[]): string {
+  // Safe rPr content pattern: matches to the FIRST </w:rPr> only (no backtracking past it).
+  // (?:[^<]|<(?!\/w:rPr>))* = any char that is not '<', or '<' not followed by '/w:rPr>'.
+  const safeRPr = "(?:[^<]|<(?!\\/w:rPr>))*";
+  for (const val of replacedValues) {
+    if (!val) continue;
+    const escaped = xmlEscape(val);
+    const re = new RegExp(
+      "(<w:r\\s[^>]*>)(\\s*)(?:<w:rPr>(" + safeRPr + ")</w:rPr>)?(\\s*)<w:t(?:\\s[^>]*)?>\\s*" + regexEscape(escaped) + "\\s*</w:t>\\s*</w:r>",
+      "g"
+    );
+    docXml = docXml.replace(re, (_match, open: string, s1: string, rPrContent: string | undefined, s2: string) => {
+      const rPr = rPrContent ?? "";
+      const hasBold = /<w:b(?:\s|\/|>)/.test(rPr);
+      const insert = hasBold ? "" : "<w:b/><w:bCs/>";
+      return open + s1 + "<w:rPr>" + rPr + insert + "</w:rPr>" + s2 + "<w:t>" + escaped + "</w:t></w:r>";
+    });
+  }
+  return docXml;
+}
+
+const PLACEHOLDER = "[_______________________]";
+
+/**
+ * Collapse split bracket runs into single runs.
+ *
+ * Word often splits [_______________________] across multiple <w:r> runs, e.g.:
+ *   Run A: <w:t>[</w:t>   Run B: <w:t>_____</w:t>   Run C: <w:t>]</w:t>
+ * It also splits text-in-brackets like [Middle Office Technical Consultant].
+ *
+ * This function walks runs sequentially. For each "[" run, it collects inner runs
+ * until a "]" run is found, then collapses them into a single run.
+ * - Underscore-only inner text: preserves original underscore count.
+ * - Letter inner text: preserves original text (e.g. position title).
+ * Only text-only runs (no drawings, pictures, etc.) are considered. O(n), zero backtracking.
+ */
+function normalizeSplitPlaceholders(docXml: string): string {
+  // Step 1: extract all <w:r>...</w:r> runs with positions and metadata.
+  const runRegex = /<w:r[\s>][\s\S]*?<\/w:r>/g;
+  type RunInfo = { start: number; end: number; full: string; text: string; isTextOnly: boolean };
+  const runs: RunInfo[] = [];
+  let rm: RegExpExecArray | null;
+  while ((rm = runRegex.exec(docXml)) !== null) {
+    const full = rm[0];
+    // Runs with drawings / pictures / fields are never part of a placeholder.
+    const hasNonText = /<w:drawing[\s>]/.test(full) || /<mc:AlternateContent[\s>]/.test(full)
+      || /<w:pict[\s>]/.test(full) || /<w:fldChar[\s>]/.test(full) || /<w:object[\s>]/.test(full);
+    const tMatch = full.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
+    const text = tMatch ? tMatch[1] : "";
+    runs.push({ start: rm.index, end: rm.index + full.length, full, text, isTextOnly: !hasNonText && !!tMatch });
+  }
+
+  // Safe rPr extraction from a single (already-bounded) run string.
+  const safeRPr = /^(<w:r[\s][^>]*>)(\s*<w:rPr>(?:[^<]|<(?!\/w:rPr>))*<\/w:rPr>)?/;
+
+  // Step 2: scan for split bracket sequences: "[" run, then inner runs, then "]" run.
+  const replacements: { start: number; end: number; replacement: string }[] = [];
+  let i = 0;
+  while (i < runs.length) {
+    if (!runs[i].isTextOnly || runs[i].text !== "[") { i++; continue; }
+    // Collect consecutive text-only inner runs until we hit "]" or a non-text run.
+    let j = i + 1;
+    let innerText = "";
+    while (j < runs.length && runs[j].isTextOnly && runs[j].text !== "]") {
+      innerText += runs[j].text;
+      j++;
+    }
+    // Must have inner content and a closing "]" run.
+    if (innerText.length > 0 && j < runs.length && runs[j].isTextOnly && runs[j].text === "]") {
+      const openMatch = runs[i].full.match(safeRPr);
+      if (openMatch) {
+        const collapsed = "[" + innerText + "]";
+        const replacement = (openMatch[1] || "") + (openMatch[2] || "")
+          + "<w:t>" + collapsed + "</w:t></w:r>";
+        replacements.push({ start: runs[i].start, end: runs[j].end, replacement });
+      }
+      i = j + 1;
+    } else {
+      i++;
+    }
+  }
+
+  // Step 3: apply replacements in reverse order so positions stay valid.
+  let result = docXml;
+  for (let k = replacements.length - 1; k >= 0; k--) {
+    const r = replacements[k];
+    result = result.substring(0, r.start) + r.replacement + result.substring(r.end);
+  }
+  return result;
+}
+
+/** Load DOCX template: bundled base64 first (works in sandbox), then URL, file paths, env base64. */
+async function loadRtrDocxTemplate(): Promise<Uint8Array> {
+  // Bundled template (same as PDF template_b64): always works in supabase functions serve sandbox
+  try {
+    const { RTR_DOCX_TEMPLATE_BASE64 } = await import("./docx_template_b64.ts");
+    if (RTR_DOCX_TEMPLATE_BASE64) {
+      console.info("[send-rtr-email] RTR DOCX template loaded from bundled docx_template_b64.ts");
+      return base64ToBytes(RTR_DOCX_TEMPLATE_BASE64);
+    }
+  } catch (e) {
+    console.warn("[send-rtr-email] Bundled DOCX not available:", (e as Error)?.message ?? e);
+  }
+  const url = (Deno.env.get("RTR_TEMPLATE_DOCX_URL") || "").trim();
+  if (url) {
+    const timeoutMs = Math.min(Number(Deno.env.get("RTR_TEMPLATE_FETCH_TIMEOUT_MS")) || 15000, 60000);
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`RTR DOCX template fetch failed: ${res.status}`);
+      return new Uint8Array(await res.arrayBuffer());
+    } finally {
+      clearTimeout(t);
+    }
+  }
+  const pathEnv = (Deno.env.get("RTR_TEMPLATE_DOCX_PATH") || "").trim();
+  const cwd = Deno.cwd();
+  let functionDir: string;
+  try {
+    functionDir = fromFileUrl(new URL(".", import.meta.url));
+  } catch {
+    functionDir = "";
+  }
+  const candidates: string[] = [
+    join(functionDir, "CompSciPrep_RTR_Template.docx"),
+    join(functionDir, "..", "..", "..", "docs", "CompSciPrep_RTR_Template.docx"),
+    join(cwd, "docs", "CompSciPrep_RTR_Template.docx"),
+    join(cwd, "supabase", "functions", "send-rtr-email", "CompSciPrep_RTR_Template.docx"),
+    join(cwd, "..", "..", "docs", "CompSciPrep_RTR_Template.docx"),
+  ];
+  if (pathEnv) {
+    candidates.push(pathEnv, join(cwd, pathEnv));
+    // Resolve pathEnv relative to function dir (e.g. docs/CompSciPrep... from project root)
+    if (functionDir) candidates.push(join(functionDir, "..", "..", "..", pathEnv));
+  }
+  let lastErr: unknown;
+  for (const p of candidates) {
+    try {
+      const bytes = await Deno.readFile(p);
+      console.info("[send-rtr-email] RTR DOCX template loaded from", p);
+      return bytes;
+    } catch (e) {
+      lastErr = e;
+      continue;
+    }
+  }
+  console.warn("[send-rtr-email] DOCX not found. cwd=", cwd, "functionDir=", functionDir, "lastErr=", lastErr);
+  const b64 = (Deno.env.get("RTR_TEMPLATE_DOCX_BASE64") || "").trim();
+  if (b64) {
+    try {
+      return base64ToBytes(b64);
+    } catch (e) {
+      console.error("RTR_TEMPLATE_DOCX_BASE64 decode error:", e);
+      throw new Error("Invalid RTR_TEMPLATE_DOCX_BASE64");
+    }
+  }
+  throw new Error(
+    "RTR DOCX template not found. Put CompSciPrep_RTR_Template.docx in supabase/functions/send-rtr-email/ or set RTR_TEMPLATE_DOCX_URL / RTR_TEMPLATE_DOCX_PATH / RTR_TEMPLATE_DOCX_BASE64."
+  );
+}
+
+/** Merge RTR values into DOCX; output is a valid DOCX (JSZip) so Word can open it. */
+async function mergeDocxWithFields(
+  docxBytes: Uint8Array,
+  rtrFields: Record<string, string>
+): Promise<Uint8Array> {
+  const JSZip = (await import("https://esm.sh/jszip@3.10.1")).default;
+  const zip = await JSZip.loadAsync(docxBytes);
+  const docFile = zip.file("word/document.xml");
+  if (!docFile) throw new Error("DOCX missing word/document.xml");
+  let docXml = await docFile.async("string");
+
+  // Normalize split bracket sequences (both underscore placeholders and position title).
+  docXml = normalizeSplitPlaceholders(docXml);
+
+  const replacedTexts: string[] = [];
+
+  // Replace position title FIRST (before underscore placeholders, so the regex
+  // doesn't accidentally match a just-replaced value like [Jane Doe]).
+  // Finds [text-with-letters] inside a <w:t> element — only the position title matches.
+  const positionTitle = (rtrFields.position_title || "").trim();
+  if (positionTitle) {
+    docXml = docXml.replace(
+      /(<w:t[^>]*>)\[([^\]]*[a-zA-Z][^\]]*)\](<\/w:t>)/,
+      (_m, open, _inner, close) => {
+        const replacement = "[" + xmlEscape(positionTitle) + "]";
+        replacedTexts.push(xmlEscape(positionTitle));
+        return open + replacement + close;
+      }
+    );
+  }
+
+  // Replace the 7 sequential [_______________________] (23-underscore) placeholders.
+  // Position #3 (candidate_address) is null = left as-is for the candidate to fill.
+  const orderedValues = buildPlaceholderValues(rtrFields);
+  let occurrence = 0;
+  const escapedPlaceholder = regexEscape(PLACEHOLDER);
+  docXml = docXml.replace(new RegExp(escapedPlaceholder, "g"), (match) => {
+    if (occurrence >= orderedValues.length) return match;
+    const val = orderedValues[occurrence];
+    occurrence++;
+    if (val === null) return match; // skip — candidate fills this field
+    if (!val) return match; // empty value — leave placeholder
+    const escaped = xmlEscape(val);
+    replacedTexts.push(escaped);
+    return escaped;
+  });
+
+  // Make replaced values bold.
+  docXml = ensureReplacedRunsBold(docXml, replacedTexts);
+
+  zip.file("word/document.xml", docXml);
+  return zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+}
+
+/** Convert DOCX bytes to PDF by POSTing to your own service (e.g. a container with LibreOffice). Body: { docx_base64: "..." }. Response: PDF bytes or { pdf_base64: "..." }. */
+async function convertDocxToPdfViaService(docxBytes: Uint8Array): Promise<Uint8Array> {
+  const baseUrl = (Deno.env.get("RTR_CONVERSION_SERVICE_URL") || "").trim().replace(/\/$/, "");
+  if (!baseUrl) throw new Error("RTR_CONVERSION_SERVICE_URL not set");
+  const res = await fetch(`${baseUrl}/convert`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ docx_base64: bytesToBase64(docxBytes) }),
+  });
+  if (!res.ok) throw new Error(`Conversion service failed: ${res.status} ${await res.text()}`);
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    const json = (await res.json()) as { pdf_base64?: string };
+    const b64 = json?.pdf_base64;
+    if (!b64 || typeof b64 !== "string") throw new Error("Conversion service did not return pdf_base64");
+    return base64ToBytes(b64);
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Convert DOCX bytes to PDF using LibreOffice headless (local dev only; Supabase prod cannot run soffice). */
+async function convertDocxToPdfLocal(docxBytes: Uint8Array): Promise<Uint8Array> {
+  const tmpDir = await Deno.makeTempDir({ prefix: "rtr-docx-" });
+  const docxPath = join(tmpDir, "rtr.docx");
+  const outPdfPath = join(tmpDir, "rtr.pdf");
+  try {
+    await Deno.writeFile(docxPath, docxBytes);
+    const soffice = (Deno.env.get("LIBREOFFICE_PATH") || "").trim() || "soffice";
+    const cmd = new Deno.Command(soffice, {
+      args: ["--headless", "--convert-to", "pdf", "--outdir", tmpDir, docxPath],
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const { code, stderr } = await cmd.output();
+    if (code !== 0) {
+      const err = new TextDecoder().decode(stderr);
+      throw new Error(`LibreOffice conversion failed (${code}): ${err || "run soffice --headless --convert-to pdf"}`);
+    }
+    const pdfBytes = await Deno.readFile(outPdfPath);
+    return pdfBytes;
+  } finally {
+    try {
+      await Deno.remove(tmpDir, { recursive: true });
+    } catch {
+      // ignore cleanup errors
+    }
+  }
+}
+
+/** Convert DOCX bytes to PDF via CloudConvert sync API (optional; documents are sent to CloudConvert). */
+async function convertDocxToPdfWithCloudConvert(docxBytes: Uint8Array): Promise<Uint8Array> {
+  const apiKey = (Deno.env.get("CLOUDCONVERT_API_KEY") || "").trim();
+  if (!apiKey) throw new Error("CLOUDCONVERT_API_KEY not set");
+  const docxB64 = bytesToBase64(docxBytes);
+
+  const jobRes = await fetch("https://sync.api.cloudconvert.com/v2/jobs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      tasks: {
+        "import-docx": {
+          operation: "import/base64",
+          file: docxB64,
+          filename: "rtr.docx",
+        },
+        convert: {
+          operation: "convert",
+          input: "import-docx",
+          output_format: "pdf",
+        },
+        export: {
+          operation: "export/url",
+          input: "convert",
+        },
+      },
+    }),
+  });
+  if (!jobRes.ok) {
+    const errText = await jobRes.text();
+    throw new Error(`CloudConvert job failed: ${jobRes.status} ${errText}`);
+  }
+  const job = (await jobRes.json()) as {
+    data?: {
+      tasks?: Record<string, { result?: { files?: { url?: string }[] } }> | { result?: { files?: { url?: string }[] }; operation?: string }[];
+    };
+  };
+  let url: string | undefined;
+  const tasks = job.data?.tasks;
+  if (Array.isArray(tasks)) {
+    const exportTask = tasks.find((t: { operation?: string }) => t.operation === "export/url");
+    const files = exportTask?.result?.files;
+    url = Array.isArray(files) && files[0]?.url ? files[0].url : undefined;
+  } else if (tasks && typeof tasks === "object") {
+    const tasksArr = Object.values(tasks) as { operation?: string; result?: { files?: { url?: string }[] } }[];
+    const exportTask = tasksArr.find((t) => t.operation === "export/url");
+    url = exportTask?.result?.files?.[0]?.url;
+  }
+  if (!url) throw new Error("CloudConvert did not return export URL");
+  const pdfRes = await fetch(url);
+  if (!pdfRes.ok) throw new Error(`Failed to download converted PDF: ${pdfRes.status}`);
+  return new Uint8Array(await pdfRes.arrayBuffer());
+}
+
+/** Convert merged DOCX to PDF. Tries CloudConvert → custom service → LibreOffice (local dev). */
+async function convertDocxToPdf(docxBytes: Uint8Array): Promise<Uint8Array> {
+  const errors: string[] = [];
+  // 1. CloudConvert (works in Supabase prod and locally)
+  const ccKey = (Deno.env.get("CLOUDCONVERT_API_KEY") || "").trim();
+  if (ccKey) {
+    try {
+      return await convertDocxToPdfWithCloudConvert(docxBytes);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn("[send-rtr-email] CloudConvert failed:", msg);
+      errors.push("CloudConvert: " + msg);
+    }
+  }
+  // 2. Custom conversion service
+  const svcUrl = (Deno.env.get("RTR_CONVERSION_SERVICE_URL") || "").trim();
+  if (svcUrl) {
+    try {
+      return await convertDocxToPdfViaService(docxBytes);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn("[send-rtr-email] Conversion service failed:", msg);
+      errors.push("Service: " + msg);
+    }
+  }
+  // 3. LibreOffice headless (local dev only)
+  try {
+    return await convertDocxToPdfLocal(docxBytes);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn("[send-rtr-email] LibreOffice failed:", msg);
+    errors.push("LibreOffice: " + msg);
+  }
+  throw new Error(
+    "DOCX→PDF conversion failed. Set CLOUDCONVERT_API_KEY, RTR_CONVERSION_SERVICE_URL, or install LibreOffice. Errors: " + errors.join("; ")
+  );
+}
+
+/** Add fillable text fields only for candidate fields (not on popup). Recruiter-filled values are plain bold text, not editable. */
+async function addFillableFieldsToPdf(pdfBytes: Uint8Array): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const pages = pdfDoc.getPages();
+  for (const cf of RTR_CANDIDATE_FIELDS) {
+    if (cf.pageIndex >= pages.length) continue;
+    const page = pages[cf.pageIndex];
+    const form = pdfDoc.getForm();
+    try {
+      const textField = form.createTextField(cf.pdfFormName);
+      textField.addToPage(page, { x: cf.x, y: cf.y, width: cf.width, height: cf.height });
+    } catch (e) {
+      console.warn("[send-rtr-email] Could not add field", cf.pdfFormName, e);
+    }
+  }
+  return pdfDoc.save();
+}
+
 /** Fill the rate field in the PDF form and return the filled PDF bytes. */
 async function fillRtrPdf(templateBytes: Uint8Array, rate: string, rateFieldName: string): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(templateBytes);
@@ -146,6 +580,19 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
+    const supabaseUrl = (Deno.env.get("SUPABASE_URL") || "").trim();
+    const supabaseAnonKey = (Deno.env.get("SUPABASE_ANON_KEY") || "").trim();
+    const supabaseServiceKey = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({
+          error: "Edge function env missing",
+          details: "SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY not set. Run supabase functions serve after supabase start (CLI injects these), or set them in your --env-file.",
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization header" }), {
@@ -153,10 +600,6 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -228,8 +671,26 @@ serve(async (req: Request) => {
     }
 
     const rateFieldName = (Deno.env.get("RTR_RATE_FIELD_NAME") || "").trim() || "rate";
-    const templateBytes = await loadRtrTemplate();
-    const filledPdfBytes = await fillRtrPdf(templateBytes, rate, rateFieldName);
+    const rtrFields = body.rtrFields && typeof body.rtrFields === "object" ? body.rtrFields : {};
+
+    // Pipeline: DOCX template → merge recruiter values → convert to PDF → add fillable candidate fields.
+    let attachmentBytes: Uint8Array;
+    const attachmentFilename = "RTR.pdf";
+    try {
+      const rawDocx = await loadRtrDocxTemplate();
+      const mergedDocx = await mergeDocxWithFields(rawDocx, rtrFields);
+      const pdfBytes = await convertDocxToPdf(mergedDocx);
+      attachmentBytes = await addFillableFieldsToPdf(pdfBytes);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return new Response(
+        JSON.stringify({
+          error: "RTR failed",
+          details: msg + ". Ensure DOCX template and conversion (CLOUDCONVERT_API_KEY or LibreOffice) are available.",
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const html = `
       <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.5;">
@@ -260,7 +721,7 @@ serve(async (req: Request) => {
           to: [toEmail],
           subject,
           html,
-          attachments: [{ filename: "RTR.pdf", content: bytesToBase64(filledPdfBytes) }],
+          attachments: [{ filename: attachmentFilename, content: bytesToBase64(attachmentBytes) }],
         }),
       });
       if (!res.ok) {
@@ -290,10 +751,14 @@ serve(async (req: Request) => {
       },
     });
 
+    const attachmentContentType =
+      attachmentFilename.toLowerCase().endsWith(".docx")
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/pdf";
     const attachment = {
-      contentType: "application/pdf",
-      filename: "RTR.pdf",
-      content: filledPdfBytes,
+      contentType: attachmentContentType,
+      filename: attachmentFilename,
+      content: attachmentBytes,
       encoding: "binary" as const,
     };
 
@@ -319,10 +784,11 @@ serve(async (req: Request) => {
       const isConnectionRefused =
         msg.includes("ECONNREFUSED") || msg.toLowerCase().includes("connection refused") || msg.includes("os error 111");
       const isTimeout = msg.includes("timeout");
-      // Default: do not skip. Set SKIP_SMTP_DEV=true or ALLOW_SKIP_SMTP=true only for local dev (no Mailpit).
+      // Skip when: env says so, or we're hitting default localhost SMTP (no Mailpit) so local dev still returns 200.
       const skipSmtpDev = (Deno.env.get("SKIP_SMTP_DEV") || "").trim().toLowerCase() === "true";
       const allowSkipSmtp = (Deno.env.get("ALLOW_SKIP_SMTP") || "").trim().toLowerCase() === "true";
-      if (isConnectionRefused && (skipSmtpDev || allowSkipSmtp)) {
+      const defaultLocalSmtp = smtpHost === "127.0.0.1" || smtpHost === "localhost";
+      if (isConnectionRefused && (skipSmtpDev || allowSkipSmtp || defaultLocalSmtp)) {
         console.log("[send-rtr-email] Skipping send (no SMTP). Would have sent RTR to", toEmail);
         return new Response(
           JSON.stringify({ ok: true, to: toEmail, skipped: true }),

@@ -25,6 +25,7 @@ supabase/tmp/**
 supabase/.env
 supabase/.env.*
 supabase/.env.local
+supabase/functions/.env
 
 # Editor directories and files
 .vscode/*
@@ -36,3 +37,6 @@ supabase/.env.local
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code
+.claude/

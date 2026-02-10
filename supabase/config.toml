@@ -1,4 +1,15 @@
+# project_id used for local Docker volume naming so the same DB/data is reused across restarts.
+# To avoid pushing to prod: run `supabase unlink` after start (or never run `supabase link`).
 project_id = "rnwyflevkpamxhxkhkww"
+
+# Use a different DB port if 54322 is already in use (e.g. by another Supabase or Docker project).
+[db]
+port = 54332
+
+# Use a different analytics port if 54327 is already in use (e.g. by another Supabase project).
+[analytics]
+enabled = true
+port = 54337
 
 [api]
 enabled = true

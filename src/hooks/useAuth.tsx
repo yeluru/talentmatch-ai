@@ -73,6 +73,15 @@ async function getMyAuthDataWithFetch(accessToken: string): Promise<{ profile?: 
   return raw as { profile?: UserProfile | null; roles?: { role: string; organization_id?: string }[] };
 }
 
+/** Sign out so stale/wrong-project session is cleared (e.g. prod JWT on local). */
+function clearSession(): void {
+  try {
+    supabase.auth.signOut().catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -204,8 +213,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setOrganizationId(null);
         setIsSuperAdmin(false);
       }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
+    } catch (error: unknown) {
+      const status = (error as { status?: number })?.status;
+      // 401 = JWT invalid or from another project (e.g. prod session on local). Clear session so user can sign in again.
+      if (status === 401) {
+        clearSession();
+      } else {
+        console.error('Error fetching user data:', error);
+      }
     } finally {
       if (!silent) setIsLoading(false);
       if (!hasHydrated) setHasHydrated(true);

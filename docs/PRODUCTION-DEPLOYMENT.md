@@ -69,8 +69,10 @@ In **Project → Edge Functions → Manage secrets** (or **Settings → Edge Fun
 | `SMTP_PASS` | SMTP password | Engagement emails |
 | `SMTP_TLS` | `true` for TLS | Engagement emails |
 | `SMTP_FROM` | From address, e.g. `TalentMatch <no-reply@yourdomain.com>` | Engagement emails |
+| `RTR_TEMPLATE_DOCX_URL` | (optional) Public URL of the RTR Word template (`.docx`) with placeholders `[_______________________]` | RTR fillable PDF from DOCX |
+| `CLOUDCONVERT_API_KEY` | (optional) CloudConvert API key for DOCX→PDF conversion | RTR fillable PDF from DOCX |
 
-**Note:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are set automatically by Supabase for Edge Functions; you do not need to add them.
+**Note:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are set automatically by Supabase for Edge Functions; you do not need to add them. If `RTR_TEMPLATE_DOCX_URL` and `CLOUDCONVERT_API_KEY` are not set, RTR uses the legacy PDF template (rate-only fill).
 
 ### 1.4 Deploy Edge Functions
 
@@ -362,13 +364,7 @@ If you see “no role” or get stuck, sign out and sign in again so `bootstrap-
 If you hit a specific error (e.g. build failure or invite not sending), share the message and which step you’re on for targeted help.
 
 
-Project URL: https://szmuvnnawnfclcusfxbs.supabase.co
-Publishable API Key: sb_publishable_ttWWBZfH2MBPnKo7MK-yPQ_-ArmyPD7
-Password: CompSciPrep!23
-ref: szmuvnnawnfclcusfxbs
-secret key: sb_secret_eupIjTlePoF5HuDJ9L1uGw_ryaMXgeM
-
-resend - matchtal-prod api key: re_Efm1Jyqe_4NGrqJ2n7Gb8tegsRm3WQtAS
+<!-- Do not commit real secrets (Supabase URL/keys, Resend API key, passwords). Store them in Supabase Dashboard → Secrets and in local supabase/.env.local only. -->
 
 
 
