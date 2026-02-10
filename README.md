@@ -106,6 +106,7 @@ UltraHire is a comprehensive recruitment solution designed to streamline the hir
 - 📅 **Interview Scheduling** - Calendar-based interview management
 - ✉️ **Email Templates** - Reusable email templates
 - 📊 **Pipeline View** - Kanban-style candidate tracking
+- 📝 **RTR (Right to Represent)** - Dynamic document merge with candidate agreements
 
 ### Account Manager Features
 - 📊 **Analytics Dashboard** - Organization-wide metrics
@@ -579,6 +580,7 @@ The platform includes **35+** Supabase Edge Functions in `supabase/functions/`. 
 | `send-recruiter-invite`, `send-manager-invite`, `send-org-admin-invite` | Invite staff by email |
 | `get-invite-details` | Resolve invite token (org_admin, manager, recruiter, candidate) |
 | `send-engagement-email` | Send engagement emails (e.g. "Review & respond") |
+| `send-rtr-email` | Right to Represent (RTR) email with dynamic DOCX merge |
 | **AI & matching** | |
 | `analyze-resume` | AI resume analysis (keyword coverage + model score) |
 | `match-candidates` | AI candidate-job matching |
@@ -740,6 +742,7 @@ aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
 |-----|--------------|
 | [docs/PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md) | Production deploy (Supabase + Render, migrations, Edge Functions, secrets) |
 | [docs/PRE-PROD-CHECKLIST.md](docs/PRE-PROD-CHECKLIST.md) | Pre-release checklist (migrations, functions, verification) |
+| [docs/RTR-FEATURE.md](docs/RTR-FEATURE.md) | RTR (Right to Represent) feature: dynamic DOCX merge, field configuration, deployment |
 | [docs/PAGE-WIDTH-AUDIT.md](docs/PAGE-WIDTH-AUDIT.md) | Page width standards and route audit |
 | [docs/RBAC-for-Product.txt](docs/RBAC-for-Product.txt) | Role-based access (product view) |
 | [LOCAL-DEV.md](LOCAL-DEV.md) | Local development notes |

@@ -68,11 +68,11 @@ In **Project → Edge Functions → Manage secrets** (or **Settings → Edge Fun
 | `SMTP_USER` | SMTP username (if required) | Engagement emails |
 | `SMTP_PASS` | SMTP password | Engagement emails |
 | `SMTP_TLS` | `true` for TLS | Engagement emails |
-| `SMTP_FROM` | From address, e.g. `TalentMatch <no-reply@yourdomain.com>` | Engagement emails |
-| `RTR_TEMPLATE_DOCX_URL` | (optional) Public URL of the RTR Word template (`.docx`) with placeholders `[_______________________]` | RTR fillable PDF from DOCX |
-| `CLOUDCONVERT_API_KEY` | (optional) CloudConvert API key for DOCX→PDF conversion | RTR fillable PDF from DOCX |
+| `SMTP_FROM` | From address, e.g. `TalentMatch <no-reply@yourdomain.com>` | Engagement emails, RTR emails |
 
-**Note:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are set automatically by Supabase for Edge Functions; you do not need to add them. If `RTR_TEMPLATE_DOCX_URL` and `CLOUDCONVERT_API_KEY` are not set, RTR uses the legacy PDF template (rate-only fill).
+**Note:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are set automatically by Supabase for Edge Functions; you do not need to add them.
+
+**RTR (Right to Represent):** The RTR template is bundled in the code as base64 (`docx_template_b64.ts`). No additional secrets are needed beyond SMTP configuration (`RESEND_API_KEY` or `SMTP_*` vars). The template is automatically merged with recruiter-provided fields and sent via email. See [docs/RTR-FEATURE.md](./RTR-FEATURE.md) for details.
 
 ### 1.4 Deploy Edge Functions
 
