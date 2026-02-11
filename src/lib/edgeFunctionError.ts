@@ -7,6 +7,15 @@
 export async function getEdgeFunctionErrorMessage(error: unknown): Promise<string> {
   if (error && typeof error === 'object' && (error as { name?: string }).name === 'FunctionsHttpError') {
     const ctx = (error as { context?: Response }).context;
+
+    // Check for timeout status codes
+    if (ctx && (ctx as Response).status) {
+      const status = (ctx as Response).status;
+      if (status === 504 || status === 408 || status === 524) {
+        return 'Upload timed out. Please try uploading this file again.';
+      }
+    }
+
     if (ctx && typeof (ctx as Response).json === 'function') {
       try {
         const body = await (ctx as Response).json();
@@ -22,5 +31,12 @@ export async function getEdgeFunctionErrorMessage(error: unknown): Promise<strin
       }
     }
   }
-  return error instanceof Error ? error.message : String(error);
+
+  // Improve generic error messages
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  if (errorMsg.includes('non-2xx status code')) {
+    return 'Upload failed. Please try again or contact support if the issue persists.';
+  }
+
+  return errorMsg;
 }
