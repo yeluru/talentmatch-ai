@@ -367,7 +367,7 @@ export default function Shortlists() {
                     />
                   </div>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'name' | 'date' | 'count')}>
-                    <SelectTrigger className="w-[140px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
+                    <SelectTrigger className="w-full sm:w-[140px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
                       <ArrowUpDown className="h-3 w-3 mr-2" strokeWidth={1.5} />
                       <SelectValue />
                     </SelectTrigger>
@@ -463,7 +463,7 @@ export default function Shortlists() {
                       />
                     </div>
                     <Select value={candidateSortBy} onValueChange={(v) => setCandidateSortBy(v as 'name' | 'date' | 'status')}>
-                      <SelectTrigger className="w-[130px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
+                      <SelectTrigger className="w-full sm:w-[130px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
                         <ArrowUpDown className="h-3 w-3 mr-2" strokeWidth={1.5} />
                         <SelectValue />
                       </SelectTrigger>

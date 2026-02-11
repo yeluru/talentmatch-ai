@@ -151,7 +151,7 @@ export default function JobSearch() {
           </div>
           <div className="flex items-center justify-between">
             <Select value={jobType} onValueChange={setJobType}>
-              <SelectTrigger className="w-[180px] h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
+              <SelectTrigger className="w-full sm:w-[180px] h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
                 <SelectValue placeholder="Job Type" />
               </SelectTrigger>
               <SelectContent>

@@ -165,7 +165,7 @@ export default function Notifications() {
                               <p className={`font-medium ${!notification.is_read ? 'text-foreground' : ''}`}>
                                 {notification.title}
                               </p>
-                              <p className="text-smmt-1">
+                              <p className="text-sm mt-1 text-muted-foreground">
                                 {notification.message}
                               </p>
                             </div>

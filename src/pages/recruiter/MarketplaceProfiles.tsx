@@ -255,7 +255,7 @@ export default function MarketplaceProfiles() {
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select value={jobId} onValueChange={setJobId}>
-                <SelectTrigger className="w-[260px]">
+                <SelectTrigger className="w-full sm:w-[260px]">
                   <SelectValue placeholder="Select job for engagement" />
                 </SelectTrigger>
                 <SelectContent>
@@ -268,7 +268,7 @@ export default function MarketplaceProfiles() {
               </Select>
 
               <Select value={stage} onValueChange={setStage}>
-                <SelectTrigger className="w-[220px]">
+                <SelectTrigger className="w-full sm:w-[220px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
