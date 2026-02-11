@@ -301,7 +301,7 @@ export default function Shortlists() {
   if (authLoading || isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex items-center justify-center flex-1">
             <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
@@ -346,7 +346,7 @@ export default function Shortlists() {
             />
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2 h-[calc(100vh-220px)] min-h-[400px] items-stretch">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 h-auto lg:h-[calc(100vh-220px)] min-h-[300px] lg:min-h-[400px] items-stretch">
             {/* Shortlists */}
             <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col min-h-0">
               <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-4">

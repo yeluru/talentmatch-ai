@@ -394,7 +394,7 @@ export default function RecruiterDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -445,7 +445,7 @@ export default function RecruiterDashboard() {
         )}
 
         {/* Stats — what matters for daily work */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           <StatCard
             title="Open jobs"
             value={stats.openJobs.toString()}
@@ -488,7 +488,7 @@ export default function RecruiterDashboard() {
             <p className="text-sm text-muted-foreground font-sans mt-1">Recent items and a link to each page.</p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 lg:gap-6 lg:grid-cols-2">
             <QuickActionBlock title="My Jobs" href="/recruiter/jobs" icon={Briefcase} emptyMessage="No jobs yet. Post one to get started.">
               {recentJobs.slice(0, 3).map((j) => (
                 <div key={j.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/jobs')}>
@@ -554,7 +554,7 @@ export default function RecruiterDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-2">
           {/* Invite Codes */}
           <div className="space-y-4">
             <h2 className="font-display text-xl font-semibold flex items-center gap-2 text-foreground">

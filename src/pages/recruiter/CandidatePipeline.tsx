@@ -101,7 +101,7 @@ function PipelineModal({
   title,
   description,
   children,
-  className = 'max-w-lg',
+  className = 'sm:max-w-lg',
 }: {
   open: boolean;
   onClose: () => void;
@@ -112,7 +112,7 @@ function PipelineModal({
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       <div
         className="absolute inset-0 bg-black/80"
         aria-hidden
@@ -124,7 +124,7 @@ function PipelineModal({
         aria-labelledby="pipeline-modal-title"
         aria-describedby="pipeline-modal-desc"
         className={cn(
-          'relative z-50 grid w-full gap-4 border bg-background p-6 shadow-lg sm:rounded-lg',
+          'relative z-50 grid w-full max-w-full gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg rounded-lg max-h-[95vh] overflow-y-auto',
           className,
         )}
         onClick={(e) => e.stopPropagation()}
@@ -841,7 +841,7 @@ export default function CandidatePipeline() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex items-center justify-center flex-1 py-12">
             <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
@@ -852,7 +852,7 @@ export default function CandidatePipeline() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         {isViewingAsManager && (
           <p className="text-sm text-red-600 dark:text-red-400 shrink-0 mb-4">
             Viewing <span className="font-medium">{ownerProfile?.full_name || 'this recruiter'}</span>&apos;s application pipeline.
@@ -881,8 +881,8 @@ export default function CandidatePipeline() {
               <SelectContent>
                 <SelectItem value="all">All Jobs</SelectItem>
                 {jobs?.map(job => (
-                  <SelectItem key={job.id} value={String(job.id)} className="max-w-[320px]">
-                    <span className="block max-w-[300px] truncate">{job.title}</span>
+                  <SelectItem key={job.id} value={String(job.id)}>
+                    <span className="block truncate max-w-full">{job.title}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -890,9 +890,9 @@ export default function CandidatePipeline() {
           </div>
         </div>
 
-        {/* Kanban Board - 3 columns per row, evenly spread */}
+        {/* Kanban Board - responsive columns */}
         <ScrollArea className="flex-1 min-h-0 w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pb-6 min-w-0 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 pb-6 min-w-0 w-full">
             {PIPELINE_STAGES.map(stage => (
               <div
                 key={stage.id}
@@ -915,7 +915,7 @@ export default function CandidatePipeline() {
                 </div>
 
                 {/* Drop Zone / List */}
-                <div className={`min-h-[380px] flex-1 overflow-y-auto rounded-2xl p-2 space-y-2 border transition-colors duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${dragOverStage === stage.id
+                <div className={`min-h-[250px] sm:min-h-[300px] lg:min-h-[350px] flex-1 overflow-y-auto rounded-xl sm:rounded-2xl p-1.5 sm:p-2 space-y-2 border transition-colors duration-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] ${dragOverStage === stage.id
                   ? 'bg-primary/10 border-primary/20'
                   : 'bg-slate-100/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800'
                   }`}>

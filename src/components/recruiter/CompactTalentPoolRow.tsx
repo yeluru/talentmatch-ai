@@ -101,16 +101,16 @@ export function CompactTalentPoolRow({
 
   return (
     <div
-      className="glass-panel p-4 hover-card-premium flex items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
+      className="glass-panel p-3 sm:p-4 hover-card-premium flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
       onClick={() => onViewProfile(talent.id)}
     >
-      <div className="flex-1 min-w-0 flex items-center gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
+      <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <Avatar className="h-9 w-9 sm:h-10 sm:w-10 shrink-0">
           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
             {(name || 'U').charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="font-bold text-xs text-foreground truncate">{name}</div>
           {company && company !== '—' && (
             <div className="text-[11px] text-muted-foreground truncate">{company}</div>
@@ -118,19 +118,19 @@ export function CompactTalentPoolRow({
         </div>
       </div>
 
-      <div className="w-[140px] hidden xl:block" title={rawTitle}>
+      <div className="w-full sm:w-auto sm:min-w-[120px] sm:max-w-[140px] hidden xl:block" title={rawTitle}>
         <span className="text-xs text-foreground/80 truncate block">{title}</span>
       </div>
 
-      <div className="w-[100px] hidden 2xl:block truncate text-xs text-muted-foreground" title={location}>
+      <div className="w-full sm:w-auto sm:min-w-[80px] sm:max-w-[100px] hidden 2xl:block truncate text-xs text-muted-foreground" title={location}>
         {location}
       </div>
 
-      <div className="w-16 hidden 2xl:block text-xs text-muted-foreground">
+      <div className="w-12 sm:w-16 hidden 2xl:block text-xs text-muted-foreground shrink-0">
         {experience}
       </div>
 
-      <div className="w-[140px] hidden lg:block min-w-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full sm:w-auto sm:min-w-[120px] sm:max-w-[140px] hidden lg:block min-w-0" onClick={(e) => e.stopPropagation()}>
         {(talent.recruiter_notes != null && talent.recruiter_notes !== '') ? (
           <TooltipProvider delayDuration={200}>
             <Tooltip>
@@ -152,7 +152,7 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-[140px] hidden lg:block" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full sm:w-auto sm:min-w-[120px] sm:max-w-[140px] hidden lg:block" onClick={(e) => e.stopPropagation()}>
         <Select
           value={(normalizeStatusForDisplay(talent.recruiter_status) || 'new') as string}
           onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
@@ -171,69 +171,67 @@ export function CompactTalentPoolRow({
         </Select>
       </div>
 
-      <div className="w-16 hidden lg:flex justify-center text-center">
+      <div className="w-12 sm:w-16 hidden lg:flex justify-center text-center shrink-0">
         {talent.ats_score != null ? (
           <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
         ) : (
-          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground text-xs">—</span>
         )}
       </div>
 
-      <div className="w-12 flex justify-center" onClick={(e) => e.stopPropagation()}>
+      <div className="w-10 sm:w-12 flex justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
         {talent.email && (
-          <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:bg-white/10">
+          <Button variant="ghost" size="icon" asChild className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-white/10">
             <a href={`mailto:${talent.email}`} title={talent.email}>
-              <Mail className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+              <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary transition-colors" />
             </a>
           </Button>
         )}
       </div>
 
-      <div className="w-20 hidden 2xl:block text-xs text-muted-foreground whitespace-nowrap text-right">
+      <div className="w-16 sm:w-20 hidden 2xl:block text-xs text-muted-foreground whitespace-nowrap text-right shrink-0">
         {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
       </div>
 
-      <div className="w-[100px] hidden md:flex justify-end" onClick={(e) => e.stopPropagation()}>
+      <div className="w-auto hidden lg:flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
         {shortlistButton?.shortlistId && onOpenShortlist ? (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-xs hover:bg-white/10"
+            className="h-7 sm:h-8 gap-1 text-xs hover:bg-white/10 px-2 sm:px-3"
             onClick={(e) => {
               e.stopPropagation();
               onOpenShortlist(shortlistButton.shortlistId);
             }}
           >
             <ListPlus className="h-3.5 w-3.5" />
-            {shortlistButton.label}
+            <span className="hidden xl:inline">{shortlistButton.label}</span>
           </Button>
         ) : onAddToShortlist ? (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-xs hover:bg-white/10"
+            className="h-7 sm:h-8 gap-1 text-xs hover:bg-white/10 px-2 sm:px-3"
             onClick={(e) => {
               e.stopPropagation();
               onAddToShortlist(talent.id);
             }}
           >
             <ListPlus className="h-3.5 w-3.5" />
-            Shortlist
+            <span className="hidden xl:inline">Shortlist</span>
           </Button>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
+        ) : null}
       </div>
 
-      <div className="w-10 flex justify-end" onClick={(e) => e.stopPropagation()}>
+      <div className="w-8 sm:w-10 flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
-              <MoreHorizontal className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-white/10">
+              <MoreHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span className="sr-only">Actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="glass-panel border-white/20">
+          <DropdownMenuContent align="end" className="glass-panel border-white/20 w-48">
             {onRequestRemove && (
               <DropdownMenuItem
                 className="text-destructive focus:bg-destructive/10"
