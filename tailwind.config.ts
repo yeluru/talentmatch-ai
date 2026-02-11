@@ -14,9 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        // Ashby-inspired: clean, modern sans (TT Norms-like using open font)
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['"Outfit"', '"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Unified font: Outfit for all text (body, headings, UI)
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
