@@ -15,6 +15,7 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
   const clearResults = useBulkUploadStore((s) => s.clearResults);
   const cancelledRef = useRef(false);
   const runIdRef = useRef(0);
+  const activeUploadsRef = useRef(new Set<number>());
 
   const cancelUpload = useCallback(() => {
     cancelledRef.current = true;
@@ -25,22 +26,25 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
 
-      // Stop any in-flight upload from a previous run so this run can proceed
-      cancelledRef.current = true;
+      // Each batch gets a unique ID and runs independently
       runIdRef.current += 1;
       const thisRunId = runIdRef.current;
+      activeUploadsRef.current.add(thisRunId);
 
-      // Start fresh: only show and process this batch
+      // Append to existing results to show all concurrent uploads
+      const currentResults = useBulkUploadStore.getState().uploadResults;
       const newResults: UploadResult[] = files.map((f) => ({
         fileName: f.name,
         status: 'pending',
       }));
-      clearResults();
-      setUploadResults(newResults);
-      const startIndex = 0;
+      const startIndex = currentResults.length;
+      setUploadResults([...currentResults, ...newResults]);
+
+      // Reset cancellation flag when starting new uploads
       cancelledRef.current = false;
 
-      const isStale = () => cancelledRef.current || runIdRef.current !== thisRunId;
+      // Each batch only checks if user clicked cancel (not affected by other batches)
+      const isStale = () => cancelledRef.current;
       const markRemainingCancelled = (fromIndex: number) => {
         for (let j = fromIndex; j < files.length; j++) {
           updateResult(startIndex + j, { status: 'cancelled', error: 'Cancelled' });
@@ -225,6 +229,9 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
         queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       }
       queryClient.invalidateQueries({ queryKey: ['candidates'] });
+
+      // Cleanup this batch from active uploads
+      activeUploadsRef.current.delete(thisRunId);
 
       e.target.value = '';
     },

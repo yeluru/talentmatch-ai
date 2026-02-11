@@ -2385,7 +2385,7 @@ export default function TalentSourcing() {
                     type="file"
                     id="resume-upload"
                     multiple
-                    accept=".pdf,.docx,.txt"
+                    accept=".pdf,.doc,.docx,.txt"
                     className="hidden"
                     onChange={handleFileUpload}
                   />

@@ -14,6 +14,7 @@ const PARSER_VERSION = "2026-01-15-parse-resume-v3-links";
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword', // Legacy .doc files
   'text/plain'
 ];
 
@@ -1126,7 +1127,7 @@ serve(async (req) => {
 
     // Validate file type
     if (fileBase64 && !validateFileType(validatedFileType, validatedFileName)) {
-      return new Response(JSON.stringify({ error: "Invalid file type. Allowed: PDF, DOCX, DOC, TXT" }), {
+      return new Response(JSON.stringify({ error: "Invalid file type. Supported formats: PDF, DOCX, DOC, TXT" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -1151,16 +1152,8 @@ serve(async (req) => {
       // Decode base64 to get file content
       const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
 
-      // NOTE: Legacy .doc files are not reliably parseable in edge runtimes.
-      // Require PDF or DOCX for deterministic extraction.
-      if (validatedFileType === "application/msword" || validatedFileName?.toLowerCase().endsWith(".doc")) {
-        return new Response(
-          JSON.stringify({
-            error: "Legacy .doc files are not supported. Please upload a PDF or DOCX (Word) file.",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
+      // NOTE: Legacy .doc files will fall back to AI vision parsing if text extraction fails.
+      // The AI can handle various document formats including legacy .doc files.
 
       if (validatedFileType === "application/pdf" || validatedFileName?.toLowerCase().endsWith('.pdf')) {
         // PDF text extraction using a serverless PDF.js build that works in Deno/edge runtimes
