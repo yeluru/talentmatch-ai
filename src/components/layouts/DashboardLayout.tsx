@@ -86,7 +86,7 @@ const recruiterNavGroups: NavGroup[] = [
     items: [
       { title: 'Talent Pool', href: '/recruiter/talent-pool', icon: Users },
       // { title: 'Bulk Upload Profiles', href: '/recruiter/talent-search/uploads', icon: Upload },
-      // { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
+      { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
       { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
       // { title: 'Marketplace Profiles', href: '/recruiter/marketplace', icon: Search },
       { title: 'Talent Search', href: '/recruiter/talent-search/search', icon: Search },

@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -19,12 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { getEdgeFunctionErrorMessage } from '@/lib/edgeFunctionError';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBulkUploadStore, type UploadResult } from '@/stores/bulkUploadStore';
 import { useSearchParams, useLocation, useNavigate, Navigate, Link } from 'react-router-dom';
 import {
@@ -44,7 +54,16 @@ import {
   ChevronDown,
   SlidersHorizontal,
   X,
-  Users
+  Users,
+  Download,
+  Save,
+  Star,
+  Clock,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -222,6 +241,16 @@ export default function TalentSourcing() {
   // Web mode pagination (each "Load more" becomes a new page you can tab back to)
   const [webPages, setWebPages] = useState<Array<{ id: string; results: SearchedProfile[]; ts: number }>>([]);
   const [activeWebPage, setActiveWebPage] = useState<number>(0);
+
+  // New UX enhancements state
+  type SortColumn = 'name' | 'title' | 'score' | 'default';
+  type SortDirection = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn>('default');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
+  const [savedSearchMenuOpen, setSavedSearchMenuOpen] = useState(false);
 
   const searchStorageKey = organizationId ? `talent_sourcing_search_v1:${organizationId}` : null;
   // Skip the next persist run after we restore from localStorage so we don't overwrite with stale initial state.
@@ -1148,6 +1177,116 @@ export default function TalentSourcing() {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Import failed');
+    }
+  });
+
+  // CSV export helper
+  const exportToCSV = (filename: string) => {
+    const rows = displayedRows.map((row: any) => {
+      const isGoogleRow = displayModeForRow === 'google';
+      return {
+        Name: isGoogleRow
+          ? (row?.title ? String(row.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')
+          : (row?.full_name || 'Unknown'),
+        Headline: isGoogleRow
+          ? (row?.snippet || '')
+          : (row?.headline || row?.summary || ''),
+        Company: isGoogleRow ? '' : (row?.current_company || ''),
+        Location: isGoogleRow ? '' : (row?.location || ''),
+        Skills: isGoogleRow ? '' : (row?.skills || []).join('; '),
+        Experience: isGoogleRow ? '' : (row?.experience_years || ''),
+        'Match Score': row?.match_score ? Math.round(row.match_score) + '%' : '',
+        URL: isGoogleRow ? row?.linkedin_url : (row?.linkedin_url || row?.website || row?.source_url || '')
+      };
+    });
+
+    const headers = Object.keys(rows[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => headers.map(h => `"${String(row[h] || '').replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
+
+  // Saved searches queries
+  const { data: savedSearches } = useQuery({
+    queryKey: ['saved-sourcing-searches', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('saved_talent_searches')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
+  const saveSearchMutation = useMutation({
+    mutationFn: async ({ name, query, filters }: { name: string; query: string; filters: any }) => {
+      if (!user || !organizationId) throw new Error('Missing auth');
+      const { data, error } = await supabase
+        .from('saved_talent_searches')
+        .insert({
+          user_id: user.id,
+          organization_id: organizationId,
+          name,
+          search_query: query,
+          filters
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-sourcing-searches', organizationId] });
+      toast.success('Search saved successfully');
+      setSaveSearchDialogOpen(false);
+      setSaveSearchName('');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to save search');
+    }
+  });
+
+  const deleteSavedSearchMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('saved_talent_searches')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-sourcing-searches', organizationId] });
+      toast.success('Search deleted');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to delete search');
+    }
+  });
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async ({ id, isFavorite }: { id: string; isFavorite: boolean }) => {
+      const { error } = await supabase
+        .from('saved_talent_searches')
+        .update({ is_favorite: isFavorite })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-sourcing-searches', organizationId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update favorite');
     }
   });
 
@@ -2126,8 +2265,69 @@ export default function TalentSourcing() {
     return dedup.slice(0, 12);
   })();
 
+  // Sort results
+  const sortedDisplayedRows = [...displayedRows].sort((a, b) => {
+    if (sortColumn === 'default') return 0;
+
+    const isGoogleRow = displayModeForRow === 'google';
+    let aVal, bVal;
+
+    if (sortColumn === 'name') {
+      aVal = isGoogleRow
+        ? (a?.title ? String(a.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : '')
+        : (a?.full_name || '');
+      bVal = isGoogleRow
+        ? (b?.title ? String(b.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : '')
+        : (b?.full_name || '');
+    } else if (sortColumn === 'title') {
+      aVal = isGoogleRow ? (a?.snippet || '') : (a?.headline || '');
+      bVal = isGoogleRow ? (b?.snippet || '') : (b?.headline || '');
+    } else if (sortColumn === 'score') {
+      aVal = a?.match_score || 0;
+      bVal = b?.match_score || 0;
+    }
+
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      return sortDirection === 'asc'
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal);
+    }
+
+    return sortDirection === 'asc'
+      ? (aVal as number) - (bVal as number)
+      : (bVal as number) - (aVal as number);
+  });
+
   const searchResultsPane = (
     <div className="space-y-3">
+      {/* Filter Chips */}
+      {(leadKeywordFilters || Number.isFinite(leadMinScore) && leadMinScore > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Active Filters:</span>
+          {leadKeywordFilters && leadKeywordFilters.split(',').map(k => k.trim()).filter(Boolean).map(keyword => (
+            <Badge
+              key={keyword}
+              variant="secondary"
+              className="bg-recruiter/10 text-recruiter border-recruiter/20 font-sans px-2.5 py-1 cursor-pointer hover:bg-recruiter/20"
+              onClick={() => toggleLeadFilterToken(keyword)}
+            >
+              {keyword}
+              <X className="h-3 w-3 ml-1" />
+            </Badge>
+          ))}
+          {Number.isFinite(leadMinScore) && leadMinScore > 0 && (
+            <Badge
+              variant="secondary"
+              className="bg-recruiter/10 text-recruiter border-recruiter/20 font-sans px-2.5 py-1 cursor-pointer hover:bg-recruiter/20"
+              onClick={() => setLeadMinScore(Number.NEGATIVE_INFINITY)}
+            >
+              Min Score: {leadMinScore}%
+              <X className="h-3 w-3 ml-1" />
+            </Badge>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <Checkbox
           checked={allVisibleSelected}
@@ -2192,6 +2392,145 @@ export default function TalentSourcing() {
           </div>
         )}
         <div className="flex-1 min-w-0" />
+
+        {/* Manual Filters Toggle */}
+        {isLinkedInMode && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setFiltersOpen(!filtersOpen)}
+          >
+            <Filter className="h-3 w-3 mr-1" />
+            Filters
+          </Button>
+        )}
+
+        {/* Sort Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 text-xs">
+              <ArrowUpDown className="h-3 w-3 mr-1" />
+              Sort
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => { setSortColumn('default'); setSortDirection('desc'); }}>
+              Default Order
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => { setSortColumn('name'); setSortDirection('asc'); }}>
+              <ArrowUp className="h-3 w-3 mr-2" />
+              Name (A-Z)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setSortColumn('name'); setSortDirection('desc'); }}>
+              <ArrowDown className="h-3 w-3 mr-2" />
+              Name (Z-A)
+            </DropdownMenuItem>
+            {isLinkedInMode && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => { setSortColumn('score'); setSortDirection('desc'); }}>
+                  <ArrowDown className="h-3 w-3 mr-2" />
+                  Score (High to Low)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setSortColumn('score'); setSortDirection('asc'); }}>
+                  <ArrowUp className="h-3 w-3 mr-2" />
+                  Score (Low to High)
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Export CSV */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => {
+            const timestamp = new Date().toISOString().split('T')[0];
+            exportToCSV(`talent-search-${timestamp}.csv`);
+            toast.success(`Exported ${displayedRows.length} results`);
+          }}
+          disabled={displayedRows.length === 0}
+        >
+          <Download className="h-3 w-3 mr-1" />
+          Export
+        </Button>
+
+        {/* Saved Searches */}
+        <DropdownMenu open={savedSearchMenuOpen} onOpenChange={setSavedSearchMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 text-xs">
+              <Clock className="h-3 w-3 mr-1" />
+              Saved
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Saved Searches</div>
+            <DropdownMenuSeparator />
+            {(!savedSearches || savedSearches.length === 0) ? (
+              <div className="px-2 py-2 text-xs text-muted-foreground">No saved searches yet</div>
+            ) : (
+              <>
+                {savedSearches.filter((s: any) => s.is_favorite).map((search: any) => (
+                  <DropdownMenuItem key={search.id} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <span className="truncate text-xs">{search.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSavedSearchMutation.mutate(search.id);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuItem>
+                ))}
+                {savedSearches.filter((s: any) => s.is_favorite).length > 0 && savedSearches.filter((s: any) => !s.is_favorite).length > 0 && (
+                  <DropdownMenuSeparator />
+                )}
+                {savedSearches.filter((s: any) => !s.is_favorite).map((search: any) => (
+                  <DropdownMenuItem key={search.id} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Star
+                        className="h-3 w-3 text-muted-foreground cursor-pointer hover:text-yellow-400"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavoriteMutation.mutate({ id: search.id, isFavorite: true });
+                        }}
+                      />
+                      <span className="truncate text-xs">{search.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSavedSearchMutation.mutate(search.id);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setSaveSearchDialogOpen(true)}>
+              <Save className="h-3 w-3 mr-2" />
+              Save Current Search
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           onClick={handleImportSelected}
           disabled={selectedKeys.size === 0 || importProfiles.isPending || importGoogleLeads.isPending}
@@ -2206,6 +2545,84 @@ export default function TalentSourcing() {
           {isLinkedInMode ? 'Import to Talent Pool' : 'Import'} {selectedKeys.size || ''}
         </Button>
       </div>
+
+      {/* Manual Filters Sidebar */}
+      {isLinkedInMode && filtersOpen && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold font-display">Refine Results</h4>
+            <Button variant="ghost" size="sm" onClick={() => setFiltersOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Min Score Filter */}
+          <div className="space-y-2">
+            <Label className="text-xs font-sans font-medium">Minimum Match Score</Label>
+            <div className="flex items-center gap-2">
+              <Slider
+                min={0}
+                max={100}
+                step={5}
+                value={[Number.isFinite(leadMinScore) ? leadMinScore : 0]}
+                onValueChange={([val]) => setLeadMinScore(val)}
+                className="flex-1"
+              />
+              <span className="text-xs font-medium w-10 text-right">
+                {Number.isFinite(leadMinScore) ? leadMinScore : 0}%
+              </span>
+            </div>
+          </div>
+
+          {/* Keyword Match Filter */}
+          <div className="space-y-2">
+            <Label className="text-xs font-sans font-medium">Keyword Filters</Label>
+            <Input
+              placeholder="comma, separated, keywords"
+              value={leadKeywordFilters}
+              onChange={(e) => setLeadKeywordFilters(e.target.value)}
+              className="text-xs"
+            />
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">Match:</Label>
+              <ToggleGroup type="single" value={leadKeywordMatch} onValueChange={(v) => v && setLeadKeywordMatch(v as 'any' | 'all')}>
+                <ToggleGroupItem value="any" className="text-xs h-7 px-2">Any</ToggleGroupItem>
+                <ToggleGroupItem value="all" className="text-xs h-7 px-2">All</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            {leadSuggestedTokens.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Suggested:</Label>
+                <div className="flex flex-wrap gap-1">
+                  {leadSuggestedTokens.map((token) => (
+                    <Badge
+                      key={token}
+                      variant="outline"
+                      className="cursor-pointer text-xs py-0"
+                      onClick={() => toggleLeadFilterToken(token)}
+                    >
+                      {token}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => {
+              setLeadMinScore(Number.NEGATIVE_INFINITY);
+              setLeadKeywordFilters('');
+              setLeadKeywordMatch('any');
+            }}
+          >
+            Clear All Filters
+          </Button>
+        </div>
+      )}
 
       {searchMode === 'web' && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -2248,7 +2665,7 @@ export default function TalentSourcing() {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="min-h-0 overflow-y-auto p-1.5">
           <div className="space-y-1">
-            {displayedRows.map((row: any, i: number) => {
+            {sortedDisplayedRows.map((row: any, i: number) => {
               const key = rowKey(displayModeForRow, row, i);
               const isSelected = selectedKeys.has(key);
               const isGoogleRow = displayModeForRow === 'google';
@@ -3598,6 +4015,63 @@ export default function TalentSourcing() {
           </div>
         </div>
       </div>
+
+      {/* Save Search Dialog */}
+      <Dialog open={saveSearchDialogOpen} onOpenChange={setSaveSearchDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Search</DialogTitle>
+            <DialogDescription>
+              Save your current search query and filters for easy access later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="search-name">Search Name</Label>
+              <Input
+                id="search-name"
+                placeholder="e.g., Senior React Developers in SF"
+                value={saveSearchName}
+                onChange={(e) => setSaveSearchName(e.target.value)}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><strong>Query:</strong> {searchQuery || '(none)'}</div>
+              {leadKeywordFilters && <div><strong>Keywords:</strong> {leadKeywordFilters}</div>}
+              {Number.isFinite(leadMinScore) && leadMinScore > 0 && (
+                <div><strong>Min Score:</strong> {leadMinScore}%</div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveSearchDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!saveSearchName.trim()) {
+                  toast.error('Please enter a search name');
+                  return;
+                }
+                saveSearchMutation.mutate({
+                  name: saveSearchName,
+                  query: searchQuery,
+                  filters: {
+                    mode: searchMode,
+                    keywords: leadKeywordFilters,
+                    keywordMatch: leadKeywordMatch,
+                    minScore: Number.isFinite(leadMinScore) ? leadMinScore : null,
+                  }
+                });
+              }}
+              disabled={saveSearchMutation.isPending}
+            >
+              {saveSearchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
