@@ -3732,7 +3732,7 @@ export default function ResumeWorkspace() {
                         <span className="text-lg font-sans font-medium text-muted-foreground">%</span>
                       </div>
                       <Progress value={analysisScore != null ? Math.round(analysisScore) : 0} className="h-2 rounded-full bg-blue-500/10 my-4" />
-                      <div className="grid grid-cols-2 gap-4 pt-4 pb-5 border-t border-blue-500/15">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 pb-5 border-t border-blue-500/15">
                         <div>
                           <div className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wider">Keywords</div>
                           <div className="text-lg font-display font-bold text-foreground tabular-nums">{derivedKeywordPct ?? 0}%</div>

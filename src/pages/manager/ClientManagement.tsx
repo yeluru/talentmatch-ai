@@ -288,7 +288,7 @@ export default function ClientManagement() {
                     <DialogTitle className="font-display">{editingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 pt-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2 col-span-2">
                         <Label htmlFor="name" className="font-sans">Company Name *</Label>
                         <Input
@@ -336,7 +336,7 @@ export default function ClientManagement() {
 
                     <div className="border-t border-border pt-4">
                       <h4 className="font-display font-semibold mb-3 text-foreground">Primary Contact</h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="contact_name" className="font-sans">Name</Label>
                           <Input

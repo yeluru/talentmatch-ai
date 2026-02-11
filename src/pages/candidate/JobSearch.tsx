@@ -129,7 +129,7 @@ export default function JobSearch() {
               className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               placeholder="Location"
               value={locationFilter}
