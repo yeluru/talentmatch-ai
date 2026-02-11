@@ -245,7 +245,7 @@ export default function CandidateProfile() {
                 {score === 100 ? 'Your profile looks great.' : 'Complete the items below to improve your matches.'}
               </p>
             </div>
-            <ul className="space-y-2 min-w-[200px] font-sans">
+            <ul className="space-y-2 sm:min-w-[200px] font-sans">
               {checklist.map((item) => (
                 <li key={item.key} className="flex items-center gap-2 text-sm">
                   {item.done ? (
@@ -445,7 +445,7 @@ export default function CandidateProfile() {
                     <button type="button" onClick={() => handleRemoveLocation(loc)} className="ml-1.5 hover:text-destructive" aria-label={`Remove ${loc}`}>×</button>
                   </Badge>
                 ))}
-                <div className="flex gap-2 flex-1 min-w-[200px]">
+                <div className="flex gap-2 flex-1 sm:min-w-[200px]">
                   <Input
                     placeholder="Add city or region"
                     value={newLocation}
