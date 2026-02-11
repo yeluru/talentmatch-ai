@@ -161,7 +161,7 @@ export default function CandidateEngagementRequest() {
   if (error || !data) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Request not available</CardTitle>
@@ -185,7 +185,7 @@ export default function CandidateEngagementRequest() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="space-y-6 max-w-3xl mx-auto w-full">
         <div className="card-candidate p-8 border-l-4 border-l-blue-500 animate-in-view transition-all duration-300 hover:border-blue-500/30">
           <div className="space-y-6">

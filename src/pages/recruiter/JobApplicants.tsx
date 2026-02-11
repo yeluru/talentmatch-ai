@@ -179,7 +179,7 @@ export default function JobApplicants() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex items-center justify-center flex-1">
             <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
@@ -190,7 +190,7 @@ export default function JobApplicants() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>

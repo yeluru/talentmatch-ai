@@ -619,7 +619,7 @@ export default function AIAnalysis() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-        <div className="flex flex-col flex-1 min-h-0 max-w-[1600px] mx-auto w-full animate-in fade-in duration-500">
+        <div className="flex flex-col flex-1 min-h-0 max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full animate-in fade-in duration-500">
 
           {/* Header & Controls Section */}
           <div className="shrink-0 flex flex-col gap-6">

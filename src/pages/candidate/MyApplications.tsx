@@ -108,7 +108,7 @@ export default function MyApplications() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -131,7 +131,7 @@ export default function MyApplications() {
           <div className="space-y-6 pt-6 pb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <div className="shrink-0">
-            <TabsList className="grid w-full max-w-md grid-cols-3 rounded-xl p-1 h-11 bg-muted/30 border border-blue-500/10">
+            <TabsList className="grid w-full max-w-md grid-cols-3 rounded-lg sm:rounded-xl p-0.5 sm:p-1 h-10 sm:h-11 bg-muted/30 border border-blue-500/10">
               <TabsTrigger value="all" className="rounded-lg text-sm font-sans font-medium data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400">
                 All ({applications.length})
               </TabsTrigger>

@@ -339,7 +339,7 @@ export default function EngagementPipeline() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 px-4 sm:px-6">
         {isViewingAsManager && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 shrink-0 mt-4">
             <Users className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={1.5} />
@@ -526,7 +526,7 @@ export default function EngagementPipeline() {
       </div>
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent className="max-w-2xl rounded-xl border border-border bg-card">
+        <DialogContent className="sm:max-w-2xl max-w-full rounded-xl border border-border bg-card">
           <DialogHeader>
             <DialogTitle className="font-display font-bold">Send email to move stage</DialogTitle>
           </DialogHeader>

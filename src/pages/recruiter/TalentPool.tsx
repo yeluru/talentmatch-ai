@@ -1007,7 +1007,7 @@ export default function TalentPool() {
       {/* Scroll to top button */}
       <ScrollToTop />
 
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -1351,7 +1351,7 @@ export default function TalentPool() {
           }
         }}
       >
-        <DialogContent className="max-w-lg glass-panel border-white/20">
+        <DialogContent className="sm:max-w-lg max-w-full glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Start engagement</DialogTitle>
           </DialogHeader>
@@ -1406,7 +1406,7 @@ export default function TalentPool() {
           }
         }}
       >
-        <DialogContent className="max-w-lg glass-panel border-white/20">
+        <DialogContent className="sm:max-w-lg max-w-full glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Add to shortlist</DialogTitle>
             <DialogDescription>Select a shortlist (or create one) to add this candidate.</DialogDescription>

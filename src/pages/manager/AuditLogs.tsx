@@ -157,7 +157,7 @@ export default function AuditLogs() {
   if (!authLoading && !organizationId) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
           <div className="shrink-0 flex flex-col gap-6">
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
@@ -195,7 +195,7 @@ export default function AuditLogs() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-6">
           <div>
             <div className="flex items-center gap-3 mb-1">

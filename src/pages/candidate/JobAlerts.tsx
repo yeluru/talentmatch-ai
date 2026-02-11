@@ -168,7 +168,7 @@ export default function JobAlerts() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -192,7 +192,7 @@ export default function JobAlerts() {
                   Create New Alert
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md rounded-xl border border-border bg-card">
+              <DialogContent className="sm:max-w-md max-w-full rounded-xl border border-border bg-card">
                 <DialogHeader>
                   <DialogTitle className="font-display text-xl font-bold">{editingAlert ? 'Edit Alert' : 'Create Job Alert'}</DialogTitle>
                 </DialogHeader>

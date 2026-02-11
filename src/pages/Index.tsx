@@ -251,7 +251,7 @@ export default function Index() {
             <p className="text-xl text-muted-foreground">Select your role to see how UltraHire empowers you.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
             {/* Candidate Card */}
             <Link to="/candidates" className="group">
               <div className="relative h-full bg-white dark:bg-card rounded-[2.5rem] p-2 border transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">

@@ -449,7 +449,7 @@ export default function CandidateResumes() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
           <div className="flex flex-col items-center justify-center min-h-[320px] gap-4 font-sans">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
             <p className="text-muted-foreground text-sm">Loading your resumes…</p>
@@ -469,7 +469,7 @@ export default function CandidateResumes() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="font-sans pb-12 animate-in fade-in duration-500 w-full">
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">

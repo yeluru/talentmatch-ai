@@ -158,7 +158,7 @@ export default function JobDetails() {
   if (!job) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
           <div className="shrink-0 flex flex-col gap-4">
             <Button variant="ghost" onClick={() => navigate('/candidate/jobs')} className="rounded-lg w-fit -ml-2">
               <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={1.5} />
@@ -179,7 +179,7 @@ export default function JobDetails() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="shrink-0 flex flex-col gap-6">
           <Button variant="ghost" onClick={() => navigate('/candidate/jobs')} className="rounded-lg w-fit -ml-2 font-sans font-medium text-muted-foreground hover:text-foreground hover:bg-blue-500/5">
             <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={1.5} />

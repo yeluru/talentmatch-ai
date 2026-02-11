@@ -71,7 +71,7 @@ export function RejectionFeedbackDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md max-w-full">
         <DialogHeader>
           <DialogTitle>Reject Application</DialogTitle>
           <DialogDescription>

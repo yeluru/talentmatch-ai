@@ -123,7 +123,7 @@ export default function CandidateDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="space-y-8">
         {/* Page header: greeting + primary action */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

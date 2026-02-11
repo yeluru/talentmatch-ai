@@ -382,7 +382,7 @@ export default function AIMatching() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 w-full max-w-[1600px] mx-auto">
+      <div className="space-y-6 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">

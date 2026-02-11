@@ -164,7 +164,7 @@ export default function EmailTemplates() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 pt-6 pb-6">
         <div className="flex items-center justify-between">
@@ -192,7 +192,7 @@ export default function EmailTemplates() {
                 New Template
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="sm:max-w-2xl max-w-full">
               <DialogHeader>
                 <DialogTitle>
                   {editingTemplate ? 'Edit Template' : 'Create Template'}
