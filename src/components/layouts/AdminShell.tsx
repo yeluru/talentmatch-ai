@@ -161,7 +161,7 @@ export function AdminShell({
           </header>
 
           <div className="flex-1 p-4 md:p-6 overflow-auto">
-            <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+            <div className="mx-auto w-full max-w-7xl">{children}</div>
           </div>
         </main>
       </div>
