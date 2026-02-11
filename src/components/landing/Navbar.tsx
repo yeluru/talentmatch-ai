@@ -180,7 +180,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden mt-2 glass rounded-2xl p-4 animate-fade-in">
+        <div className="md:hidden mt-2 mx-auto max-w-5xl rounded-2xl p-4 animate-fade-in bg-white/95 dark:bg-black/95 backdrop-blur-xl border border-white/20 shadow-xl">
           <div className="flex flex-col gap-1">
             {navLinks.map((link) => (
               <Link
