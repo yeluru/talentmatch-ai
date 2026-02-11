@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -63,10 +63,17 @@ import {
   ArrowUp,
   ArrowDown,
   Filter,
-  Trash2
+  Trash2,
+  Building2,
+  GraduationCap,
+  Award,
+  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { EnrichedProfile } from '@/types/enrichedProfile';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 
 interface SearchedProfile {
   full_name: string;
@@ -251,6 +258,14 @@ export default function TalentSourcing() {
   const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState('');
   const [savedSearchMenuOpen, setSavedSearchMenuOpen] = useState(false);
+
+  // LinkedIn Profile Enrichment state
+  const [enrichedProfiles, setEnrichedProfiles] = useState<Map<string, EnrichedProfile>>(new Map());
+  const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0, isEnriching: false });
+  const [failedEnrichments, setFailedEnrichments] = useState<Set<string>>(new Set());
+  const [selectedProfileForDrawer, setSelectedProfileForDrawer] = useState<EnrichedProfile | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const MAX_ENRICHMENT_LIMIT = 50;
 
   const searchStorageKey = organizationId ? `talent_sourcing_search_v1:${organizationId}` : null;
   // Skip the next persist run after we restore from localStorage so we don't overwrite with stale initial state.
@@ -1011,6 +1026,16 @@ export default function TalentSourcing() {
         setSelectedKeys(new Set());
         setActiveResultKey(sorted[0]?.linkedin_url ? String(sorted[0].linkedin_url) : '');
         loadedCount = sorted.length;
+
+        // Trigger enrichment for LinkedIn profiles
+        if (!variables?.append && sorted.length > 0) {
+          const linkedinUrls = sorted
+            .map(r => r.linkedin_url)
+            .filter((url): url is string => Boolean(url));
+          if (linkedinUrls.length > 0) {
+            enrichProfilesSequentially(linkedinUrls);
+          }
+        }
       }
 
       if (!suppressMeta) {
@@ -1289,6 +1314,123 @@ export default function TalentSourcing() {
       toast.error(error.message || 'Failed to update favorite');
     }
   });
+
+  // LinkedIn Profile Enrichment Function
+  const enrichProfilesSequentially = async (linkedinUrls: string[]) => {
+    // Limit to max 50 profiles
+    const urlsToEnrich = linkedinUrls.slice(0, MAX_ENRICHMENT_LIMIT);
+
+    setEnrichmentProgress({ current: 0, total: urlsToEnrich.length, isEnriching: true });
+    setFailedEnrichments(new Set());
+
+    for (let i = 0; i < urlsToEnrich.length; i++) {
+      const url = urlsToEnrich[i];
+
+      try {
+        const { data, error } = await supabase.functions.invoke('enrich-linkedin-profile', {
+          body: { linkedin_url: url }
+        });
+
+        if (error) {
+          console.error(`Failed to enrich ${url}:`, error);
+          setFailedEnrichments(prev => new Set(prev).add(url));
+        } else {
+          setEnrichedProfiles(prev => new Map(prev).set(url, data as EnrichedProfile));
+        }
+
+        setEnrichmentProgress(prev => ({ ...prev, current: i + 1 }));
+
+      } catch (error) {
+        console.error(`Exception enriching ${url}:`, error);
+        setFailedEnrichments(prev => new Set(prev).add(url));
+      }
+    }
+
+    setEnrichmentProgress(prev => ({ ...prev, isEnriching: false }));
+
+    const successCount = urlsToEnrich.length - failedEnrichments.size;
+    if (successCount > 0) {
+      toast.success(`Enriched ${successCount} of ${urlsToEnrich.length} profiles`);
+    }
+    if (failedEnrichments.size > 0) {
+      toast.warning(`${failedEnrichments.size} profiles could not be enriched (private or not found)`);
+    }
+  };
+
+  // Handle Import - Single Profile
+  const handleImportEnrichedProfile = async (profile: EnrichedProfile) => {
+    try {
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .insert({
+          organization_id: organizationId,
+          name: profile.full_name,
+          title: profile.current_title,
+          current_company: profile.current_company,
+          location: profile.city && profile.state ? `${profile.city}, ${profile.state}` : null,
+          skills: profile.skills,
+          years_experience: profile.years_of_experience,
+          summary: profile.summary,
+          linkedin_url: profile.linkedin_url,
+          source: 'google_xray_enriched',
+        });
+
+      if (error) throw error;
+
+      toast.success(`Imported ${profile.full_name} to Talent Pool`);
+      queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+
+      setDrawerOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to import candidate');
+    }
+  };
+
+  // Handle Bulk Import
+  const handleBulkImportEnriched = async () => {
+    const selectedProfiles = Array.from(selectedKeys)
+      .map(key => {
+        // Extract LinkedIn URL from the key
+        const url = key.split(':')[1]; // Key format is "mode:url:index"
+        return enrichedProfiles.get(url);
+      })
+      .filter((profile): profile is EnrichedProfile => profile !== undefined);
+
+    if (selectedProfiles.length === 0) {
+      toast.error('No enriched profiles selected');
+      return;
+    }
+
+    try {
+      const imports = selectedProfiles.map(profile => ({
+        organization_id: organizationId,
+        name: profile.full_name,
+        title: profile.current_title,
+        current_company: profile.current_company,
+        location: profile.city && profile.state ? `${profile.city}, ${profile.state}` : null,
+        skills: profile.skills,
+        years_experience: profile.years_of_experience,
+        summary: profile.summary,
+        linkedin_url: profile.linkedin_url,
+        source: 'google_xray_enriched',
+      }));
+
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .insert(imports);
+
+      if (error) throw error;
+
+      toast.success(`Imported ${selectedProfiles.length} candidates to Talent Pool`);
+      queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+
+      setSelectedKeys(new Set());
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to bulk import');
+    }
+  };
 
   const handleImportCandidateFromActive = async () => {
     if (!activeRow) return;
@@ -2624,6 +2766,25 @@ export default function TalentSourcing() {
         </div>
       )}
 
+      {/* Enrichment Progress Bar */}
+      {enrichmentProgress.isEnriching && (
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0 text-recruiter" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium">
+              Enriching LinkedIn profiles... {enrichmentProgress.current}/{enrichmentProgress.total}
+            </div>
+            <Progress
+              value={(enrichmentProgress.current / enrichmentProgress.total) * 100}
+              className="h-1.5 mt-1.5"
+            />
+          </div>
+          <div className="text-xs text-muted-foreground shrink-0">
+            {Math.round((enrichmentProgress.current / enrichmentProgress.total) * 100)}%
+          </div>
+        </div>
+      )}
+
       {searchMode === 'web' && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
@@ -2665,22 +2826,35 @@ export default function TalentSourcing() {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="min-h-0 overflow-y-auto p-1.5">
           <div className="space-y-1">
-            {sortedDisplayedRows.map((row: any, i: number) => {
+            {sortedDisplayedRows
+              .filter((row: any) => {
+                // Filter out failed enrichments
+                const url = row?.linkedin_url;
+                return !failedEnrichments.has(url);
+              })
+              .map((row: any, i: number) => {
               const key = rowKey(displayModeForRow, row, i);
               const isSelected = selectedKeys.has(key);
               const isGoogleRow = displayModeForRow === 'google';
+              const linkedinUrl = row?.linkedin_url;
+              const enrichedProfile = linkedinUrl ? enrichedProfiles.get(linkedinUrl) : null;
+              const isEnriched = Boolean(enrichedProfile);
+
               const title =
-                isGoogleRow
-                  ? (row?.title ? String(row.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')
-                  : (row?.full_name || 'Unknown');
+                isEnriched
+                  ? enrichedProfile.full_name
+                  : isGoogleRow
+                    ? (row?.title ? String(row.title).replace(/\s*\|\s*LinkedIn\s*$/i, '') : 'LinkedIn Profile')
+                    : (row?.full_name || 'Unknown');
+
               const subtitle =
-                isGoogleRow
-                  ? (row?.snippet ? String(row.snippet) : '')
-                  : (row?.headline ? String(row.headline) : (row?.summary ? String(row.summary) : (row?.source_excerpt ? String(row.source_excerpt) : '')));
-              const url =
-                isGoogleRow
-                  ? row?.linkedin_url
-                  : (row?.linkedin_url || row?.website || row?.source_url);
+                isEnriched
+                  ? enrichedProfile.headline || enrichedProfile.current_title || ''
+                  : isGoogleRow
+                    ? (row?.snippet ? String(row.snippet) : '')
+                    : (row?.headline ? String(row.headline) : (row?.summary ? String(row.summary) : (row?.source_excerpt ? String(row.source_excerpt) : '')));
+
+              const url = linkedinUrl || (row?.website || row?.source_url);
               const isImportPending =
                 (isLinkedInMode && importGoogleLeads.isPending) || (!isLinkedInMode && importProfiles.isPending);
 
@@ -2689,7 +2863,14 @@ export default function TalentSourcing() {
                   key={key}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setActiveResultKey(key)}
+                  onClick={() => {
+                    if (isEnriched && enrichedProfile) {
+                      setSelectedProfileForDrawer(enrichedProfile);
+                      setDrawerOpen(true);
+                    } else {
+                      setActiveResultKey(key);
+                    }
+                  }}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveResultKey(key); } }}
                   className={`group flex items-center gap-2 py-2 px-3 rounded-xl border border-border bg-card text-xs font-sans transition-all cursor-pointer hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2 ${key === activeResultKey ? 'ring-2 ring-recruiter/30 border-recruiter/20 bg-recruiter/5' : ''}`}
                 >
@@ -2699,20 +2880,100 @@ export default function TalentSourcing() {
                     onClick={(e) => e.stopPropagation()}
                     className="shrink-0 h-3.5 w-3.5"
                   />
-                  <span className="font-display font-semibold truncate text-xs min-w-[200px] max-w-[260px] shrink-0 basis-[220px] text-foreground group-hover:text-recruiter transition-colors" title={title}>
-                    {title}
-                  </span>
-                  <span className="truncate flex-1 min-w-0 text-xs font-sans" title={subtitle || undefined}>
-                    {subtitle ? String(subtitle).trim().slice(0, 180) + (String(subtitle).length > 180 ? '…' : '') : '—'}
-                  </span>
-                  {isLinkedInMode && row?.open_to_work_signal ? (
+
+                  {/* Show enriched profile data or skeleton */}
+                  {isEnriched ? (
+                    <>
+                      {/* Avatar */}
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarImage src={enrichedProfile.profile_pic_url} />
+                        <AvatarFallback className="text-xs bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                          {enrichedProfile.full_name?.[0] || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      {/* Name */}
+                      <div className="min-w-[180px] max-w-[200px] shrink-0">
+                        <div className="font-display font-semibold text-xs text-foreground group-hover:text-recruiter transition-colors truncate">
+                          {enrichedProfile.full_name}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {enrichedProfile.current_title || enrichedProfile.headline || '—'}
+                        </div>
+                      </div>
+
+                      {/* Company */}
+                      {enrichedProfile.current_company && (
+                        <div className="flex items-center gap-1.5 min-w-[140px] max-w-[160px] shrink-0">
+                          {enrichedProfile.current_company_logo && (
+                            <img src={enrichedProfile.current_company_logo} className="h-5 w-5 rounded object-contain" alt="" />
+                          )}
+                          <span className="text-xs truncate">{enrichedProfile.current_company}</span>
+                        </div>
+                      )}
+
+                      {/* Education */}
+                      {enrichedProfile.education_school && (
+                        <div className="flex items-center gap-1 min-w-[120px] max-w-[140px] shrink-0 text-xs text-muted-foreground truncate">
+                          <GraduationCap className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{enrichedProfile.education_school}</span>
+                        </div>
+                      )}
+
+                      {/* Location */}
+                      {(enrichedProfile.city || enrichedProfile.state) && (
+                        <div className="flex items-center gap-1 min-w-[100px] max-w-[120px] shrink-0 text-xs text-muted-foreground truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {enrichedProfile.city}
+                            {enrichedProfile.city && enrichedProfile.state && ', '}
+                            {enrichedProfile.state}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Skills */}
+                      {enrichedProfile.skills && enrichedProfile.skills.length > 0 && (
+                        <div className="flex gap-1 min-w-[120px] max-w-[180px] shrink-0">
+                          {enrichedProfile.skills.slice(0, 2).map(skill => (
+                            <Badge key={skill} variant="secondary" className="text-xs py-0 px-1.5">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {enrichedProfile.skills.length > 2 && (
+                            <Badge variant="outline" className="text-xs py-0 px-1.5">
+                              +{enrichedProfile.skills.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* Skeleton for loading */}
+                      <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                      <div className="min-w-[180px] space-y-1">
+                        <Skeleton className="h-3 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-3 w-24" />
+                    </>
+                  )}
+
+                  <div className="flex-1 min-w-0" />
+
+                  {/* Badges */}
+                  {isLinkedInMode && row?.open_to_work_signal && (
                     <Badge variant="outline" className="text-xs shrink-0 py-0">Open to work</Badge>
-                  ) : null}
+                  )}
                   {typeof row?.match_score === 'number' && (
                     <Badge variant="secondary" className="shrink-0 text-xs py-0">
                       {Math.round(row.match_score)}%
                     </Badge>
                   )}
+
+                  {/* LinkedIn Link */}
                   {url && (
                     <a
                       href={url}
@@ -2720,11 +2981,13 @@ export default function TalentSourcing() {
                       rel="noopener noreferrer"
                       className="shrink-0 p-0.5 rounded-lg hover:bg-recruiter/10 text-muted-foreground hover:text-recruiter focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30"
                       onClick={(e) => e.stopPropagation()}
-                      title={isGoogleRow ? 'Open LinkedIn' : 'Open link'}
+                      title="Open LinkedIn"
                     >
-                      {isGoogleRow ? <Linkedin className="h-4 w-4" strokeWidth={1.5} /> : <LinkIcon className="h-4 w-4" strokeWidth={1.5} />}
+                      <Linkedin className="h-4 w-4" strokeWidth={1.5} />
                     </a>
                   )}
+
+                  {/* Import Button */}
                   <Button
                     type="button"
                     size="sm"
@@ -2732,12 +2995,21 @@ export default function TalentSourcing() {
                     className="shrink-0 h-8 rounded-lg text-xs px-3 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium"
                     onClick={(e) => {
                       e.stopPropagation();
-                      void handleImportRow(row);
+                      if (isEnriched && enrichedProfile) {
+                        handleImportEnrichedProfile(enrichedProfile);
+                      } else {
+                        void handleImportRow(row);
+                      }
                     }}
-                    disabled={isImportPending}
+                    disabled={isImportPending || !isEnriched}
                   >
-                    {isImportPending ? <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} /> : <Plus className="h-3 w-3 mr-1" strokeWidth={1.5} />}
-                    Import
+                    {isImportPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} />
+                    ) : isEnriched ? (
+                      <><UserPlus className="h-3 w-3 mr-1" strokeWidth={1.5} />Import</>
+                    ) : (
+                      <><Loader2 className="h-3 w-3 animate-spin mr-1" strokeWidth={1.5} />Loading</>
+                    )}
                   </Button>
                 </div>
               );
@@ -4072,6 +4344,266 @@ export default function TalentSourcing() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* LinkedIn Profile Drawer */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-[700px] overflow-y-auto p-0">
+          {selectedProfileForDrawer && (
+            <>
+              {/* Header Section (LinkedIn-style) */}
+              <div className="relative">
+                {/* Cover Image */}
+                <div className="h-32 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
+
+                {/* Profile Header */}
+                <div className="px-6 pb-6">
+                  <div className="relative -mt-16 mb-4">
+                    <Avatar className="h-32 w-32 border-4 border-background">
+                      <AvatarImage src={selectedProfileForDrawer.profile_pic_url} />
+                      <AvatarFallback className="text-3xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                        {selectedProfileForDrawer.full_name?.[0] || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold font-display">{selectedProfileForDrawer.full_name}</h2>
+                    <p className="text-lg text-muted-foreground">{selectedProfileForDrawer.headline || selectedProfileForDrawer.current_title}</p>
+
+                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                      {selectedProfileForDrawer.current_company && (
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="h-4 w-4" />
+                          {selectedProfileForDrawer.current_company}
+                        </div>
+                      )}
+                      {selectedProfileForDrawer.education_school && (
+                        <div className="flex items-center gap-1.5">
+                          <GraduationCap className="h-4 w-4" />
+                          {selectedProfileForDrawer.education_school}
+                        </div>
+                      )}
+                      {(selectedProfileForDrawer.city || selectedProfileForDrawer.state) && (
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-4 w-4" />
+                          {selectedProfileForDrawer.city}
+                          {selectedProfileForDrawer.city && selectedProfileForDrawer.state && ', '}
+                          {selectedProfileForDrawer.state}
+                        </div>
+                      )}
+                    </div>
+
+                    <a
+                      href={selectedProfileForDrawer.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                    >
+                      <Linkedin className="h-4 w-4" />
+                      View on LinkedIn
+                    </a>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      onClick={() => handleImportEnrichedProfile(selectedProfileForDrawer)}
+                      className="flex-1"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Import to Talent Pool
+                    </Button>
+                    <Button variant="outline">
+                      <Star className="h-4 w-4 mr-2" />
+                      Shortlist
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Sections */}
+              <div className="px-6 space-y-6 pb-6">
+
+                {/* About Section */}
+                {selectedProfileForDrawer.summary && (
+                  <section>
+                    <h3 className="text-lg font-semibold font-display mb-3">About</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {selectedProfileForDrawer.summary}
+                    </p>
+                  </section>
+                )}
+
+                {selectedProfileForDrawer.summary && <Separator />}
+
+                {/* Experience Section */}
+                {selectedProfileForDrawer.experiences && selectedProfileForDrawer.experiences.length > 0 && (
+                  <section>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold font-display">Experience</h3>
+                      {selectedProfileForDrawer.years_of_experience > 0 && (
+                        <Badge variant="secondary">
+                          {selectedProfileForDrawer.years_of_experience} years
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      {selectedProfileForDrawer.experiences.map((exp, idx) => (
+                        <div key={idx} className="flex gap-3">
+                          {/* Company Logo */}
+                          <div className="shrink-0">
+                            {exp.logo_url ? (
+                              <img
+                                src={exp.logo_url}
+                                className="h-12 w-12 rounded border object-contain"
+                                alt={exp.company}
+                              />
+                            ) : (
+                              <div className="h-12 w-12 rounded border bg-muted flex items-center justify-center">
+                                <Building2 className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Experience Details */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold">{exp.title}</h4>
+                            <p className="text-sm text-muted-foreground">{exp.company}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {exp.starts_at && `${exp.starts_at.month || ''}/${exp.starts_at.year}`}
+                              {' - '}
+                              {exp.ends_at ? `${exp.ends_at.month || ''}/${exp.ends_at.year}` : 'Present'}
+                            </p>
+                            {exp.location && (
+                              <p className="text-xs text-muted-foreground">{exp.location}</p>
+                            )}
+                            {exp.description && (
+                              <p className="text-sm mt-2 whitespace-pre-wrap">{exp.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {selectedProfileForDrawer.experiences && selectedProfileForDrawer.experiences.length > 0 && <Separator />}
+
+                {/* Education Section */}
+                {selectedProfileForDrawer.education && selectedProfileForDrawer.education.length > 0 && (
+                  <section>
+                    <h3 className="text-lg font-semibold font-display mb-3">Education</h3>
+
+                    <div className="space-y-4">
+                      {selectedProfileForDrawer.education.map((edu, idx) => (
+                        <div key={idx} className="flex gap-3">
+                          {/* School Logo */}
+                          <div className="shrink-0">
+                            {edu.logo_url ? (
+                              <img
+                                src={edu.logo_url}
+                                className="h-12 w-12 rounded border object-contain"
+                                alt={edu.school}
+                              />
+                            ) : (
+                              <div className="h-12 w-12 rounded border bg-muted flex items-center justify-center">
+                                <GraduationCap className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Education Details */}
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{edu.school}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {edu.degree_name}
+                              {edu.field_of_study && `, ${edu.field_of_study}`}
+                            </p>
+                            {(edu.starts_at || edu.ends_at) && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {edu.starts_at?.year} - {edu.ends_at?.year || 'Present'}
+                              </p>
+                            )}
+                            {edu.activities_and_societies && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Activities: {edu.activities_and_societies}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {selectedProfileForDrawer.education && selectedProfileForDrawer.education.length > 0 && <Separator />}
+
+                {/* Skills Section */}
+                {selectedProfileForDrawer.skills && selectedProfileForDrawer.skills.length > 0 && (
+                  <section>
+                    <h3 className="text-lg font-semibold font-display mb-3">Skills</h3>
+
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProfileForDrawer.skills.map((skill, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-sm py-1.5 px-3">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Certifications Section */}
+                {selectedProfileForDrawer.certifications && selectedProfileForDrawer.certifications.length > 0 && (
+                  <>
+                    <Separator />
+                    <section>
+                      <h3 className="text-lg font-semibold font-display mb-3">Licenses & Certifications</h3>
+
+                      <div className="space-y-3">
+                        {selectedProfileForDrawer.certifications.map((cert, idx) => (
+                          <div key={idx} className="flex gap-3">
+                            <Award className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                            <div>
+                              <h4 className="font-medium text-sm">{cert.name}</h4>
+                              {cert.authority && (
+                                <p className="text-xs text-muted-foreground">{cert.authority}</p>
+                              )}
+                              {cert.starts_at && (
+                                <p className="text-xs text-muted-foreground">
+                                  Issued {cert.starts_at.month}/{cert.starts_at.year}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  </>
+                )}
+
+                {/* Languages Section */}
+                {selectedProfileForDrawer.languages && selectedProfileForDrawer.languages.length > 0 && (
+                  <>
+                    <Separator />
+                    <section>
+                      <h3 className="text-lg font-semibold font-display mb-3">Languages</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProfileForDrawer.languages.map((lang, idx) => (
+                          <Badge key={idx} variant="outline" className="text-sm">
+                            {lang}
+                          </Badge>
+                        ))}
+                      </div>
+                    </section>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </DashboardLayout>
   );
 }
