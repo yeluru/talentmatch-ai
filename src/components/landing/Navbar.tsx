@@ -159,13 +159,23 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden p-2 rounded-full hover:bg-muted transition-colors"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile Menu & Theme Toggle */}
+        <div className="md:hidden flex items-center gap-2">
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="p-2 rounded-full bg-muted/50 hover:bg-muted border border-border/50 transition-colors text-foreground"
+            aria-label="Toggle theme"
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+          <button
+            className="p-2 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-all text-primary"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu */}
@@ -182,14 +192,6 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <hr className="my-2 border-border" />
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted rounded-lg transition-colors w-full"
-            >
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              {isDark ? 'Light Mode' : 'Dark Mode'}
-            </button>
             <hr className="my-2 border-border" />
             {user ? (
               <div className="flex flex-col gap-2">
