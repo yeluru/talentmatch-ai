@@ -4,89 +4,102 @@
 
 ---
 
-## 🎉 New Features
+## What We Improved
 
-### Smarter Talent Search
-We've completely redesigned how the system finds candidates for your job openings:
+### Finding Candidates Just Got Easier (For Recruiters)
 
-- **AI-Powered Job Description Parser**: Just paste a job description, and the system automatically identifies:
-  - Required skills
-  - Nice-to-have skills
-  - Tools and technologies
-  - Certifications
+**The Problem:** When you searched for candidates, you only got about 10 results. Not enough options to find the right person.
 
-- **Better Search Results**: You'll now see 50-200 candidate results per search instead of just 10, giving you a much larger talent pool to choose from.
+**What's Different Now:**
+- Copy and paste any job description into the search box
+- The system reads it and pulls out the important skills automatically
+- You'll see 50 to 200 candidates per search (way more options!)
+- You can click to add or remove skills before you search
+- If you come back later, your previous search is saved and ready to use again
 
-- **Pick and Choose Skills**: You can now add or remove individual skills before searching, giving you complete control over your candidate search.
-
-- **Faster Repeat Searches**: The system remembers your previous job description analysis, so you can instantly reload and modify searches without starting over.
-
-### Improved Client Management
-Managing client companies is now easier and more flexible:
-
-- **Add Secondary Contacts**: You can now add a second contact person for each client (optional), making it easier to work with multiple stakeholders.
-
-- **Never Lose Your Work**: When adding a new client, your entered information is automatically saved as you type. If you need to switch browser tabs to look up information, your data will be waiting for you when you come back.
-
-- **Required Information**: To keep your client database complete, the system now requires you to fill in the company industry, website, and primary contact details.
-
-### Comprehensive Help Guide
-New detailed help documentation is now available:
-
-- Explanations of how candidate matching works
-- Tips for building effective search queries
-- Guides for bulk operations
-- Descriptions of all search modes and filters
-- And much more!
-
-Access the help guide anytime from the Talent Search page.
+**What This Means For You:**
+Spend less time writing searches. Get more candidates to choose from. Find the right person faster.
 
 ---
 
-## 🔧 Improvements
+### Adding New Clients is Less Frustrating (For Account Managers)
 
-### Talent Search
-- Search queries now include all the skills you select (previously limited to 15)
-- Better handling of certification names (extracts abbreviations like "CISSP" instead of full names)
-- Smarter filtering of vague terms to give you more relevant results
-- Extended search depth to find more candidates
+**The Problem:** You're filling out the "Add Client" form, you switch to another tab to look up a phone number or website, and when you come back - everything you typed is gone. Super annoying!
 
-### Client Management
-- Cleaner, more compact form layout
-- Dialog windows stay open when switching tabs (no more losing your work!)
-- Clear required field indicators
+**What's Different Now:**
+- Type information into the form
+- Switch tabs, check your email, do whatever you need
+- Come back and everything you typed is still there
+- You can also add a second contact person now (like if the client has both a hiring manager and an HR director you work with)
 
----
-
-## 🔨 Bug Fixes
-
-- **Fixed: Add Client popup closing unexpectedly** - The popup would disappear when switching browser tabs, causing you to lose entered information. This is now resolved.
-
-- **Removed: Profile Enrichment feature** - We removed a LinkedIn profile enrichment feature that was no longer working due to the service provider shutting down. This prevents error messages you may have encountered.
+**What This Means For You:**
+No more retyping the same information three times. No more frustration.
 
 ---
 
-## 💡 Tips for Getting Started
+### Get Answers When You're Stuck (For Recruiters)
 
-### For Recruiters:
-1. Try the new job description parser - paste any job posting and watch it automatically extract skills
-2. Adjust the selected skills to fine-tune your search
-3. Check out the help guide for tips on getting the best search results
+**The Problem:** You see buttons and options but aren't sure what they do or how to use them.
 
-### For Account Managers:
-1. When adding clients, you can now safely switch tabs - your information won't disappear
-2. Add secondary contacts for clients who have multiple points of contact
-3. Make sure to fill in all required fields (industry, website, primary contact)
+**What's Different Now:**
+- Click the "Help" button on the Talent Search page
+- Read clear explanations of:
+  - What the percentage match score means
+  - How to use all the search options
+  - What "Deep Search" vs "Basic Search" actually does
+  - How to import multiple candidates at once
+  - And much more
 
----
-
-## 📞 Need Help?
-
-If you have questions about any of these new features or encounter any issues:
-- Check the Help Guide in the Talent Search page
-- Contact your system administrator
-- Reach out to support
+**What This Means For You:**
+Get unstuck without calling support. Learn the system at your own pace.
 
 ---
 
-Thank you for using TalentMatch AI! We're constantly working to make your recruiting process easier and more effective.
+## Small Improvements You'll Notice
+
+**When Searching for Candidates:**
+- You can now include as many skills as you want in a search (used to stop at 15)
+- You'll see more relevant candidates in your results
+
+**When Adding Clients:**
+- The form is more compact and easier to read
+- You must fill in: Company Industry, Website, and at least one contact person (name, email, phone)
+- This keeps your client list complete and useful
+
+---
+
+## We Fixed Some Problems
+
+**Fixed: The disappearing client form**
+We already mentioned this above - your typed information now stays put when you switch browser tabs.
+
+**Removed: A broken feature**
+There was a button that said "Enrich Profile" that stopped working. We removed it so it won't confuse you anymore.
+
+---
+
+## How to Use the New Stuff
+
+**If you're a Recruiter:**
+1. Go to Talent Search
+2. Paste a job description in the box at the top
+3. Look at the skills it found - click to turn them on or off
+4. Click "Search" and see way more candidates than before
+5. If you get stuck, click "Help" at the top
+
+**If you're an Account Manager:**
+1. Click "Add Client"
+2. Start typing information
+3. Need to look something up? Switch tabs - your info will be there when you get back
+4. Fill in the required fields (they have a red asterisk)
+5. If the client has two people you talk to, add both (one as primary, one as secondary)
+
+---
+
+## Questions?
+
+Not sure how something works? Click the Help button on the Talent Search page or reach out to your manager.
+
+---
+
+Thanks for using TalentMatch AI. We listen to your feedback and keep making things better!
