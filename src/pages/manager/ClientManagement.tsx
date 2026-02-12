@@ -25,6 +25,9 @@ interface Client {
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  secondary_contact_name: string | null;
+  secondary_contact_email: string | null;
+  secondary_contact_phone: string | null;
   notes: string | null;
   status: string | null;
   created_at: string;
@@ -40,7 +43,11 @@ export default function ClientManagement() {
     key: 'name',
     dir: 'asc',
   });
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(() => {
+    // Restore dialog open state from localStorage on initial load
+    const saved = localStorage.getItem('client-dialog-open');
+    return saved === 'true';
+  });
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -49,9 +56,43 @@ export default function ClientManagement() {
     contact_name: '',
     contact_email: '',
     contact_phone: '',
+    secondary_contact_name: '',
+    secondary_contact_email: '',
+    secondary_contact_phone: '',
     notes: '',
     status: 'active'
   });
+
+  // Persist dialog open state to localStorage
+  useEffect(() => {
+    localStorage.setItem('client-dialog-open', String(isDialogOpen));
+  }, [isDialogOpen]);
+
+  // Load saved form data from localStorage when dialog opens
+  useEffect(() => {
+    if (isDialogOpen && !editingClient) {
+      const saved = localStorage.getItem('client-form-draft');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          // Only restore if there's actual data (not empty form)
+          if (parsed.name || parsed.industry || parsed.contact_name || parsed.website) {
+            setFormData(parsed);
+            toast.info('Draft restored - your previous work was saved');
+          }
+        } catch (e) {
+          console.error('Failed to parse saved form data:', e);
+        }
+      }
+    }
+  }, [isDialogOpen, editingClient]);
+
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    if (isDialogOpen && !editingClient) {
+      localStorage.setItem('client-form-draft', JSON.stringify(formData));
+    }
+  }, [formData, isDialogOpen, editingClient]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -122,8 +163,29 @@ export default function ClientManagement() {
   }, [filteredClients, tableSort.sort]);
 
   const handleSubmit = async () => {
+    // Validate required fields
     if (!formData.name.trim()) {
-      toast.error('Client name is required');
+      toast.error('Company name is required');
+      return;
+    }
+    if (!formData.industry.trim()) {
+      toast.error('Industry is required');
+      return;
+    }
+    if (!formData.website.trim()) {
+      toast.error('Website is required');
+      return;
+    }
+    if (!formData.contact_name.trim()) {
+      toast.error('Primary contact name is required');
+      return;
+    }
+    if (!formData.contact_email.trim()) {
+      toast.error('Primary contact email is required');
+      return;
+    }
+    if (!formData.contact_phone.trim()) {
+      toast.error('Primary contact phone is required');
       return;
     }
 
@@ -131,11 +193,14 @@ export default function ClientManagement() {
       const clientData = {
         organization_id: organizationId,
         name: formData.name,
-        industry: formData.industry || null,
-        website: formData.website || null,
-        contact_name: formData.contact_name || null,
-        contact_email: formData.contact_email || null,
-        contact_phone: formData.contact_phone || null,
+        industry: formData.industry,
+        website: formData.website,
+        contact_name: formData.contact_name,
+        contact_email: formData.contact_email,
+        contact_phone: formData.contact_phone,
+        secondary_contact_name: formData.secondary_contact_name || null,
+        secondary_contact_email: formData.secondary_contact_email || null,
+        secondary_contact_phone: formData.secondary_contact_phone || null,
         notes: formData.notes || null,
         status: formData.status,
         created_by: user!.id
@@ -157,6 +222,8 @@ export default function ClientManagement() {
       }
 
       setIsDialogOpen(false);
+      localStorage.removeItem('client-form-draft'); // Clear saved draft after successful submission
+      localStorage.removeItem('client-dialog-open'); // Clear dialog open state
       resetForm();
       fetchClients();
     } catch (error) {
@@ -174,6 +241,9 @@ export default function ClientManagement() {
       contact_name: client.contact_name || '',
       contact_email: client.contact_email || '',
       contact_phone: client.contact_phone || '',
+      secondary_contact_name: client.secondary_contact_name || '',
+      secondary_contact_email: client.secondary_contact_email || '',
+      secondary_contact_phone: client.secondary_contact_phone || '',
       notes: client.notes || '',
       status: client.status || 'active'
     });
@@ -206,6 +276,9 @@ export default function ClientManagement() {
       contact_name: '',
       contact_email: '',
       contact_phone: '',
+      secondary_contact_name: '',
+      secondary_contact_email: '',
+      secondary_contact_phone: '',
       notes: '',
       status: 'active'
     });
@@ -276,19 +349,35 @@ export default function ClientManagement() {
               <p className="text-lg text-muted-foreground font-sans">Manage client companies and their requirements.</p>
             </div>
             <div className="shrink-0">
-              <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                if (!open) {
+                  // User clicked X button - close and clear
+                  setIsDialogOpen(false);
+                  localStorage.removeItem('client-form-draft');
+                  localStorage.removeItem('client-dialog-open');
+                  resetForm();
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                  <Button
+                    onClick={() => setIsDialogOpen(true)}
+                    className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold"
+                  >
                     <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
                     Add Client
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-lg max-w-full">
+                <DialogContent
+                  className="sm:max-w-lg max-w-full max-h-[90vh] overflow-y-auto"
+                  onPointerDownOutside={(e) => e.preventDefault()}
+                  onEscapeKeyDown={(e) => e.preventDefault()}
+                  onInteractOutside={(e) => e.preventDefault()}
+                >
                   <DialogHeader>
                     <DialogTitle className="font-display">{editingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-2 col-span-2">
                         <Label htmlFor="name" className="font-sans">Company Name *</Label>
                         <Input
@@ -296,23 +385,24 @@ export default function ClientManagement() {
                           placeholder="Acme Corporation"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="industry" className="font-sans">Industry</Label>
+                        <Label htmlFor="industry" className="font-sans">Industry *</Label>
                         <Input
                           id="industry"
                           placeholder="Technology"
                           value={formData.industry}
                           onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="status" className="font-sans">Status</Label>
+                        <Label htmlFor="status" className="font-sans">Status *</Label>
                         <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                          <SelectTrigger className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans">
+                          <SelectTrigger className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -323,49 +413,90 @@ export default function ClientManagement() {
                         </Select>
                       </div>
                       <div className="space-y-2 col-span-2">
-                        <Label htmlFor="website" className="font-sans">Website</Label>
+                        <Label htmlFor="website" className="font-sans">Website *</Label>
                         <Input
                           id="website"
                           placeholder="https://acme.com"
                           value={formData.website}
                           onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          required
                         />
                       </div>
                     </div>
 
-                    <div className="border-t border-border pt-4">
-                      <h4 className="font-display font-semibold mb-3 text-foreground">Primary Contact</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="border-t border-border pt-3">
+                      <h4 className="font-display font-semibold mb-2 text-sm text-foreground">Primary Contact *</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-2">
-                          <Label htmlFor="contact_name" className="font-sans">Name</Label>
+                          <Label htmlFor="contact_name" className="font-sans">Name *</Label>
                           <Input
                             id="contact_name"
                             placeholder="John Smith"
                             value={formData.contact_name}
                             onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                            className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                            required
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="contact_phone" className="font-sans">Phone</Label>
+                          <Label htmlFor="contact_phone" className="font-sans">Phone *</Label>
                           <Input
                             id="contact_phone"
                             placeholder="+1 (555) 123-4567"
                             value={formData.contact_phone}
                             onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                            className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                            required
                           />
                         </div>
                         <div className="space-y-2 col-span-2">
-                          <Label htmlFor="contact_email" className="font-sans">Email</Label>
+                          <Label htmlFor="contact_email" className="font-sans">Email *</Label>
                           <Input
                             id="contact_email"
                             type="email"
                             placeholder="john@acme.com"
                             value={formData.contact_email}
                             onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                            className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-border pt-3">
+                      <h4 className="font-display font-semibold mb-2 text-sm text-foreground">Secondary Contact <span className="text-xs text-muted-foreground font-sans">(Optional)</span></h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="secondary_contact_name" className="font-sans">Name</Label>
+                          <Input
+                            id="secondary_contact_name"
+                            placeholder="Jane Doe"
+                            value={formData.secondary_contact_name}
+                            onChange={(e) => setFormData({ ...formData, secondary_contact_name: e.target.value })}
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="secondary_contact_phone" className="font-sans">Phone</Label>
+                          <Input
+                            id="secondary_contact_phone"
+                            placeholder="+1 (555) 987-6543"
+                            value={formData.secondary_contact_phone}
+                            onChange={(e) => setFormData({ ...formData, secondary_contact_phone: e.target.value })}
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="secondary_contact_email" className="font-sans">Email</Label>
+                          <Input
+                            id="secondary_contact_email"
+                            type="email"
+                            placeholder="jane@acme.com"
+                            value={formData.secondary_contact_email}
+                            onChange={(e) => setFormData({ ...formData, secondary_contact_email: e.target.value })}
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                           />
                         </div>
                       </div>
@@ -383,9 +514,28 @@ export default function ClientManagement() {
                       />
                     </div>
 
-                    <Button onClick={handleSubmit} className="w-full rounded-lg h-11 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
-                      {editingClient ? 'Update Client' : 'Create Client'}
-                    </Button>
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsDialogOpen(false);
+                          localStorage.removeItem('client-form-draft');
+                          localStorage.removeItem('client-dialog-open');
+                          resetForm();
+                        }}
+                        className="flex-1 rounded-lg h-10 font-sans font-semibold"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleSubmit}
+                        className="flex-1 rounded-lg h-10 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold"
+                      >
+                        {editingClient ? 'Update Client' : 'Create Client'}
+                      </Button>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>

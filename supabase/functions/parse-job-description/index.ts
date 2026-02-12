@@ -409,19 +409,23 @@ serve(async (req) => {
       const systemPrompt = `You are an information extraction + JD normalization engine.
 
 Goal:
-Given a raw job description (often containing vendor notes like client, rate, deadline, req id, etc.), you must:
-1) Extract ONLY these fields: location, job_type, experience_level, skills
-2) Remove everything else (client name, rate, submission deadline, req ids, recruiter notes, duplicated JD blocks, etc.)
-3) Rewrite the remaining JD content into a clean, readable "jd" field with no vendor metadata.
-4) Never leave extracted fields empty if the information exists anywhere in the text. If truly missing, use null and explain why in "extraction_notes".
+Given a raw job description, extract structured fields paying CLOSE ATTENTION to section headings.
 
-Critical rules:
-- Do NOT output: client, rate, submission deadline, req id, vendor name, pay range, contact info.
-- If the JD is duplicated, dedupe and keep one clean version.
-- If "Remote: No (Hybrid 3 days in-person, 2 days remote)" is present, job_type MUST be "Hybrid".
-- Experience level must be one of: ["Entry","Mid","Senior","Lead","Principal/Architect","Manager","Director","Unknown"].
-- job_type must be one of: ["Onsite","Hybrid","Remote","Unknown"].
-- Skills must be deduped and categorized: core, secondary, methods_tools, certs.`;
+Critical rules for skills extraction:
+- Look for section headings: "Must Have", "Required", "Requirements", "Qualifications", "Nice to Have", "Preferred", "Bonus"
+- "core" skills = skills from "Must Have", "Required", "Requirements" sections
+- "secondary" skills = skills from "Nice to Have", "Preferred", "Bonus" sections
+- "methods_tools" = development methodologies, tools, frameworks
+- "certs" = certifications, licenses
+- Extract ALL skills from each section, not just 1 or 2
+- If no clear sections, put technical skills in "core" and soft skills in "secondary"
+
+Other rules:
+- Do NOT output: client, rate, submission deadline, req id, vendor name, pay range, contact info
+- If "Remote: No (Hybrid...)" is present, job_type MUST be "Hybrid"
+- Experience level must be one of: ["Entry","Mid","Senior","Lead","Principal/Architect","Manager","Director","Unknown"]
+- job_type must be one of: ["Onsite","Hybrid","Remote","Unknown"]
+- Dedupe skills but keep all unique ones`;
 
       const userPrompt = `Now process the following raw input exactly:\n\n<<<RAW_JD\n${jdText}\nRAW_JD>>>`;
 

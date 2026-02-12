@@ -158,7 +158,16 @@ serve(async (req) => {
       const organic = Array.isArray(data?.organic_results) ? data.organic_results : [];
       items.push(...organic);
       lastPageStart = start;
-      if (organic.length < pageSize) {
+
+      // Only stop if we get ZERO results (truly exhausted)
+      // Don't stop on partial pages - Google/SerpAPI sometimes returns <10 even when more exist
+      if (organic.length === 0) {
+        reachedEnd = true;
+        break;
+      }
+
+      // Also check if we've reached the max accessible limit
+      if (start + pageSize >= 450) {
         reachedEnd = true;
         break;
       }
@@ -186,9 +195,14 @@ serve(async (req) => {
     const results = Array.from(dedup.values()).slice(0, capped);
     const returned = results.length;
 
-    // If we got fewer than pageSize on the last fetch, treat as exhausted.
-    const next_start =
-      reachedEnd ? 0 : Math.max(0, Math.trunc(lastPageStart + pageSize + 1)); // back to 1-based
+    // Calculate next_start for pagination
+    // Only set to 0 if we truly reached the end (got 0 results or hit limit)
+    const nextOffset = lastPageStart + pageSize; // 0-based
+    const next_start = reachedEnd ? 0 : Math.max(1, nextOffset + 1); // back to 1-based
+
+    // Additional check: if next offset would exceed total results, signal end
+    const hasMoreResults = totalResults > 0 && nextOffset < Math.min(totalResults, 450);
+    const final_next_start = (reachedEnd || !hasMoreResults) ? 0 : next_start;
 
     return new Response(JSON.stringify({
       success: true,
@@ -196,7 +210,7 @@ serve(async (req) => {
       results,
       returned,
       start: startFrom,
-      next_start,
+      next_start: final_next_start,
       total_found: totalResults,
       estimated_total: totalResults,
       // SerpAPI can paginate deeper than Google CSE's 100-result cap.

@@ -44,32 +44,60 @@ function buildXrayQuery(args: {
   titles: string[];
   skills: string[];
   locations: string[];
+  seniority?: string;
 }): string {
-  const baseSite = "(site:linkedin.com/in OR site:linkedin.com/pub)";
+  const baseSite = "site:linkedin.com/in";
+  const parts: string[] = [baseSite];
 
-  const titlePart =
-    args.titles.length > 0
-      ? `(${args.titles.map((t) => `"${String(t).replace(/"/g, "").trim()}"`).filter(Boolean).join(" OR ")})`
-      : "";
+  // STRATEGY: Balanced approach - specific enough but not overly restrictive
+  // Goal: 50-200 highly relevant results
+  // Structure: Title variations + Required primary skill + Optional secondary skills
 
-  const skillPart =
-    args.skills.length > 0
-      ? `(${args.skills.map((s) => quoteIfNeeded(s)).filter(Boolean).join(" OR ")})`
-      : "";
+  // 1. TITLE VARIATIONS - Keep full phrases but offer alternatives
+  // Use up to 2 title variations for flexibility
+  if (args.titles.length > 0) {
+    const titles = args.titles.slice(0, 2).map(t => {
+      const clean = String(t).replace(/"/g, "").trim();
+      // Remove seniority prefixes for broader matching
+      const withoutSeniority = clean
+        .replace(/^(Senior|Sr\.?|Junior|Jr\.?|Lead|Staff|Principal)\s+/i, '')
+        .trim();
+      return `"${withoutSeniority}"`;
+    });
+    if (titles.length === 1) {
+      parts.push(titles[0]);
+    } else {
+      parts.push(`(${titles.join(" OR ")})`);
+    }
+  }
 
-  const locPart =
-    args.locations.length > 0
-      ? `(${args.locations.map((l) => `"${String(l).replace(/"/g, "").trim()}"`).filter(Boolean).join(" OR ")})`
-      : "";
+  // 2. PRIMARY SKILL - Required (most critical must-have)
+  if (args.skills.length > 0) {
+    parts.push(quoteIfNeeded(args.skills[0]));
+  }
 
-  // Keep this aligned with the local google-x-ray project defaults.
-  const exclusions = "-jobs -job -recruiter -hiring -learning -articles -pulse -groups -careers";
+  // 3. SECONDARY SKILLS - Optional with OR (adds specificity without being too restrictive)
+  if (args.skills.length > 1) {
+    const secondarySkills = args.skills.slice(1, 3).map(s => quoteIfNeeded(s));
+    if (secondarySkills.length > 0) {
+      parts.push(`(${secondarySkills.join(" OR ")})`);
+    }
+  }
 
-  return [baseSite, titlePart, skillPart, locPart, exclusions]
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  // 4. LOCATION - Optional, state/country level only
+  if (args.locations.length > 0) {
+    const loc = String(args.locations[0]).replace(/"/g, "").trim();
+    const statePart = loc.split(/[,•]/)[loc.includes(',') || loc.includes('•') ? 1 : 0]?.trim() || loc;
+    const clean = statePart.replace(/\s*(USA?|United States.*)\s*/gi, '').trim();
+    if (clean && clean.length >= 2) {
+      parts.push(quoteIfNeeded(clean));
+    }
+  }
+
+  // 5. EXCLUSIONS - Remove recruiter spam
+  parts.push("-recruiter -staffing -talent -sales -job -jobs -hiring -career");
+
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 serve(async (req) => {
@@ -95,11 +123,13 @@ serve(async (req) => {
           role: "system",
           content:
             "You extract structured signals from a Job Description to build a Google X-ray LinkedIn query.\n" +
-            "Return ONLY structured data. Do not add commentary.\n" +
-            "- titles: max 3\n" +
-            "- skills: max 12\n" +
-            "- locations: max 3 (GEOGRAPHIC ONLY; city/state/metro/country). Do NOT include remote/on-site/hybrid.\n" +
-            "- seniority: one of [Junior, Mid, Senior, Staff/Principal] or null\n",
+            "STRATEGY: Broader is better. We want 50-200 results, not 0-2.\n" +
+            "Return ONLY structured data. No commentary.\n\n" +
+            "- titles: 2-3 role variations (e.g. 'Security Architect', 'Cloud Security Engineer')\n" +
+            "- skills: TOP 3 MOST CRITICAL skills only (e.g. AWS, Security, Architecture). Prioritize must-have skills.\n" +
+            "- locations: State/Country only, NO cities (e.g. 'Virginia', 'United States'). Max 2.\n" +
+            "- seniority: one of [junior, mid, senior, staff] or null\n\n" +
+            "Remember: Fewer, broader terms = more results. Choose the most essential, high-signal terms.",
         },
         { role: "user", content: `JD:\n${jdText.slice(0, 20000)}` },
       ],
@@ -145,16 +175,16 @@ serve(async (req) => {
     }
 
     const parsed = JSON.parse(toolCall.function.arguments);
-    const titles = clampList(parsed?.titles, 3);
-    const skills = clampList(parsed?.skills, 12);
-    const locations = clampList(parsed?.locations, 3);
+    const titles = clampList(parsed?.titles, 2);  // Max 2 titles
+    const skills = clampList(parsed?.skills, 3);  // Max 3 skills (changed from 12)
+    const locations = clampList(parsed?.locations, 2);  // Max 2 locations (state/country)
     const seniority = mapSeniorityToUi(seniorityOverride || parsed?.seniority);
 
     // Merge user overrides (location + must-haves)
-    const mergedLocations = targetLocation ? clampList([targetLocation, ...locations], 3) : locations;
-    const mergedSkills = clampList([...mustHaveSkills, ...skills], 12);
+    const mergedLocations = targetLocation ? clampList([targetLocation, ...locations], 2) : locations;
+    const mergedSkills = clampList([...mustHaveSkills, ...skills], 3);  // Max 3 total skills
 
-    const query = buildXrayQuery({ titles, skills: mergedSkills, locations: mergedLocations });
+    const query = buildXrayQuery({ titles, skills: mergedSkills, locations: mergedLocations, seniority });
 
     return new Response(
       JSON.stringify({
@@ -167,7 +197,8 @@ serve(async (req) => {
           seniority,
         },
         debug: {
-          rules_used: ["max_3_titles", "max_12_skills", "max_3_locations", "xray_format_v1"],
+          rules_used: ["max_2_titles", "max_3_skills", "max_2_locations", "broader_query_v2"],
+          strategy: "Broader queries for 50-200 results instead of 0-2",
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
