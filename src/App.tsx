@@ -77,6 +77,7 @@ const ManagerJobs = lazy(() => import("./pages/manager/ManagerJobs"));
 const ManagerCandidates = lazy(() => import("./pages/manager/ManagerCandidates"));
 const ManagerOrganization = lazy(() => import("./pages/manager/ManagerOrganization"));
 const ClientManagement = lazy(() => import("./pages/manager/ClientManagement"));
+const TeamActivity = lazy(() => import("./pages/manager/TeamActivity"));
 const AuditLogs = lazy(() => import("./pages/manager/AuditLogs"));
 const ManagerHowToGuide = lazy(() => import("./pages/manager/ManagerHowToGuide"));
 
@@ -545,6 +546,16 @@ const App = () => (
                     }
                   />
                   <Route
+                    path="/manager/team-activity"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager", "org_admin", "super_admin"]}>
+                        <RouteErrorBoundary title="Team activity failed to load">
+                          {withSuspense(<TeamActivity />)}
+                        </RouteErrorBoundary>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/manager/audit-logs"
                     element={
                       <ProtectedRoute allowedRoles={["account_manager"]}>
@@ -645,6 +656,17 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["org_admin"]}>
                         {withSuspense(<RoleManagement />)}
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/org-admin/team-activity"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        <RouteErrorBoundary title="Team activity failed to load">
+                          {withSuspense(<TeamActivity />)}
+                        </RouteErrorBoundary>
                       </ProtectedRoute>
                     }
                   />
