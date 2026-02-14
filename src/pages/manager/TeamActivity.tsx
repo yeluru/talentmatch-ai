@@ -54,6 +54,52 @@ export default function TeamActivity() {
     }
   }, [isManager, organizationId, dateRange]);
 
+  // Auto-aggregate if no data found
+  useEffect(() => {
+    const autoAggregate = async () => {
+      if (!loading && activities.length === 0 && organizationId && dateRange === 'today') {
+        console.log('No activity data found, triggering auto-aggregation...');
+
+        // Get all users in the organization
+        const { data: orgUsers, error: usersError } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .eq('organization_id', organizationId)
+          .in('role', ['recruiter', 'account_manager']);
+
+        if (usersError || !orgUsers || orgUsers.length === 0) {
+          console.log('No users found for aggregation');
+          return;
+        }
+
+        console.log(`Auto-aggregating activity for ${orgUsers.length} users...`);
+
+        // Aggregate for each user
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const aggregatePromises = orgUsers.map(async (u) => {
+          try {
+            await supabase.rpc('aggregate_user_activity', {
+              p_user_id: u.user_id,
+              p_organization_id: organizationId,
+              p_date: today,
+              p_acting_role: u.role,
+            });
+          } catch (err) {
+            console.error(`Failed to aggregate for user ${u.user_id}:`, err);
+          }
+        });
+
+        await Promise.all(aggregatePromises);
+
+        // Refresh the activity list
+        await fetchTeamActivity();
+        console.log('Auto-aggregation complete');
+      }
+    };
+
+    autoAggregate();
+  }, [loading, activities.length, organizationId, dateRange]);
+
   const getDateRangeFilter = () => {
     const today = startOfDay(new Date());
 
