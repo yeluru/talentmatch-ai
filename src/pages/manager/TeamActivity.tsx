@@ -39,14 +39,14 @@ interface DailyActivity {
 }
 
 export default function TeamActivity() {
-  const { user, activeRole, organizationId } = useAuth();
+  const { user, currentRole, organizationId } = useAuth();
   const [activities, setActivities] = useState<DailyActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingSummary, setGeneratingSummary] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<string>('today');
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
 
-  const isManager = activeRole === 'account_manager' || activeRole === 'org_admin' || activeRole === 'super_admin';
+  const isManager = currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin';
 
   useEffect(() => {
     if (isManager && organizationId) {
