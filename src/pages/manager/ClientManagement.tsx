@@ -641,8 +641,9 @@ export default function ClientManagement() {
               ) : (
                 <>
                   <div className="hidden md:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest font-sans">
-                    <div className="flex-1">Company</div>
-                    <div className="w-1/4">Contact</div>
+                    <div className="w-1/5">Company</div>
+                    <div className="flex-1">Primary Contact</div>
+                    <div className="flex-1">Secondary Contact</div>
                     <div className="w-32">Industry</div>
                     <div className="w-20 text-center">Jobs</div>
                     <div className="w-24 text-center">Status</div>
@@ -652,12 +653,12 @@ export default function ClientManagement() {
                   <div className="space-y-3">
                     {sortedClients.map((client) => (
                       <div key={client.id} className="rounded-xl border border-border bg-card p-4 hover:border-manager/30 hover:bg-manager/5 hover:shadow-md transition-all flex items-center gap-4 group">
-                        <div className="flex-1 min-w-0">
+                        <div className="w-1/5 min-w-0">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-manager/10 text-manager border border-manager/20 flex items-center justify-center">
+                            <div className="h-10 w-10 rounded-lg bg-manager/10 text-manager border border-manager/20 flex items-center justify-center flex-shrink-0">
                               <Building2 className="h-5 w-5" strokeWidth={1.5} />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-sans font-bold text-foreground truncate group-hover:text-manager transition-colors">{client.name}</p>
                               {client.website && (
                                 <a
@@ -675,7 +676,7 @@ export default function ClientManagement() {
                           </div>
                         </div>
 
-                        <div className="w-1/4 hidden md:block">
+                        <div className="flex-1 hidden md:block min-w-0">
                           {client.contact_name ? (
                             <div className="space-y-0.5">
                               <p className="text-sm font-sans font-medium">
@@ -686,6 +687,30 @@ export default function ClientManagement() {
                               </p>
                               {client.contact_email && (
                                 <p className="text-xs text-muted-foreground truncate font-sans">{client.contact_email}</p>
+                              )}
+                              {client.contact_phone && (
+                                <p className="text-xs text-muted-foreground font-sans">{client.contact_phone}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm font-sans">-</span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 hidden md:block min-w-0">
+                          {client.secondary_contact_name ? (
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-sans font-medium">
+                                {client.secondary_contact_name}
+                                {client.secondary_contact_title && (
+                                  <span className="text-xs text-muted-foreground font-normal ml-1">({client.secondary_contact_title})</span>
+                                )}
+                              </p>
+                              {client.secondary_contact_email && (
+                                <p className="text-xs text-muted-foreground truncate font-sans">{client.secondary_contact_email}</p>
+                              )}
+                              {client.secondary_contact_phone && (
+                                <p className="text-xs text-muted-foreground font-sans">{client.secondary_contact_phone}</p>
                               )}
                             </div>
                           ) : (
