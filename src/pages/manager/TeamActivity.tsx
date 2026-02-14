@@ -80,10 +80,7 @@ export default function TeamActivity() {
 
       let query = supabase
         .from('daily_user_activity')
-        .select(`
-          *,
-          profiles!daily_user_activity_user_id_fkey(full_name)
-        `)
+        .select('*')
         .eq('organization_id', organizationId!)
         .order('activity_date', { ascending: false })
         .order('total_active_minutes', { ascending: false });
@@ -102,7 +99,28 @@ export default function TeamActivity() {
         throw error;
       }
 
-      setActivities(data || []);
+      // Fetch user profiles separately
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(a => a.user_id))];
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        if (!profilesError && profiles) {
+          // Merge profiles into activities
+          const profileMap = new Map(profiles.map(p => [p.user_id, p]));
+          const enrichedData = data.map(activity => ({
+            ...activity,
+            profiles: profileMap.get(activity.user_id) || { full_name: 'Unknown User' }
+          }));
+          setActivities(enrichedData);
+        } else {
+          setActivities(data);
+        }
+      } else {
+        setActivities([]);
+      }
     } catch (error: any) {
       console.error('Error fetching team activity:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
