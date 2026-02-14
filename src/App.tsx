@@ -83,8 +83,10 @@ const ManagerHowToGuide = lazy(() => import("./pages/manager/ManagerHowToGuide")
 // Super Admin Pages
 const SuperAdminDashboard = lazy(() => import("./pages/admin/SuperAdminDashboard"));
 const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage"));
+const SuperAdminRoleManagement = lazy(() => import("./pages/admin/SuperAdminRoleManagement"));
 const OrgAdminDashboard = lazy(() => import("./pages/orgAdmin/OrgAdminDashboard"));
 const OrgAdminProfilePage = lazy(() => import("./pages/orgAdmin/OrgAdminProfilePage"));
+const RoleManagement = lazy(() => import("./pages/orgAdmin/RoleManagement"));
 
 // Shared Pages
 const Settings = lazy(() => import("./pages/Settings"));
@@ -587,6 +589,15 @@ const App = () => (
                     }
                   />
 
+                  <Route
+                    path="/admin/roles"
+                    element={
+                      <ProtectedRoute allowedRoles={["super_admin"]}>
+                        {withSuspense(<SuperAdminRoleManagement />)}
+                      </ProtectedRoute>
+                    }
+                  />
+
                   {/* Org Admin Routes (tenant) */}
                   <Route
                     path="/org-admin/audit"
@@ -625,6 +636,15 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["org_admin"]}>
                         {withSuspense(<OrgAdminProfilePage />)}
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/org-admin/roles"
+                    element={
+                      <ProtectedRoute allowedRoles={["org_admin"]}>
+                        {withSuspense(<RoleManagement />)}
                       </ProtectedRoute>
                     }
                   />

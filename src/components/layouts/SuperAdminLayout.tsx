@@ -2,13 +2,14 @@ import { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { AdminShell, type AdminNavItem } from "@/components/layouts/AdminShell";
-import { LayoutDashboard, Building2, Users, UserCheck, FileText, User } from "lucide-react";
+import { LayoutDashboard, Building2, Users, UserCheck, FileText, User, Shield } from "lucide-react";
 
 const PLATFORM_ADMIN_NAV: AdminNavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard, end: true },
   { label: "Tenants", href: "/admin?tab=tenants", icon: Building2, end: true },
   { label: "Users", href: "/admin?tab=users", icon: Users, end: true },
   { label: "Candidates", href: "/admin?tab=candidates", icon: UserCheck, end: true },
+  { label: "Role Management", href: "/admin/roles", icon: Shield, end: true },
   { label: "Audit logs", href: "/admin?tab=audit", icon: FileText, end: true },
   { label: "Profile", href: "/admin/profile", icon: User, end: true },
 ];

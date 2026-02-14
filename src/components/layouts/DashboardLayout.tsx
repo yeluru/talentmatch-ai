@@ -511,7 +511,7 @@ function DashboardLayoutInner({
 
                   {roles.length > 1 && (
                     <>
-                      <DropdownMenuLabel className="text-xs">
+                      <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
                         Switch Role
                       </DropdownMenuLabel>
                       {roles.map((r) => (
@@ -519,14 +519,27 @@ function DashboardLayoutInner({
                           key={r.role}
                           onClick={() => handleRoleSwitch(r.role)}
                           className={cn(
-                            currentRole === r.role && "bg-accent/10"
+                            "cursor-pointer",
+                            currentRole === r.role && "bg-accent/10 font-medium"
                           )}
                         >
-                          {r.role === 'candidate' && 'Candidate'}
-                          {r.role === 'recruiter' && 'Recruiter'}
-                          {r.role === 'account_manager' && 'Account Manager'}
-                          {r.role === 'org_admin' && 'Org Admin'}
-                          {r.role === 'super_admin' && 'Super Admin'}
+                          <span className="mr-2">
+                            {r.role === 'super_admin' && '⚡'}
+                            {r.role === 'org_admin' && '👑'}
+                            {r.role === 'account_manager' && '💼'}
+                            {r.role === 'recruiter' && '🔍'}
+                            {r.role === 'candidate' && '👤'}
+                          </span>
+                          <span className="flex-1">
+                            {r.role === 'candidate' && 'Candidate'}
+                            {r.role === 'recruiter' && 'Recruiter'}
+                            {r.role === 'account_manager' && 'Account Manager'}
+                            {r.role === 'org_admin' && 'Org Admin'}
+                            {r.role === 'super_admin' && 'Platform Admin'}
+                          </span>
+                          {r.is_primary && (
+                            <span className="ml-2 text-xs font-semibold text-amber-600 dark:text-amber-400">⭐ Primary</span>
+                          )}
                         </DropdownMenuItem>
                       ))}
                       <DropdownMenuSeparator />

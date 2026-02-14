@@ -114,12 +114,13 @@ type PostedJobLite = {
 };
 
 export default function TalentSourcing() {
-  const { roles, user } = useAuth();
+  const { roles, user, organizationId: authOrgId } = useAuth();
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const organizationId = orgIdForRecruiterSuite(roles);
+  // Use organizationId from auth context which respects the acting role
+  const organizationId = authOrgId;
 
   // Determine active section from route pathname
   const pathname = location.pathname;
@@ -266,6 +267,31 @@ export default function TalentSourcing() {
   const [selectedProfileForDrawer, setSelectedProfileForDrawer] = useState<EnrichedProfile | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const MAX_ENRICHMENT_LIMIT = 50;
+
+  // Query Builder state
+  const [queryBuilderOpen, setQueryBuilderOpen] = useState(false);
+  const [selectedQueryJob, setSelectedQueryJob] = useState<string>('');
+  const [parsedJD, setParsedJD] = useState<{
+    title: string | null;
+    skills: { core: string[]; secondary: string[]; methods_tools: string[]; certs: string[] };
+    location: { site: string | null; city: string | null; state: string | null; country: string | null };
+    job_type: string;
+    experience_level: string;
+  } | null>(null);
+  const [selectedSkills, setSelectedSkills] = useState<{
+    core: string[];
+    secondary: string[];
+    methods_tools: string[];
+    certs: string[];
+  }>({ core: [], secondary: [], methods_tools: [], certs: [] });
+  const [generatedQuery, setGeneratedQuery] = useState<string>('');
+  const [isParsingJD, setIsParsingJD] = useState(false);
+  const [isBuildingQuery, setIsBuildingQuery] = useState(false);
+  const [queryCacheId, setQueryCacheId] = useState<string | null>(null);
+  const [customSkillInput, setCustomSkillInput] = useState('');
+  const [secondarySkillInput, setSecondarySkillInput] = useState('');
+  const [methodsToolsInput, setMethodsToolsInput] = useState('');
+  const [certsInput, setCertsInput] = useState('');
 
   const searchStorageKey = organizationId ? `talent_sourcing_search_v1:${organizationId}` : null;
   // Skip the next persist run after we restore from localStorage so we don't overwrite with stale initial state.
@@ -1027,15 +1053,9 @@ export default function TalentSourcing() {
         setActiveResultKey(sorted[0]?.linkedin_url ? String(sorted[0].linkedin_url) : '');
         loadedCount = sorted.length;
 
-        // Trigger enrichment for LinkedIn profiles
-        if (!variables?.append && sorted.length > 0) {
-          const linkedinUrls = sorted
-            .map(r => r.linkedin_url)
-            .filter((url): url is string => Boolean(url));
-          if (linkedinUrls.length > 0) {
-            enrichProfilesSequentially(linkedinUrls);
-          }
-        }
+        // Note: Automatic enrichment disabled - Proxycurl service was shut down
+        // Profiles will be imported using basic data from Google search results
+        // Users can manually preview LinkedIn profiles using the preview function if needed
       }
 
       if (!suppressMeta) {
@@ -1109,7 +1129,7 @@ export default function TalentSourcing() {
       setGoogleMustHaveSkills(mustHave.join(', '));
       setGoogleSkills(nice.join(', '));
 
-      // Filter out non-geographic “locations” commonly found in JDs.
+      // Filter out non-geographic "locations" commonly found in JDs.
       const geo = locations.filter((l: any) => {
         const s = String(l || '').trim().toLowerCase();
         if (!s) return false;
@@ -1139,6 +1159,180 @@ export default function TalentSourcing() {
       toast.error(e?.message || 'Build query failed');
     }
   });
+
+  // New Query Builder: Parse JD
+  const parseJobDescriptionMutation = useMutation({
+    mutationFn: async (jdText: string) => {
+      const { data, error } = await supabase.functions.invoke('parse-job-description', {
+        body: { text: jdText }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (!data?.parsed) {
+        toast.error('Failed to parse job description');
+        return;
+      }
+      setParsedJD(data.parsed);
+      // Pre-select all skills
+      setSelectedSkills({
+        core: data.parsed.skills.core || [],
+        secondary: data.parsed.skills.secondary || [],
+        methods_tools: data.parsed.skills.methods_tools || [],
+        certs: data.parsed.skills.certs || []
+      });
+      setIsParsingJD(false);
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || 'Failed to parse job description');
+      setIsParsingJD(false);
+    }
+  });
+
+  // New Query Builder: Build query from selections
+  const buildQueryFromSelections = async () => {
+    if (!parsedJD || !selectedQueryJob) return;
+
+    setIsBuildingQuery(true);
+    try {
+      const job = postedJobs.find(j => j.id === selectedQueryJob);
+      if (!job) throw new Error('Job not found');
+
+      // Build LinkedIn X-ray query from selected skills
+      const parts: string[] = ['site:linkedin.com/in'];
+
+      // Add location if available
+      if (parsedJD.location.site) {
+        const loc = parsedJD.location.site.trim();
+        if (loc && !['remote', 'hybrid', 'onsite', 'on-site'].some(mode => loc.toLowerCase().includes(mode))) {
+          parts.push(`"${loc}"`);
+        }
+      }
+
+      // Broad OR matching: Combine ALL selected skills into one OR group
+      // This aims for 50-200 highly relevant results rather than 0-10 perfect matches
+      const allSkills = [
+        ...selectedSkills.core,
+        ...selectedSkills.secondary,
+        ...selectedSkills.methods_tools,
+        ...selectedSkills.certs
+      ];
+
+      if (allSkills.length > 0) {
+        // Format each skill (quote if contains spaces or hyphens)
+        const skillsFormatted = allSkills.map(skill =>
+          skill.includes(' ') || skill.includes('-') ? `"${skill}"` : skill
+        );
+
+        // Single OR group for all skills - profiles need to match ANY term, not all
+        parts.push(`(${skillsFormatted.join(' OR ')})`);
+      }
+
+      // Exclusions - standard recruiter/job posting terms
+      const exclusions: string[] = ['-recruiter', '-staffing', '-talent', '-sales', '-job', '-jobs', '-hiring', '-career'];
+
+      // Smart company exclusions: Exclude current employees of cloud providers if those skills are in the query
+      // This prevents getting "people who work AT AWS" vs "people with AWS experience"
+      const allSkillsLower = allSkills.map(s => s.toLowerCase());
+
+      if (allSkillsLower.some(s => s.includes('aws') || s.includes('amazon'))) {
+        exclusions.push('-"Amazon Web Services"', '-"at Amazon"');
+      }
+      if (allSkillsLower.some(s => s.includes('azure') || s.includes('microsoft cloud'))) {
+        exclusions.push('-"at Microsoft"');
+      }
+      if (allSkillsLower.some(s => s.includes('gcp') || s.includes('google cloud'))) {
+        exclusions.push('-"at Google"');
+      }
+
+      parts.push(exclusions.join(' '));
+
+      const query = parts.join(' ');
+      setGeneratedQuery(query);
+
+      // Save to cache
+      if (organizationId && user) {
+        const { data: cacheData, error: cacheError } = await supabase
+          .from('query_builder_cache')
+          .upsert({
+            job_id: selectedQueryJob,
+            user_id: user.id,
+            organization_id: organizationId,
+            parsed_data: parsedJD,
+            selected_data: selectedSkills,
+            generated_query: query,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'job_id,user_id',
+            ignoreDuplicates: false
+          })
+          .select('id')
+          .single();
+
+        if (!cacheError && cacheData) {
+          setQueryCacheId(cacheData.id);
+        }
+      }
+
+      toast.success('Query generated successfully');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate query');
+    } finally {
+      setIsBuildingQuery(false);
+    }
+  };
+
+  // New Query Builder: Check cache
+  const checkQueryCache = async (jobId: string) => {
+    if (!organizationId || !user) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('query_builder_cache')
+        .select('*')
+        .eq('job_id', jobId)
+        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    } catch (e) {
+      console.error('Failed to check query cache:', e);
+      return null;
+    }
+  };
+
+  // New Query Builder: Handle job selection
+  const handleQueryBuilderJobSelect = async (jobId: string) => {
+    setSelectedQueryJob(jobId);
+
+    // Check cache first
+    const cached = await checkQueryCache(jobId);
+    if (cached && cached.parsed_data && cached.selected_data) {
+      setParsedJD(cached.parsed_data);
+      setSelectedSkills(cached.selected_data);
+      setGeneratedQuery(cached.generated_query || '');
+      setQueryCacheId(cached.id);
+      toast.success('Loaded from cache');
+      return;
+    }
+
+    // If not cached, parse the JD
+    const job = postedJobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    setIsParsingJD(true);
+    setParsedJD(null);
+    setSelectedSkills({ core: [], secondary: [], methods_tools: [], certs: [] });
+    setGeneratedQuery('');
+    setQueryCacheId(null);
+
+    parseJobDescriptionMutation.mutate(job.description);
+  };
 
   // Import profiles mutation
   const importProfiles = useMutation({
@@ -1357,6 +1551,7 @@ export default function TalentSourcing() {
     }
   };
 
+  // Parse LinkedIn profile PDF and import
   // Handle Import - Single Profile
   const handleImportEnrichedProfile = async (profile: EnrichedProfile) => {
     try {
@@ -1778,12 +1973,11 @@ export default function TalentSourcing() {
 
   useEffect(() => {
     if (activeTab !== 'search') return;
-    if (searchMode !== 'basic') return;
-    if (jdSource !== 'job') return;
+    if (searchMode === 'web') return; // Don't load jobs for web search
     if (jobsLoadAttempted) return;
     if (postedJobs.length > 0) return;
     void loadPostedJobs();
-  }, [activeTab, searchMode, jdSource, postedJobs.length, jobsLoadAttempted, loadPostedJobs]);
+  }, [activeTab, searchMode, postedJobs.length, jobsLoadAttempted, loadPostedJobs]);
 
   const toggleRowSelection = (key: string) => {
     setSelectedKeys(prev => {
@@ -2766,24 +2960,7 @@ export default function TalentSourcing() {
         </div>
       )}
 
-      {/* Enrichment Progress Bar */}
-      {enrichmentProgress.isEnriching && (
-        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
-          <Loader2 className="h-4 w-4 animate-spin shrink-0 text-recruiter" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">
-              Enriching LinkedIn profiles... {enrichmentProgress.current}/{enrichmentProgress.total}
-            </div>
-            <Progress
-              value={(enrichmentProgress.current / enrichmentProgress.total) * 100}
-              className="h-1.5 mt-1.5"
-            />
-          </div>
-          <div className="text-xs text-muted-foreground shrink-0">
-            {Math.round((enrichmentProgress.current / enrichmentProgress.total) * 100)}%
-          </div>
-        </div>
-      )}
+      {/* Note: Enrichment progress removed - functionality disabled after Proxycurl shutdown */}
 
       {searchMode === 'web' && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -2864,15 +3041,21 @@ export default function TalentSourcing() {
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    if (isEnriched && enrichedProfile) {
-                      setSelectedProfileForDrawer(enrichedProfile);
-                      setDrawerOpen(true);
-                    } else {
-                      setActiveResultKey(key);
+                    // Open LinkedIn profile in new tab
+                    if (url) {
+                      window.open(url, '_blank', 'noopener,noreferrer');
                     }
                   }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveResultKey(key); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (url) {
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }
+                    }
+                  }}
                   className={`group flex items-center gap-2 py-2 px-3 rounded-xl border border-border bg-card text-xs font-sans transition-all cursor-pointer hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2 ${key === activeResultKey ? 'ring-2 ring-recruiter/30 border-recruiter/20 bg-recruiter/5' : ''}`}
+                  title={url ? "Click to open LinkedIn profile" : ""}
                 >
                   <Checkbox
                     checked={isSelected}
@@ -2881,7 +3064,7 @@ export default function TalentSourcing() {
                     className="shrink-0 h-3.5 w-3.5"
                   />
 
-                  {/* Show enriched profile data or skeleton */}
+                  {/* Show enriched profile data or Google search data */}
                   {isEnriched ? (
                     <>
                       {/* Avatar */}
@@ -2950,18 +3133,24 @@ export default function TalentSourcing() {
                     </>
                   ) : (
                     <>
-                      {/* Skeleton for loading */}
-                      <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-                      <div className="min-w-[180px] space-y-1">
-                        <Skeleton className="h-3 w-32" />
-                        <Skeleton className="h-3 w-24" />
+                      {/* Show Google search results - basic profile info */}
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarFallback className="text-xs bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                          {title?.[0]?.toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      {/* Name from Google search */}
+                      <div className="flex-1 min-w-[200px] mr-4">
+                        <div className="font-display font-semibold text-xs text-foreground group-hover:text-recruiter transition-colors truncate">
+                          {title}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {subtitle || 'LinkedIn Profile'}
+                        </div>
                       </div>
-                      <Skeleton className="h-3 w-28" />
-                      <Skeleton className="h-3 w-24" />
                     </>
                   )}
-
-                  <div className="flex-1 min-w-0" />
 
                   {/* Badges */}
                   {isLinkedInMode && row?.open_to_work_signal && (
@@ -2973,20 +3162,6 @@ export default function TalentSourcing() {
                     </Badge>
                   )}
 
-                  {/* LinkedIn Link */}
-                  {url && (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 p-0.5 rounded-lg hover:bg-recruiter/10 text-muted-foreground hover:text-recruiter focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Open LinkedIn"
-                    >
-                      <Linkedin className="h-4 w-4" strokeWidth={1.5} />
-                    </a>
-                  )}
-
                   {/* Import Button */}
                   <Button
                     type="button"
@@ -2995,20 +3170,14 @@ export default function TalentSourcing() {
                     className="shrink-0 h-8 rounded-lg text-xs px-3 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (isEnriched && enrichedProfile) {
-                        handleImportEnrichedProfile(enrichedProfile);
-                      } else {
-                        void handleImportRow(row);
-                      }
+                      void handleImportRow(row);
                     }}
-                    disabled={isImportPending || !isEnriched}
+                    disabled={isImportPending}
                   >
                     {isImportPending ? (
                       <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} />
-                    ) : isEnriched ? (
-                      <><UserPlus className="h-3 w-3 mr-1" strokeWidth={1.5} />Import</>
                     ) : (
-                      <><Loader2 className="h-3 w-3 animate-spin mr-1" strokeWidth={1.5} />Loading</>
+                      <><UserPlus className="h-3 w-3 mr-1" strokeWidth={1.5} />Import</>
                     )}
                   </Button>
                 </div>
@@ -3274,6 +3443,57 @@ export default function TalentSourcing() {
         </div>
         {currentSection === 'search' && searchMode !== 'web' && (
           <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+            {/* Job Selector for Query Builder */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Label className="text-sm font-medium shrink-0">Select Job:</Label>
+              <Select
+                value={selectedQueryJob}
+                onValueChange={(jobId) => {
+                  setQueryBuilderOpen(true);
+                  handleQueryBuilderJobSelect(jobId);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[300px]">
+                  <SelectValue placeholder={isLoadingJobs ? "Loading jobs..." : "Choose a job to build query"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {postedJobs.map((job) => (
+                    <SelectItem key={job.id} value={job.id}>
+                      {job.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Edit Query Button - reopens query builder for selected job */}
+              {selectedQueryJob && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setQueryBuilderOpen(true);
+                    handleQueryBuilderJobSelect(selectedQueryJob);
+                  }}
+                  className="shrink-0"
+                >
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  Edit Query
+                </Button>
+              )}
+
+              {postedJobs.length === 0 && !isLoadingJobs && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void loadPostedJobs()}
+                >
+                  Load Jobs
+                </Button>
+              )}
+            </div>
+
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground font-sans">
@@ -3300,747 +3520,497 @@ export default function TalentSourcing() {
                   Copy query
                 </Button>
 
-                <Sheet open={googleFiltersOpen} onOpenChange={setGoogleFiltersOpen}>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setGoogleFiltersOpen(true)}>
-                    <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    Build Query
-                  </Button>
-                  <SheetContent side="right" className="w-full p-0 sm:max-w-4xl">
-                    <div className="flex h-full">
-                      <aside className="w-56 border-r bg-muted/20 p-3">
-                        <div className="px-2 py-1 text-sm font-sans font-medium">Build query</div>
 
-                        <div className="mt-2 space-y-1">
-                          <Button
-                            type="button"
-                            variant={googleFiltersSection === 'general' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-start font-sans"
-                            onClick={() => setGoogleFiltersSection('general')}
-                          >
-                            General
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={googleFiltersSection === 'skills' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-start font-sans"
-                            onClick={() => setGoogleFiltersSection('skills')}
-                          >
-                            Skills
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={googleFiltersSection === 'jd' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-start font-sans"
-                            onClick={() => setGoogleFiltersSection('jd')}
-                          >
-                            Build from JD
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={googleFiltersSection === 'advanced' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-start font-sans"
-                            onClick={() => setGoogleFiltersSection('advanced')}
-                          >
-                            Advanced
-                          </Button>
+                {/* Query Builder Dialog */}
+                <Dialog open={queryBuilderOpen} onOpenChange={setQueryBuilderOpen}>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="font-display text-2xl">AI Query Builder</DialogTitle>
+                      <DialogDescription>
+                        {selectedQueryJob && postedJobs.find(j => j.id === selectedQueryJob)?.title}
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6">
+                      {/* Loading State */}
+                      {isParsingJD && (
+                        <div className="flex flex-col items-center justify-center py-12">
+                          <Loader2 className="h-12 w-12 animate-spin text-recruiter mb-4" />
+                          <p className="text-sm text-muted-foreground">Analyzing job description...</p>
                         </div>
+                      )}
 
-                        <div className="mt-4 border-t pt-3">
-                          <div className="px-2 text-xs font-sans">Presets</div>
-                          <div className="mt-2 grid gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="justify-start"
-                              onClick={() => applyGoogleExample({
-                                titles: 'Java Backend Engineer, Spring Boot, Microservices',
-                                titlesMatch: 'any',
-                                skills: 'AWS, Cloud Native',
-                                skillsMatch: 'any',
-                                location: '"New York, NY" OR "Greater New York City Area" OR "New Jersey"',
-                                seniority: 'mid',
-                                usOnly: true,
-                              })}
-                            >
-                              Java (NY/NJ)
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="justify-start"
-                              onClick={() => applyGoogleExample({
-                                titles: 'Senior Python Developer, Python Engineer',
-                                titlesMatch: 'any',
-                                skills: 'AWS, Lambda, FastAPI',
-                                skillsMatch: 'any',
-                                location: '"Boston" OR "Greater Boston"',
-                                seniority: 'senior',
-                                usOnly: true,
-                              })}
-                            >
-                              Python (Boston)
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="justify-start"
-                              onClick={() => applyGoogleExample({
-                                titles: 'Frontend Engineer, React Developer',
-                                titlesMatch: 'any',
-                                skills: 'React, TypeScript, Next.js',
-                                skillsMatch: 'all',
-                                location: '"Washington, DC" OR "Washington DC-Baltimore Area"',
-                                seniority: 'mid',
-                                usOnly: true,
-                              })}
-                            >
-                              React (DC)
-                            </Button>
+                      {/* Parsed Skills Display */}
+                      {!isParsingJD && parsedJD && (
+                        <>
+                          {/* Job Info */}
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {parsedJD.title && (
+                              <div className="space-y-1">
+                                <Label className="text-xs font-medium text-muted-foreground">Job Title</Label>
+                                <div className="text-sm font-medium">{parsedJD.title}</div>
+                              </div>
+                            )}
+                            {parsedJD.experience_level && (
+                              <div className="space-y-1">
+                                <Label className="text-xs font-medium text-muted-foreground">Experience Level</Label>
+                                <div className="text-sm font-medium">{parsedJD.experience_level}</div>
+                              </div>
+                            )}
+                            {parsedJD.location.site && (
+                              <div className="space-y-1">
+                                <Label className="text-xs font-medium text-muted-foreground">Location</Label>
+                                <div className="text-sm font-medium flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {parsedJD.location.site}
+                                </div>
+                              </div>
+                            )}
+                            {parsedJD.job_type && (
+                              <div className="space-y-1">
+                                <Label className="text-xs font-medium text-muted-foreground">Work Mode</Label>
+                                <div className="text-sm font-medium">{parsedJD.job_type}</div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </aside>
 
-                      <div className="flex-1 overflow-y-auto p-6">
-                        <div className="flex items-start justify-between gap-3">
-                          <SheetHeader className="space-y-1 text-left">
-                            <SheetTitle className="font-display font-bold text-foreground">Build your query</SheetTitle>
-                            <SheetDescription className="font-sans text-muted-foreground">
-                              Simplicity first. Use Advanced only when you need it.
-                            </SheetDescription>
-                          </SheetHeader>
+                          <Separator />
 
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setGoogleUseRawXray(false);
-                                setGoogleRawXray('');
-                                setGooglePrompt('');
-                                setGoogleTitles('');
-                                setGoogleLocation('');
-                                setGoogleIndustries('');
-                                setGoogleStrictness('balanced');
-                                setGoogleMustHaveSkills('');
-                                setGoogleSkills('');
-                                setGoogleTitlesMatch('any');
-                                setGoogleSkillsMatch('any');
-                                setGoogleSeniority('senior');
-                                setGoogleUSOnly(true);
-                                setGoogleExclude('recruiter, staffing, talent, sales, job, jobs, hiring, career');
-                                setGoogleBoostOpenToWork(false);
-                                setJdSource('paste');
-                                setJdText('');
-                                setJdJobId('');
-                                setJdOptions(null);
-                                setJdSelected({ must: [], nice: [], locations: [] });
-                              }}
-                            >
-                              Reset
-                            </Button>
-                            <Button type="button" size="sm" onClick={() => setGoogleFiltersOpen(false)}>
-                              Done
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="mt-6">
-                          {googleFiltersSection === 'general' && (
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <div className="space-y-2 md:col-span-2">
-                                <div className="text-xs font-sans font-medium">Strictness</div>
-                                <ToggleGroup
-                                  type="single"
-                                  value={googleStrictness}
-                                  onValueChange={(v) => {
-                                    if (!v) return;
-                                    setGoogleStrictness(v as any);
-                                  }}
-                                  className="justify-start"
+                          {/* Must-Have Skills (Core) */}
+                          <div className="space-y-3">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                              <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                              Must-Have Skills (Core)
+                            </Label>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSkills.core.map((skill) => (
+                                <Badge
+                                  key={skill}
+                                  variant="default"
+                                  className="h-8 px-3 text-sm bg-recruiter hover:bg-recruiter/90 flex items-center gap-1.5"
                                 >
-                                  <ToggleGroupItem value="broad" aria-label="Broad">
-                                    Broad
-                                  </ToggleGroupItem>
-                                  <ToggleGroupItem value="balanced" aria-label="Balanced">
-                                    Balanced
-                                  </ToggleGroupItem>
-                                  <ToggleGroupItem value="strict" aria-label="Strict">
-                                    Strict
-                                  </ToggleGroupItem>
-                                </ToggleGroup>
-                                <div className="text-[11px] font-sans text-muted-foreground">
-                                  Broad finds more people; Strict requires more exact matches. Balanced is a good default.
-                                </div>
-                              </div>
-
-                              {googleQuality.show ? (
-                                <Alert className="md:col-span-2">
-                                  <AlertCircle className="h-4 w-4" />
-                                  <AlertTitle>Query might be too strict</AlertTitle>
-                                  <AlertDescription>
-                                    <div className="space-y-2">
-                                      <div className="text-sm">
-                                        {googleQuality.messages[0]}
-                                      </div>
-                                      {googleQuality.messages.length > 1 ? (
-                                        <div className="text-sm">
-                                          {googleQuality.messages[1]}
-                                        </div>
-                                      ) : null}
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={loosenGoogleQuery}
-                                        >
-                                          Loosen automatically
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => setGoogleStrictness('broad')}
-                                        >
-                                          Set Broad
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </AlertDescription>
-                                </Alert>
-                              ) : null}
-
-                              <div className="space-y-1 md:col-span-2">
-                                <div className="text-xs">Prompt (optional)</div>
-                                <Input
-                                  value={googlePrompt}
-                                  onChange={(e) => setGooglePrompt(e.target.value)}
-                                  placeholder='e.g., "cloud security engineer" with Python and AWS in healthcare'
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs font-sans font-medium">Titles</div>
-                                <Input
-                                  value={googleTitles}
-                                  onChange={(e) => setGoogleTitles(e.target.value)}
-                                  placeholder='e.g., "Java Backend Engineer", "Spring Boot"'
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs font-sans font-medium">Location</div>
-                                <Input
-                                  value={googleLocation}
-                                  onChange={(e) => setGoogleLocation(e.target.value)}
-                                  placeholder='e.g., "New York, NY" OR "Boston"'
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs">Industries</div>
-                                <Input
-                                  value={googleIndustries}
-                                  onChange={(e) => setGoogleIndustries(e.target.value)}
-                                  placeholder='e.g., FinTech, Healthcare, Robotics'
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs font-sans font-medium">Seniority</div>
-                                <Select
-                                  value={googleSeniority}
-                                  onValueChange={(v) => setGoogleSeniority(v as any)}
-                                  disabled={googleUseRawXray}
-                                >
-                                  <SelectTrigger disabled={googleUseRawXray}>
-                                    <SelectValue placeholder="Seniority" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="any">Any</SelectItem>
-                                    <SelectItem value="junior">Junior</SelectItem>
-                                    <SelectItem value="mid">Mid</SelectItem>
-                                    <SelectItem value="senior">Senior</SelectItem>
-                                    <SelectItem value="staff">Staff+</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs font-sans font-medium">US-only</div>
-                                <label className="flex items-center gap-2 text-sm font-sans select-none pt-2">
-                                  <Checkbox
-                                    checked={googleUSOnly}
-                                    onCheckedChange={(v) => setGoogleUSOnly(Boolean(v))}
-                                    disabled={googleUseRawXray}
-                                  />
-                                  Enable
-                                </label>
-                              </div>
-                              <div className="space-y-1 md:col-span-2">
-                                <div className="text-xs font-sans font-medium">Exhaustive search</div>
-                                <label className="flex items-center gap-2 text-sm font-sans select-none pt-1">
-                                  <Checkbox
-                                    checked={googleExhaustiveEnabled}
-                                    onCheckedChange={(v) => setGoogleExhaustiveEnabled(Boolean(v))}
-                                    disabled={googleUseRawXray}
-                                  />
-                                  Run multiple queries (dedupe results)
-                                </label>
-                                {googleExhaustiveEnabled ? (
-                                  <div className="mt-2 grid gap-2 md:grid-cols-3">
-                                    <div className="space-y-1">
-                                      <div className="text-[11px] font-sans">Split by</div>
-                                      <Select value={googleExhaustiveStrategy} onValueChange={(v) => setGoogleExhaustiveStrategy(v as any)}>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Strategy" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="auto">Auto</SelectItem>
-                                          <SelectItem value="location">Location</SelectItem>
-                                          <SelectItem value="title">Title</SelectItem>
-                                          <SelectItem value="industry">Industry</SelectItem>
-                                          <SelectItem value="skill">Skill</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <div className="text-[11px] font-sans">Target leads</div>
-                                      <Input
-                                        value={String(googleExhaustiveTarget)}
-                                        onChange={(e) => setGoogleExhaustiveTarget(Math.max(50, Math.min(5000, Number(e.target.value) || 0)))}
-                                        inputMode="numeric"
-                                        placeholder="500"
-                                      />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <div className="text-[11px] font-sans">Max queries</div>
-                                      <Select value={String(googleExhaustiveMaxQueries)} onValueChange={(v) => setGoogleExhaustiveMaxQueries(Math.max(1, Math.min(100, Number(v) || 20)))}>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="20" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="5">5</SelectItem>
-                                          <SelectItem value="10">10</SelectItem>
-                                          <SelectItem value="20">20</SelectItem>
-                                          <SelectItem value="50">50</SelectItem>
-                                          <SelectItem value="100">100</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-                                ) : null}
-                                {googleExhaustiveEnabled ? (
-                                  <div className="mt-2 rounded-lg border bg-muted/20 p-3 space-y-2 md:col-span-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="text-xs font-sans font-medium">Auto split wizard</div>
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 px-2 text-xs"
-                                          onClick={() => {
-                                            setGoogleExhaustiveBucketKind(null);
-                                            setGoogleExhaustiveBuckets([]); // let the runner pick best dimension + defaults
-                                            toast.success('Auto split will choose buckets when you run');
-                                          }}
-                                        >
-                                          Use automatic buckets
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 px-2 text-xs"
-                                          onClick={() => {
-                                            const kind =
-                                              googleExhaustiveStrategy === 'auto'
-                                                ? 'auto'
-                                                : googleExhaustiveStrategy;
-                                            const defaults =
-                                              kind === 'location'
-                                                ? (googleUSOnly
-                                                  ? ['California', 'New York', 'Texas', 'Florida', 'Washington', 'Massachusetts', 'Illinois', 'New Jersey', 'Pennsylvania', 'Georgia', 'North Carolina', 'Virginia', 'Colorado', 'Arizona', 'Michigan', 'Ohio', 'Minnesota', 'Tennessee', 'Oregon', 'Maryland']
-                                                  : ['London', 'Toronto', 'Vancouver', 'Dublin', 'Berlin', 'Amsterdam', 'Paris', 'Singapore', 'Sydney', 'Melbourne', 'Bangalore', 'Hyderabad'])
-                                                : kind === 'industry'
-                                                  ? ['FinTech', 'Healthcare', 'SaaS', 'E-commerce', 'Cybersecurity', 'Robotics', 'EdTech', 'Biotech', 'Climate', 'AI']
-                                                  : kind === 'skill'
-                                                    ? ['SQL', 'Pandas', 'NumPy', 'scikit-learn', 'TensorFlow', 'PyTorch', 'Spark', 'AWS']
-                                                    : ['Data Scientist', 'Data Analyst', 'Machine Learning Engineer', 'Applied Scientist', 'Analytics Engineer', 'Research Scientist'];
-
-                                            setGoogleExhaustiveBucketKind(kind === 'auto' ? null : (kind as any));
-                                            setGoogleExhaustiveBuckets(defaults);
-                                            toast.success(`Generated ${defaults.length} buckets`);
-                                          }}
-                                        >
-                                          Generate preview
-                                        </Button>
-                                        {googleExhaustiveBuckets.length ? (
-                                          <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-7 px-2 text-xs"
-                                            onClick={() => {
-                                              setGoogleExhaustiveBuckets([]);
-                                              setGoogleExhaustiveBucketKind(null);
-                                            }}
-                                          >
-                                            Clear
-                                          </Button>
-                                        ) : null}
-                                      </div>
-                                    </div>
-
-                                    {googleExhaustiveBuckets.length ? (
-                                      <div className="text-[11px]">
-                                        Using {googleExhaustiveBuckets.length} buckets ({googleExhaustiveBucketKind})
-                                      </div>
-                                    ) : (
-                                      <div className="text-[11px]">
-                                        If you don’t provide lists, we can automatically split into buckets (e.g., top locations or title variants).
-                                      </div>
-                                    )}
-
-                                    {googleExhaustiveBuckets.length ? (
-                                      <div className="flex flex-wrap gap-2">
-                                        {googleExhaustiveBuckets.slice(0, 10).map((b) => (
-                                          <Badge key={b} variant="secondary" className="text-xs">
-                                            {b}
-                                          </Badge>
-                                        ))}
-                                        {googleExhaustiveBuckets.length > 10 ? (
-                                          <Badge variant="outline" className="text-xs">
-                                            +{googleExhaustiveBuckets.length - 10} more
-                                          </Badge>
-                                        ) : null}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                                <div className="text-[11px]">
-                                  This runs multiple narrower queries across your lists and dedupes the results.
-                                </div>
-                              </div>
-                              <div className="space-y-1 md:col-span-2">
-                                <div className="text-xs font-sans font-medium">Open to work</div>
-                                <label className="flex items-center gap-2 text-sm font-sans select-none pt-1">
-                                  <Checkbox
-                                    checked={googleBoostOpenToWork}
-                                    onCheckedChange={(v) => setGoogleBoostOpenToWork(Boolean(v))}
-                                  />
-                                  Boost results (soft signal)
-                                </label>
-                                <div className="text-[11px]">
-                                  Runs an extra search for “open to work” phrases and merges results (doesn’t exclude anyone).
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {googleFiltersSection === 'skills' && (
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <div className="space-y-1">
-                                <div className="text-xs">Must-have skills (comma-separated)</div>
-                                <Input
-                                  value={googleMustHaveSkills}
-                                  onChange={(e) => setGoogleMustHaveSkills(e.target.value)}
-                                  placeholder="e.g., Python, AWS"
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs font-sans font-medium">Nice-to-have skills (comma-separated)</div>
-                                <Input
-                                  value={googleSkills}
-                                  onChange={(e) => setGoogleSkills(e.target.value)}
-                                  placeholder="e.g., Terraform, Kubernetes, GitLab"
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs">Nice-to-have match</div>
-                                <Select
-                                  value={googleSkillsMatch}
-                                  onValueChange={(v) => setGoogleSkillsMatch(v as any)}
-                                  disabled={googleUseRawXray}
-                                >
-                                  <SelectTrigger disabled={googleUseRawXray}>
-                                    <SelectValue placeholder="Match" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="any">Any (OR)</SelectItem>
-                                    <SelectItem value="all">All (AND)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="text-xs">Titles match</div>
-                                <Select
-                                  value={googleTitlesMatch}
-                                  onValueChange={(v) => setGoogleTitlesMatch(v as any)}
-                                  disabled={googleUseRawXray}
-                                >
-                                  <SelectTrigger disabled={googleUseRawXray}>
-                                    <SelectValue placeholder="Match" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="any">Any (OR)</SelectItem>
-                                    <SelectItem value="all">All (AND)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          )}
-
-                          {googleFiltersSection === 'jd' && (
-                            <div className="rounded-xl border bg-background p-4 space-y-4">
-                              <div className="grid gap-3 md:grid-cols-2">
-                                <div className="space-y-1">
-                                  <div className="text-xs">JD source</div>
-                                  <Select
-                                    value={jdSource}
-                                    onValueChange={(v) => {
-                                      const next = v as any;
-                                      setJdSource(next);
-                                      if (next === 'job' && postedJobs.length === 0) void loadPostedJobs();
+                                  {skill}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        core: prev.core.filter(s => s !== skill)
+                                      }));
                                     }}
+                                    className="ml-1 hover:bg-white/20 rounded-full p-0.5"
                                   >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="JD source" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="paste">Paste JD</SelectItem>
-                                      <SelectItem value="job">From posted job</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                {jdSource === 'job' ? (
-                                  <div className="space-y-1">
-                                    <div className="text-xs">Posted job</div>
-                                    <Select
-                                      value={jdJobId}
-                                      onValueChange={(id) => {
-                                        setJdJobId(id);
-                                        const job = postedJobs.find((j) => j.id === id);
-                                        if (job) {
-                                          setJdText(job.description || '');
-                                          if (job.location && !googleLocation.trim()) {
-                                            const loc = String(job.location || '').trim();
-                                            const looksLikeWorkMode =
-                                              /^(remote|hybrid|on[- ]?site)$/i.test(loc) ||
-                                              /\b(remote|hybrid|on[- ]?site)\b/i.test(loc);
-                                            if (!looksLikeWorkMode) setGoogleLocation(`"${loc.replace(/"/g, '')}"`);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      <SelectTrigger disabled={isLoadingJobs || (postedJobs.length === 0 && jobsLoadAttempted && Boolean(jobsLoadError))}>
-                                        <SelectValue
-                                          placeholder={
-                                            isLoadingJobs
-                                              ? 'Loading…'
-                                              : (postedJobs.length === 0 && jobsLoadAttempted && jobsLoadError)
-                                                ? 'Could not load jobs'
-                                                : 'Select a job'
-                                          }
-                                        />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {postedJobs.map((j) => (
-                                          <SelectItem key={j.id} value={j.id}>
-                                            {j.title}{j.status ? ` (${j.status})` : ''}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    {(postedJobs.length === 0 && jobsLoadAttempted && jobsLoadError) ? (
-                                      <div className="flex items-center justify-between gap-2 pt-1">
-                                        <div className="text-[11px]truncate">
-                                          {jobsLoadError}
-                                        </div>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 px-2 text-xs"
-                                          onClick={() => {
-                                            setJobsLoadAttempted(false);
-                                            setJobsLoadError(null);
-                                            void loadPostedJobs();
-                                          }}
-                                        >
-                                          Retry
-                                        </Button>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Add must-have skill..."
+                                value={customSkillInput}
+                                onChange={(e) => setCustomSkillInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && customSkillInput.trim()) {
+                                    const skill = customSkillInput.trim();
+                                    if (!selectedSkills.core.includes(skill)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        core: [...prev.core, skill]
+                                      }));
+                                    }
+                                    setCustomSkillInput('');
+                                  }
+                                }}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (customSkillInput.trim()) {
+                                    const skill = customSkillInput.trim();
+                                    if (!selectedSkills.core.includes(skill)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        core: [...prev.core, skill]
+                                      }));
+                                    }
+                                    setCustomSkillInput('');
+                                  }
+                                }}
+                                disabled={!customSkillInput.trim()}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                            {parsedJD.skills.core.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Suggested from JD:</span>{' '}
+                                {parsedJD.skills.core.filter(s => !selectedSkills.core.includes(s)).map((skill, idx, arr) => (
+                                  <button
+                                    key={skill}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        core: [...prev.core, skill]
+                                      }));
+                                    }}
+                                    className="text-recruiter hover:underline"
+                                  >
+                                    {skill}{idx < arr.length - 1 ? ', ' : ''}
+                                  </button>
+                                ))}
                               </div>
+                            )}
+                          </div>
 
-                              <div className="space-y-1">
-                                <div className="text-xs">Job description</div>
-                                <Textarea
-                                  value={jdText}
-                                  onChange={(e) => setJdText(e.target.value)}
-                                  placeholder="Paste job description here…"
-                                  className="min-h-[140px]"
-                                />
-                              </div>
-
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setJdText('');
-                                    setJdJobId('');
-                                    setJdOptions(null);
-                                    setJdSelected({ must: [], nice: [], locations: [] });
-                                  }}
-                                  disabled={buildXrayFromJd.isPending}
+                          {/* Nice-to-Have Skills (Secondary) */}
+                          <div className="space-y-3">
+                            <Label className="text-sm font-semibold">Nice-to-Have Skills</Label>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSkills.secondary.map((skill) => (
+                                <Badge
+                                  key={skill}
+                                  variant="secondary"
+                                  className="h-8 px-3 text-sm flex items-center gap-1.5"
                                 >
-                                  Clear
-                                </Button>
-                                <Button
-                                  type="button"
-                                  onClick={() => {
-                                    const job = jdSource === 'job' ? postedJobs.find((j) => j.id === jdJobId) : null;
-                                    const locationHint = job?.location || null;
-                                    buildXrayFromJd.mutate({ jd_text: jdText, target_location: locationHint });
-                                  }}
-                                  disabled={buildXrayFromJd.isPending || !jdText.trim()}
-                                >
-                                  {buildXrayFromJd.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                  Build
-                                </Button>
+                                  {skill}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        secondary: prev.secondary.filter(s => s !== skill)
+                                      }));
+                                    }}
+                                    className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Add nice-to-have skill..."
+                                value={secondarySkillInput}
+                                onChange={(e) => setSecondarySkillInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && secondarySkillInput.trim()) {
+                                    const skill = secondarySkillInput.trim();
+                                    if (!selectedSkills.secondary.includes(skill)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        secondary: [...prev.secondary, skill]
+                                      }));
+                                    }
+                                    setSecondarySkillInput('');
+                                  }
+                                }}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (secondarySkillInput.trim()) {
+                                    const skill = secondarySkillInput.trim();
+                                    if (!selectedSkills.secondary.includes(skill)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        secondary: [...prev.secondary, skill]
+                                      }));
+                                    }
+                                    setSecondarySkillInput('');
+                                  }
+                                }}
+                                disabled={!secondarySkillInput.trim()}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                            {parsedJD.skills.secondary.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Suggested from JD:</span>{' '}
+                                {parsedJD.skills.secondary.filter(s => !selectedSkills.secondary.includes(s)).map((skill, idx, arr) => (
+                                  <button
+                                    key={skill}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        secondary: [...prev.secondary, skill]
+                                      }));
+                                    }}
+                                    className="text-recruiter hover:underline"
+                                  >
+                                    {skill}{idx < arr.length - 1 ? ', ' : ''}
+                                  </button>
+                                ))}
                               </div>
+                            )}
+                          </div>
 
-                              {jdOptions ? (
-                                <div className="rounded-xl border bg-muted/20 p-3">
-                                  <div className="text-sm font-medium">Suggested skills</div>
-                                  <div className="text-xs">
-                                    Toggle to include/exclude. This updates the query immediately.
-                                  </div>
+                          {/* Methods & Tools */}
+                          <div className="space-y-3">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                              <Briefcase className="h-4 w-4" />
+                              Methods & Tools
+                            </Label>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSkills.methods_tools.map((skill) => (
+                                <Badge
+                                  key={skill}
+                                  variant="secondary"
+                                  className="h-8 px-3 text-sm flex items-center gap-1.5"
+                                >
+                                  {skill}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        methods_tools: prev.methods_tools.filter(s => s !== skill)
+                                      }));
+                                    }}
+                                    className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Add method/tool..."
+                                value={methodsToolsInput}
+                                onChange={(e) => setMethodsToolsInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && methodsToolsInput.trim()) {
+                                    const skill = methodsToolsInput.trim();
+                                    if (!selectedSkills.methods_tools.includes(skill)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        methods_tools: [...prev.methods_tools, skill]
+                                      }));
+                                    }
+                                    setMethodsToolsInput('');
+                                  }
+                                }}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (methodsToolsInput.trim()) {
+                                    const skill = methodsToolsInput.trim();
+                                    if (!selectedSkills.methods_tools.includes(skill)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        methods_tools: [...prev.methods_tools, skill]
+                                      }));
+                                    }
+                                    setMethodsToolsInput('');
+                                  }
+                                }}
+                                disabled={!methodsToolsInput.trim()}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                            {parsedJD.skills.methods_tools.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Suggested from JD:</span>{' '}
+                                {parsedJD.skills.methods_tools.filter(s => !selectedSkills.methods_tools.includes(s)).map((skill, idx, arr) => (
+                                  <button
+                                    key={skill}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        methods_tools: [...prev.methods_tools, skill]
+                                      }));
+                                    }}
+                                    className="text-recruiter hover:underline"
+                                  >
+                                    {skill}{idx < arr.length - 1 ? ', ' : ''}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                                  <div className="grid gap-3 mt-3 sm:grid-cols-2">
-                                    {jdOptions.must.length ? (
-                                      <div className="space-y-2">
-                                        <div className="text-xs">Must-have (AND)</div>
-                                        <div className="flex flex-wrap gap-2">
-                                          {jdOptions.must.map((s) => {
-                                            const on = jdSelected.must.includes(s);
-                                            return (
-                                              <Button
-                                                key={s}
-                                                type="button"
-                                                size="sm"
-                                                variant={on ? 'secondary' : 'outline'}
-                                                className="h-7 px-2 text-xs"
-                                                onClick={() => {
-                                                  setJdSelected((prev) => ({
-                                                    ...prev,
-                                                    must: on ? prev.must.filter((x) => x !== s) : Array.from(new Set([...prev.must, s])),
-                                                  }));
-                                                }}
-                                              >
-                                                {s}
-                                              </Button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ) : null}
+                          {/* Certifications */}
+                          <div className="space-y-3">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                              <Award className="h-4 w-4 text-amber-500" />
+                              Certifications
+                            </Label>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSkills.certs.map((cert) => (
+                                <Badge
+                                  key={cert}
+                                  variant="secondary"
+                                  className="h-8 px-3 text-sm flex items-center gap-1.5"
+                                >
+                                  {cert}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        certs: prev.certs.filter(s => s !== cert)
+                                      }));
+                                    }}
+                                    className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Add certification..."
+                                value={certsInput}
+                                onChange={(e) => setCertsInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && certsInput.trim()) {
+                                    const cert = certsInput.trim();
+                                    if (!selectedSkills.certs.includes(cert)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        certs: [...prev.certs, cert]
+                                      }));
+                                    }
+                                    setCertsInput('');
+                                  }
+                                }}
+                                className="flex-1"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (certsInput.trim()) {
+                                    const cert = certsInput.trim();
+                                    if (!selectedSkills.certs.includes(cert)) {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        certs: [...prev.certs, cert]
+                                      }));
+                                    }
+                                    setCertsInput('');
+                                  }
+                                }}
+                                disabled={!certsInput.trim()}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                            {parsedJD.skills.certs.length > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Suggested from JD:</span>{' '}
+                                {parsedJD.skills.certs.filter(s => !selectedSkills.certs.includes(s)).map((cert, idx, arr) => (
+                                  <button
+                                    key={cert}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkills(prev => ({
+                                        ...prev,
+                                        certs: [...prev.certs, cert]
+                                      }));
+                                    }}
+                                    className="text-recruiter hover:underline"
+                                  >
+                                    {cert}{idx < arr.length - 1 ? ', ' : ''}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
-                                    {jdOptions.nice.length ? (
-                                      <div className="space-y-2">
-                                        <div className="text-xs">Nice-to-have</div>
-                                        <div className="flex flex-wrap gap-2">
-                                          {jdOptions.nice.map((s) => {
-                                            const on = jdSelected.nice.includes(s);
-                                            return (
-                                              <Button
-                                                key={s}
-                                                type="button"
-                                                size="sm"
-                                                variant={on ? 'secondary' : 'outline'}
-                                                className="h-7 px-2 text-xs"
-                                                onClick={() => {
-                                                  setJdSelected((prev) => ({
-                                                    ...prev,
-                                                    nice: on ? prev.nice.filter((x) => x !== s) : Array.from(new Set([...prev.nice, s])),
-                                                  }));
-                                                }}
-                                              >
-                                                {s}
-                                              </Button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              ) : null}
+                          <Separator />
+
+                          {/* Generated Query */}
+                          {generatedQuery && (
+                            <div className="space-y-2">
+                              <Label className="text-sm font-semibold">Generated LinkedIn Query</Label>
+                              <Textarea
+                                value={generatedQuery}
+                                onChange={(e) => setGeneratedQuery(e.target.value)}
+                                className="min-h-[100px] font-mono text-sm"
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(generatedQuery);
+                                    toast.success('Query copied to clipboard');
+                                  } catch {
+                                    toast.error('Could not copy query');
+                                  }
+                                }}
+                              >
+                                Copy Query
+                              </Button>
                             </div>
                           )}
-
-                          {googleFiltersSection === 'advanced' && (
-                            <div className="space-y-4">
-                              <div className="space-y-1">
-                                <div className="text-xs">Exclude</div>
-                                <Input
-                                  value={googleExclude}
-                                  onChange={(e) => setGoogleExclude(e.target.value)}
-                                  placeholder="e.g., recruiter, staffing, jobs"
-                                  disabled={googleUseRawXray}
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-sm font-sans flex items-center gap-2">
-                                    <span>Final query</span>
-                                    {googleUseRawXray ? (
-                                      <Badge variant="secondary" className="h-5 px-2 text-[10px]">Manual</Badge>
-                                    ) : null}
-                                  </div>
-                                  <label className="flex items-center gap-2 text-sm font-sans select-none">
-                                    <Checkbox
-                                      checked={googleUseRawXray}
-                                      onCheckedChange={(v) => {
-                                        const next = Boolean(v);
-                                        setGoogleUseRawXray(next);
-                                        if (next && !googleRawXray.trim()) setGoogleRawXray(buildGoogleXray());
-                                        if (!next) setGoogleRawXray('');
-                                      }}
-                                    />
-                                    Manual
-                                  </label>
-                                </div>
-                                <Textarea
-                                  value={googleUseRawXray ? googleRawXray : buildGoogleXray()}
-                                  onChange={(e) => setGoogleRawXray(e.target.value)}
-                                  className="min-h-[120px]"
-                                  readOnly={!googleUseRawXray}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </div>
-                  </SheetContent>
-                </Sheet>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setQueryBuilderOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => void buildQueryFromSelections()}
+                        disabled={isBuildingQuery || !parsedJD}
+                      >
+                        {isBuildingQuery && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                        {generatedQuery ? 'Rebuild Query' : 'Build Query'}
+                      </Button>
+                      {generatedQuery && (
+                        <Button
+                          type="button"
+                          onClick={async () => {
+                            // Apply generated query to the search
+                            setGoogleRawXray(generatedQuery);
+                            setGoogleUseRawXray(true);
+                            setQueryBuilderOpen(false);
+                            toast.success('Query applied - starting search...');
+
+                            // Trigger the search automatically
+                            setTimeout(() => {
+                              if (googleExhaustiveEnabled) {
+                                void handleExhaustiveGoogleSearch();
+                              } else {
+                                void handleSearch();
+                              }
+                            }, 100);
+                          }}
+                        >
+                          Use Query & Search
+                        </Button>
+                      )}
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
                 <Button
                   onClick={() => {

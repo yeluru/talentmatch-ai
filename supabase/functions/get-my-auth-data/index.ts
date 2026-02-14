@@ -44,13 +44,14 @@ serve(async (req: Request) => {
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
         .limit(1),
-      svc.from("user_roles").select("role, organization_id").eq("user_id", user.id),
+      svc.from("user_roles").select("role, organization_id, is_primary").eq("user_id", user.id),
     ]);
 
     const profileRow = (profileRes.data ?? [])[0] ?? null;
-    const roles = (rolesRes.data ?? []).map((r: { role: string; organization_id: string | null }) => ({
+    const roles = (rolesRes.data ?? []).map((r: { role: string; organization_id: string | null; is_primary: boolean }) => ({
       role: r.role,
       organization_id: r.organization_id ?? undefined,
+      is_primary: r.is_primary ?? false,
     }));
 
     return new Response(

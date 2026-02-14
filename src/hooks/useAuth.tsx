@@ -23,6 +23,7 @@ interface UserProfile {
 interface UserRoleData {
   role: AppRole;
   organization_id?: string;
+  is_primary?: boolean;
 }
 
 interface AuthContextType {
@@ -170,43 +171,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (rolesData.length > 0) {
         const userRoles = rolesData.map(r => ({
           role: r.role as AppRole,
-          organization_id: r.organization_id ?? undefined
+          organization_id: r.organization_id ?? undefined,
+          is_primary: r.is_primary ?? false
         }));
-        // All account managers can switch to Recruiter: add synthetic recruiter role if not already present
-        const hasAccountManager = userRoles.some(r => r.role === 'account_manager');
-        const hasRecruiter = userRoles.some(r => r.role === 'recruiter');
-        if (hasAccountManager && !hasRecruiter) {
-          const amRole = userRoles.find(r => r.role === 'account_manager');
-          if (amRole?.organization_id) {
-            userRoles.push({ role: 'recruiter' as AppRole, organization_id: amRole.organization_id });
-          }
-        }
+        // All roles are now real database roles (no synthetic roles)
+        // Sort roles: primary first, then by role name
+        userRoles.sort((a, b) => {
+          if (a.is_primary && !b.is_primary) return -1;
+          if (!a.is_primary && b.is_primary) return 1;
+          return 0;
+        });
         setRoles(userRoles);
 
         // Check if user is super admin
         const hasSuperAdmin = userRoles.some(r => r.role === 'super_admin');
         setIsSuperAdmin(hasSuperAdmin);
 
-        const orgId = userRoles.find(r => r.organization_id)?.organization_id || null;
-        setOrganizationId(orgId);
+        // Determine current role
+        let selectedRole: AppRole;
 
-        // For super admins, prioritize super_admin role.
-        // For tenant org admins, prioritize org_admin role.
-        const hasOrgAdmin = userRoles.some(r => r.role === 'org_admin');
-        if (hasSuperAdmin) {
-          setCurrentRole('super_admin');
-        } else if (hasOrgAdmin) {
-          setCurrentRole('org_admin');
+        // First, check if user has a saved role preference in localStorage
+        const savedRole = localStorage.getItem('currentRole') as AppRole;
+        if (savedRole && userRoles.find(r => r.role === savedRole)) {
+          // Use the saved role if it's still valid
+          selectedRole = savedRole;
         } else {
-          const savedRole = localStorage.getItem('currentRole') as AppRole;
-          if (savedRole && userRoles.find(r => r.role === savedRole)) {
-            setCurrentRole(savedRole);
+          // No saved role or invalid saved role - prioritize admin roles for first-time load
+          const hasOrgAdmin = userRoles.some(r => r.role === 'org_admin');
+
+          if (hasSuperAdmin) {
+            selectedRole = 'super_admin';
+          } else if (hasOrgAdmin) {
+            selectedRole = 'org_admin';
           } else {
             // Default account_manager to Account Manager view (they can switch to Recruiter)
-            const defaultRole = userRoles.some(r => r.role === 'account_manager') ? 'account_manager' : userRoles[0].role;
-            setCurrentRole(defaultRole);
+            selectedRole = userRoles.some(r => r.role === 'account_manager') ? 'account_manager' : userRoles[0].role;
           }
         }
+
+        setCurrentRole(selectedRole);
+
+        // Set organizationId based on the current role
+        const currentRoleData = userRoles.find(r => r.role === selectedRole);
+        setOrganizationId(currentRoleData?.organization_id || null);
       } else {
         setRoles([]);
         setCurrentRole(null);
@@ -509,8 +516,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const switchRole = (role: AppRole) => {
-    if (roles.find(r => r.role === role)) {
+    const roleData = roles.find(r => r.role === role);
+    if (roleData) {
       setCurrentRole(role);
+      setOrganizationId(roleData.organization_id || null);
       localStorage.setItem('currentRole', role);
     }
   };
