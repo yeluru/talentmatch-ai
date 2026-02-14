@@ -1241,56 +1241,100 @@ export default function TalentSourcing() {
         });
       };
 
-      // Collect all skills and filter
-      const allSkills = [
+      // Collect all skills, deduplicate, and filter
+      const allSkills = [...new Set([
         ...selectedSkills.core,
         ...selectedSkills.secondary,
         ...selectedSkills.methods_tools,
         ...selectedSkills.certs
-      ].filter(s => !isGenericTerm(s));
+      ])].filter(s => !isGenericTerm(s));
 
-      // STEP 1: Extract and require job title keywords
-      // Extract role keywords like "Engineer", "Architect", "Manager" from title
+      // STEP 1: Add job title with variations (OR group)
+      // Goal: Cast a reasonable net - not too narrow, not too wide
+      // Example: (Security Engineer OR Information Security Engineer OR Security Architect)
       if (parsedJD.title) {
         const title = parsedJD.title.trim();
         const mainTitle = title.split(/[-–—|,]/)[0].trim(); // "Security Engineer" from "Security Engineer - AWS"
 
-        // Extract key role terms
-        const roleKeywords = mainTitle.match(/\b(Engineer|Architect|Manager|Developer|Administrator|Analyst|Consultant|Specialist|Lead|Director|Coordinator)\b/gi);
-        const domainKeywords = mainTitle.replace(/\b(Engineer|Architect|Manager|Developer|Administrator|Analyst|Consultant|Specialist|Lead|Director|Coordinator)\b/gi, '').trim();
+        // Remove seniority prefixes to get core title
+        const coreTitle = mainTitle.replace(/^(Senior|Lead|Staff|Principal|Junior|Mid|Entry[\s-]?Level)\s+/gi, '').trim();
 
-        // Require both domain and role (e.g., "Security" AND "Engineer")
-        if (domainKeywords && domainKeywords.length > 2) {
-          parts.push(`"${domainKeywords}"`);
+        // Build title variations
+        const titleVariations: string[] = [];
+
+        // Add the core title as-is
+        if (coreTitle && coreTitle.length > 3) {
+          titleVariations.push(`"${coreTitle}"`);
         }
-        if (roleKeywords && roleKeywords.length > 0) {
-          // Create OR group of role variants (Engineer OR Developer OR Architect)
-          const uniqueRoles = [...new Set(roleKeywords.map(r => r.toLowerCase()))];
-          if (uniqueRoles.length === 1) {
-            parts.push(uniqueRoles[0]);
+
+        // Add common variations based on role type
+        const lowerTitle = coreTitle.toLowerCase();
+
+        // For "Security Engineer" → also include "Information Security Engineer"
+        if (lowerTitle.includes('security') && lowerTitle.includes('engineer')) {
+          if (!lowerTitle.includes('information')) {
+            titleVariations.push(`"Information Security Engineer"`);
+          }
+          titleVariations.push(`"Security Architect"`);
+        }
+        // For "Security Architect" → also include variations
+        else if (lowerTitle.includes('security') && lowerTitle.includes('architect')) {
+          titleVariations.push(`"Security Engineer"`);
+          if (!lowerTitle.includes('information')) {
+            titleVariations.push(`"Information Security Architect"`);
+          }
+        }
+        // For "Data Engineer" → include "Data Scientist", "Analytics Engineer"
+        else if (lowerTitle.includes('data') && lowerTitle.includes('engineer')) {
+          titleVariations.push(`"Data Scientist"`);
+          titleVariations.push(`"Analytics Engineer"`);
+        }
+        // For "Software Engineer" → include "Software Developer"
+        else if (lowerTitle.includes('software') && lowerTitle.includes('engineer')) {
+          titleVariations.push(`"Software Developer"`);
+        }
+        // For "DevOps Engineer" → include "Site Reliability Engineer", "Platform Engineer"
+        else if (lowerTitle.includes('devops')) {
+          titleVariations.push(`"Site Reliability Engineer"`);
+          titleVariations.push(`"Platform Engineer"`);
+        }
+
+        // Add as OR group (need to match at least one title variation)
+        if (titleVariations.length > 0) {
+          const dedupedTitles = [...new Set(titleVariations)];
+          if (dedupedTitles.length === 1) {
+            parts.push(dedupedTitles[0]);
           } else {
-            parts.push(`(${uniqueRoles.join(' OR ')})`);
+            parts.push(`(${dedupedTitles.join(' OR ')})`);
           }
         }
       }
 
-      // STEP 2: Identify and require platform/core technology
-      // Look for major platforms in skills: AWS, Azure, GCP, Salesforce, SAP, etc.
+      // STEP 2: Add platform/core technology as required term (if prominent)
+      // For cloud roles: require AWS, Azure, or GCP
+      // For other roles: add as keyword but don't over-constrain
       const platformKeywords = ['aws', 'azure', 'gcp', 'google cloud', 'amazon web services',
-                                'salesforce', 'sap', 'oracle', 'kubernetes', 'docker'];
+                                'salesforce', 'sap', 'oracle'];
       const foundPlatforms = allSkills.filter(s =>
         platformKeywords.some(p => s.toLowerCase().includes(p))
       );
 
+      // Simplify platform requirement: just add the main platform name
+      // Don't use complex phrases like "Public Cloud: AWS Experience"
       if (foundPlatforms.length > 0) {
-        // Require at least one platform (OR group if multiple)
-        const platformsFormatted = foundPlatforms
-          .slice(0, 3) // Max 3 platforms
-          .map(formatSkill);
-        if (platformsFormatted.length === 1) {
-          parts.push(platformsFormatted[0]);
-        } else {
-          parts.push(`(${platformsFormatted.join(' OR ')})`);
+        const mainPlatform = foundPlatforms[0].toLowerCase();
+        if (mainPlatform.includes('aws') || mainPlatform.includes('amazon web services')) {
+          parts.push('AWS');
+        } else if (mainPlatform.includes('azure')) {
+          parts.push('Azure');
+        } else if (mainPlatform.includes('gcp') || mainPlatform.includes('google cloud')) {
+          parts.push('GCP');
+        } else if (mainPlatform.includes('salesforce')) {
+          parts.push('Salesforce');
+        }
+        // For less common platforms, add first one as-is
+        else {
+          parts.push(formatSkill(foundPlatforms[0]));
         }
       }
 
@@ -1308,7 +1352,7 @@ export default function TalentSourcing() {
           const bSpecial = (b.match(/[/().-]/g) || []).length;
           return bSpecial - aSpecial;
         })
-        .slice(0, 10); // Max 10 specialized skills in OR group
+        .slice(0, 12); // Max 12 specialized skills in OR group (sweet spot for relevance vs volume)
 
       if (specializedSkills.length > 0) {
         const formatted = specializedSkills.map(formatSkill);
