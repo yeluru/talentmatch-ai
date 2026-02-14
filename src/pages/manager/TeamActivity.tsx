@@ -97,12 +97,16 @@ export default function TeamActivity() {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
 
       setActivities(data || []);
     } catch (error: any) {
       console.error('Error fetching team activity:', error);
-      toast.error('Failed to load team activity');
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      toast.error(`Failed to load team activity: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -150,7 +154,7 @@ export default function TeamActivity() {
 
       // Aggregate for each user sequentially to avoid overloading
       for (const u of orgUsers) {
-        const { error } = await supabase.rpc('aggregate_user_activity', {
+        const { data, error } = await supabase.rpc('aggregate_user_activity', {
           p_user_id: u.user_id,
           p_organization_id: organizationId,
           p_date: today,
@@ -159,6 +163,9 @@ export default function TeamActivity() {
 
         if (error) {
           console.error(`Failed to aggregate for user ${u.user_id}:`, error);
+          console.error('Aggregation error details:', JSON.stringify(error, null, 2));
+        } else {
+          console.log(`Aggregated successfully for user ${u.user_id}:`, data);
         }
       }
 
