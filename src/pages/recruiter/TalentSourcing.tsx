@@ -1199,6 +1199,50 @@ export default function TalentSourcing() {
       const job = postedJobs.find(j => j.id === selectedQueryJob);
       if (!job) throw new Error('Job not found');
 
+      // =============================================================================
+      // PRIMARY: Use LLM to generate query (smarter than algorithmic rules)
+      // =============================================================================
+      const { data: llmResult, error: llmError } = await supabase.functions.invoke('generate-linkedin-query', {
+        body: {
+          jobTitle: parsedJD.title || job.title,
+          jobDescription: job.description,
+          skills: selectedSkills,
+        }
+      });
+
+      if (!llmError && llmResult?.success && llmResult?.query) {
+        // LLM successfully generated query
+        const query = llmResult.query.trim();
+        setGeneratedQuery(query);
+
+        // Save to cache
+        if (organizationId && user) {
+          await supabase
+            .from('query_builder_cache')
+            .upsert({
+              job_id: selectedQueryJob,
+              user_id: user.id,
+              organization_id: organizationId,
+              parsed_data: parsedJD,
+              selected_data: selectedSkills,
+              generated_query: query,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'job_id,user_id',
+              ignoreDuplicates: false
+            });
+        }
+
+        toast.success(`Query generated using AI (${llmResult.provider || 'LLM'})`);
+        return;
+      }
+
+      // =============================================================================
+      // FALLBACK: Algorithmic approach if LLM fails
+      // =============================================================================
+      console.warn('LLM query generation failed, using fallback:', llmError);
+      toast.warning('Using fallback query builder (AI unavailable)');
+
       // Build LinkedIn X-ray query from selected skills
       const parts: string[] = ['site:linkedin.com/in'];
 
