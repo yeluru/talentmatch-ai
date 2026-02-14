@@ -25,9 +25,11 @@ interface Client {
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  contact_title: string | null;
   secondary_contact_name: string | null;
   secondary_contact_email: string | null;
   secondary_contact_phone: string | null;
+  secondary_contact_title: string | null;
   notes: string | null;
   status: string | null;
   created_at: string;
@@ -56,9 +58,11 @@ export default function ClientManagement() {
     contact_name: '',
     contact_email: '',
     contact_phone: '',
+    contact_title: '',
     secondary_contact_name: '',
     secondary_contact_email: '',
     secondary_contact_phone: '',
+    secondary_contact_title: '',
     notes: '',
     status: 'active'
   });
@@ -198,9 +202,11 @@ export default function ClientManagement() {
         contact_name: formData.contact_name,
         contact_email: formData.contact_email,
         contact_phone: formData.contact_phone,
+        contact_title: formData.contact_title || null,
         secondary_contact_name: formData.secondary_contact_name || null,
         secondary_contact_email: formData.secondary_contact_email || null,
         secondary_contact_phone: formData.secondary_contact_phone || null,
+        secondary_contact_title: formData.secondary_contact_title || null,
         notes: formData.notes || null,
         status: formData.status,
         created_by: user!.id
@@ -241,9 +247,11 @@ export default function ClientManagement() {
       contact_name: client.contact_name || '',
       contact_email: client.contact_email || '',
       contact_phone: client.contact_phone || '',
+      contact_title: client.contact_title || '',
       secondary_contact_name: client.secondary_contact_name || '',
       secondary_contact_email: client.secondary_contact_email || '',
       secondary_contact_phone: client.secondary_contact_phone || '',
+      secondary_contact_title: client.secondary_contact_title || '',
       notes: client.notes || '',
       status: client.status || 'active'
     });
@@ -276,9 +284,11 @@ export default function ClientManagement() {
       contact_name: '',
       contact_email: '',
       contact_phone: '',
+      contact_title: '',
       secondary_contact_name: '',
       secondary_contact_email: '',
       secondary_contact_phone: '',
+      secondary_contact_title: '',
       notes: '',
       status: 'active'
     });
@@ -462,6 +472,16 @@ export default function ClientManagement() {
                             required
                           />
                         </div>
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="contact_title" className="font-sans">Title/Designation</Label>
+                          <Input
+                            id="contact_title"
+                            placeholder="e.g., VP, Director, Hiring Manager"
+                            value={formData.contact_title}
+                            onChange={(e) => setFormData({ ...formData, contact_title: e.target.value })}
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -496,6 +516,16 @@ export default function ClientManagement() {
                             placeholder="jane@acme.com"
                             value={formData.secondary_contact_email}
                             onChange={(e) => setFormData({ ...formData, secondary_contact_email: e.target.value })}
+                            className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="secondary_contact_title" className="font-sans">Title/Designation</Label>
+                          <Input
+                            id="secondary_contact_title"
+                            placeholder="e.g., Coordinator, Recruiter, HR Manager"
+                            value={formData.secondary_contact_title}
+                            onChange={(e) => setFormData({ ...formData, secondary_contact_title: e.target.value })}
                             className="h-10 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                           />
                         </div>
@@ -648,7 +678,12 @@ export default function ClientManagement() {
                         <div className="w-1/4 hidden md:block">
                           {client.contact_name ? (
                             <div className="space-y-0.5">
-                              <p className="text-sm font-sans font-medium">{client.contact_name}</p>
+                              <p className="text-sm font-sans font-medium">
+                                {client.contact_name}
+                                {client.contact_title && (
+                                  <span className="text-xs text-muted-foreground font-normal ml-1">({client.contact_title})</span>
+                                )}
+                              </p>
                               {client.contact_email && (
                                 <p className="text-xs text-muted-foreground truncate font-sans">{client.contact_email}</p>
                               )}
