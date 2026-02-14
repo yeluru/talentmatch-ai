@@ -49,12 +49,26 @@ serve(async (req) => {
     // Fetch activity data
     const { data: activity, error: activityError } = await supabase
       .from('daily_user_activity')
-      .select('*, profiles!daily_user_activity_user_id_fkey(full_name)')
+      .select('*')
       .eq('user_id', userId)
       .eq('organization_id', organizationId)
       .eq('activity_date', activityDate)
       .eq('acting_role', actingRole || 'recruiter')
       .single();
+
+    // Fetch user profile separately
+    let userName = 'User';
+    if (activity && !activityError) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+
+      if (profile) {
+        userName = profile.full_name;
+      }
+    }
 
     if (activityError || !activity) {
       // Try to aggregate if not found
@@ -78,7 +92,7 @@ serve(async (req) => {
       // Fetch again after aggregation
       const { data: newActivity, error: newError } = await supabase
         .from('daily_user_activity')
-        .select('*, profiles!daily_user_activity_user_id_fkey(full_name)')
+        .select('*')
         .eq('user_id', userId)
         .eq('organization_id', organizationId)
         .eq('activity_date', activityDate)
@@ -92,7 +106,19 @@ serve(async (req) => {
         });
       }
 
+      // Assign the new activity data
       Object.assign(activity, newActivity);
+
+      // Fetch profile again after aggregation
+      const { data: profileAfterAgg } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileAfterAgg) {
+        userName = profileAfterAgg.full_name;
+      }
     }
 
     // Fetch team average for comparison (optional but adds context)
@@ -110,7 +136,6 @@ serve(async (req) => {
       : 0;
 
     // Build context for AI
-    const userName = activity.profiles?.full_name || 'User';
     const role = actingRole || 'recruiter';
     const date = new Date(activityDate).toLocaleDateString('en-US', {
       year: 'numeric',
