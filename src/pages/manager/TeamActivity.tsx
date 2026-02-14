@@ -209,17 +209,24 @@ export default function TeamActivity() {
         },
       });
 
-      if (error) throw error;
+      console.log('Generate summary response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       if (data?.success) {
         toast.success('AI summary generated');
         await fetchTeamActivity();
       } else {
+        console.error('Function returned failure:', data);
         throw new Error(data?.error || 'Failed to generate summary');
       }
     } catch (error: any) {
       console.error('Error generating summary:', error);
-      toast.error('Failed to generate AI summary');
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      toast.error(`Failed to generate AI summary: ${error.message || 'Unknown error'}`);
     } finally {
       setGeneratingSummary(null);
     }
