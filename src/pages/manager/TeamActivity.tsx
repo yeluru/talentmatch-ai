@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,8 @@ export default function TeamActivity() {
   const [generatingSummary, setGeneratingSummary] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<string>('today');
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
+  const [aggregating, setAggregating] = useState(false);
+  const hasAttemptedAggregation = useRef(false);
 
   const isManager = currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin';
 
@@ -53,52 +55,6 @@ export default function TeamActivity() {
       fetchTeamActivity();
     }
   }, [isManager, organizationId, dateRange]);
-
-  // Auto-aggregate if no data found
-  useEffect(() => {
-    const autoAggregate = async () => {
-      if (!loading && activities.length === 0 && organizationId && dateRange === 'today') {
-        console.log('No activity data found, triggering auto-aggregation...');
-
-        // Get all users in the organization
-        const { data: orgUsers, error: usersError } = await supabase
-          .from('user_roles')
-          .select('user_id, role')
-          .eq('organization_id', organizationId)
-          .in('role', ['recruiter', 'account_manager']);
-
-        if (usersError || !orgUsers || orgUsers.length === 0) {
-          console.log('No users found for aggregation');
-          return;
-        }
-
-        console.log(`Auto-aggregating activity for ${orgUsers.length} users...`);
-
-        // Aggregate for each user
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const aggregatePromises = orgUsers.map(async (u) => {
-          try {
-            await supabase.rpc('aggregate_user_activity', {
-              p_user_id: u.user_id,
-              p_organization_id: organizationId,
-              p_date: today,
-              p_acting_role: u.role,
-            });
-          } catch (err) {
-            console.error(`Failed to aggregate for user ${u.user_id}:`, err);
-          }
-        });
-
-        await Promise.all(aggregatePromises);
-
-        // Refresh the activity list
-        await fetchTeamActivity();
-        console.log('Auto-aggregation complete');
-      }
-    };
-
-    autoAggregate();
-  }, [loading, activities.length, organizationId, dateRange]);
 
   const getDateRangeFilter = () => {
     const today = startOfDay(new Date());
@@ -168,6 +124,51 @@ export default function TeamActivity() {
     } catch (error: any) {
       console.error('Error aggregating activity:', error);
       toast.error('Failed to refresh activity data');
+    }
+  };
+
+  const aggregateAllTeamActivity = async () => {
+    if (!organizationId || aggregating) return;
+
+    setAggregating(true);
+    try {
+      // Get all users in the organization
+      const { data: orgUsers, error: usersError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .eq('organization_id', organizationId)
+        .in('role', ['recruiter', 'account_manager']);
+
+      if (usersError) throw usersError;
+
+      if (!orgUsers || orgUsers.length === 0) {
+        toast.info('No team members found');
+        return;
+      }
+
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      // Aggregate for each user sequentially to avoid overloading
+      for (const u of orgUsers) {
+        const { error } = await supabase.rpc('aggregate_user_activity', {
+          p_user_id: u.user_id,
+          p_organization_id: organizationId,
+          p_date: today,
+          p_acting_role: u.role,
+        });
+
+        if (error) {
+          console.error(`Failed to aggregate for user ${u.user_id}:`, error);
+        }
+      }
+
+      await fetchTeamActivity();
+      toast.success(`Aggregated activity for ${orgUsers.length} team members`);
+    } catch (error: any) {
+      console.error('Error aggregating team activity:', error);
+      toast.error('Failed to aggregate team activity');
+    } finally {
+      setAggregating(false);
     }
   };
 
@@ -252,6 +253,25 @@ export default function TeamActivity() {
               <SelectItem value="last30">Last 30 days</SelectItem>
             </SelectContent>
           </Select>
+
+          <Button
+            onClick={aggregateAllTeamActivity}
+            variant="outline"
+            size="sm"
+            disabled={aggregating}
+          >
+            {aggregating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Aggregating...
+              </>
+            ) : (
+              <>
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Aggregate Activity
+              </>
+            )}
+          </Button>
 
           <Button onClick={fetchTeamActivity} variant="outline" size="sm">
             <RefreshCcw className="w-4 h-4 mr-2" />
