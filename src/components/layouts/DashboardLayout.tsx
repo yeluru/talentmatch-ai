@@ -45,6 +45,7 @@ import {
   Moon,
   Sun,
   BookOpen,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -134,6 +135,7 @@ const recruiterNavGroups: NavGroup[] = [
 const managerNavItems = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Team', href: '/manager/team', icon: Users },
+  { title: 'Team Activity', href: '/manager/team-activity', icon: Activity },
   { title: 'Candidates', href: '/manager/candidates', icon: User },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Jobs', href: '/manager/jobs', icon: Briefcase },
@@ -146,6 +148,7 @@ const managerNavItems = [
 const accountManagerOversightNavItems: NavItem[] = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Team', href: '/manager/team', icon: Users },
+  { title: 'Team Activity', href: '/manager/team-activity', icon: Activity },
   { title: 'Candidates', href: '/manager/candidates', icon: User },
   { title: 'Jobs', href: '/manager/jobs', icon: Briefcase },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
@@ -156,6 +159,7 @@ const accountManagerOversightNavItems: NavItem[] = [
 
 const orgAdminNavItems = [
   { title: 'Dashboard', href: '/org-admin', icon: Home },
+  { title: 'Team Activity', href: '/org-admin/team-activity', icon: Activity },
 ];
 
 function DashboardLayoutInner({
