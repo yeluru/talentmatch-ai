@@ -1202,31 +1202,81 @@ export default function TalentSourcing() {
       // Build LinkedIn X-ray query from selected skills
       const parts: string[] = ['site:linkedin.com/in'];
 
-      // Add location if available
+      // Helper: Filter out generic soft skills that match everyone
+      const isGenericSoftSkill = (skill: string): boolean => {
+        const generic = [
+          'collaboration', 'collaborative', 'attention to detail', 'detail-oriented',
+          'communication skills', 'written communication', 'verbal communication',
+          'team player', 'work with stakeholders', 'problem solving', 'time management',
+          'organizational skills', 'multitasking', 'self-motivated', 'proactive',
+          'fast-paced environment', 'deadlines', 'priority', 'prioritize'
+        ];
+        const lowerSkill = skill.toLowerCase();
+        return generic.some(g => lowerSkill.includes(g));
+      };
+
+      // Helper: Format skill for query
+      const formatSkill = (skill: string): string => {
+        return skill.includes(' ') || skill.includes('-') ? `"${skill}"` : skill;
+      };
+
+      // Filter and separate skills
+      const coreSkills = selectedSkills.core.filter(s => !isGenericSoftSkill(s));
+      const secondarySkills = selectedSkills.secondary.filter(s => !isGenericSoftSkill(s));
+      const toolsSkills = selectedSkills.methods_tools.filter(s => !isGenericSoftSkill(s));
+      const certSkills = selectedSkills.certs;
+
+      // Strategy: Core skills are REQUIRED (use AND logic)
+      // Secondary/tools are optional (use OR logic)
+      // This prevents matching on generic terms while ensuring technical relevance
+
+      // Add job title if available (very important for relevance)
+      if (parsedJD.title) {
+        const title = parsedJD.title.trim();
+        // Extract key role terms (e.g., "Content Manager" from "Content Manager – Digital Web Platforms")
+        const mainTitle = title.split(/[-–—|]/)[0].trim();
+        if (mainTitle && mainTitle.length > 3) {
+          parts.push(`"${mainTitle}"`);
+        }
+      }
+
+      // Add CORE skills as required (each one as separate term = AND logic)
+      // Limit to top 3 most specific core skills to avoid over-constraining
+      if (coreSkills.length > 0) {
+        const topCore = coreSkills
+          .sort((a, b) => b.length - a.length) // Prefer more specific (longer) terms
+          .slice(0, 3);
+
+        for (const skill of topCore) {
+          parts.push(formatSkill(skill));
+        }
+      }
+
+      // Add SECONDARY + TOOLS as OR group (need at least one)
+      const optionalSkills = [...secondarySkills, ...toolsSkills];
+      if (optionalSkills.length > 0) {
+        const formatted = optionalSkills.map(formatSkill);
+        parts.push(`(${formatted.join(' OR ')})`);
+      } else if (coreSkills.length > 3) {
+        // If no secondary skills, use remaining core skills as OR group
+        const remainingCore = coreSkills.slice(3).map(formatSkill);
+        if (remainingCore.length > 0) {
+          parts.push(`(${remainingCore.join(' OR ')})`);
+        }
+      }
+
+      // Add certifications if any
+      if (certSkills.length > 0) {
+        const formatted = certSkills.map(formatSkill);
+        parts.push(`(${formatted.join(' OR ')})`);
+      }
+
+      // Add location if available (but not as required)
       if (parsedJD.location.site) {
         const loc = parsedJD.location.site.trim();
         if (loc && !['remote', 'hybrid', 'onsite', 'on-site'].some(mode => loc.toLowerCase().includes(mode))) {
           parts.push(`"${loc}"`);
         }
-      }
-
-      // Broad OR matching: Combine ALL selected skills into one OR group
-      // This aims for 50-200 highly relevant results rather than 0-10 perfect matches
-      const allSkills = [
-        ...selectedSkills.core,
-        ...selectedSkills.secondary,
-        ...selectedSkills.methods_tools,
-        ...selectedSkills.certs
-      ];
-
-      if (allSkills.length > 0) {
-        // Format each skill (quote if contains spaces or hyphens)
-        const skillsFormatted = allSkills.map(skill =>
-          skill.includes(' ') || skill.includes('-') ? `"${skill}"` : skill
-        );
-
-        // Single OR group for all skills - profiles need to match ANY term, not all
-        parts.push(`(${skillsFormatted.join(' OR ')})`);
       }
 
       // Exclusions - standard recruiter/job posting terms
