@@ -11,8 +11,8 @@ const ORG_ADMIN_NAV: AdminNavItem[] = [
   { label: "Candidates", href: "/org-admin?tab=candidates", icon: UserCheck, end: true },
   { label: "All Users", href: "/org-admin?tab=users", icon: UserPlus, end: true },
   { label: "Role Management", href: "/org-admin/roles", icon: Shield, end: true },
+  { label: "Audit Logs", href: "/org-admin/audit-logs", icon: FileText, end: true },
   { label: "Team Activity", href: "/org-admin/team-activity", icon: Activity, end: true },
-  { label: "Audit Logs", href: "/org-admin?tab=audit_logs", icon: FileText, end: true },
   { label: "Profile", href: "/org-admin/profile", icon: User, end: true },
 ];
 

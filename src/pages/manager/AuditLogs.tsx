@@ -17,6 +17,7 @@ import {
 import { format } from 'date-fns';
 import { sortBy } from '@/lib/sort';
 import { useTableSort } from '@/hooks/useTableSort';
+import { AuditLogDetailViewer, getAuditLogDescription } from '@/components/audit/AuditLogDetailViewer';
 
 interface AuditLog {
   id: string;
@@ -313,12 +314,13 @@ export default function AuditLogs() {
                               <span className="capitalize">{log.entity_type}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="max-w-[200px]">
-                            {log.details ? (
-                              <code className="text-[10px] bg-muted/50 px-1.5 py-0.5 rounded inline-block max-w-full truncate font-mono text-muted-foreground font-sans" title={JSON.stringify(log.details)}>
-                                {JSON.stringify(log.details)}
-                              </code>
-                            ) : <span className="text-muted-foreground font-sans">-</span>}
+                          <TableCell>
+                            <div className="flex items-start gap-2">
+                              <span className="text-sm text-muted-foreground flex-1 whitespace-normal break-words">
+                                {getAuditLogDescription(log)}
+                              </span>
+                              {log.details && <AuditLogDetailViewer log={log} />}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground font-mono font-sans">
                             {log.ip_address || '-'}

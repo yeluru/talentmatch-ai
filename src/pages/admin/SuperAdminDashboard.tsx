@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatCard } from '@/components/ui/stat-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageShell } from '@/components/ui/page-shell';
@@ -51,6 +52,9 @@ import {
   Mail,
   Plus,
   UserCheck,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
@@ -58,6 +62,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { SuperAdminLayout } from '@/components/layouts/SuperAdminLayout';
 import { sortBy } from '@/lib/sort';
 import { useTableSort } from '@/hooks/useTableSort';
+import { AuditLogDetailViewer, getAuditLogDescription } from '@/components/audit/AuditLogDetailViewer';
 
 interface UserWithRoles {
   user_id: string;
@@ -135,6 +140,10 @@ export default function SuperAdminDashboard() {
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [auditSearch, setAuditSearch] = useState('');
   const [auditSearchDebounced, setAuditSearchDebounced] = useState('');
+  const [auditActionFilter, setAuditActionFilter] = useState<string>('all');
+  const [auditEntityFilter, setAuditEntityFilter] = useState<string>('all');
+  const [auditPage, setAuditPage] = useState(0);
+  const auditPageSize = 50;
 
   const auditTableSort = useTableSort<'created_at' | 'org_name' | 'user_name' | 'action' | 'entity_type' | 'ip_address'>({
     key: 'created_at',
@@ -204,6 +213,11 @@ export default function SuperAdminDashboard() {
     const t = setTimeout(() => setAuditSearchDebounced(auditSearch.trim()), 300);
     return () => clearTimeout(t);
   }, [auditSearch]);
+
+  // Fetch audit logs when filters or page changes
+  useEffect(() => {
+    fetchAuditLogs(true);
+  }, [auditPage, auditActionFilter, auditEntityFilter, auditSearchDebounced]);
 
   // When search changes, reset pagination + reload
   useEffect(() => {
@@ -329,7 +343,7 @@ export default function SuperAdminDashboard() {
   };
 
   const auditCutoffIso = useMemo(
-    () => new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // Last 7 days instead of 4 hours
     [],
   );
 
@@ -347,32 +361,42 @@ export default function SuperAdminDashboard() {
     ].join(',');
   };
 
+  const formatAction = (action: string) => {
+    return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getActionColor = (action: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    const lowerAction = action.toLowerCase();
+    if (lowerAction.includes('delete') || lowerAction.includes('remove')) return 'destructive';
+    if (lowerAction.includes('create') || lowerAction.includes('add') || lowerAction.includes('insert')) return 'default';
+    if (lowerAction.includes('update') || lowerAction.includes('edit')) return 'secondary';
+    return 'outline';
+  };
+
   const fetchAuditLogs = async (reset: boolean = false) => {
-    const PAGE_SIZE = 100;
     setAuditLoading(true);
     try {
-      const q = auditSearchDebounced;
-
       // Use enriched view so we can search across org/user fields.
       const sb: any = supabase as any;
       let query = sb
         .from('audit_logs_enriched')
         .select('id, created_at, organization_id, user_id, action, entity_type, entity_id, ip_address, details, org_name, user_full_name, user_email')
         .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE);
+        .range(auditPage * auditPageSize, (auditPage + 1) * auditPageSize - 1);
 
-      if (!q) {
-        // Default mode: show only last 4 hours unless the user has clicked "Load more".
-        if (!auditExpanded) {
-          query = query.gte('created_at', auditCutoffIso);
-        }
-      } else {
-        query = query.or(buildAuditSearchOr(q));
+      // Apply action filter
+      if (auditActionFilter !== 'all') {
+        query = query.ilike('action', `%${auditActionFilter}%`);
       }
 
-      const cursor = reset ? null : auditCursor;
-      if (cursor) {
-        query = query.lt('created_at', cursor);
+      // Apply entity filter
+      if (auditEntityFilter !== 'all') {
+        query = query.eq('entity_type', auditEntityFilter);
+      }
+
+      // Apply search filter
+      if (auditSearchDebounced) {
+        query = query.or(buildAuditSearchOr(auditSearchDebounced));
       }
 
       const { data, error } = await query;
@@ -393,11 +417,7 @@ export default function SuperAdminDashboard() {
         user_name: r.user_full_name || r.user_email || undefined,
       }));
 
-      const nextLogs = reset ? normalized : [...auditLogs, ...normalized];
-      setAuditLogs(nextLogs);
-
-      const last = normalized[normalized.length - 1];
-      setAuditCursor(last?.created_at || null);
+      setAuditLogs(normalized);
       setAuditHasMore(normalized.length === PAGE_SIZE);
     } catch (err: any) {
       console.error('Audit log fetch error:', err);
@@ -1309,27 +1329,59 @@ export default function SuperAdminDashboard() {
 
               {activeTab === 'audit' && (
               <div className="space-y-4">
-                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
-                  <div className="p-4 sm:p-6 border-b border-white/5 bg-white/5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-4 rounded-xl border border-border bg-card p-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                     <Input
+                      placeholder="Search logs..."
                       value={auditSearch}
                       onChange={(e) => setAuditSearch(e.target.value)}
-                      placeholder="Search audit logs…"
-                      className="w-full min-w-0 sm:w-[200px] bg-black/20 border-white/10"
+                      className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans"
                     />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setAuditCursor(null);
-                        setAuditExpanded(false);
-                        fetchAuditLogs(true);
-                      }}
-                      disabled={auditLoading}
-                    >
-                      {auditLoading ? 'Refreshing…' : 'Refresh'}
-                    </Button>
                   </div>
+                  <Select value={auditActionFilter} onValueChange={(val) => { setAuditActionFilter(val); setAuditPage(0); }}>
+                    <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans">
+                      <Filter className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                      <SelectValue placeholder="Action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Actions</SelectItem>
+                      <SelectItem value="insert">Create</SelectItem>
+                      <SelectItem value="update">Update</SelectItem>
+                      <SelectItem value="delete">Delete</SelectItem>
+                      <SelectItem value="grant">Grant Role</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={auditEntityFilter} onValueChange={(val) => { setAuditEntityFilter(val); setAuditPage(0); }}>
+                    <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans">
+                      <SelectValue placeholder="Entity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Entities</SelectItem>
+                      <SelectItem value="candidate_profiles">Candidates</SelectItem>
+                      <SelectItem value="jobs">Jobs</SelectItem>
+                      <SelectItem value="clients">Clients</SelectItem>
+                      <SelectItem value="applications">Applications</SelectItem>
+                      <SelectItem value="user_roles">User Roles</SelectItem>
+                      <SelectItem value="organizations">Organizations</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setAuditPage(0);
+                      fetchAuditLogs(true);
+                    }}
+                    disabled={auditLoading}
+                    className="h-11"
+                  >
+                    {auditLoading ? 'Refreshing…' : 'Refresh'}
+                  </Button>
+                </div>
+
+                <div className="glass-panel rounded-xl overflow-hidden hover-card-premium">
                   <div className="p-0 overflow-x-auto">
                     <Table className="min-w-[720px]">
                       <TableHeader className="bg-white/5">
@@ -1339,20 +1391,21 @@ export default function SuperAdminDashboard() {
                           <SortableTableHead label="User" sortKey="user_name" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
                           <SortableTableHead label="Action" sortKey="action" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
                           <SortableTableHead label="Entity" sortKey="entity_type" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
+                          <TableHead>Details</TableHead>
                           <SortableTableHead label="IP" sortKey="ip_address" sort={auditTableSort.sort} onToggle={auditTableSort.toggle} />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {auditLoading ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                            <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                               <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
                               Loading audit logs...
                             </TableCell>
                           </TableRow>
                         ) : auditLogs.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                            <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                               No audit logs found (or access not granted yet).
                             </TableCell>
                           </TableRow>
@@ -1375,12 +1428,20 @@ export default function SuperAdminDashboard() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
-                                  {log.action}
+                                <Badge variant={getActionColor(log.action)} className="text-[10px] px-2 py-0.5 min-w-[60px] justify-center">
+                                  {formatAction(log.action)}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
                                 {log.entity_type}{log.entity_id ? `:${String(log.entity_id).slice(0, 8)}…` : ''}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-start gap-2">
+                                  <span className="text-sm text-muted-foreground flex-1 whitespace-normal break-words">
+                                    {getAuditLogDescription(log)}
+                                  </span>
+                                  {log.details && <AuditLogDetailViewer log={log} />}
+                                </div>
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground font-mono">
                                 {log.ip_address || '-'}
@@ -1394,37 +1455,40 @@ export default function SuperAdminDashboard() {
                   <div className="p-4 border-t border-white/5 flex items-center justify-between">
                     <div className="text-xs text-muted-foreground">
                       {!auditSearchDebounced && !auditExpanded ? (
-                        <span>Showing last 4 hours</span>
+                        <span>Showing last 7 days</span>
                       ) : auditSearchDebounced ? (
                         <span>Search mode (full history)</span>
                       ) : (
                         <span>Showing full history (paged)</span>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      {!auditSearchDebounced && !auditExpanded && (
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/5">
+                      <div className="text-sm text-muted-foreground font-sans">
+                        Showing {auditPage * auditPageSize + 1}–{Math.min((auditPage + 1) * auditPageSize, auditPage * auditPageSize + sortedAuditLogs.length)} logs
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setAuditExpanded(true);
-                            fetchAuditLogs(false);
-                          }}
-                          disabled={auditLoading || !auditHasMore}
+                          onClick={() => setAuditPage(Math.max(0, auditPage - 1))}
+                          disabled={auditPage === 0 || auditLoading}
+                          className="h-9"
                         >
-                          Load older logs (100)
+                          <ChevronLeft className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                          Previous
                         </Button>
-                      )}
-                      {(auditSearchDebounced || auditExpanded) && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => fetchAuditLogs(false)}
-                          disabled={auditLoading || !auditHasMore}
+                          onClick={() => setAuditPage(auditPage + 1)}
+                          disabled={sortedAuditLogs.length < auditPageSize || auditLoading}
+                          className="h-9"
                         >
-                          Load more (100)
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" strokeWidth={1.5} />
                         </Button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>

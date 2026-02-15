@@ -87,6 +87,7 @@ const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage"));
 const SuperAdminRoleManagement = lazy(() => import("./pages/admin/SuperAdminRoleManagement"));
 const OrgAdminDashboard = lazy(() => import("./pages/orgAdmin/OrgAdminDashboard"));
 const OrgAdminProfilePage = lazy(() => import("./pages/orgAdmin/OrgAdminProfilePage"));
+const OrgAdminAuditLogs = lazy(() => import("./pages/orgAdmin/OrgAdminAuditLogs"));
 const RoleManagement = lazy(() => import("./pages/orgAdmin/RoleManagement"));
 
 // Shared Pages
@@ -638,7 +639,7 @@ const App = () => (
                     path="/org-admin/audit-logs"
                     element={
                       <ProtectedRoute allowedRoles={["org_admin"]}>
-                        <Navigate to="/org-admin?tab=audit_logs" replace />
+                        {withSuspense(<OrgAdminAuditLogs />)}
                       </ProtectedRoute>
                     }
                   />

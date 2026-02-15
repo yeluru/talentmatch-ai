@@ -7,6 +7,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface AuditLog {
+  id: string;
+  created_at: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  details: any;
+  acting_role?: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -37,156 +48,104 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { userId, organizationId, activityDate, actingRole } = body;
+    const { userId, userName, organizationId, startDate, endDate, actingRole, auditLogs } = body;
 
-    if (!userId || !organizationId || !activityDate) {
+    if (!userId || !organizationId || !startDate || !endDate) {
       return new Response(JSON.stringify({ error: "Missing required parameters" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fetch activity data
-    const { data: activity, error: activityError } = await supabase
-      .from('daily_user_activity')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('organization_id', organizationId)
-      .eq('activity_date', activityDate)
-      .eq('acting_role', actingRole || 'recruiter')
-      .single();
+    // Use provided audit logs or fetch them
+    let logs: AuditLog[] = auditLogs || [];
 
-    // Fetch user profile separately
-    let userName = 'User';
-    if (activity && !activityError) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
+    if (!logs || logs.length === 0) {
+      const { data: fetchedLogs, error: logsError } = await supabase
+        .from('audit_logs')
+        .select('*')
         .eq('user_id', userId)
-        .single();
+        .eq('organization_id', organizationId)
+        .gte('created_at', startDate + 'T00:00:00')
+        .lte('created_at', endDate + 'T23:59:59')
+        .order('created_at', { ascending: false });
 
-      if (profile) {
-        userName = profile.full_name;
-      }
-    }
-
-    if (activityError || !activity) {
-      // Try to aggregate if not found
-      console.log('Activity not found, attempting to aggregate...');
-      const { data: aggResult, error: aggError } = await supabase
-        .rpc('aggregate_user_activity', {
-          p_user_id: userId,
-          p_organization_id: organizationId,
-          p_date: activityDate,
-          p_acting_role: actingRole || null
-        });
-
-      if (aggError) {
-        console.error('Aggregation error:', aggError);
-        return new Response(JSON.stringify({ error: 'Failed to aggregate activity data' }), {
+      if (logsError) {
+        console.error('Error fetching audit logs:', logsError);
+        return new Response(JSON.stringify({ error: 'Failed to fetch audit logs' }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Fetch again after aggregation
-      const { data: newActivity, error: newError } = await supabase
-        .from('daily_user_activity')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('organization_id', organizationId)
-        .eq('activity_date', activityDate)
-        .eq('acting_role', actingRole || 'recruiter')
-        .single();
+      logs = fetchedLogs || [];
+    }
 
-      if (newError || !newActivity) {
-        return new Response(JSON.stringify({ error: 'No activity data available' }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // If no activity, return early
+    if (logs.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        summary: "No activity recorded for this period.",
+        activityCount: 0,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      // Assign the new activity data
-      Object.assign(activity, newActivity);
-
-      // Fetch profile again after aggregation
-      const { data: profileAfterAgg } = await supabase
+    // Fetch user profile if not provided
+    let displayName = userName || 'User';
+    if (!userName) {
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, email')
         .eq('user_id', userId)
         .single();
 
-      if (profileAfterAgg) {
-        userName = profileAfterAgg.full_name;
+      if (profile) {
+        displayName = profile.full_name || profile.email || 'User';
       }
     }
 
-    // Fetch team average for comparison (optional but adds context)
-    const { data: teamStats } = await supabase
-      .from('daily_user_activity')
-      .select('total_active_minutes, candidates_imported, candidates_moved')
-      .eq('organization_id', organizationId)
-      .eq('activity_date', activityDate);
+    // Extract structured activity details from audit logs
+    const activityDetails = extractActivityDetails(logs);
 
-    const teamAvgMinutes = teamStats && teamStats.length > 0
-      ? Math.round(teamStats.reduce((sum, s) => sum + (s.total_active_minutes || 0), 0) / teamStats.length)
-      : 0;
-    const teamAvgImported = teamStats && teamStats.length > 0
-      ? Math.round(teamStats.reduce((sum, s) => sum + (s.candidates_imported || 0), 0) / teamStats.length)
-      : 0;
+    // Build context for AI with actual audit log details
+    const role = actingRole || 'team member';
+    const periodLabel = startDate === endDate
+      ? new Date(startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : `${new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-    // Build context for AI
-    const role = actingRole || 'recruiter';
-    const date = new Date(activityDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const systemPrompt = `You are an AI assistant that generates concise, insightful activity summaries for managers reviewing their team's performance.
+    const systemPrompt = `You are an AI assistant that generates detailed, insightful activity summaries for managers reviewing their team's performance.
 
 Guidelines:
 - Write in third person, past tense
-- Be positive and constructive in tone
-- Highlight notable achievements or patterns
-- Mention comparison to team average when significantly above/below
-- Keep it to 3-4 sentences maximum
-- Focus on impact and outcomes, not just numbers
-- If activity is low, be neutral and factual (don't criticize)
+- Be specific and detailed - mention names of clients, jobs, candidates when provided
+- Highlight notable achievements and patterns
+- Keep it to 2-4 sentences
+- Focus on impact and outcomes with concrete details
+- If activity is low, be neutral and factual
+- Make it actionable and informative for the manager
 
 Examples of good summaries:
-✓ "Sarah had a highly productive day with strong focus on the AWS Security Engineer role. She imported 12 candidates from LinkedIn and moved 8 candidates through the pipeline, with 3 reaching interview stage. Her 6.5 hours of active time was 23% above team average. She also sent 4 RTR documents, showing strong follow-through."
+✓ "Sarah created client 'Acme Corp' with contact person John Smith, and posted a new 'Senior Java Developer' position for them. She uploaded resumes for candidates Jane Doe and Robert Brown, and moved 3 candidates to Interview stage including updating their LinkedIn profiles and contact information."
 
-✓ "Mike spent 4.2 hours actively working on candidate sourcing, importing 5 candidates and adding detailed notes to 8 profiles. His focus on quality over quantity is evident in his thorough documentation. Activity level was consistent with team norms."
+✓ "Mike updated client 'IT Vision 360' (email, phone, contact person) and modified the 'AWS Security Engineer' job posting (salary range, requirements). He added detailed notes to 5 candidate profiles and sent RTR documents for John Smith to TechCorp and Jane Doe to StartupXYZ."
 
-✓ "Lisa had a lighter day with 2.1 hours of activity, primarily focused on pipeline maintenance and updating candidate statuses. She moved 3 candidates to screening stage. This may indicate focus on other priorities or administrative work outside the system."
+✓ "Lisa had minimal activity with a single update to candidate profile for Michael Johnson (updated phone and location). This may indicate focus on other priorities outside the tracking system."
 
 Bad examples to avoid:
-✗ "User was not very productive today with only 2 imports." (Too negative)
-✗ "Sarah logged in 3 times and imported 12 candidates and moved 8 candidates..." (Just listing numbers)
-✗ "The user had an average day." (Too vague, no insight)`;
+✗ "User had 12 actions." (No detail, just counting)
+✗ "Sarah worked on some clients and jobs." (Too vague)
+✗ "Mike was not very productive." (Judgmental tone)`;
 
-    const userPrompt = `Generate an activity summary for ${userName} (${role}) for ${date}.
+    const userPrompt = `Generate an activity summary for ${displayName} (${role}) for the period ${periodLabel}.
 
-Activity Metrics:
-- Active time: ${activity.total_active_minutes || 0} minutes (${Math.round((activity.total_active_minutes || 0) / 60 * 10) / 10} hours)
-- Team average active time: ${teamAvgMinutes} minutes
-- Candidates imported: ${activity.candidates_imported || 0}
-- Team average imported: ${teamAvgImported}
-- Candidates uploaded: ${activity.candidates_uploaded || 0}
-- Candidates moved in pipeline: ${activity.candidates_moved || 0}
-  - To Screening: ${activity.moved_to_screening || 0}
-  - To Interview: ${activity.moved_to_interview || 0}
-  - To Offer: ${activity.moved_to_offer || 0}
-  - To Hired: ${activity.moved_to_hired || 0}
-- Notes added: ${activity.notes_added || 0}
-- Jobs created: ${activity.jobs_created || 0}
-- RTR documents sent: ${activity.rtr_documents_sent || 0}
-- Applications created: ${activity.applications_created || 0}
-- Applications updated: ${activity.applications_updated || 0}
-- Jobs worked on: ${activity.jobs_worked_on ? activity.jobs_worked_on.length : 0} different jobs
+Activity Details from Audit Logs:
+${formatActivityForLLM(activityDetails, logs)}
 
-Generate a 3-4 sentence summary that provides meaningful insights for a manager.`;
+Total Actions: ${logs.length}
+
+Generate a detailed 2-4 sentence summary that provides meaningful insights with specific names and details for the manager.`;
 
     // Call LLM
     const { res, provider } = await callChatCompletions({
@@ -195,7 +154,7 @@ Generate a 3-4 sentence summary that provides meaningful insights for a manager.
         { role: "user", content: userPrompt }
       ],
       temperature: 0.7,
-      timeoutMs: 15000,
+      timeoutMs: 20000,
     });
 
     if (!res.ok) {
@@ -211,29 +170,12 @@ Generate a 3-4 sentence summary that provides meaningful insights for a manager.
       throw new Error("AI provider returned empty summary");
     }
 
-    // Update the activity record with the summary
-    const { error: updateError } = await supabase
-      .from('daily_user_activity')
-      .update({
-        ai_summary: summary,
-        summary_generated_at: new Date().toISOString()
-      })
-      .eq('id', activity.id);
-
-    if (updateError) {
-      console.error('Failed to update summary:', updateError);
-    }
-
     return new Response(JSON.stringify({
       success: true,
       summary,
       provider,
-      metrics: {
-        active_minutes: activity.total_active_minutes,
-        candidates_imported: activity.candidates_imported,
-        candidates_moved: activity.candidates_moved,
-        rtr_sent: activity.rtr_documents_sent,
-      }
+      activityCount: logs.length,
+      details: activityDetails,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -250,3 +192,169 @@ Generate a 3-4 sentence summary that provides meaningful insights for a manager.
     });
   }
 });
+
+function extractActivityDetails(logs: AuditLog[]) {
+  const details = {
+    clientsCreated: [] as string[],
+    clientsUpdated: [] as string[],
+    jobsCreated: [] as string[],
+    jobsUpdated: [] as string[],
+    candidatesCreated: [] as string[],
+    candidatesUpdated: [] as string[],
+    resumesUploaded: [] as string[],
+    rtrSent: [] as string[],
+    notesAdded: [] as string[],
+    applicationMoves: [] as string[],
+    rolesGranted: [] as string[],
+    documentsUploaded: [] as string[],
+  };
+
+  logs.forEach(log => {
+    try {
+      // Clients
+      if (log.entity_type === 'clients') {
+        if (log.action === 'insert') {
+          const name = log.details?.new?.name;
+          const contact = log.details?.new?.contact_person;
+          if (name) details.clientsCreated.push(contact ? `${name} (contact: ${contact})` : name);
+        } else if (log.action === 'update') {
+          const name = log.details?.new?.name || log.details?.old?.name;
+          if (name) details.clientsUpdated.push(name);
+        }
+      }
+
+      // Jobs
+      if (log.entity_type === 'jobs') {
+        if (log.action === 'insert') {
+          const title = log.details?.new?.title;
+          const client = log.details?.new?.client_name;
+          if (title) details.jobsCreated.push(client ? `${title} for ${client}` : title);
+        } else if (log.action === 'update') {
+          const title = log.details?.new?.title || log.details?.old?.title;
+          if (title) details.jobsUpdated.push(title);
+        }
+      }
+
+      // Candidates
+      if (log.entity_type === 'candidate_profiles') {
+        const firstName = log.details?.new?.first_name || log.details?.old?.first_name;
+        const lastName = log.details?.new?.last_name || log.details?.old?.last_name;
+        const name = firstName && lastName ? `${firstName} ${lastName}` : null;
+
+        if (log.action === 'insert' && name) {
+          details.candidatesCreated.push(name);
+        } else if (log.action === 'update' && name) {
+          details.candidatesUpdated.push(name);
+        }
+      }
+
+      // Resumes
+      if (log.entity_type === 'resumes' && log.action === 'insert') {
+        const candidateName = log.details?.candidate_name || log.details?.new?.candidate_name;
+        if (candidateName) details.resumesUploaded.push(candidateName);
+      }
+
+      // RTR
+      if (log.action?.toLowerCase().includes('rtr') || log.action === 'send_rtr') {
+        const candidate = log.details?.candidate_name;
+        const client = log.details?.client_name;
+        if (candidate && client) {
+          details.rtrSent.push(`${candidate} to ${client}`);
+        }
+      }
+
+      // Notes
+      if (log.entity_type === 'candidate_profiles' && log.action === 'update') {
+        if (log.details?.old?.notes !== log.details?.new?.notes && log.details?.new?.notes) {
+          const firstName = log.details?.new?.first_name || log.details?.old?.first_name;
+          const lastName = log.details?.new?.last_name || log.details?.old?.last_name;
+          const name = firstName && lastName ? `${firstName} ${lastName}` : null;
+          if (name) details.notesAdded.push(name);
+        }
+      }
+
+      // Application movements
+      if (log.entity_type === 'applications' && log.action === 'update') {
+        const status = log.details?.new?.status;
+        if (status) details.applicationMoves.push(status);
+      }
+
+      // Role grants
+      if (log.action === 'grant_role') {
+        const role = log.details?.granted_role;
+        const email = log.details?.user_email;
+        if (role && email) {
+          details.rolesGranted.push(`${role.replace('_', ' ')} to ${email}`);
+        }
+      }
+    } catch (e) {
+      console.error('Error extracting detail from log:', e);
+    }
+  });
+
+  return details;
+}
+
+function formatActivityForLLM(details: ReturnType<typeof extractActivityDetails>, logs: AuditLog[]): string {
+  const parts: string[] = [];
+
+  if (details.clientsCreated.length > 0) {
+    parts.push(`\nClients Created (${details.clientsCreated.length}):\n${details.clientsCreated.slice(0, 5).map(c => `  - ${c}`).join('\n')}`);
+  }
+
+  if (details.clientsUpdated.length > 0) {
+    parts.push(`\nClients Updated (${details.clientsUpdated.length}):\n${details.clientsUpdated.slice(0, 5).map(c => `  - ${c}`).join('\n')}`);
+  }
+
+  if (details.jobsCreated.length > 0) {
+    parts.push(`\nJobs Created (${details.jobsCreated.length}):\n${details.jobsCreated.slice(0, 5).map(j => `  - ${j}`).join('\n')}`);
+  }
+
+  if (details.jobsUpdated.length > 0) {
+    parts.push(`\nJobs Updated (${details.jobsUpdated.length}):\n${details.jobsUpdated.slice(0, 5).map(j => `  - ${j}`).join('\n')}`);
+  }
+
+  if (details.candidatesCreated.length > 0) {
+    parts.push(`\nCandidates Added (${details.candidatesCreated.length}):\n${details.candidatesCreated.slice(0, 5).map(c => `  - ${c}`).join('\n')}`);
+  }
+
+  if (details.candidatesUpdated.length > 0) {
+    parts.push(`\nCandidate Profiles Updated (${details.candidatesUpdated.length}):\n${details.candidatesUpdated.slice(0, 5).map(c => `  - ${c}`).join('\n')}`);
+  }
+
+  if (details.resumesUploaded.length > 0) {
+    parts.push(`\nResumes Uploaded (${details.resumesUploaded.length}):\n${details.resumesUploaded.slice(0, 5).map(r => `  - ${r}`).join('\n')}`);
+  }
+
+  if (details.rtrSent.length > 0) {
+    parts.push(`\nRTR Documents Sent (${details.rtrSent.length}):\n${details.rtrSent.slice(0, 5).map(r => `  - ${r}`).join('\n')}`);
+  }
+
+  if (details.notesAdded.length > 0) {
+    parts.push(`\nNotes Added to Candidates (${details.notesAdded.length}):\n${details.notesAdded.slice(0, 5).map(n => `  - ${n}`).join('\n')}`);
+  }
+
+  if (details.applicationMoves.length > 0) {
+    const stageCounts: { [key: string]: number } = {};
+    details.applicationMoves.forEach(stage => {
+      stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+    });
+    parts.push(`\nCandidates Moved in Pipeline (${details.applicationMoves.length} total):\n${Object.entries(stageCounts).map(([stage, count]) => `  - ${count} to ${stage}`).join('\n')}`);
+  }
+
+  if (details.rolesGranted.length > 0) {
+    parts.push(`\nRoles Granted (${details.rolesGranted.length}):\n${details.rolesGranted.map(r => `  - ${r}`).join('\n')}`);
+  }
+
+  if (parts.length === 0) {
+    // Fallback: show action types if no structured details
+    const actionTypes: { [key: string]: number } = {};
+    logs.forEach(log => {
+      const key = `${log.action} ${log.entity_type}`;
+      actionTypes[key] = (actionTypes[key] || 0) + 1;
+    });
+    parts.push(`\nAction Summary:\n${Object.entries(actionTypes).map(([action, count]) => `  - ${count}x ${action}`).join('\n')}`);
+  }
+
+  return parts.join('\n');
+}

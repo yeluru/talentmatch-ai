@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, supabaseUrl } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
+import { OrgAdminLayout } from '@/components/layouts/OrgAdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,10 +36,14 @@ export default function TeamActivity() {
   const [timePeriod, setTimePeriod] = useState<string>('today');
 
   const isManager = currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin';
+  const Layout = currentRole === 'org_admin' ? OrgAdminLayout : DashboardLayout;
 
   useEffect(() => {
     if (isManager && organizationId) {
       fetchTeamMembers();
+    } else {
+      // No org ID or not a manager - stop loading
+      setLoading(false);
     }
   }, [isManager, organizationId]);
 
@@ -167,91 +172,69 @@ export default function TeamActivity() {
         // Generate a summary for each role they acted as
         for (const [role, actions] of actionsByRole.entries()) {
           // Log unique action types to see what we're working with
-          const uniqueActions = [...new Set(actions.map(a => a.action))];
+          const uniqueActions = [...new Set(actions.map(a => `${a.action}:${a.entity_type}`))];
           console.log(`${member.full_name} (${role}) - ${actions.length} actions:`, uniqueActions);
 
-          // Calculate activity from audit logs for this role
-          const candidatesImported = actions.filter(a =>
-            a.action === 'bulk_import_candidates' || a.action === 'import_candidate'
-          ).length;
+          // Call the LLM edge function to generate summary from audit logs
+          try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
 
-          const candidatesUploaded = actions.filter(a =>
-            a.action === 'upload_resume' || a.action === 'create_candidate'
-          ).length;
+            const response = await fetch(`${supabaseUrl}/functions/v1/generate-activity-summary`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                userId: member.user_id,
+                userName: member.full_name,
+                organizationId: organizationId,
+                startDate: start,
+                endDate: end,
+                actingRole: role,
+                auditLogs: actions, // Pass the audit logs directly
+              }),
+            });
 
-          const candidatesMoved = actions.filter(a =>
-            a.action === 'update_application_status' || a.action === 'move_candidate'
-          ).length;
+            const result = await response.json();
 
-          const jobsCreated = actions.filter(a => a.action === 'create_job').length;
-
-          const rtrSent = actions.filter(a => a.action?.toLowerCase().includes('rtr')).length;
-
-          const notesAdded = actions.filter(a => a.action === 'update_candidate_notes').length;
-
-          // Calculate active time (rough estimate)
-          let activeMinutes = 0;
-          if (actions.length > 0) {
-            const timestamps = actions.map(a => new Date(a.created_at).getTime()).sort();
-            const firstAction = timestamps[0];
-            const lastAction = timestamps[timestamps.length - 1];
-            activeMinutes = Math.min(960, Math.round((lastAction - firstAction) / 60000)); // Cap at 16 hours
-          }
-
-          // Generate summary
-          let summary = '';
-          if (actions.length === 0) {
-            summary = 'No activity recorded for this period.';
-          } else {
-            const hours = Math.round(activeMinutes / 60 * 10) / 10;
-            const parts = [];
-
-            if (hours > 0) {
-              parts.push(`${member.full_name} was active for approximately ${hours} hour${hours !== 1 ? 's' : ''} during this period`);
+            if (result.success && result.summary) {
+              newSummaries.push({
+                user_id: member.user_id,
+                user_name: member.full_name,
+                role: role,
+                summary: result.summary,
+                period: timePeriod,
+                generated_at: new Date().toISOString(),
+              });
             } else {
-              parts.push(`${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period`);
+              console.error(`Failed to generate summary for ${member.full_name}:`, result.error);
+              // Fallback to simple summary
+              newSummaries.push({
+                user_id: member.user_id,
+                user_name: member.full_name,
+                role: role,
+                summary: actions.length > 0
+                  ? `${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period.`
+                  : 'No activity recorded for this period.',
+                period: timePeriod,
+                generated_at: new Date().toISOString(),
+              });
             }
-
-            if (candidatesImported > 0) {
-              parts.push(`imported ${candidatesImported} candidate${candidatesImported > 1 ? 's' : ''}`);
-            }
-
-            if (candidatesUploaded > 0) {
-              parts.push(`uploaded ${candidatesUploaded} candidate${candidatesUploaded > 1 ? 's' : ''}`);
-            }
-
-            if (candidatesMoved > 0) {
-              parts.push(`moved ${candidatesMoved} candidate${candidatesMoved > 1 ? 's' : ''} through the pipeline`);
-            }
-
-            if (rtrSent > 0) {
-              parts.push(`sent ${rtrSent} RTR document${rtrSent > 1 ? 's' : ''}`);
-            }
-
-            if (jobsCreated > 0) {
-              parts.push(`created ${jobsCreated} job${jobsCreated > 1 ? 's' : ''}`);
-            }
-
-            if (notesAdded > 0) {
-              parts.push(`added ${notesAdded} note${notesAdded > 1 ? 's' : ''}`);
-            }
-
-            if (parts.length === 1) {
-              summary = parts[0] + '.';
-            } else {
-              const lastPart = parts.pop();
-              summary = parts.join(', ') + ', and ' + lastPart + '.';
-            }
+          } catch (error) {
+            console.error(`Error calling LLM for ${member.full_name}:`, error);
+            // Fallback to simple summary
+            newSummaries.push({
+              user_id: member.user_id,
+              user_name: member.full_name,
+              role: role,
+              summary: actions.length > 0
+                ? `${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period.`
+                : 'No activity recorded for this period.',
+              period: timePeriod,
+              generated_at: new Date().toISOString(),
+            });
           }
-
-          newSummaries.push({
-            user_id: member.user_id,
-            user_name: member.full_name,
-            role: role,
-            summary: summary,
-            period: timePeriod,
-            generated_at: new Date().toISOString(),
-          });
         }
 
         // If no activity at all for this user, add a "no activity" entry
@@ -293,7 +276,7 @@ export default function TeamActivity() {
 
   if (!isManager) {
     return (
-      <DashboardLayout>
+      <Layout>
         <div className="p-6">
           <Card>
             <CardContent className="pt-6">
@@ -301,12 +284,39 @@ export default function TeamActivity() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
+      </Layout>
+    );
+  }
+
+  if (!organizationId) {
+    return (
+      <Layout>
+        <div className="p-6 space-y-6 font-sans max-w-6xl">
+          <div>
+            <h1 className="text-3xl font-bold">Team Activity Summaries</h1>
+            <p className="text-muted-foreground mt-1">
+              AI-generated activity summaries for your team
+            </p>
+          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-lg font-medium mb-2">Organization Required</p>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Team Activity is only available when your {currentRole === 'super_admin' ? 'platform admin' : 'account'} is linked to an organization.
+                  {currentRole === 'super_admin' && ' Platform admins can view team activity for organizations they belong to.'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <Layout>
       <div className="p-6 space-y-6 font-sans max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -352,15 +362,22 @@ export default function TeamActivity() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : generating && summaries.length === 0 ? (
+      ) : generating ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
-              <Sparkles className="w-12 h-12 mx-auto text-primary mb-4 animate-pulse" />
-              <p className="text-lg font-medium">Generating activity summaries...</p>
-              <p className="text-muted-foreground mt-2">
-                This may take a moment for larger teams
+              <div className="relative inline-block mb-6">
+                <Sparkles className="w-20 h-20 mx-auto text-primary animate-pulse" />
+                <Loader2 className="w-20 h-20 absolute inset-0 text-primary/40 animate-spin" />
+              </div>
+              <p className="text-xl font-semibold mb-2">Generating activity summaries with AI...</p>
+              <p className="text-muted-foreground mt-2 text-base">
+                Analyzing audit logs and creating detailed insights for {teamMembers.length} team member{teamMembers.length !== 1 ? 's' : ''}
               </p>
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>This may take a few moments...</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -371,7 +388,9 @@ export default function TeamActivity() {
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-lg font-medium">No team activity summaries</p>
               <p className="text-muted-foreground mt-2">
-                Summaries will appear here once generated
+                {teamMembers.length === 0
+                  ? 'No team members found in your organization.'
+                  : 'Click Refresh to generate activity summaries for your team.'}
               </p>
             </div>
           </CardContent>
@@ -405,7 +424,7 @@ export default function TeamActivity() {
 
               <CardContent>
                 <div className="prose prose-sm max-w-none">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-foreground leading-relaxed whitespace-pre-wrap">
                     {summary.summary}
                   </p>
                 </div>
@@ -415,6 +434,6 @@ export default function TeamActivity() {
         </div>
       )}
     </div>
-    </DashboardLayout>
+    </Layout>
   );
 }

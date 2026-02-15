@@ -28,7 +28,7 @@ const routeLabels: Record<string, string> = {
   'insights-home': 'Insights',
   'automation-home': 'Automation',
   'uploads': 'Bulk Upload Profiles',
-  'search': 'Talent Search',
+  'search': 'Search',
   'api': 'API Integration',
   'agents': 'AI Agents',
   'shortlists': 'Shortlists',

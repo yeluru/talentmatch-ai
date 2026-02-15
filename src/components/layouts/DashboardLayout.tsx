@@ -135,12 +135,12 @@ const recruiterNavGroups: NavGroup[] = [
 const managerNavItems = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Team', href: '/manager/team', icon: Users },
-  { title: 'Team Activity', href: '/manager/team-activity', icon: Activity },
   { title: 'Candidates', href: '/manager/candidates', icon: User },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Jobs', href: '/manager/jobs', icon: Briefcase },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
+  { title: 'Team Activity', href: '/manager/team-activity', icon: Activity },
   { title: 'Help & How-to', href: '/manager/help', icon: BookOpen },
 ];
 
@@ -148,12 +148,12 @@ const managerNavItems = [
 const accountManagerOversightNavItems: NavItem[] = [
   { title: 'Dashboard', href: '/manager', icon: Home },
   { title: 'Team', href: '/manager/team', icon: Users },
-  { title: 'Team Activity', href: '/manager/team-activity', icon: Activity },
   { title: 'Candidates', href: '/manager/candidates', icon: User },
   { title: 'Jobs', href: '/manager/jobs', icon: Briefcase },
   { title: 'Clients', href: '/manager/clients', icon: Building2 },
   { title: 'Organization', href: '/manager/organization', icon: Building2 },
   { title: 'Audit Logs', href: '/manager/audit-logs', icon: FileText },
+  { title: 'Team Activity', href: '/manager/team-activity', icon: Activity },
   { title: 'Help & How-to', href: '/manager/help', icon: BookOpen },
 ];
 
