@@ -166,6 +166,9 @@ export default function TeamActivity() {
 
         // Generate a summary for each role they acted as
         for (const [role, actions] of actionsByRole.entries()) {
+          // Log unique action types to see what we're working with
+          const uniqueActions = [...new Set(actions.map(a => a.action))];
+          console.log(`${member.full_name} (${role}) - ${actions.length} actions:`, uniqueActions);
 
           // Calculate activity from audit logs for this role
           const candidatesImported = actions.filter(a =>
