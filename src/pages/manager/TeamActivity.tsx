@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format, subDays, startOfDay } from 'date-fns';
+import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 
 interface TeamMember {
   user_id: string;
@@ -124,52 +125,107 @@ export default function TeamActivity() {
 
     try {
       const { start, end } = getDateRange();
+      const startDate = new Date(start + 'T00:00:00');
+      const endDate = new Date(end + 'T23:59:59');
+
+      // Get all days in the range
+      const daysInRange = eachDayOfInterval({ start: startDate, end: endDate });
 
       for (const member of teamMembers) {
-        // For each role the user has, generate a summary
+        // For each role the user has, aggregate and generate summary
         for (const role of member.roles) {
-          // Aggregate activity for this user/role/period
-          const { error: aggError } = await supabase.rpc('aggregate_user_activity', {
-            p_user_id: member.user_id,
-            p_organization_id: organizationId,
-            p_date: end, // Use end date for single-day periods
-            p_acting_role: role,
-          });
+          // Aggregate activity for each day in the range
+          for (const day of daysInRange) {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const { error: aggError } = await supabase.rpc('aggregate_user_activity', {
+              p_user_id: member.user_id,
+              p_organization_id: organizationId,
+              p_date: dayStr,
+              p_acting_role: role,
+            });
 
-          if (aggError) {
-            console.error(`Failed to aggregate for ${member.full_name} (${role}):`, aggError);
+            if (aggError) {
+              console.error(`Failed to aggregate for ${member.full_name} (${role}) on ${dayStr}:`, aggError);
+            }
           }
 
-          // Generate AI summary
-          const { data, error: summaryError } = await supabase.functions.invoke('generate-activity-summary', {
-            body: {
-              userId: member.user_id,
-              organizationId: organizationId,
-              activityDate: end,
-              actingRole: role,
-            },
+          // Query aggregated data across the date range
+          const { data: activityData, error: queryError } = await supabase
+            .from('daily_user_activity')
+            .select('*')
+            .eq('user_id', member.user_id)
+            .eq('organization_id', organizationId)
+            .eq('acting_role', role)
+            .gte('activity_date', start)
+            .lte('activity_date', end);
+
+          if (queryError) {
+            console.error(`Failed to query activity for ${member.full_name} (${role}):`, queryError);
+          }
+
+          // Calculate totals across the period
+          const totalActivity = activityData?.reduce((acc, day) => ({
+            total_active_minutes: (acc.total_active_minutes || 0) + (day.total_active_minutes || 0),
+            candidates_imported: (acc.candidates_imported || 0) + (day.candidates_imported || 0),
+            candidates_moved: (acc.candidates_moved || 0) + (day.candidates_moved || 0),
+            rtr_documents_sent: (acc.rtr_documents_sent || 0) + (day.rtr_documents_sent || 0),
+            jobs_created: (acc.jobs_created || 0) + (day.jobs_created || 0),
+            notes_added: (acc.notes_added || 0) + (day.notes_added || 0),
+          }), {
+            total_active_minutes: 0,
+            candidates_imported: 0,
+            candidates_moved: 0,
+            rtr_documents_sent: 0,
+            jobs_created: 0,
+            notes_added: 0,
           });
 
-          if (!summaryError && data?.success) {
-            newSummaries.push({
-              user_id: member.user_id,
-              user_name: member.full_name,
-              role: role,
-              summary: data.summary || 'No activity recorded for this period.',
-              period: timePeriod,
-              generated_at: new Date().toISOString(),
-            });
+          // Generate summary text based on the aggregated data
+          let summary = '';
+          if (!totalActivity || totalActivity.total_active_minutes === 0) {
+            summary = 'No activity recorded for this period.';
           } else {
-            // Add placeholder for failed summary
-            newSummaries.push({
-              user_id: member.user_id,
-              user_name: member.full_name,
-              role: role,
-              summary: 'No activity recorded for this period.',
-              period: timePeriod,
-              generated_at: null,
-            });
+            const hours = Math.round(totalActivity.total_active_minutes / 60 * 10) / 10;
+            const parts = [];
+
+            parts.push(`${member.full_name} was active for ${hours} hours during this period`);
+
+            if (totalActivity.candidates_imported > 0) {
+              parts.push(`imported ${totalActivity.candidates_imported} candidate${totalActivity.candidates_imported > 1 ? 's' : ''}`);
+            }
+
+            if (totalActivity.candidates_moved > 0) {
+              parts.push(`moved ${totalActivity.candidates_moved} candidate${totalActivity.candidates_moved > 1 ? 's' : ''} through the pipeline`);
+            }
+
+            if (totalActivity.rtr_documents_sent > 0) {
+              parts.push(`sent ${totalActivity.rtr_documents_sent} RTR document${totalActivity.rtr_documents_sent > 1 ? 's' : ''}`);
+            }
+
+            if (totalActivity.jobs_created > 0) {
+              parts.push(`created ${totalActivity.jobs_created} job${totalActivity.jobs_created > 1 ? 's' : ''}`);
+            }
+
+            if (totalActivity.notes_added > 0) {
+              parts.push(`added ${totalActivity.notes_added} note${totalActivity.notes_added > 1 ? 's' : ''}`);
+            }
+
+            if (parts.length === 1) {
+              summary = parts[0] + ' with no other recorded activities.';
+            } else {
+              const lastPart = parts.pop();
+              summary = parts.join(', ') + ', and ' + lastPart + '.';
+            }
           }
+
+          newSummaries.push({
+            user_id: member.user_id,
+            user_name: member.full_name,
+            role: role,
+            summary: summary,
+            period: timePeriod,
+            generated_at: new Date().toISOString(),
+          });
         }
       }
 
@@ -195,18 +251,21 @@ export default function TeamActivity() {
 
   if (!isManager) {
     return (
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground">You need manager or admin permissions to view team activity.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <DashboardLayout>
+        <div className="p-6">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-muted-foreground">You need manager or admin permissions to view team activity.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 font-sans max-w-6xl">
+    <DashboardLayout>
+      <div className="p-6 space-y-6 font-sans max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -314,5 +373,6 @@ export default function TeamActivity() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   );
 }
