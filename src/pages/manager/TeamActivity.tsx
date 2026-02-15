@@ -139,26 +139,35 @@ export default function TeamActivity() {
       console.log(`Total audit logs in period:`, totalLogs);
 
       for (const member of teamMembers) {
-        // For each role the user has, query audit logs directly
-        for (const role of member.roles) {
-          // Query audit logs directly for this user/role/period
-          const { data: auditLogs, error: logsError } = await supabase
-            .from('audit_logs')
-            .select('*')
-            .eq('user_id', member.user_id)
-            .eq('organization_id', organizationId)
-            .eq('acting_role', role)
-            .gte('created_at', start + 'T00:00:00')
-            .lte('created_at', end + 'T23:59:59');
+        // Query ALL audit logs for this user (regardless of role)
+        const { data: auditLogs, error: logsError } = await supabase
+          .from('audit_logs')
+          .select('*')
+          .eq('user_id', member.user_id)
+          .eq('organization_id', organizationId)
+          .gte('created_at', start + 'T00:00:00')
+          .lte('created_at', end + 'T23:59:59');
 
-          if (logsError) {
-            console.error(`Failed to query audit logs for ${member.full_name} (${role}):`, logsError);
+        if (logsError) {
+          console.error(`Failed to query audit logs for ${member.full_name}:`, logsError);
+        }
+
+        console.log(`Audit logs for ${member.full_name}:`, auditLogs?.length || 0, 'actions');
+
+        // Group actions by acting_role
+        const actionsByRole = new Map<string, typeof auditLogs>();
+        auditLogs?.forEach(log => {
+          const role = log.acting_role || 'recruiter';
+          if (!actionsByRole.has(role)) {
+            actionsByRole.set(role, []);
           }
+          actionsByRole.get(role)!.push(log);
+        });
 
-          console.log(`Audit logs for ${member.full_name} (${role}):`, auditLogs?.length || 0, 'actions');
+        // Generate a summary for each role they acted as
+        for (const [role, actions] of actionsByRole.entries()) {
 
-          // Calculate activity from audit logs
-          const actions = auditLogs || [];
+          // Calculate activity from audit logs for this role
           const candidatesImported = actions.filter(a =>
             a.action === 'bulk_import_candidates' || a.action === 'import_candidate'
           ).length;
@@ -237,6 +246,18 @@ export default function TeamActivity() {
             user_name: member.full_name,
             role: role,
             summary: summary,
+            period: timePeriod,
+            generated_at: new Date().toISOString(),
+          });
+        }
+
+        // If no activity at all for this user, add a "no activity" entry
+        if (actionsByRole.size === 0) {
+          newSummaries.push({
+            user_id: member.user_id,
+            user_name: member.full_name,
+            role: member.roles[0] || 'unknown',
+            summary: 'No activity recorded for this period.',
             period: timePeriod,
             generated_at: new Date().toISOString(),
           });
