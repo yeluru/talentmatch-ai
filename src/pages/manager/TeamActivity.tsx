@@ -130,6 +130,9 @@ export default function TeamActivity() {
 
       // Get all days in the range
       const daysInRange = eachDayOfInterval({ start: startDate, end: endDate });
+      console.log(`Generating summaries for ${getPeriodLabel()} (${start} to ${end})`);
+      console.log(`Date range has ${daysInRange.length} days`);
+      console.log(`Processing ${teamMembers.length} team members`);
 
       for (const member of teamMembers) {
         // For each role the user has, aggregate and generate summary
@@ -162,6 +165,9 @@ export default function TeamActivity() {
           if (queryError) {
             console.error(`Failed to query activity for ${member.full_name} (${role}):`, queryError);
           }
+
+          console.log(`Activity data for ${member.full_name} (${role}) from ${start} to ${end}:`, activityData);
+          console.log(`Found ${activityData?.length || 0} days of activity`);
 
           // Calculate totals across the period
           const totalActivity = activityData?.reduce((acc, day) => ({
