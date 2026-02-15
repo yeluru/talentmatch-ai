@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { AdminShell, type AdminNavItem } from "@/components/layouts/AdminShell";
-import { LayoutDashboard, Users, UserPlus, UserCheck, FileText, User, Shield } from "lucide-react";
+import { LayoutDashboard, Users, UserPlus, UserCheck, FileText, User, Shield, Activity } from "lucide-react";
 
 const ORG_ADMIN_NAV: AdminNavItem[] = [
   { label: "Overview", href: "/org-admin", icon: LayoutDashboard, end: true },
@@ -11,6 +11,7 @@ const ORG_ADMIN_NAV: AdminNavItem[] = [
   { label: "Candidates", href: "/org-admin?tab=candidates", icon: UserCheck, end: true },
   { label: "All Users", href: "/org-admin?tab=users", icon: UserPlus, end: true },
   { label: "Role Management", href: "/org-admin/roles", icon: Shield, end: true },
+  { label: "Team Activity", href: "/org-admin/team-activity", icon: Activity, end: true },
   { label: "Audit Logs", href: "/org-admin?tab=audit_logs", icon: FileText, end: true },
   { label: "Profile", href: "/org-admin/profile", icon: User, end: true },
 ];

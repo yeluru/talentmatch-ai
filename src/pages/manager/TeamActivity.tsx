@@ -1,252 +1,196 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, TrendingUp, Users, Clock, FileText, UserPlus, ArrowRight, Briefcase, Mail, RefreshCcw, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Users, Calendar, RefreshCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, subDays, startOfDay } from 'date-fns';
 
-interface DailyActivity {
-  id: string;
+interface TeamMember {
   user_id: string;
-  organization_id: string;
-  activity_date: string;
-  acting_role: string;
-  login_count: number;
-  total_active_minutes: number;
-  candidates_imported: number;
-  candidates_uploaded: number;
-  candidates_moved: number;
-  moved_to_screening: number;
-  moved_to_interview: number;
-  moved_to_offer: number;
-  moved_to_hired: number;
-  moved_to_rejected: number;
-  notes_added: number;
-  jobs_created: number;
-  jobs_worked_on: string[] | null;
-  rtr_documents_sent: number;
-  applications_created: number;
-  applications_updated: number;
-  ai_summary: string | null;
-  summary_generated_at: string | null;
-  profiles: {
-    full_name: string;
-  };
+  full_name: string;
+  email: string;
+  roles: string[];
+}
+
+interface ActivitySummary {
+  user_id: string;
+  user_name: string;
+  role: string;
+  summary: string | null;
+  period: string;
+  generated_at: string | null;
 }
 
 export default function TeamActivity() {
   const { user, currentRole, organizationId } = useAuth();
-  const [activities, setActivities] = useState<DailyActivity[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [summaries, setSummaries] = useState<ActivitySummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generatingSummary, setGeneratingSummary] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<string>('today');
-  const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
-  const [aggregating, setAggregating] = useState(false);
-  const hasAttemptedAggregation = useRef(false);
+  const [generating, setGenerating] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<string>('today');
 
   const isManager = currentRole === 'account_manager' || currentRole === 'org_admin' || currentRole === 'super_admin';
 
   useEffect(() => {
     if (isManager && organizationId) {
-      fetchTeamActivity();
+      fetchTeamMembers();
     }
-  }, [isManager, organizationId, dateRange]);
+  }, [isManager, organizationId]);
 
-  const getDateRangeFilter = () => {
-    const today = startOfDay(new Date());
-
-    switch (dateRange) {
-      case 'today':
-        return format(today, 'yyyy-MM-dd');
-      case 'yesterday':
-        return format(subDays(today, 1), 'yyyy-MM-dd');
-      case 'last7':
-        return format(subDays(today, 7), 'yyyy-MM-dd');
-      case 'last30':
-        return format(subDays(today, 30), 'yyyy-MM-dd');
-      default:
-        return format(today, 'yyyy-MM-dd');
+  useEffect(() => {
+    if (teamMembers.length > 0) {
+      generateSummaries();
     }
-  };
+  }, [timePeriod, teamMembers]);
 
-  const fetchTeamActivity = async () => {
+  const fetchTeamMembers = async () => {
     setLoading(true);
     try {
-      const startDate = getDateRangeFilter();
-
-      let query = supabase
-        .from('daily_user_activity')
-        .select('*')
+      // Get all users in the organization with their roles
+      const { data: userRoles, error } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
         .eq('organization_id', organizationId!)
-        .order('activity_date', { ascending: false })
-        .order('total_active_minutes', { ascending: false });
+        .in('role', ['recruiter', 'account_manager', 'org_admin']);
 
-      // Apply date filter
-      if (dateRange === 'today' || dateRange === 'yesterday') {
-        query = query.eq('activity_date', startDate);
-      } else {
-        query = query.gte('activity_date', startDate);
-      }
+      if (error) throw error;
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
-      }
-
-      // Fetch user profiles separately
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map(a => a.user_id))];
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', userIds);
-
-        if (!profilesError && profiles) {
-          // Merge profiles into activities
-          const profileMap = new Map(profiles.map(p => [p.user_id, p]));
-          const enrichedData = data.map(activity => ({
-            ...activity,
-            profiles: profileMap.get(activity.user_id) || { full_name: 'Unknown User' }
-          }));
-          setActivities(enrichedData);
-        } else {
-          setActivities(data);
+      // Group by user and aggregate roles
+      const userMap = new Map<string, string[]>();
+      userRoles?.forEach(ur => {
+        if (!userMap.has(ur.user_id)) {
+          userMap.set(ur.user_id, []);
         }
-      } else {
-        setActivities([]);
+        userMap.get(ur.user_id)!.push(ur.role);
+      });
+
+      // Fetch profiles for these users
+      const userIds = Array.from(userMap.keys());
+      if (userIds.length === 0) {
+        setTeamMembers([]);
+        setLoading(false);
+        return;
       }
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      const members: TeamMember[] = profiles?.map(p => ({
+        user_id: p.user_id,
+        full_name: p.full_name || p.email,
+        email: p.email,
+        roles: userMap.get(p.user_id) || []
+      })) || [];
+
+      setTeamMembers(members);
     } catch (error: any) {
-      console.error('Error fetching team activity:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      toast.error(`Failed to load team activity: ${error.message || 'Unknown error'}`);
+      console.error('Error fetching team members:', error);
+      toast.error('Failed to load team members');
     } finally {
       setLoading(false);
     }
   };
 
-  const aggregateActivity = async (userId: string, date: string, role: string) => {
-    try {
-      const { data, error } = await supabase.rpc('aggregate_user_activity', {
-        p_user_id: userId,
-        p_organization_id: organizationId!,
-        p_date: date,
-        p_acting_role: role || null,
-      });
-
-      if (error) throw error;
-
-      await fetchTeamActivity();
-      toast.success('Activity data refreshed');
-    } catch (error: any) {
-      console.error('Error aggregating activity:', error);
-      toast.error('Failed to refresh activity data');
+  const getDateRange = () => {
+    const today = startOfDay(new Date());
+    switch (timePeriod) {
+      case 'today':
+        return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      case 'yesterday':
+        const yesterday = subDays(today, 1);
+        return { start: format(yesterday, 'yyyy-MM-dd'), end: format(yesterday, 'yyyy-MM-dd') };
+      case 'week':
+        return { start: format(subDays(today, 7), 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      case 'month':
+        return { start: format(subDays(today, 30), 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+      default:
+        return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
     }
   };
 
-  const aggregateAllTeamActivity = async () => {
-    if (!organizationId || aggregating) return;
+  const generateSummaries = async () => {
+    if (!organizationId || teamMembers.length === 0) return;
 
-    setAggregating(true);
+    setGenerating(true);
+    const newSummaries: ActivitySummary[] = [];
+
     try {
-      // Get all users in the organization
-      const { data: orgUsers, error: usersError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .eq('organization_id', organizationId)
-        .in('role', ['recruiter', 'account_manager']);
+      const { start, end } = getDateRange();
 
-      if (usersError) throw usersError;
+      for (const member of teamMembers) {
+        // For each role the user has, generate a summary
+        for (const role of member.roles) {
+          // Aggregate activity for this user/role/period
+          const { error: aggError } = await supabase.rpc('aggregate_user_activity', {
+            p_user_id: member.user_id,
+            p_organization_id: organizationId,
+            p_date: end, // Use end date for single-day periods
+            p_acting_role: role,
+          });
 
-      if (!orgUsers || orgUsers.length === 0) {
-        toast.info('No team members found');
-        return;
-      }
+          if (aggError) {
+            console.error(`Failed to aggregate for ${member.full_name} (${role}):`, aggError);
+          }
 
-      const today = format(new Date(), 'yyyy-MM-dd');
+          // Generate AI summary
+          const { data, error: summaryError } = await supabase.functions.invoke('generate-activity-summary', {
+            body: {
+              userId: member.user_id,
+              organizationId: organizationId,
+              activityDate: end,
+              actingRole: role,
+            },
+          });
 
-      // Aggregate for each user sequentially to avoid overloading
-      for (const u of orgUsers) {
-        const { data, error } = await supabase.rpc('aggregate_user_activity', {
-          p_user_id: u.user_id,
-          p_organization_id: organizationId,
-          p_date: today,
-          p_acting_role: u.role,
-        });
-
-        if (error) {
-          console.error(`Failed to aggregate for user ${u.user_id}:`, error);
-          console.error('Aggregation error details:', JSON.stringify(error, null, 2));
-        } else {
-          console.log(`Aggregated successfully for user ${u.user_id}:`, data);
+          if (!summaryError && data?.success) {
+            newSummaries.push({
+              user_id: member.user_id,
+              user_name: member.full_name,
+              role: role,
+              summary: data.summary || 'No activity recorded for this period.',
+              period: timePeriod,
+              generated_at: new Date().toISOString(),
+            });
+          } else {
+            // Add placeholder for failed summary
+            newSummaries.push({
+              user_id: member.user_id,
+              user_name: member.full_name,
+              role: role,
+              summary: 'No activity recorded for this period.',
+              period: timePeriod,
+              generated_at: null,
+            });
+          }
         }
       }
 
-      await fetchTeamActivity();
-      toast.success(`Aggregated activity for ${orgUsers.length} team members`);
+      setSummaries(newSummaries);
+      toast.success('Summaries generated');
     } catch (error: any) {
-      console.error('Error aggregating team activity:', error);
-      toast.error('Failed to aggregate team activity');
+      console.error('Error generating summaries:', error);
+      toast.error('Failed to generate summaries');
     } finally {
-      setAggregating(false);
+      setGenerating(false);
     }
   };
 
-  const generateSummary = async (activity: DailyActivity) => {
-    setGeneratingSummary(activity.id);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-activity-summary', {
-        body: {
-          userId: activity.user_id,
-          organizationId: activity.organization_id,
-          activityDate: activity.activity_date,
-          actingRole: activity.acting_role,
-        },
-      });
-
-      console.log('Generate summary response:', { data, error });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      if (data?.success) {
-        toast.success('AI summary generated');
-        await fetchTeamActivity();
-      } else {
-        console.error('Function returned failure:', data);
-        throw new Error(data?.error || 'Failed to generate summary');
-      }
-    } catch (error: any) {
-      console.error('Error generating summary:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      toast.error(`Failed to generate AI summary: ${error.message || 'Unknown error'}`);
-    } finally {
-      setGeneratingSummary(null);
+  const getPeriodLabel = () => {
+    switch (timePeriod) {
+      case 'today': return 'Today';
+      case 'yesterday': return 'Yesterday';
+      case 'week': return 'Last 7 Days';
+      case 'month': return 'Last 30 Days';
+      default: return 'Today';
     }
-  };
-
-  const formatActiveTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours === 0) return `${mins}m`;
-    return `${hours}h ${mins}m`;
-  };
-
-  const getActivityColor = (minutes: number) => {
-    if (minutes >= 360) return 'text-green-600'; // 6+ hours
-    if (minutes >= 240) return 'text-yellow-600'; // 4+ hours
-    return 'text-gray-600';
-  };
-
-  const toggleExpanded = (activityId: string) => {
-    setExpandedActivity(expandedActivity === activityId ? null : activityId);
   };
 
   if (!isManager) {
@@ -262,18 +206,18 @@ export default function TeamActivity() {
   }
 
   return (
-    <div className="p-6 space-y-6 font-sans">
+    <div className="p-6 space-y-6 font-sans max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Team Activity</h1>
+          <h1 className="text-3xl font-bold">Team Activity Summaries</h1>
           <p className="text-muted-foreground mt-1">
-            Monitor your team's productivity and performance
+            AI-generated activity summaries for your team
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={dateRange} onValueChange={setDateRange}>
+          <Select value={timePeriod} onValueChange={setTimePeriod}>
             <SelectTrigger className="w-[180px]">
               <Calendar className="w-4 h-4 mr-2" />
               <SelectValue />
@@ -281,33 +225,23 @@ export default function TeamActivity() {
             <SelectContent>
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="yesterday">Yesterday</SelectItem>
-              <SelectItem value="last7">Last 7 days</SelectItem>
-              <SelectItem value="last30">Last 30 days</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="month">Last 30 Days</SelectItem>
             </SelectContent>
           </Select>
 
-          <Button
-            onClick={aggregateAllTeamActivity}
-            variant="outline"
-            size="sm"
-            disabled={aggregating}
-          >
-            {aggregating ? (
+          <Button onClick={generateSummaries} variant="outline" size="sm" disabled={generating}>
+            {generating ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Aggregating...
+                Generating...
               </>
             ) : (
               <>
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Aggregate Activity
+                <RefreshCcw className="w-4 h-4 mr-2" />
+                Refresh
               </>
             )}
-          </Button>
-
-          <Button onClick={fetchTeamActivity} variant="outline" size="sm">
-            <RefreshCcw className="w-4 h-4 mr-2" />
-            Refresh
           </Button>
         </div>
       </div>
@@ -317,226 +251,63 @@ export default function TeamActivity() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : activities.length === 0 ? (
+      ) : generating && summaries.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <Sparkles className="w-12 h-12 mx-auto text-primary mb-4 animate-pulse" />
+              <p className="text-lg font-medium">Generating activity summaries...</p>
+              <p className="text-muted-foreground mt-2">
+                This may take a moment for larger teams
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : summaries.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">No activity data available</p>
+              <p className="text-lg font-medium">No team activity summaries</p>
               <p className="text-muted-foreground mt-2">
-                Activity will appear here once team members start using the platform
+                Summaries will appear here once generated
               </p>
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {activities.map((activity) => (
-            <Card key={activity.id} className="hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Sparkles className="w-4 h-4" />
+            <span>Showing summaries for {getPeriodLabel().toLowerCase()}</span>
+          </div>
+
+          {summaries.map((summary, idx) => (
+            <Card key={`${summary.user_id}-${summary.role}-${idx}`} className="border-l-4 border-l-primary">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl flex items-center gap-2">
-                      {activity.profiles?.full_name || 'Unknown User'}
+                  <div>
+                    <CardTitle className="text-xl">{summary.user_name}</CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="font-normal">
-                        {activity.acting_role || 'recruiter'}
+                        {summary.role.replace('_', ' ')}
                       </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      {format(new Date(activity.activity_date), 'EEEE, MMMM d, yyyy')}
-                    </CardDescription>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => aggregateActivity(activity.user_id, activity.activity_date, activity.acting_role)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      <RefreshCcw className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      onClick={() => toggleExpanded(activity.id)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      {expandedActivity === activity.id ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
+                      {summary.generated_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Updated {format(new Date(summary.generated_at), 'h:mm a')}
+                        </span>
                       )}
-                    </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                {/* Key Metrics Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Clock className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Active Time</p>
-                      <p className={`text-lg font-semibold ${getActivityColor(activity.total_active_minutes)}`}>
-                        {formatActiveTime(activity.total_active_minutes)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <UserPlus className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Imported</p>
-                      <p className="text-lg font-semibold">{activity.candidates_imported}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <ArrowRight className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Moved</p>
-                      <p className="text-lg font-semibold">{activity.candidates_moved}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Mail className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">RTR Sent</p>
-                      <p className="text-lg font-semibold">{activity.rtr_documents_sent}</p>
-                    </div>
-                  </div>
+              <CardContent>
+                <div className="prose prose-sm max-w-none">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {summary.summary}
+                  </p>
                 </div>
-
-                {/* Expanded Details */}
-                {expandedActivity === activity.id && (
-                  <div className="pt-4 border-t space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Uploaded</p>
-                        <p className="font-medium">{activity.candidates_uploaded}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Notes Added</p>
-                        <p className="font-medium">{activity.notes_added}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Jobs Created</p>
-                        <p className="font-medium">{activity.jobs_created}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Jobs Worked On</p>
-                        <p className="font-medium">{activity.jobs_worked_on?.length || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Applications Created</p>
-                        <p className="font-medium">{activity.applications_created}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Applications Updated</p>
-                        <p className="font-medium">{activity.applications_updated}</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium mb-2">Pipeline Activity</p>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                          <span className="text-muted-foreground">Screening:</span>
-                          <span className="font-medium">{activity.moved_to_screening}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                          <span className="text-muted-foreground">Interview:</span>
-                          <span className="font-medium">{activity.moved_to_interview}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                          <span className="text-muted-foreground">Offer:</span>
-                          <span className="font-medium">{activity.moved_to_offer}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span className="text-muted-foreground">Hired:</span>
-                          <span className="font-medium">{activity.moved_to_hired}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                          <span className="text-muted-foreground">Rejected:</span>
-                          <span className="font-medium">{activity.moved_to_rejected}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* AI Summary Section */}
-                {activity.ai_summary ? (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-blue-900 mb-1">AI Summary</p>
-                        <p className="text-sm text-blue-800">{activity.ai_summary}</p>
-                        {activity.summary_generated_at && (
-                          <p className="text-xs text-blue-600 mt-2">
-                            Generated {format(new Date(activity.summary_generated_at), 'PPp')}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        onClick={() => generateSummary(activity)}
-                        variant="ghost"
-                        size="sm"
-                        disabled={generatingSummary === activity.id}
-                      >
-                        {generatingSummary === activity.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <RefreshCcw className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-gray-400" />
-                      <p className="text-sm text-muted-foreground">
-                        No AI summary generated yet
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => generateSummary(activity)}
-                      variant="outline"
-                      size="sm"
-                      disabled={generatingSummary === activity.id}
-                    >
-                      {generatingSummary === activity.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="w-4 h-4 mr-2" />
-                          Generate Summary
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}
