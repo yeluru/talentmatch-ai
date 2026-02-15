@@ -125,99 +125,107 @@ export default function TeamActivity() {
 
     try {
       const { start, end } = getDateRange();
-      const startDate = new Date(start + 'T00:00:00');
-      const endDate = new Date(end + 'T23:59:59');
-
-      // Get all days in the range
-      const daysInRange = eachDayOfInterval({ start: startDate, end: endDate });
       console.log(`Generating summaries for ${getPeriodLabel()} (${start} to ${end})`);
-      console.log(`Date range has ${daysInRange.length} days`);
       console.log(`Processing ${teamMembers.length} team members`);
 
+      // First, check if there are ANY audit logs at all
+      const { data: totalLogs, error: totalError } = await supabase
+        .from('audit_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .gte('created_at', start + 'T00:00:00')
+        .lte('created_at', end + 'T23:59:59');
+
+      console.log(`Total audit logs in period:`, totalLogs);
+
       for (const member of teamMembers) {
-        // For each role the user has, aggregate and generate summary
+        // For each role the user has, query audit logs directly
         for (const role of member.roles) {
-          // Aggregate activity for each day in the range
-          for (const day of daysInRange) {
-            const dayStr = format(day, 'yyyy-MM-dd');
-            const { error: aggError } = await supabase.rpc('aggregate_user_activity', {
-              p_user_id: member.user_id,
-              p_organization_id: organizationId,
-              p_date: dayStr,
-              p_acting_role: role,
-            });
-
-            if (aggError) {
-              console.error(`Failed to aggregate for ${member.full_name} (${role}) on ${dayStr}:`, aggError);
-            }
-          }
-
-          // Query aggregated data across the date range
-          const { data: activityData, error: queryError } = await supabase
-            .from('daily_user_activity')
+          // Query audit logs directly for this user/role/period
+          const { data: auditLogs, error: logsError } = await supabase
+            .from('audit_logs')
             .select('*')
             .eq('user_id', member.user_id)
             .eq('organization_id', organizationId)
             .eq('acting_role', role)
-            .gte('activity_date', start)
-            .lte('activity_date', end);
+            .gte('created_at', start + 'T00:00:00')
+            .lte('created_at', end + 'T23:59:59');
 
-          if (queryError) {
-            console.error(`Failed to query activity for ${member.full_name} (${role}):`, queryError);
+          if (logsError) {
+            console.error(`Failed to query audit logs for ${member.full_name} (${role}):`, logsError);
           }
 
-          console.log(`Activity data for ${member.full_name} (${role}) from ${start} to ${end}:`, activityData);
-          console.log(`Found ${activityData?.length || 0} days of activity`);
+          console.log(`Audit logs for ${member.full_name} (${role}):`, auditLogs?.length || 0, 'actions');
 
-          // Calculate totals across the period
-          const totalActivity = activityData?.reduce((acc, day) => ({
-            total_active_minutes: (acc.total_active_minutes || 0) + (day.total_active_minutes || 0),
-            candidates_imported: (acc.candidates_imported || 0) + (day.candidates_imported || 0),
-            candidates_moved: (acc.candidates_moved || 0) + (day.candidates_moved || 0),
-            rtr_documents_sent: (acc.rtr_documents_sent || 0) + (day.rtr_documents_sent || 0),
-            jobs_created: (acc.jobs_created || 0) + (day.jobs_created || 0),
-            notes_added: (acc.notes_added || 0) + (day.notes_added || 0),
-          }), {
-            total_active_minutes: 0,
-            candidates_imported: 0,
-            candidates_moved: 0,
-            rtr_documents_sent: 0,
-            jobs_created: 0,
-            notes_added: 0,
-          });
+          // Calculate activity from audit logs
+          const actions = auditLogs || [];
+          const candidatesImported = actions.filter(a =>
+            a.action === 'bulk_import_candidates' || a.action === 'import_candidate'
+          ).length;
 
-          // Generate summary text based on the aggregated data
+          const candidatesUploaded = actions.filter(a =>
+            a.action === 'upload_resume' || a.action === 'create_candidate'
+          ).length;
+
+          const candidatesMoved = actions.filter(a =>
+            a.action === 'update_application_status' || a.action === 'move_candidate'
+          ).length;
+
+          const jobsCreated = actions.filter(a => a.action === 'create_job').length;
+
+          const rtrSent = actions.filter(a => a.action?.toLowerCase().includes('rtr')).length;
+
+          const notesAdded = actions.filter(a => a.action === 'update_candidate_notes').length;
+
+          // Calculate active time (rough estimate)
+          let activeMinutes = 0;
+          if (actions.length > 0) {
+            const timestamps = actions.map(a => new Date(a.created_at).getTime()).sort();
+            const firstAction = timestamps[0];
+            const lastAction = timestamps[timestamps.length - 1];
+            activeMinutes = Math.min(960, Math.round((lastAction - firstAction) / 60000)); // Cap at 16 hours
+          }
+
+          // Generate summary
           let summary = '';
-          if (!totalActivity || totalActivity.total_active_minutes === 0) {
+          if (actions.length === 0) {
             summary = 'No activity recorded for this period.';
           } else {
-            const hours = Math.round(totalActivity.total_active_minutes / 60 * 10) / 10;
+            const hours = Math.round(activeMinutes / 60 * 10) / 10;
             const parts = [];
 
-            parts.push(`${member.full_name} was active for ${hours} hours during this period`);
-
-            if (totalActivity.candidates_imported > 0) {
-              parts.push(`imported ${totalActivity.candidates_imported} candidate${totalActivity.candidates_imported > 1 ? 's' : ''}`);
+            if (hours > 0) {
+              parts.push(`${member.full_name} was active for approximately ${hours} hour${hours !== 1 ? 's' : ''} during this period`);
+            } else {
+              parts.push(`${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period`);
             }
 
-            if (totalActivity.candidates_moved > 0) {
-              parts.push(`moved ${totalActivity.candidates_moved} candidate${totalActivity.candidates_moved > 1 ? 's' : ''} through the pipeline`);
+            if (candidatesImported > 0) {
+              parts.push(`imported ${candidatesImported} candidate${candidatesImported > 1 ? 's' : ''}`);
             }
 
-            if (totalActivity.rtr_documents_sent > 0) {
-              parts.push(`sent ${totalActivity.rtr_documents_sent} RTR document${totalActivity.rtr_documents_sent > 1 ? 's' : ''}`);
+            if (candidatesUploaded > 0) {
+              parts.push(`uploaded ${candidatesUploaded} candidate${candidatesUploaded > 1 ? 's' : ''}`);
             }
 
-            if (totalActivity.jobs_created > 0) {
-              parts.push(`created ${totalActivity.jobs_created} job${totalActivity.jobs_created > 1 ? 's' : ''}`);
+            if (candidatesMoved > 0) {
+              parts.push(`moved ${candidatesMoved} candidate${candidatesMoved > 1 ? 's' : ''} through the pipeline`);
             }
 
-            if (totalActivity.notes_added > 0) {
-              parts.push(`added ${totalActivity.notes_added} note${totalActivity.notes_added > 1 ? 's' : ''}`);
+            if (rtrSent > 0) {
+              parts.push(`sent ${rtrSent} RTR document${rtrSent > 1 ? 's' : ''}`);
+            }
+
+            if (jobsCreated > 0) {
+              parts.push(`created ${jobsCreated} job${jobsCreated > 1 ? 's' : ''}`);
+            }
+
+            if (notesAdded > 0) {
+              parts.push(`added ${notesAdded} note${notesAdded > 1 ? 's' : ''}`);
             }
 
             if (parts.length === 1) {
-              summary = parts[0] + ' with no other recorded activities.';
+              summary = parts[0] + '.';
             } else {
               const lastPart = parts.pop();
               summary = parts.join(', ') + ', and ' + lastPart + '.';
@@ -236,7 +244,11 @@ export default function TeamActivity() {
       }
 
       setSummaries(newSummaries);
-      toast.success('Summaries generated');
+      if (newSummaries.length > 0) {
+        toast.success('Summaries generated');
+      } else {
+        toast.info('No activity found for this period');
+      }
     } catch (error: any) {
       console.error('Error generating summaries:', error);
       toast.error('Failed to generate summaries');
