@@ -105,42 +105,23 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
       let failedCount = 0;
       const errorMessages: string[] = [];
 
-      // Note: Pre-computing hashes disabled due to browser NotReadableError
-      // The browser revokes file access if we read files too early
-      // Hashes will be computed during processing instead
-      const fileHashes: Map<number, string> = new Map();
-
-      // Check for incomplete session and get processed files
-      let existingSessionId: string | null = null;
-      let processedHashes: Set<string> = new Set();
-      if (organizationId && fileHashes.size > 0) {
-        try {
-          existingSessionId = await findIncompleteSession(
-            organizationId,
-            Array.from(fileHashes.values())
-          );
-          if (existingSessionId) {
-            processedHashes = await getProcessedFileHashes(existingSessionId);
-            console.log(`Resuming session ${existingSessionId}, ${processedHashes.size} files already processed`);
-          }
-        } catch (error) {
-          console.error('Failed to check for incomplete session:', error);
+      // Create upload session for tracking
+      let uploadSessionId = '';
+      try {
+        if (organizationId) {
+          uploadSessionId = await createUploadSession(organizationId, files.length, 'resume_upload');
         }
+      } catch (error) {
+        console.warn('Failed to create upload session (non-critical):', error);
       }
 
-      // Use existing session or create new one
-      let uploadSessionId = existingSessionId || '';
-      if (!uploadSessionId) {
-        try {
-          if (organizationId) {
-            uploadSessionId = await createUploadSession(organizationId, files.length, 'resume_upload');
-          }
-        } catch (error) {
-          console.error('Failed to create upload session:', error);
-        }
+      // Audit logging - non-blocking, errors won't fail uploads
+      let auditSessionId = '';
+      try {
+        auditSessionId = await logBulkUploadStart(files.length, 'resume_upload');
+      } catch (error) {
+        console.warn('Audit log failed (non-critical):', error);
       }
-
-      const auditSessionId = await logBulkUploadStart(files.length, 'resume_upload');
 
       // Each batch only checks if user clicked cancel (not affected by other batches)
       const isStale = () => cancelledRef.current;
@@ -182,31 +163,20 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
             break;
           }
 
-          // Use pre-computed hash if available, otherwise compute it
-          fileHash = fileHashes.get(i) || '';
-          if (!fileHash) {
-            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64));
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-          }
+          // Compute file hash from original file (more efficient than hashing base64)
+          const fileBuffer = await file.arrayBuffer();
+          const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
-          // Skip if already processed in resumed session
-          if (processedHashes.has(fileHash)) {
-            console.log(`Skipping already processed file: ${file.name}`);
-            succeededCount++;
-            processedCount++;
-            updateResult(resultIndex, {
-              status: 'done',
-              note: 'Already processed (resumed upload)',
-              error: undefined,
-            });
-            continue;
-          }
-
-          // Register file for processing
+          // Register file for processing tracking
           if (uploadSessionId) {
-            await registerFileForProcessing(uploadSessionId, file.name, fileHash, file.size);
-            await markFileProcessing(uploadSessionId, fileHash);
+            try {
+              await registerFileForProcessing(uploadSessionId, file.name, fileHash, file.size);
+              await markFileProcessing(uploadSessionId, fileHash);
+            } catch (error) {
+              console.warn('Failed to register file for tracking (non-critical):', error);
+            }
           }
 
           const { data: existingResume } = await supabase
@@ -380,9 +350,13 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
               note: 'Duplicate detected: existing profile re-linked to Talent Pool',
               error: undefined,
             });
-            await logResumeUpload(parsed.id || 'unknown', file.name, true);
+            try {
+              await logResumeUpload(parsed.id || 'unknown', file.name, true);
+            } catch (e) { /* non-critical */ }
             if (uploadSessionId) {
-              await markFileSkipped(uploadSessionId, fileHash, 'Duplicate - re-linked to talent pool');
+              try {
+                await markFileSkipped(uploadSessionId, fileHash, 'Duplicate - re-linked to talent pool');
+              } catch (e) { /* non-critical */ }
             }
           } else if (hasDuplicateError) {
             failedCount++;
@@ -393,9 +367,13 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
               parsed: parsed as UploadResult['parsed'],
               atsScore: parsed.ats_score,
             });
-            await logResumeUpload(parsed.id || 'unknown', file.name, false, 'Duplicate');
+            try {
+              await logResumeUpload(parsed.id || 'unknown', file.name, false, 'Duplicate');
+            } catch (e) { /* non-critical */ }
             if (uploadSessionId) {
-              await markFileFailed(uploadSessionId, fileHash, 'Duplicate resume: identical content already exists');
+              try {
+                await markFileFailed(uploadSessionId, fileHash, 'Duplicate resume: identical content already exists');
+              } catch (e) { /* non-critical */ }
             }
           } else {
             succeededCount++;
@@ -405,27 +383,35 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
               atsScore: parsed.ats_score,
               error: undefined,
             });
-            await logResumeUpload(parsed.id || 'unknown', file.name, true);
+            try {
+              await logResumeUpload(parsed.id || 'unknown', file.name, true);
+            } catch (e) { /* non-critical */ }
             if (uploadSessionId) {
-              await markFileCompleted(uploadSessionId, fileHash, parsed.id);
+              try {
+                await markFileCompleted(uploadSessionId, fileHash, parsed.id);
+              } catch (e) { /* non-critical */ }
             }
           }
 
           processedCount++;
 
-          // Update progress every 10 files
+          // Update progress and invalidate queries every 10 files (not every file!)
           if (processedCount % 10 === 0) {
-            await logBulkUploadProgress(auditSessionId, processedCount, files.length, succeededCount, failedCount);
+            try {
+              await logBulkUploadProgress(auditSessionId, processedCount, files.length, succeededCount, failedCount);
+            } catch (e) { /* non-critical */ }
             if (uploadSessionId) {
-              await updateUploadProgress(uploadSessionId, processedCount, succeededCount, failedCount, errorMessages);
+              try {
+                await updateUploadProgress(uploadSessionId, processedCount, succeededCount, failedCount, errorMessages);
+              } catch (e) { /* non-critical */ }
             }
+            // Batch invalidate queries every 10 files instead of every file
+            if (organizationId) {
+              queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+              queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+            }
+            queryClient.invalidateQueries({ queryKey: ['candidates'] });
           }
-
-          if (organizationId) {
-            queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
-            queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-          }
-          queryClient.invalidateQueries({ queryKey: ['candidates'] });
         } catch (error: unknown) {
           failedCount++;
 
@@ -442,16 +428,23 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
             error: userFriendlyMsg
           });
 
-          // Log technical error for debugging
-          await logBulkUploadError(auditSessionId, technicalMsg, {
-            file_name: file.name,
-            index: i,
-            user_friendly_message: userFriendlyMsg
-          });
-          await logResumeUpload('unknown', file.name, false, technicalMsg);
+          // Log technical error for debugging (non-blocking)
+          try {
+            await logBulkUploadError(auditSessionId, technicalMsg, {
+              file_name: file.name,
+              index: i,
+              user_friendly_message: userFriendlyMsg
+            });
+          } catch (e) { /* non-critical */ }
+
+          try {
+            await logResumeUpload('unknown', file.name, false, technicalMsg);
+          } catch (e) { /* non-critical */ }
 
           if (uploadSessionId) {
-            await markFileFailed(uploadSessionId, fileHash, technicalMsg);
+            try {
+              await markFileFailed(uploadSessionId, fileHash, technicalMsg);
+            } catch (e) { /* non-critical */ }
           }
 
           // Show toast notification for critical errors (auth, rate limit, server errors)
@@ -464,10 +457,18 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
         }
       }
 
-      // Log final completion and update session
-      await logBulkUploadComplete(auditSessionId, files.length, succeededCount, failedCount, errorMessages);
+      // Log final completion and update session (non-blocking)
+      try {
+        await logBulkUploadComplete(auditSessionId, files.length, succeededCount, failedCount, errorMessages);
+      } catch (e) {
+        console.warn('Failed to log upload completion:', e);
+      }
       if (uploadSessionId) {
-        await completeUploadSession(uploadSessionId, succeededCount, failedCount, errorMessages);
+        try {
+          await completeUploadSession(uploadSessionId, succeededCount, failedCount, errorMessages);
+        } catch (e) {
+          console.warn('Failed to complete upload session:', e);
+        }
       }
 
       if (organizationId) {
