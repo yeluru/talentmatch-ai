@@ -323,7 +323,15 @@ export default function TalentPool() {
 
       if (!rpcError && poolIds?.length) {
         candidateIds = Array.from(new Set((poolIds as { candidate_id: string }[]).map((r) => r.candidate_id).filter(Boolean)));
-        console.log('[TalentPool] Using RPC results:', candidateIds.length, 'candidates');
+        console.log('[TalentPool] RPC returned:', candidateIds.length, 'candidates');
+
+        // Limit to first 250 for faster initial load
+        const INITIAL_LOAD_LIMIT = 250;
+        if (candidateIds.length > INITIAL_LOAD_LIMIT) {
+          console.log(`[TalentPool] Limiting to first ${INITIAL_LOAD_LIMIT} candidates for performance`);
+          candidateIds = candidateIds.slice(0, INITIAL_LOAD_LIMIT);
+        }
+        console.log('[TalentPool] Using', candidateIds.length, 'candidates');
       }
 
       if (candidateIds.length === 0) {
@@ -357,6 +365,14 @@ export default function TalentPool() {
 
         candidateIds = Array.from(new Set([...sourcedIds, ...applicantIds]));
         console.log('[TalentPool] Total unique candidate IDs:', candidateIds.length);
+
+        // Limit to first 250 for faster initial load
+        const INITIAL_LOAD_LIMIT = 250;
+        if (candidateIds.length > INITIAL_LOAD_LIMIT) {
+          console.log(`[TalentPool] Limiting to first ${INITIAL_LOAD_LIMIT} candidates for performance`);
+          candidateIds = candidateIds.slice(0, INITIAL_LOAD_LIMIT);
+        }
+        console.log('[TalentPool] Using', candidateIds.length, 'candidates');
       }
 
       if (candidateIds.length === 0) {
