@@ -9,6 +9,7 @@ export interface RetryOptions {
   backoffMultiplier?: number;
   retryableErrors?: RegExp[];
   timeoutMs?: number;
+  onRetry?: (attempt: number, maxRetries: number, error: Error | unknown) => void | Promise<void>;
 }
 
 const DEFAULT_RETRYABLE_ERRORS = [
@@ -51,6 +52,7 @@ export async function retryWithBackoff<T>(
     backoffMultiplier = 2,
     retryableErrors = DEFAULT_RETRYABLE_ERRORS,
     timeoutMs,
+    onRetry,
   } = options;
 
   let lastError: Error | unknown;
@@ -74,6 +76,16 @@ export async function retryWithBackoff<T>(
       }
 
       console.log(`[Retry] Attempt ${attempt + 1}/${maxRetries} failed: ${errorMessage}. Retrying in ${delay}ms...`);
+
+      // Call onRetry callback if provided
+      if (onRetry) {
+        try {
+          await onRetry(attempt + 1, maxRetries, error);
+        } catch (callbackError) {
+          console.error('[Retry] Error in onRetry callback:', callbackError);
+          // Continue with retry even if callback fails
+        }
+      }
 
       // Wait before retrying
       await new Promise((resolve) => setTimeout(resolve, delay));

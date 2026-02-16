@@ -164,3 +164,28 @@ export async function logResumeUpload(
     },
   });
 }
+
+/**
+ * Log retry attempt
+ */
+export async function logRetryAttempt(
+  operation: string,
+  attempt: number,
+  maxRetries: number,
+  error: string,
+  entityType?: string,
+  entityId?: string
+): Promise<void> {
+  await createAuditLog({
+    action: 'retry_attempt',
+    entity_type: entityType || 'operation',
+    entity_id: entityId,
+    details: {
+      operation,
+      attempt,
+      max_retries: maxRetries,
+      error,
+      timestamp: new Date().toISOString(),
+    },
+  });
+}

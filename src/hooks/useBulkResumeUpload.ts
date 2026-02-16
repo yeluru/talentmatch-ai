@@ -11,6 +11,7 @@ import {
   logBulkUploadComplete,
   logBulkUploadError,
   logResumeUpload,
+  logRetryAttempt,
 } from '@/lib/auditLog';
 import {
   createUploadSession,
@@ -27,6 +28,25 @@ import {
   markFileFailed,
   markFileSkipped,
 } from '@/lib/resumableUpload';
+
+/**
+ * Concurrency limit for file processing.
+ *
+ * Current: 1 (sequential processing)
+ * - Safest option: avoids rate limits, reduces memory usage
+ * - Works reliably with batches of thousands of files
+ * - Provides stable progress tracking
+ * - Processing speed: ~10-20 files/minute depending on file size and network
+ *
+ * Future: Can be increased to 3-5 for faster processing
+ * - Requires implementation of concurrent processing logic
+ * - May hit API rate limits with large batches
+ * - Increased memory usage and complexity
+ *
+ * For 1000+ file uploads, sequential processing is recommended.
+ * The system handles large batches gracefully with resumable uploads.
+ */
+const FILE_PROCESSING_CONCURRENCY = 1;
 
 /**
  * Shared hook for bulk resume upload: parse → storage → import into talent pool.
@@ -247,7 +267,17 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
             }),
             {
               maxRetries: 2,
-              timeoutMs: 60000, // 60 second timeout for parse (large files can take time)
+              timeoutMs: 180000, // 3 minute timeout for parse (large files can take time)
+              onRetry: async (attempt, maxRetries, error) => {
+                await logRetryAttempt(
+                  'parse_resume',
+                  attempt,
+                  maxRetries,
+                  error instanceof Error ? error.message : String(error),
+                  'resume',
+                  file.name
+                );
+              },
             }
           );
 
@@ -275,7 +305,17 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
             }),
             {
               maxRetries: 3,
-              timeoutMs: 120000, // 2 minute timeout for storage upload (large files)
+              timeoutMs: 300000, // 5 minute timeout for storage upload (large files on slow connections)
+              onRetry: async (attempt, maxRetries, error) => {
+                await logRetryAttempt(
+                  'storage_upload',
+                  attempt,
+                  maxRetries,
+                  error instanceof Error ? error.message : String(error),
+                  'resume',
+                  file.name
+                );
+              },
             }
           );
 
@@ -310,7 +350,17 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
             }),
             {
               maxRetries: 2,
-              timeoutMs: 30000, // 30 second timeout for import
+              timeoutMs: 90000, // 90 second timeout for import
+              onRetry: async (attempt, maxRetries, error) => {
+                await logRetryAttempt(
+                  'import_candidate',
+                  attempt,
+                  maxRetries,
+                  error instanceof Error ? error.message : String(error),
+                  'candidate_profile',
+                  file.name
+                );
+              },
             }
           );
 

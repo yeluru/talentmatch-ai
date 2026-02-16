@@ -75,6 +75,7 @@ import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicato
 import { MobileListHeader } from '@/components/ui/mobile-list-header';
 import { normalizeStatusForDisplay, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 import { orgIdForRecruiterSuite, orgIdForRole } from '@/lib/org';
+import { retryWithBackoff } from '@/lib/retryWithBackoff';
 import { useBulkResumeUpload } from '@/hooks/useBulkResumeUpload';
 import { useNavigate, Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
@@ -369,13 +370,19 @@ export default function TalentPool() {
 
       const allProfiles: TalentProfile[] = [];
       for (const batch of batches) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('candidate_profiles')
-          .select(
-            `id, full_name, email, location, current_title, current_company, years_of_experience,
-             headline, ats_score, created_at, recruiter_notes, recruiter_status`
-          )
-          .in('id', batch);
+        const { data: profiles, error: profilesError } = await retryWithBackoff(
+          () => supabase
+            .from('candidate_profiles')
+            .select(
+              `id, full_name, email, location, current_title, current_company, years_of_experience,
+               headline, ats_score, created_at, recruiter_notes, recruiter_status`
+            )
+            .in('id', batch),
+          {
+            maxRetries: 3,
+            timeoutMs: 30000, // 30s timeout for profile queries
+          }
+        );
 
         if (profilesError) {
           console.error('[TalentPool] Error fetching batch:', profilesError);
@@ -421,19 +428,31 @@ export default function TalentPool() {
 
       const allSkills: any[] = [];
       for (const batch of skillBatches) {
-        const { data: skills } = await supabase
-          .from('candidate_skills')
-          .select('candidate_id, skill_name')
-          .in('candidate_id', batch);
+        const { data: skills } = await retryWithBackoff(
+          () => supabase
+            .from('candidate_skills')
+            .select('candidate_id, skill_name')
+            .in('candidate_id', batch),
+          {
+            maxRetries: 3,
+            timeoutMs: 20000, // 20s timeout for skills queries
+          }
+        );
         if (skills) allSkills.push(...skills);
       }
 
       const allExperience: any[] = [];
       for (const batch of skillBatches) {
-        const { data: experience } = await supabase
-          .from('candidate_experience')
-          .select('candidate_id, company_name')
-          .in('candidate_id', batch);
+        const { data: experience } = await retryWithBackoff(
+          () => supabase
+            .from('candidate_experience')
+            .select('candidate_id, company_name')
+            .in('candidate_id', batch),
+          {
+            maxRetries: 3,
+            timeoutMs: 20000, // 20s timeout for experience queries
+          }
+        );
         if (experience) allExperience.push(...experience);
       }
 
