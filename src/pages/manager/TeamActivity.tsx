@@ -175,17 +175,66 @@ export default function TeamActivity() {
           const uniqueActions = [...new Set(actions.map(a => `${a.action}:${a.entity_type}`))];
           console.log(`${member.full_name} (${role}) - ${actions.length} actions:`, uniqueActions);
 
-          // Simple summary (AI feature temporarily disabled due to auth issues)
-          newSummaries.push({
-            user_id: member.user_id,
-            user_name: member.full_name,
-            role: role,
-            summary: actions.length > 0
-              ? `${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period.`
-              : 'No activity recorded for this period.',
-            period: timePeriod,
-            generated_at: new Date().toISOString(),
-          });
+          // Call the LLM edge function to generate summary from audit logs
+          try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+            const response = await fetch(`${supabaseUrl}/functions/v1/generate-activity-summary`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                userId: member.user_id,
+                userName: member.full_name,
+                organizationId: organizationId,
+                startDate: start,
+                endDate: end,
+                actingRole: role,
+                auditLogs: actions, // Pass the audit logs directly
+              }),
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.summary) {
+              newSummaries.push({
+                user_id: member.user_id,
+                user_name: member.full_name,
+                role: role,
+                summary: result.summary,
+                period: timePeriod,
+                generated_at: new Date().toISOString(),
+              });
+            } else {
+              console.error(`Failed to generate summary for ${member.full_name}:`, result.error);
+              // Fallback to simple summary
+              newSummaries.push({
+                user_id: member.user_id,
+                user_name: member.full_name,
+                role: role,
+                summary: actions.length > 0
+                  ? `${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period.`
+                  : 'No activity recorded for this period.',
+                period: timePeriod,
+                generated_at: new Date().toISOString(),
+              });
+            }
+          } catch (error) {
+            console.error(`Error calling LLM for ${member.full_name}:`, error);
+            // Fallback to simple summary
+            newSummaries.push({
+              user_id: member.user_id,
+              user_name: member.full_name,
+              role: role,
+              summary: actions.length > 0
+                ? `${member.full_name} had ${actions.length} action${actions.length > 1 ? 's' : ''} during this period.`
+                : 'No activity recorded for this period.',
+              period: timePeriod,
+              generated_at: new Date().toISOString(),
+            });
+          }
         }
 
         // If no activity at all for this user, add a "no activity" entry
