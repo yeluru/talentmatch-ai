@@ -380,7 +380,7 @@ export default function TalentPool() {
             .from('candidate_profiles')
             .select(
               `id, full_name, email, location, current_title, current_company, years_of_experience,
-               headline, ats_score, created_at, recruiter_notes, recruiter_status, uploaded_by_user_id`
+               headline, ats_score, created_at, recruiter_notes, recruiter_status`
             )
             .in('id', batch),
           {
@@ -462,15 +462,20 @@ export default function TalentPool() {
       }
 
       // Fetch uploader information via RPC function
-      const { data: uploaderData } = await supabase
-        .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
-
-      const uploaderMap = new Map(
-        (uploaderData || []).map((u: any) => [
-          u.candidate_id,
-          { email: u.uploader_email, full_name: u.uploader_name }
-        ])
-      );
+      // Note: Requires migration 20260216030000 to be applied
+      let uploaderMap = new Map();
+      try {
+        const { data: uploaderData } = await supabase
+          .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
+        uploaderMap = new Map(
+          (uploaderData || []).map((u: any) => [
+            u.candidate_id,
+            { email: u.uploader_email, full_name: u.uploader_name }
+          ])
+        );
+      } catch (error) {
+        console.warn('[TalentPool] Uploader info not available (run migrations):', error);
+      }
 
       const result = deduped
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
