@@ -180,7 +180,9 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
               const base64Data = result.split(',')[1];
               resolve(base64Data ?? '');
             };
-            reader.onerror = reject;
+            reader.onerror = () => {
+              reject(new Error(reader.error?.message || 'Failed to read file'));
+            };
             reader.readAsDataURL(file);
           });
 
