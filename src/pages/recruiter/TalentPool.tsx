@@ -1417,10 +1417,10 @@ export default function TalentPool() {
                   <div className="w-[140px] text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('recruiter_status')}>
                     Status {tableSort.sort.key === 'recruiter_status' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-16 text-center cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.setSort('ats_score')}>
+                  <div className="w-16 text-left cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.setSort('ats_score')}>
                     ATS {tableSort.sort.key === 'ats_score' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-12 text-center">Contact</div>
+                  <div className="w-12 text-left">Contact</div>
                   <div className="w-24 hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('created_at')}>
                     Added {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>

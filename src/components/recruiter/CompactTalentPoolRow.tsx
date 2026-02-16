@@ -176,7 +176,7 @@ export function CompactTalentPoolRow({
         </Select>
       </div>
 
-      <div className="w-16 text-center shrink-0">
+      <div className="w-16 text-left shrink-0">
         {talent.ats_score != null ? (
           <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
         ) : (
@@ -184,7 +184,7 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-12 text-center shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-12 text-left shrink-0" onClick={(e) => e.stopPropagation()}>
         {talent.email && (
           <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:bg-white/10">
             <a href={`mailto:${talent.email}`} title={talent.email}>
