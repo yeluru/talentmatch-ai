@@ -1172,6 +1172,23 @@ export default function TalentPool() {
                     Cancel
                   </Button>
                 )}
+                {!isUploading && errorCount > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-200/50 dark:hover:bg-amber-800/50"
+                    onClick={() => {
+                      clearUploadResults();
+                      fileInputRef.current?.click();
+                      toast.info('Re-upload your files', {
+                        description: 'The system will automatically skip files that uploaded successfully.',
+                        duration: 5000,
+                      });
+                    }}
+                  >
+                    Retry Failed
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
