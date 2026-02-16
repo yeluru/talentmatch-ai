@@ -168,6 +168,7 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
 
         const file = files[i];
         const resultIndex = startIndex + i;
+        let fileHash = ''; // Declare here so it's accessible in catch block
 
         updateResult(resultIndex, { status: 'parsing' });
 
@@ -190,7 +191,7 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
           }
 
           // Use pre-computed hash if available, otherwise compute it
-          let fileHash = fileHashes.get(i) || '';
+          fileHash = fileHashes.get(i) || '';
           if (!fileHash) {
             const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64));
             const hashArray = Array.from(new Uint8Array(hashBuffer));
