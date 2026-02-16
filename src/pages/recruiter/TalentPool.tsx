@@ -1432,7 +1432,7 @@ export default function TalentPool() {
                   <div className="w-10"></div>
                 </div>
 
-                <div className="space-y-2 px-2">
+                <div className="space-y-1.5 px-2">
                   {paginatedTalents.map((talent) => (
                     <CompactTalentPoolRow
                       key={talent.id}

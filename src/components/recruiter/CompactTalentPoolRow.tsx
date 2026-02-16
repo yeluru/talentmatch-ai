@@ -106,7 +106,7 @@ export function CompactTalentPoolRow({
 
   return (
     <div
-      className="glass-panel py-2 px-3 hover-card-premium flex flex-nowrap items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
+      className="glass-panel py-1.5 px-3 hover-card-premium flex flex-nowrap items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
       onClick={() => onViewProfile(talent.id)}
     >
       <div className="flex-1 min-w-0 flex items-center gap-3">
