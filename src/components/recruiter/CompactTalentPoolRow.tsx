@@ -123,19 +123,19 @@ export function CompactTalentPoolRow({
         </div>
       </div>
 
-      <div className="w-full sm:w-auto sm:min-w-[120px] sm:max-w-[140px] hidden xl:block" title={rawTitle}>
+      <div className="w-[140px] hidden xl:block" title={rawTitle}>
         <span className="text-xs text-foreground/80 truncate block">{title}</span>
       </div>
 
-      <div className="w-full sm:w-auto sm:min-w-[80px] sm:max-w-[100px] hidden 2xl:block truncate text-xs text-muted-foreground" title={location}>
+      <div className="w-[100px] hidden 2xl:block truncate text-xs text-muted-foreground text-left" title={location}>
         {location}
       </div>
 
-      <div className="w-12 sm:w-16 hidden 2xl:block text-xs text-muted-foreground shrink-0">
+      <div className="w-16 hidden 2xl:block text-xs text-muted-foreground shrink-0 text-left">
         {experience}
       </div>
 
-      <div className="w-full sm:w-auto sm:min-w-[120px] sm:max-w-[140px] hidden lg:block min-w-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-[140px] hidden lg:block min-w-0 text-left" onClick={(e) => e.stopPropagation()}>
         {(talent.recruiter_notes != null && talent.recruiter_notes !== '') ? (
           <TooltipProvider delayDuration={200}>
             <Tooltip>
@@ -157,7 +157,7 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-full sm:w-auto sm:min-w-[120px] sm:max-w-[140px] hidden lg:block" onClick={(e) => e.stopPropagation()}>
+      <div className="w-[140px] text-left" onClick={(e) => e.stopPropagation()}>
         <Select
           value={(normalizeStatusForDisplay(talent.recruiter_status) || 'new') as string}
           onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
@@ -176,7 +176,7 @@ export function CompactTalentPoolRow({
         </Select>
       </div>
 
-      <div className="w-12 sm:w-16 hidden lg:flex justify-center text-center shrink-0">
+      <div className="w-16 text-center shrink-0">
         {talent.ats_score != null ? (
           <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
         ) : (
@@ -184,25 +184,25 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-10 sm:w-12 flex justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-12 text-center shrink-0" onClick={(e) => e.stopPropagation()}>
         {talent.email && (
-          <Button variant="ghost" size="icon" asChild className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-white/10">
+          <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:bg-white/10">
             <a href={`mailto:${talent.email}`} title={talent.email}>
-              <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground hover:text-primary transition-colors" />
+              <Mail className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
             </a>
           </Button>
         )}
       </div>
 
-      <div className="w-20 sm:w-24 hidden xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
+      <div className="w-24 hidden xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
         {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
       </div>
 
-      <div className="w-[100px] sm:w-[120px] hidden lg:block text-xs text-muted-foreground truncate text-left shrink-0" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
+      <div className="w-[120px] hidden lg:block text-xs text-muted-foreground truncate text-left shrink-0" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
         {talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email?.split('@')[0] || '—'}
       </div>
 
-      <div className="w-auto hidden lg:flex justify-start shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-[100px] text-left shrink-0" onClick={(e) => e.stopPropagation()}>
         {shortlistButton?.shortlistId && onOpenShortlist ? (
           <Button
             variant="ghost"
