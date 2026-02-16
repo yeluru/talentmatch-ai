@@ -380,8 +380,7 @@ export default function TalentPool() {
             .from('candidate_profiles')
             .select(
               `id, full_name, email, location, current_title, current_company, years_of_experience,
-               headline, ats_score, created_at, recruiter_notes, recruiter_status, uploaded_by_user_id,
-               uploaded_by_user:profiles!uploaded_by_user_id(full_name, email)`
+               headline, ats_score, created_at, recruiter_notes, recruiter_status, uploaded_by_user_id`
             )
             .in('id', batch),
           {
@@ -462,10 +461,22 @@ export default function TalentPool() {
         if (experience) allExperience.push(...experience);
       }
 
+      // Fetch uploader information via RPC function
+      const { data: uploaderData } = await supabase
+        .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
+
+      const uploaderMap = new Map(
+        (uploaderData || []).map((u: any) => [
+          u.candidate_id,
+          { email: u.uploader_email, full_name: u.uploader_name }
+        ])
+      );
+
       const result = deduped
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .map((c) => ({
           ...c,
+          uploaded_by_user: uploaderMap.get(c.id) || null,
           skills: allSkills?.filter((s) => s.candidate_id === c.id) || [],
           companies: [
             ...new Set(
