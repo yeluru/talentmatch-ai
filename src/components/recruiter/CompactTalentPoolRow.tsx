@@ -194,11 +194,11 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-20 sm:w-24 hidden 2xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
+      <div className="w-20 sm:w-24 hidden xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
         {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
       </div>
 
-      <div className="w-[100px] sm:w-[120px] hidden 2xl:block text-xs text-muted-foreground truncate text-left shrink-0" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
+      <div className="w-[100px] sm:w-[120px] hidden lg:block text-xs text-muted-foreground truncate text-left shrink-0" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
         {talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email?.split('@')[0] || '—'}
       </div>
 
