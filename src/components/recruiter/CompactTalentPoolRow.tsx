@@ -117,9 +117,6 @@ export function CompactTalentPoolRow({
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="font-bold text-xs text-foreground truncate">{name}</div>
-          {company && company !== '—' && (
-            <div className="text-[11px] text-muted-foreground truncate">{company}</div>
-          )}
           {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' && (
             <TooltipProvider delayDuration={200}>
               <Tooltip>
