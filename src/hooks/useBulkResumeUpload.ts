@@ -80,6 +80,37 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
         return;
       }
 
+      // CRITICAL: Read all files IMMEDIATELY before any async operations
+      // This prevents browser/cloud storage services (Dropbox, iCloud) from revoking file access
+      const fileDataArray: { file: File; base64: string; hash: string }[] = [];
+      for (const file of files) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+          fileDataArray.push({ file, base64, hash });
+        } catch (error: any) {
+          // Check if it's a file access error (often caused by cloud storage)
+          const isFileAccessError = error?.message?.includes('could not be read') ||
+                                    error?.message?.includes('permission') ||
+                                    error?.name === 'NotReadableError';
+          if (isFileAccessError) {
+            toast.error('File access denied', {
+              description: `Cannot read "${file.name}". If this file is in Dropbox, iCloud, or OneDrive, please copy it to your local Downloads or Desktop folder first.`,
+              duration: 10000,
+            });
+          }
+          throw error;
+        }
+      }
+
       // Each batch gets a unique ID and runs independently
       runIdRef.current += 1;
       const thisRunId = runIdRef.current;
@@ -137,37 +168,20 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
           break;
         }
 
-        const file = files[i];
+        const fileData = fileDataArray[i];
+        const file = fileData.file;
+        const base64 = fileData.base64;
+        const fileHash = fileData.hash;
         const resultIndex = startIndex + i;
-        let fileHash = ''; // Declare here so it's accessible in catch block
 
         updateResult(resultIndex, { status: 'parsing' });
 
         try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const base64Data = result.split(',')[1];
-              resolve(base64Data ?? '');
-            };
-            reader.onerror = () => {
-              reject(new Error(reader.error?.message || 'Failed to read file'));
-            };
-            reader.readAsDataURL(file);
-          });
-
           if (isStale()) {
             updateResult(resultIndex, { status: 'cancelled', error: 'Cancelled' });
             markRemainingCancelled(i + 1);
             break;
           }
-
-          // Compute file hash from original file (more efficient than hashing base64)
-          const fileBuffer = await file.arrayBuffer();
-          const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
           // Register file for processing tracking
           if (uploadSessionId) {
