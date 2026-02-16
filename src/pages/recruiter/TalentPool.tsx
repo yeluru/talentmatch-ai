@@ -1404,28 +1404,28 @@ export default function TalentPool() {
 
                 {/* Header Row */}
                 <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
-                  <div className="flex-1 text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('full_name')}>
+                  <div className="flex-1 text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[140px] hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('current_title')}>
+                  <div className="w-[140px] hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('current_title')}>
                     Title {tableSort.sort.key === 'current_title' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[100px] hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('location')}>
+                  <div className="w-[100px] hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('location')}>
                     Location {tableSort.sort.key === 'location' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-16 hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('years_of_experience')}>
+                  <div className="w-16 hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('years_of_experience')}>
                     Exp {tableSort.sort.key === 'years_of_experience' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[140px] text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('recruiter_status')}>
+                  <div className="w-[140px] text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('recruiter_status')}>
                     Status {tableSort.sort.key === 'recruiter_status' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-16 text-left cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.setSort('ats_score')}>
+                  <div className="w-16 text-left cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.toggle('ats_score')}>
                     ATS {tableSort.sort.key === 'ats_score' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-24 hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('created_at')}>
+                  <div className="w-24 hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('created_at')}>
                     Date Added {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[120px] hidden lg:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('uploaded_by_user')}>
+                  <div className="w-[120px] hidden lg:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('uploaded_by_user')}>
                     Uploaded By {tableSort.sort.key === 'uploaded_by_user' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[100px] text-left">Shortlist</div>
