@@ -106,11 +106,11 @@ export function CompactTalentPoolRow({
 
   return (
     <div
-      className="glass-panel p-3 sm:p-4 hover-card-premium flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
+      className="glass-panel p-4 hover-card-premium flex flex-nowrap items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
       onClick={() => onViewProfile(talent.id)}
     >
-      <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-        <Avatar className="h-9 w-9 sm:h-10 sm:w-10 shrink-0">
+      <div className="flex-1 min-w-0 flex items-center gap-3">
+        <Avatar className="h-10 w-10 shrink-0">
           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
             {(name || 'U').charAt(0).toUpperCase()}
           </AvatarFallback>
@@ -207,7 +207,7 @@ export function CompactTalentPoolRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 sm:h-8 gap-1 text-xs hover:bg-white/10 px-2 sm:px-3"
+            className="h-8 gap-1 text-xs hover:bg-white/10 px-3"
             onClick={(e) => {
               e.stopPropagation();
               onOpenShortlist(shortlistButton.shortlistId);
@@ -220,7 +220,7 @@ export function CompactTalentPoolRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 sm:h-8 gap-1 text-xs hover:bg-white/10 px-2 sm:px-3"
+            className="h-8 gap-1 text-xs hover:bg-white/10 px-3"
             onClick={(e) => {
               e.stopPropagation();
               onAddToShortlist(talent.id);
@@ -232,11 +232,11 @@ export function CompactTalentPoolRow({
         ) : null}
       </div>
 
-      <div className="w-8 sm:w-10 flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-10 flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 hover:bg-white/10">
-              <MoreHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
+              <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">Actions</span>
             </Button>
           </DropdownMenuTrigger>
