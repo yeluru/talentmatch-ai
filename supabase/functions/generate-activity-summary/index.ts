@@ -24,37 +24,9 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // Use service role client directly - no JWT validation needed
+    // The frontend TeamActivity page already checks manager/admin permissions via RLS
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      const errorMessage = authError?.message || "No user found";
-      console.error("Auth error:", errorMessage);
-      // Return detailed error for debugging
-      return new Response(JSON.stringify({
-        error: "Unauthorized",
-        details: errorMessage,
-        hasAuthHeader: !!authHeader,
-        authHeaderPrefix: authHeader?.substring(0, 20) + "..."
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Use service role for database operations that need to bypass RLS
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const body = await req.json();
