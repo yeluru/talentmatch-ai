@@ -3,6 +3,30 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getEdgeFunctionErrorMessage } from '@/lib/edgeFunctionError';
 import { useBulkUploadStore, type UploadResult } from '@/stores/bulkUploadStore';
+import { retryWithBackoff, getUserFriendlyErrorMessage } from '@/lib/retryWithBackoff';
+import { toast } from 'sonner';
+import {
+  logBulkUploadStart,
+  logBulkUploadProgress,
+  logBulkUploadComplete,
+  logBulkUploadError,
+  logResumeUpload,
+} from '@/lib/auditLog';
+import {
+  createUploadSession,
+  updateUploadProgress,
+  completeUploadSession,
+  cancelUploadSession,
+} from '@/lib/uploadProgress';
+import {
+  findIncompleteSession,
+  getProcessedFileHashes,
+  registerFileForProcessing,
+  markFileProcessing,
+  markFileCompleted,
+  markFileFailed,
+  markFileSkipped,
+} from '@/lib/resumableUpload';
 
 /**
  * Shared hook for bulk resume upload: parse → storage → import into talent pool.
@@ -17,14 +41,24 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
   const runIdRef = useRef(0);
   const activeUploadsRef = useRef(new Set<number>());
 
-  const cancelUpload = useCallback(() => {
+  const cancelUpload = useCallback(async (uploadSessionId?: string) => {
     cancelledRef.current = true;
+    if (uploadSessionId) {
+      await cancelUploadSession(uploadSessionId);
+    }
   }, []);
 
   const handleFileUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
+
+      if (!organizationId) {
+        toast.error('Upload failed', {
+          description: 'No organization context. Please log out and log back in.',
+        });
+        return;
+      }
 
       // Each batch gets a unique ID and runs independently
       runIdRef.current += 1;
@@ -40,8 +74,63 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
       const startIndex = currentResults.length;
       setUploadResults([...currentResults, ...newResults]);
 
+      try {
+
       // Reset cancellation flag when starting new uploads
       cancelledRef.current = false;
+
+      // Track stats for audit logging
+      let processedCount = 0;
+      let succeededCount = 0;
+      let failedCount = 0;
+      const errorMessages: string[] = [];
+
+      // Compute file hashes early for resumable uploads
+      const fileHashes: Map<number, string> = new Map();
+      for (let i = 0; i < Math.min(files.length, 10); i++) {
+        try {
+          const file = files[i];
+          const buffer = await file.arrayBuffer();
+          const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+          fileHashes.set(i, hash);
+        } catch (error) {
+          console.error('Failed to compute file hash:', error);
+        }
+      }
+
+      // Check for incomplete session and get processed files
+      let existingSessionId: string | null = null;
+      let processedHashes: Set<string> = new Set();
+      if (organizationId && fileHashes.size > 0) {
+        try {
+          existingSessionId = await findIncompleteSession(
+            organizationId,
+            Array.from(fileHashes.values())
+          );
+          if (existingSessionId) {
+            processedHashes = await getProcessedFileHashes(existingSessionId);
+            console.log(`Resuming session ${existingSessionId}, ${processedHashes.size} files already processed`);
+          }
+        } catch (error) {
+          console.error('Failed to check for incomplete session:', error);
+        }
+      }
+
+      // Use existing session or create new one
+      let uploadSessionId = existingSessionId || '';
+      if (!uploadSessionId) {
+        try {
+          if (organizationId) {
+            uploadSessionId = await createUploadSession(organizationId, files.length, 'resume_upload');
+          }
+        } catch (error) {
+          console.error('Failed to create upload session:', error);
+        }
+      }
+
+      const auditSessionId = await logBulkUploadStart(files.length, 'resume_upload');
 
       // Each batch only checks if user clicked cancel (not affected by other batches)
       const isStale = () => cancelledRef.current;
@@ -80,9 +169,32 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
             break;
           }
 
-          const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64));
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+          // Use pre-computed hash if available, otherwise compute it
+          let fileHash = fileHashes.get(i) || '';
+          if (!fileHash) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64));
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+          }
+
+          // Skip if already processed in resumed session
+          if (processedHashes.has(fileHash)) {
+            console.log(`Skipping already processed file: ${file.name}`);
+            succeededCount++;
+            processedCount++;
+            updateResult(resultIndex, {
+              status: 'done',
+              note: 'Already processed (resumed upload)',
+              error: undefined,
+            });
+            continue;
+          }
+
+          // Register file for processing
+          if (uploadSessionId) {
+            await registerFileForProcessing(uploadSessionId, file.name, fileHash, file.size);
+            await markFileProcessing(uploadSessionId, fileHash);
+          }
 
           const { data: existingResume } = await supabase
             .from('resumes')
@@ -109,22 +221,35 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
                 note: 'Duplicate detected: existing profile re-linked to Talent Pool',
                 error: undefined,
               });
+              if (uploadSessionId) {
+                await markFileSkipped(uploadSessionId, fileHash, 'Duplicate - re-linked to talent pool');
+              }
             } catch {
               updateResult(resultIndex, {
                 status: 'error',
                 error: 'This exact resume already exists in the system',
               });
+              if (uploadSessionId) {
+                await markFileFailed(uploadSessionId, fileHash, 'This exact resume already exists in the system');
+              }
             }
             continue;
           }
 
-          const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-resume', {
-            body: {
-              fileBase64: base64,
-              fileName: file.name,
-              fileType: file.type || 'application/octet-stream',
-            },
-          });
+          // Parse resume with retry logic for transient errors
+          const { data: parseData, error: parseError } = await retryWithBackoff(
+            () => supabase.functions.invoke('parse-resume', {
+              body: {
+                fileBase64: base64,
+                fileName: file.name,
+                fileType: file.type || 'application/octet-stream',
+              },
+            }),
+            {
+              maxRetries: 2,
+              timeoutMs: 60000, // 60 second timeout for parse (large files can take time)
+            }
+          );
 
           if (isStale()) {
             updateResult(resultIndex, { status: 'cancelled', error: 'Cancelled' });
@@ -142,10 +267,17 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
           const fileExt = file.name.split('.').pop();
           const uniqueFileName = `sourced/${organizationId}/${crypto.randomUUID()}.${fileExt}`;
 
-          const { error: uploadError } = await supabase.storage.from('resumes').upload(uniqueFileName, file, {
-            contentType: file.type || 'application/octet-stream',
-            upsert: false,
-          });
+          // Upload file to storage with retry logic
+          const { error: uploadError } = await retryWithBackoff(
+            () => supabase.storage.from('resumes').upload(uniqueFileName, file, {
+              contentType: file.type || 'application/octet-stream',
+              upsert: false,
+            }),
+            {
+              maxRetries: 3,
+              timeoutMs: 120000, // 2 minute timeout for storage upload (large files)
+            }
+          );
 
           if (isStale()) {
             updateResult(resultIndex, { status: 'cancelled', error: 'Cancelled' });
@@ -155,25 +287,32 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
 
           if (uploadError) throw new Error(`Failed to upload file: ${uploadError.message}`);
 
-          const { data: importData, error: importError } = await supabase.functions.invoke('bulk-import-candidates', {
-            body: {
-              profiles: [
-                {
-                  ...parsed,
-                  source: 'resume_upload',
-                  ats_score: parsed.ats_score,
-                  resume_file: {
-                    file_name: file.name,
-                    file_url: `resumes/${uniqueFileName}`,
-                    file_type: file.type || 'application/octet-stream',
-                    content_hash: parsed._fileHash,
+          // Import candidate with retry logic
+          const { data: importData, error: importError } = await retryWithBackoff(
+            () => supabase.functions.invoke('bulk-import-candidates', {
+              body: {
+                profiles: [
+                  {
+                    ...parsed,
+                    source: 'resume_upload',
+                    ats_score: parsed.ats_score,
+                    resume_file: {
+                      file_name: file.name,
+                      file_url: `resumes/${uniqueFileName}`,
+                      file_type: file.type || 'application/octet-stream',
+                      content_hash: parsed._fileHash,
+                    },
                   },
-                },
-              ],
-              organizationId,
-              source: 'resume_upload',
-            },
-          });
+                ],
+                organizationId,
+                source: 'resume_upload',
+              },
+            }),
+            {
+              maxRetries: 2,
+              timeoutMs: 30000, // 30 second timeout for import
+            }
+          );
 
           if (isStale()) {
             updateResult(resultIndex, { status: 'cancelled', error: 'Cancelled' });
@@ -190,6 +329,7 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
           );
 
           if (relinked > 0) {
+            succeededCount++;
             updateResult(resultIndex, {
               status: 'done',
               parsed: parsed as UploadResult['parsed'],
@@ -197,20 +337,45 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
               note: 'Duplicate detected: existing profile re-linked to Talent Pool',
               error: undefined,
             });
+            await logResumeUpload(parsed.id || 'unknown', file.name, true);
+            if (uploadSessionId) {
+              await markFileSkipped(uploadSessionId, fileHash, 'Duplicate - re-linked to talent pool');
+            }
           } else if (hasDuplicateError) {
+            failedCount++;
+            errorMessages.push(`${file.name}: Duplicate`);
             updateResult(resultIndex, {
               status: 'error',
               error: 'Duplicate resume: identical content already exists',
               parsed: parsed as UploadResult['parsed'],
               atsScore: parsed.ats_score,
             });
+            await logResumeUpload(parsed.id || 'unknown', file.name, false, 'Duplicate');
+            if (uploadSessionId) {
+              await markFileFailed(uploadSessionId, fileHash, 'Duplicate resume: identical content already exists');
+            }
           } else {
+            succeededCount++;
             updateResult(resultIndex, {
               status: 'done',
               parsed: parsed as UploadResult['parsed'],
               atsScore: parsed.ats_score,
               error: undefined,
             });
+            await logResumeUpload(parsed.id || 'unknown', file.name, true);
+            if (uploadSessionId) {
+              await markFileCompleted(uploadSessionId, fileHash, parsed.id);
+            }
+          }
+
+          processedCount++;
+
+          // Update progress every 10 files
+          if (processedCount % 10 === 0) {
+            await logBulkUploadProgress(auditSessionId, processedCount, files.length, succeededCount, failedCount);
+            if (uploadSessionId) {
+              await updateUploadProgress(uploadSessionId, processedCount, succeededCount, failedCount, errorMessages);
+            }
           }
 
           if (organizationId) {
@@ -219,9 +384,47 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
           }
           queryClient.invalidateQueries({ queryKey: ['candidates'] });
         } catch (error: unknown) {
-          const msg = await getEdgeFunctionErrorMessage(error);
-          updateResult(resultIndex, { status: 'error', error: msg });
+          failedCount++;
+
+          // Get both technical and user-friendly error messages
+          const technicalMsg = await getEdgeFunctionErrorMessage(error);
+          const userFriendlyMsg = getUserFriendlyErrorMessage(error);
+
+          // Store both messages
+          errorMessages.push(`${file.name}: ${technicalMsg}`);
+
+          // Show user-friendly message to user
+          updateResult(resultIndex, {
+            status: 'error',
+            error: userFriendlyMsg
+          });
+
+          // Log technical error for debugging
+          await logBulkUploadError(auditSessionId, technicalMsg, {
+            file_name: file.name,
+            index: i,
+            user_friendly_message: userFriendlyMsg
+          });
+          await logResumeUpload('unknown', file.name, false, technicalMsg);
+
+          if (uploadSessionId) {
+            await markFileFailed(uploadSessionId, fileHash, technicalMsg);
+          }
+
+          // Show toast notification for critical errors (auth, rate limit, server errors)
+          if (/auth|permission|rate limit|429|503|502|504/i.test(technicalMsg)) {
+            toast.error(`Upload Error: ${userFriendlyMsg}`, {
+              description: 'Check the upload status panel for details',
+              duration: 5000,
+            });
+          }
         }
+      }
+
+      // Log final completion and update session
+      await logBulkUploadComplete(auditSessionId, files.length, succeededCount, failedCount, errorMessages);
+      if (uploadSessionId) {
+        await completeUploadSession(uploadSessionId, succeededCount, failedCount, errorMessages);
       }
 
       if (organizationId) {
@@ -230,8 +433,52 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
       }
       queryClient.invalidateQueries({ queryKey: ['candidates'] });
 
-      // Cleanup this batch from active uploads
-      activeUploadsRef.current.delete(thisRunId);
+      // Show completion notification
+      if (cancelledRef.current) {
+        toast.info('Upload cancelled', {
+          description: `${succeededCount} of ${files.length} files uploaded successfully before cancellation`,
+        });
+      } else if (failedCount === 0) {
+        toast.success('Upload complete!', {
+          description: `Successfully uploaded ${succeededCount} ${succeededCount === 1 ? 'resume' : 'resumes'}`,
+        });
+      } else if (succeededCount === 0) {
+        toast.error('Upload failed', {
+          description: `All ${files.length} files failed to upload. Check the status panel for details.`,
+          duration: 7000,
+        });
+      } else {
+        toast.warning('Upload completed with errors', {
+          description: `${succeededCount} succeeded, ${failedCount} failed. Check the status panel for details.`,
+          duration: 7000,
+        });
+      }
+
+      } catch (globalError: unknown) {
+        // Handle catastrophic errors that occur outside the file processing loop
+        const errorMsg = getUserFriendlyErrorMessage(globalError);
+        console.error('[BulkUpload] Catastrophic error:', globalError);
+
+        toast.error('Upload system error', {
+          description: errorMsg,
+          duration: 10000,
+        });
+
+        // Mark all pending files as failed
+        for (let i = 0; i < files.length; i++) {
+          const resultIndex = startIndex + i;
+          const currentStatus = uploadResults[resultIndex]?.status;
+          if (currentStatus === 'pending' || currentStatus === 'parsing' || currentStatus === 'importing') {
+            updateResult(resultIndex, {
+              status: 'error',
+              error: 'Upload system error: ' + errorMsg
+            });
+          }
+        }
+      } finally {
+        // Cleanup this batch from active uploads
+        activeUploadsRef.current.delete(thisRunId);
+      }
 
       e.target.value = '';
     },

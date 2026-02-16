@@ -295,17 +295,33 @@ export default function TalentPool() {
     },
   });
 
-  const { data: talents, isLoading } = useQuery({
+  const { data: talents, isLoading, error: talentsError } = useQuery({
     queryKey: ['talent-pool', organizationId],
     queryFn: async (): Promise<TalentProfile[]> => {
-      if (!organizationId) return [];
+      if (!organizationId) {
+        console.warn('[TalentPool] No organizationId available');
+        return [];
+      }
+
+      console.log('[TalentPool] Fetching talent pool for org:', organizationId);
+      console.log('[TalentPool] User roles:', roles?.map(r => `${r.role} @ ${r.organization_id}`));
 
       let candidateIds: string[] = [];
       const { data: poolIds, error: rpcError } = await supabase.rpc('get_talent_pool_candidate_ids');
+
+      if (rpcError) {
+        console.error('[TalentPool] RPC error:', rpcError);
+      } else {
+        console.log('[TalentPool] RPC returned', poolIds?.length || 0, 'candidate IDs');
+      }
+
       if (!rpcError && poolIds?.length) {
         candidateIds = Array.from(new Set((poolIds as { candidate_id: string }[]).map((r) => r.candidate_id).filter(Boolean)));
+        console.log('[TalentPool] Using RPC results:', candidateIds.length, 'candidates');
       }
+
       if (candidateIds.length === 0) {
+        console.log('[TalentPool] RPC returned no results, falling back to direct query...');
         const { data: sourcedLinks, error: sourcedLinksError } = await supabase
           .from('candidate_org_links')
           .select('candidate_id')
@@ -315,17 +331,32 @@ export default function TalentPool() {
             'resume_upload', 'web_search', 'google_xray', 'linkedin_search',
             'sourced_resume', 'sourced_web', 'sourced', 'unknown',
           ]);
-        if (sourcedLinksError) throw sourcedLinksError;
+        if (sourcedLinksError) {
+          console.error('[TalentPool] Error fetching sourced links:', sourcedLinksError);
+          throw sourcedLinksError;
+        }
         const sourcedIds = Array.from(new Set((sourcedLinks || []).map((l: { candidate_id: string }) => l.candidate_id).filter(Boolean)));
+        console.log('[TalentPool] Found', sourcedIds.length, 'sourced candidates');
+
         const { data: applicantLinks, error: applicantLinksError } = await supabase
           .from('applications')
           .select('candidate_id, jobs!inner(organization_id)')
           .eq('jobs.organization_id', organizationId);
-        if (applicantLinksError) throw applicantLinksError;
+        if (applicantLinksError) {
+          console.error('[TalentPool] Error fetching applicant links:', applicantLinksError);
+          throw applicantLinksError;
+        }
         const applicantIds = Array.from(new Set((applicantLinks || []).map((a: { candidate_id: string }) => a.candidate_id).filter(Boolean)));
+        console.log('[TalentPool] Found', applicantIds.length, 'applicants');
+
         candidateIds = Array.from(new Set([...sourcedIds, ...applicantIds]));
+        console.log('[TalentPool] Total unique candidate IDs:', candidateIds.length);
       }
-      if (candidateIds.length === 0) return [];
+
+      if (candidateIds.length === 0) {
+        console.warn('[TalentPool] No candidate IDs found - returning empty array');
+        return [];
+      }
 
       const { data: profiles, error: profilesError } = await supabase
         .from('candidate_profiles')
@@ -334,10 +365,19 @@ export default function TalentPool() {
            headline, ats_score, created_at, recruiter_notes, recruiter_status`
         )
         .in('id', candidateIds);
-      if (profilesError) throw profilesError;
-      const candidates = (profiles || []) as TalentProfile[];
 
-      if (!candidates.length) return [];
+      if (profilesError) {
+        console.error('[TalentPool] Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      const candidates = (profiles || []) as TalentProfile[];
+      console.log('[TalentPool] Fetched', candidates.length, 'profiles');
+
+      if (!candidates.length) {
+        console.warn('[TalentPool] No profiles found for candidate IDs');
+        return [];
+      }
 
       // De-dupe by stable identity (LinkedIn/email) to avoid duplicates from repeated imports.
       const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
@@ -1129,7 +1169,13 @@ export default function TalentPool() {
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="p-0">
-            {!filteredTalents?.length ? (
+            {talentsError ? (
+              <EmptyState
+                icon={AlertCircle}
+                title="Error loading talent pool"
+                description={`Failed to load profiles: ${talentsError instanceof Error ? talentsError.message : 'Unknown error'}. Check browser console for details.`}
+              />
+            ) : !filteredTalents?.length ? (
               <EmptyState
                 icon={Users}
                 title={hasActiveFilters || searchQuery.trim() ? 'No matches found' : 'No profiles in talent pool'}
