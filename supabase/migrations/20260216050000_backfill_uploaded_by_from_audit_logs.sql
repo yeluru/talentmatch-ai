@@ -22,9 +22,8 @@ BEGIN
   FROM candidate_profiles cp
   INNER JOIN audit_logs al ON al.entity_id = cp.id
   WHERE cp.uploaded_by_user_id IS NULL
-    AND al.action = 'upload_resume'
-    AND al.entity_type = 'resumes'
-    AND al.details->>'success' = 'true';
+    AND al.action = 'insert'
+    AND al.entity_type = 'candidate_profiles';
 
   RAISE NOTICE 'Found % candidates with matching audit logs', audit_match_count;
 END $$;
@@ -38,11 +37,11 @@ FROM (
     al.user_id,
     al.created_at
   FROM audit_logs al
-  WHERE al.action = 'upload_resume'
-    AND al.entity_type = 'resumes'
-    AND al.details->>'success' = 'true'
+  WHERE al.action = 'insert'
+    AND al.entity_type = 'candidate_profiles'
     AND al.entity_id IS NOT NULL
-  ORDER BY al.entity_id, al.created_at ASC  -- Get the EARLIEST successful upload
+    AND al.user_id IS NOT NULL
+  ORDER BY al.entity_id, al.created_at ASC  -- Get the EARLIEST insert
 ) subquery
 WHERE cp.id = subquery.candidate_id
   AND cp.uploaded_by_user_id IS NULL;  -- Only update NULL values
