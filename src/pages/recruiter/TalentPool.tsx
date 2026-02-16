@@ -94,6 +94,11 @@ interface TalentProfile {
   created_at: string;
   recruiter_notes: string | null;
   recruiter_status: string | null;
+  uploaded_by_user_id: string | null;
+  uploaded_by_user: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
   skills: {
     skill_name: string;
   }[];
@@ -375,7 +380,8 @@ export default function TalentPool() {
             .from('candidate_profiles')
             .select(
               `id, full_name, email, location, current_title, current_company, years_of_experience,
-               headline, ats_score, created_at, recruiter_notes, recruiter_status`
+               headline, ats_score, created_at, recruiter_notes, recruiter_status, uploaded_by_user_id,
+               uploaded_by_user:profiles!uploaded_by_user_id(full_name, email)`
             )
             .in('id', batch),
           {
@@ -1367,16 +1373,17 @@ export default function TalentPool() {
 
                 {/* Header Row */}
                 <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
-                  <div className="flex-1">Candidate</div>
-                  <div className="w-[140px] hidden xl:block">Title</div>
-                  <div className="w-[100px] hidden 2xl:block">Location</div>
-                  <div className="w-16 hidden 2xl:block">Exp</div>
-                  <div className="w-[140px] hidden lg:block">Comments</div>
-                  <div className="w-[140px]">Status</div>
+                  <div className="flex-1 text-left">Candidate</div>
+                  <div className="w-[140px] hidden xl:block text-left">Title</div>
+                  <div className="w-[100px] hidden 2xl:block text-left">Location</div>
+                  <div className="w-16 hidden 2xl:block text-left">Exp</div>
+                  <div className="w-[140px] hidden lg:block text-left">Comments</div>
+                  <div className="w-[140px] text-left">Status</div>
                   <div className="w-16 text-center" title="Resume quality (ATS-friendly)">ATS</div>
                   <div className="w-12 text-center">Contact</div>
-                  <div className="w-20 hidden 2xl:block text-right">Added</div>
-                  <div className="w-[100px] text-right">Shortlist</div>
+                  <div className="w-24 hidden 2xl:block text-left">Added</div>
+                  <div className="w-[120px] hidden 2xl:block text-left">Uploaded By</div>
+                  <div className="w-[100px] text-left">Shortlist</div>
                   <div className="w-10"></div>
                 </div>
 

@@ -379,6 +379,7 @@ serve(async (req) => {
             id: candidateId,
             user_id: null, // Null for sourced/imported profiles (not real users)
             organization_id: organizationId,
+            uploaded_by_user_id: user.id, // Track who uploaded this candidate
             full_name: validatedName,
             email: validatedEmail,
             phone: validatedPhone,

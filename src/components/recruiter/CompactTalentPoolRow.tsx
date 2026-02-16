@@ -39,6 +39,11 @@ interface TalentProfile {
   created_at: string;
   recruiter_notes: string | null;
   recruiter_status: string | null;
+  uploaded_by_user_id: string | null;
+  uploaded_by_user: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
   skills: { skill_name: string }[];
   companies: string[];
 }
@@ -189,11 +194,15 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-16 sm:w-20 hidden 2xl:block text-xs text-muted-foreground whitespace-nowrap text-right shrink-0">
+      <div className="w-20 sm:w-24 hidden 2xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
         {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
       </div>
 
-      <div className="w-auto hidden lg:flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-[100px] sm:w-[120px] hidden 2xl:block text-xs text-muted-foreground truncate text-left shrink-0" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
+        {talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email?.split('@')[0] || '—'}
+      </div>
+
+      <div className="w-auto hidden lg:flex justify-start shrink-0" onClick={(e) => e.stopPropagation()}>
         {shortlistButton?.shortlistId && onOpenShortlist ? (
           <Button
             variant="ghost"
