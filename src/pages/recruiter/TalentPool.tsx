@@ -358,21 +358,35 @@ export default function TalentPool() {
         return [];
       }
 
-      const { data: profiles, error: profilesError } = await supabase
-        .from('candidate_profiles')
-        .select(
-          `id, full_name, email, location, current_title, current_company, years_of_experience,
-           headline, ats_score, created_at, recruiter_notes, recruiter_status`
-        )
-        .in('id', candidateIds);
-
-      if (profilesError) {
-        console.error('[TalentPool] Error fetching profiles:', profilesError);
-        throw profilesError;
+      // Batch fetch profiles to avoid URL length limits (max ~100 IDs per request)
+      const BATCH_SIZE = 100;
+      const batches: string[][] = [];
+      for (let i = 0; i < candidateIds.length; i += BATCH_SIZE) {
+        batches.push(candidateIds.slice(i, i + BATCH_SIZE));
       }
 
-      const candidates = (profiles || []) as TalentProfile[];
-      console.log('[TalentPool] Fetched', candidates.length, 'profiles');
+      console.log(`[TalentPool] Fetching ${candidateIds.length} profiles in ${batches.length} batches`);
+
+      const allProfiles: TalentProfile[] = [];
+      for (const batch of batches) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('candidate_profiles')
+          .select(
+            `id, full_name, email, location, current_title, current_company, years_of_experience,
+             headline, ats_score, created_at, recruiter_notes, recruiter_status`
+          )
+          .in('id', batch);
+
+        if (profilesError) {
+          console.error('[TalentPool] Error fetching batch:', profilesError);
+          throw profilesError;
+        }
+
+        allProfiles.push(...(profiles || []));
+      }
+
+      const candidates = allProfiles as TalentProfile[];
+      console.log('[TalentPool] Fetched', candidates.length, 'profiles total');
 
       if (!candidates.length) {
         console.warn('[TalentPool] No profiles found for candidate IDs');
@@ -398,27 +412,39 @@ export default function TalentPool() {
       }
       const deduped = Array.from(byIdentity.values());
 
-      // Get skills
+      // Batch fetch skills and experience to avoid URL length limits
       const dedupedIds = deduped.map((c) => c.id);
-      const { data: skills } = await supabase
-        .from('candidate_skills')
-        .select('candidate_id, skill_name')
-        .in('candidate_id', dedupedIds);
+      const skillBatches: string[][] = [];
+      for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
+        skillBatches.push(dedupedIds.slice(i, i + BATCH_SIZE));
+      }
 
-      // Get experience for company list
-      const { data: experience } = await supabase
-        .from('candidate_experience')
-        .select('candidate_id, company_name')
-        .in('candidate_id', dedupedIds);
+      const allSkills: any[] = [];
+      for (const batch of skillBatches) {
+        const { data: skills } = await supabase
+          .from('candidate_skills')
+          .select('candidate_id, skill_name')
+          .in('candidate_id', batch);
+        if (skills) allSkills.push(...skills);
+      }
+
+      const allExperience: any[] = [];
+      for (const batch of skillBatches) {
+        const { data: experience } = await supabase
+          .from('candidate_experience')
+          .select('candidate_id, company_name')
+          .in('candidate_id', batch);
+        if (experience) allExperience.push(...experience);
+      }
 
       const result = deduped
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .map((c) => ({
           ...c,
-          skills: skills?.filter((s) => s.candidate_id === c.id) || [],
+          skills: allSkills?.filter((s) => s.candidate_id === c.id) || [],
           companies: [
             ...new Set(
-              experience
+              allExperience
                 ?.filter((e) => e.candidate_id === c.id)
                 .map((e) => e.company_name)
                 .filter(Boolean) || []
