@@ -105,20 +105,10 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
       let failedCount = 0;
       const errorMessages: string[] = [];
 
-      // Compute file hashes early for resumable uploads
+      // Note: Pre-computing hashes disabled due to browser NotReadableError
+      // The browser revokes file access if we read files too early
+      // Hashes will be computed during processing instead
       const fileHashes: Map<number, string> = new Map();
-      for (let i = 0; i < Math.min(files.length, 10); i++) {
-        try {
-          const file = files[i];
-          const buffer = await file.arrayBuffer();
-          const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          const hash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-          fileHashes.set(i, hash);
-        } catch (error) {
-          console.error('Failed to compute file hash:', error);
-        }
-      }
 
       // Check for incomplete session and get processed files
       let existingSessionId: string | null = null;
