@@ -105,7 +105,7 @@ interface TalentProfile {
   companies: string[];
 }
 
-type TalentPoolSortKey = 'full_name' | 'current_title' | 'location' | 'years_of_experience' | 'recruiter_status' | 'ats_score' | 'created_at';
+type TalentPoolSortKey = 'full_name' | 'current_title' | 'location' | 'years_of_experience' | 'recruiter_status' | 'ats_score' | 'created_at' | 'uploaded_by_user';
 
 /** Same status options as pipeline so status is consistent everywhere. */
 const STATUS_OPTIONS = TALENT_POOL_STAGE_OPTIONS;
@@ -788,6 +788,9 @@ export default function TalentPool() {
     const sortState = tableSort?.sort;
     if (!sortState?.key) return result;
     const getValue = (t: TalentProfile, key: TalentPoolSortKey): unknown => {
+      if (key === 'uploaded_by_user') {
+        return t.uploaded_by_user?.full_name || t.uploaded_by_user?.email || '';
+      }
       const v = t[key as keyof TalentProfile];
       return v ?? '';
     };
@@ -1413,18 +1416,18 @@ export default function TalentPool() {
                   <div className="w-16 hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('years_of_experience')}>
                     Exp {tableSort.sort.key === 'years_of_experience' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[140px] hidden lg:block text-left">Comments</div>
                   <div className="w-[140px] text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('recruiter_status')}>
                     Status {tableSort.sort.key === 'recruiter_status' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-16 text-left cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.setSort('ats_score')}>
                     ATS {tableSort.sort.key === 'ats_score' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-12 text-left">Contact</div>
                   <div className="w-24 hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('created_at')}>
-                    Added {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
+                    Date Added {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[120px] hidden lg:block text-left">Uploaded By</div>
+                  <div className="w-[120px] hidden lg:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('uploaded_by_user')}>
+                    Uploaded By {tableSort.sort.key === 'uploaded_by_user' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
+                  </div>
                   <div className="w-[100px] text-left">Shortlist</div>
                   <div className="w-10"></div>
                 </div>

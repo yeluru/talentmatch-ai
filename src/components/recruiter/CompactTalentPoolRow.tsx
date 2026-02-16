@@ -120,6 +120,25 @@ export function CompactTalentPoolRow({
           {company && company !== '—' && (
             <div className="text-[11px] text-muted-foreground truncate">{company}</div>
           )}
+          {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 text-[11px] text-blue-400/80 truncate cursor-default mt-0.5">
+                    <MessageSquare className="h-3 w-3 shrink-0" />
+                    <span className="truncate">
+                      {talent.recruiter_notes.length <= 40
+                        ? talent.recruiter_notes
+                        : `${talent.recruiter_notes.slice(0, 40)}…`}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap text-left text-xs">
+                  {talent.recruiter_notes}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 
@@ -133,28 +152,6 @@ export function CompactTalentPoolRow({
 
       <div className="w-16 hidden 2xl:block text-xs text-muted-foreground shrink-0 text-left">
         {experience}
-      </div>
-
-      <div className="w-[140px] hidden lg:block min-w-0 text-left" onClick={(e) => e.stopPropagation()}>
-        {(talent.recruiter_notes != null && talent.recruiter_notes !== '') ? (
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground truncate cursor-default">
-                  <MessageSquare className="h-3 w-3 shrink-0" />
-                  {talent.recruiter_notes.length <= COMMENTS_PREVIEW_LEN
-                    ? talent.recruiter_notes
-                    : `${talent.recruiter_notes.slice(0, COMMENTS_PREVIEW_LEN)}…`}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap text-left text-xs">
-                {talent.recruiter_notes}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <span className="text-xs text-muted-foreground/70 italic">—</span>
-        )}
       </div>
 
       <div className="w-[140px] text-left" onClick={(e) => e.stopPropagation()}>
@@ -181,16 +178,6 @@ export function CompactTalentPoolRow({
           <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
         ) : (
           <span className="text-muted-foreground text-xs">—</span>
-        )}
-      </div>
-
-      <div className="w-12 text-left shrink-0" onClick={(e) => e.stopPropagation()}>
-        {talent.email && (
-          <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:bg-white/10">
-            <a href={`mailto:${talent.email}`} title={talent.email}>
-              <Mail className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
-            </a>
-          </Button>
         )}
       </div>
 
