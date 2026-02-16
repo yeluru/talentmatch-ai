@@ -323,15 +323,7 @@ export default function TalentPool() {
 
       if (!rpcError && poolIds?.length) {
         candidateIds = Array.from(new Set((poolIds as { candidate_id: string }[]).map((r) => r.candidate_id).filter(Boolean)));
-        console.log('[TalentPool] RPC returned:', candidateIds.length, 'candidates');
-
-        // Limit to first 250 for faster initial load
-        const INITIAL_LOAD_LIMIT = 250;
-        if (candidateIds.length > INITIAL_LOAD_LIMIT) {
-          console.log(`[TalentPool] Limiting to first ${INITIAL_LOAD_LIMIT} candidates for performance`);
-          candidateIds = candidateIds.slice(0, INITIAL_LOAD_LIMIT);
-        }
-        console.log('[TalentPool] Using', candidateIds.length, 'candidates');
+        console.log('[TalentPool] Using RPC results:', candidateIds.length, 'candidates');
       }
 
       if (candidateIds.length === 0) {
@@ -365,14 +357,6 @@ export default function TalentPool() {
 
         candidateIds = Array.from(new Set([...sourcedIds, ...applicantIds]));
         console.log('[TalentPool] Total unique candidate IDs:', candidateIds.length);
-
-        // Limit to first 250 for faster initial load
-        const INITIAL_LOAD_LIMIT = 250;
-        if (candidateIds.length > INITIAL_LOAD_LIMIT) {
-          console.log(`[TalentPool] Limiting to first ${INITIAL_LOAD_LIMIT} candidates for performance`);
-          candidateIds = candidateIds.slice(0, INITIAL_LOAD_LIMIT);
-        }
-        console.log('[TalentPool] Using', candidateIds.length, 'candidates');
       }
 
       if (candidateIds.length === 0) {
@@ -387,11 +371,11 @@ export default function TalentPool() {
         batches.push(candidateIds.slice(i, i + BATCH_SIZE));
       }
 
-      console.log(`[TalentPool] Fetching ${candidateIds.length} profiles in ${batches.length} batches`);
+      console.log(`[TalentPool] Fetching ${candidateIds.length} profiles in ${batches.length} batches (parallel)`);
 
-      const allProfiles: TalentProfile[] = [];
-      for (const batch of batches) {
-        const { data: profiles, error: profilesError } = await retryWithBackoff(
+      // Fetch all batches in parallel for better performance
+      const batchPromises = batches.map(batch =>
+        retryWithBackoff(
           () => supabase
             .from('candidate_profiles')
             .select(
@@ -403,13 +387,17 @@ export default function TalentPool() {
             maxRetries: 3,
             timeoutMs: 30000, // 30s timeout for profile queries
           }
-        );
+        )
+      );
 
+      const batchResults = await Promise.all(batchPromises);
+
+      const allProfiles: TalentProfile[] = [];
+      for (const { data: profiles, error: profilesError } of batchResults) {
         if (profilesError) {
           console.error('[TalentPool] Error fetching batch:', profilesError);
           throw profilesError;
         }
-
         allProfiles.push(...(profiles || []));
       }
 
@@ -481,16 +469,24 @@ export default function TalentPool() {
       // Note: Requires migration 20260216030000 to be applied
       let uploaderMap = new Map();
       try {
-        const { data: uploaderData } = await supabase
+        console.log('[TalentPool] Fetching uploader info for', dedupedIds.length, 'candidates');
+        const { data: uploaderData, error: uploaderError } = await supabase
           .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
-        uploaderMap = new Map(
-          (uploaderData || []).map((u: any) => [
-            u.candidate_id,
-            { email: u.uploader_email, full_name: u.uploader_name }
-          ])
-        );
+
+        if (uploaderError) {
+          console.error('[TalentPool] RPC error fetching uploaders:', uploaderError);
+        } else {
+          console.log('[TalentPool] Received uploader data for', uploaderData?.length || 0, 'candidates');
+          uploaderMap = new Map(
+            (uploaderData || []).map((u: any) => [
+              u.candidate_id,
+              { email: u.uploader_email, full_name: u.uploader_name }
+            ])
+          );
+          console.log('[TalentPool] Uploader map size:', uploaderMap.size);
+        }
       } catch (error) {
-        console.warn('[TalentPool] Uploader info not available (run migrations):', error);
+        console.error('[TalentPool] Exception fetching uploader info:', error);
       }
 
       const result = deduped
