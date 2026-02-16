@@ -24,12 +24,31 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // Use service role key for all operations (bypasses RLS)
-    // Note: Authentication is already handled by Supabase's API Gateway
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError?.message || "No user found");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Use service role for database operations that need to bypass RLS
+    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const body = await req.json();
     const { userId, userName, organizationId, startDate, endDate, actingRole, auditLogs } = body;
@@ -45,7 +64,7 @@ serve(async (req) => {
     let logs: AuditLog[] = auditLogs || [];
 
     if (!logs || logs.length === 0) {
-      const { data: fetchedLogs, error: logsError } = await supabase
+      const { data: fetchedLogs, error: logsError } = await supabaseAdmin
         .from('audit_logs')
         .select('*')
         .eq('user_id', userId)
@@ -79,7 +98,7 @@ serve(async (req) => {
     // Fetch user profile if not provided
     let displayName = userName || 'User';
     if (!userName) {
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('full_name, email')
         .eq('user_id', userId)
