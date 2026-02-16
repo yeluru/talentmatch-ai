@@ -177,15 +177,8 @@ export default function TeamActivity() {
 
           // Call the LLM edge function to generate summary from audit logs
           try {
-            const token = (await supabase.auth.getSession()).data.session?.access_token;
-
-            const response = await fetch(`${supabaseUrl}/functions/v1/generate-activity-summary`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-              },
-              body: JSON.stringify({
+            const { data: result, error: invokeError } = await supabase.functions.invoke('generate-activity-summary', {
+              body: {
                 userId: member.user_id,
                 userName: member.full_name,
                 organizationId: organizationId,
@@ -193,10 +186,13 @@ export default function TeamActivity() {
                 endDate: end,
                 actingRole: role,
                 auditLogs: actions, // Pass the audit logs directly
-              }),
+              },
             });
 
-            const result = await response.json();
+            if (invokeError) {
+              console.error(`Edge function error for ${member.full_name}:`, invokeError);
+              throw invokeError;
+            }
 
             if (result.success && result.summary) {
               newSummaries.push({
