@@ -1389,71 +1389,28 @@ export default function TalentPool() {
 
                 {/* Header Row */}
                 <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
-                  <div
-                    className="flex-1 text-left cursor-pointer hover:text-foreground flex items-center gap-1"
-                    onClick={() => tableSort.setSort('full_name')}
-                  >
-                    Candidate
-                    {tableSort.sort.key === 'full_name' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="flex-1 text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('full_name')}>
+                    Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div
-                    className="w-[140px] hidden xl:block text-left cursor-pointer hover:text-foreground flex items-center gap-1"
-                    onClick={() => tableSort.setSort('current_title')}
-                  >
-                    Title
-                    {tableSort.sort.key === 'current_title' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="w-[140px] hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('current_title')}>
+                    Title {tableSort.sort.key === 'current_title' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div
-                    className="w-[100px] hidden 2xl:block text-left cursor-pointer hover:text-foreground flex items-center gap-1"
-                    onClick={() => tableSort.setSort('location')}
-                  >
-                    Location
-                    {tableSort.sort.key === 'location' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="w-[100px] hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('location')}>
+                    Location {tableSort.sort.key === 'location' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div
-                    className="w-16 hidden 2xl:block text-left cursor-pointer hover:text-foreground flex items-center gap-1"
-                    onClick={() => tableSort.setSort('years_of_experience')}
-                  >
-                    Exp
-                    {tableSort.sort.key === 'years_of_experience' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="w-16 hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('years_of_experience')}>
+                    Exp {tableSort.sort.key === 'years_of_experience' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[140px] hidden lg:block text-left">Comments</div>
-                  <div
-                    className="w-[140px] text-left cursor-pointer hover:text-foreground flex items-center gap-1"
-                    onClick={() => tableSort.setSort('recruiter_status')}
-                  >
-                    Status
-                    {tableSort.sort.key === 'recruiter_status' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="w-[140px] text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('recruiter_status')}>
+                    Status {tableSort.sort.key === 'recruiter_status' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div
-                    className="w-16 text-center cursor-pointer hover:text-foreground flex items-center justify-center gap-1"
-                    title="Resume quality (ATS-friendly)"
-                    onClick={() => tableSort.setSort('ats_score')}
-                  >
-                    ATS
-                    {tableSort.sort.key === 'ats_score' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="w-16 text-center cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.setSort('ats_score')}>
+                    ATS {tableSort.sort.key === 'ats_score' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-12 text-center">Contact</div>
-                  <div
-                    className="w-24 hidden xl:block text-left cursor-pointer hover:text-foreground flex items-center gap-1"
-                    onClick={() => tableSort.setSort('created_at')}
-                  >
-                    Added
-                    {tableSort.sort.key === 'created_at' && (
-                      tableSort.sort.dir === 'asc' ? <span>↑</span> : <span>↓</span>
-                    )}
+                  <div className="w-24 hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.setSort('created_at')}>
+                    Added {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[120px] hidden lg:block text-left">Uploaded By</div>
                   <div className="w-[100px] text-left">Shortlist</div>
