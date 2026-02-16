@@ -208,7 +208,7 @@ export default function TeamActivity() {
                 generated_at: new Date().toISOString(),
               });
             } else {
-              console.error(`Failed to generate summary for ${member.full_name}:`, result.error);
+              console.error(`Failed to generate summary for ${member.full_name}:`, result);
               // Fallback to simple summary
               newSummaries.push({
                 user_id: member.user_id,
