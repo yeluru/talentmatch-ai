@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +57,8 @@ interface CompactTalentPoolRowProps {
   onOpenShortlist?: (shortlistId: string) => void;
   shortlistButton?: { shortlistId: string; label: string } | null;
   onStartEngagement?: (id: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export function CompactTalentPoolRow({
@@ -66,6 +69,8 @@ export function CompactTalentPoolRow({
   onOpenShortlist,
   shortlistButton,
   onStartEngagement,
+  isSelected = false,
+  onToggleSelect,
 }: CompactTalentPoolRowProps) {
   const queryClient = useQueryClient();
 
@@ -109,6 +114,14 @@ export function CompactTalentPoolRow({
       className="glass-panel py-1.5 px-3 hover-card-premium flex flex-nowrap items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
       onClick={() => onViewProfile(talent.id)}
     >
+      {onToggleSelect && (
+        <div className="w-10 flex items-center justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+          />
+        </div>
+      )}
       <div className="flex-1 min-w-0 flex items-center gap-3">
         <Avatar className="h-10 w-10 shrink-0">
           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">

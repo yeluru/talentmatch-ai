@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -275,6 +276,7 @@ export default function TalentPool() {
   const [engageJobId, setEngageJobId] = useState<string>('');
 
   // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [recentViews, setRecentViews] = useState<{ id: string; ts: number }[]>(() =>
     loadRecentViews(organizationId || '')
   );
@@ -600,6 +602,32 @@ export default function TalentPool() {
     onError: (e: any) => toast.error(e?.message || 'Failed to add to shortlist'),
   });
 
+  const addBulkToShortlistMutation = useMutation({
+    mutationFn: async ({ shortlistId, candidateIds }: { shortlistId: string; candidateIds: string[] }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const records = candidateIds.map(id => ({
+        shortlist_id: shortlistId,
+        candidate_id: id,
+        added_by: user.id
+      }));
+      const { error } = await supabase
+        .from('shortlist_candidates')
+        .insert(records as any);
+      if (error) throw error;
+      return candidateIds.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`Added ${count} candidate${count === 1 ? '' : 's'} to shortlist`);
+      setRowShortlistDialogOpen(false);
+      setRowShortlistCandidateId(null);
+      setRowSelectedShortlistId('');
+      clearSelection();
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-membership'], exact: false });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to add to shortlist'),
+  });
+
   const createShortlistMutation = useMutation({
     mutationFn: async ({ name }: { name: string }) => {
       if (!organizationId) throw new Error('Missing organization');
@@ -701,6 +729,55 @@ export default function TalentPool() {
     if (uniq.length === 0) return;
     setRemoveCandidateIds(uniq);
     setRemoveDialogOpen(true);
+  };
+
+  // Selection helpers
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (pageIds: string[]) => {
+    const allSelected = pageIds.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        pageIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        pageIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // Bulk actions
+  const handleBulkRemove = () => {
+    requestRemove(Array.from(selectedIds));
+    clearSelection();
+  };
+
+  const handleBulkAddToShortlist = () => {
+    if (selectedIds.size === 0) return;
+    // Use a special marker to indicate bulk operation
+    setRowShortlistCandidateId('__BULK__');
+    setRowShortlistDialogOpen(true);
+  };
+
+  const handleBulkStartEngagement = () => {
+    if (selectedIds.size === 0) return;
+    // For bulk engagement, we'll need to handle multiple candidates
+    // For now, show a message that this needs job selection
+    toast.info('Select candidates and use the engagement dialog');
   };
 
   // Extract unique companies and locations for filter dropdowns
@@ -1428,8 +1505,39 @@ export default function TalentPool() {
                   </div>
                 </div>
 
+                {/* Bulk actions toolbar */}
+                {selectedIds.size > 0 && (
+                  <div className="bg-muted/50 px-6 py-3 mb-2 rounded-lg flex items-center gap-4">
+                    <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={handleBulkRemove} className="h-8">
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        Delete
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleBulkAddToShortlist} className="h-8">
+                        <ListPlus className="h-3.5 w-3.5 mr-1.5" />
+                        Add to Shortlist
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleBulkStartEngagement} className="h-8">
+                        <Send className="h-3.5 w-3.5 mr-1.5" />
+                        Start Engagement
+                      </Button>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={clearSelection} className="h-8 ml-auto">
+                      <X className="h-3.5 w-3.5 mr-1.5" />
+                      Clear
+                    </Button>
+                  </div>
+                )}
+
                 {/* Header Row */}
                 <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
+                  <div className="w-10 flex items-center justify-center">
+                    <Checkbox
+                      checked={paginatedTalents.length > 0 && paginatedTalents.every(t => selectedIds.has(t.id))}
+                      onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
+                    />
+                  </div>
                   <div className="flex-1 text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
@@ -1472,6 +1580,8 @@ export default function TalentPool() {
                         setEngageCandidateId(candidateId);
                         setEngageOpen(true);
                       }}
+                      isSelected={selectedIds.has(talent.id)}
+                      onToggleSelect={() => toggleSelect(talent.id)}
                     />
                   ))}
                 </div>
@@ -1595,7 +1705,11 @@ export default function TalentPool() {
         <DialogContent className="sm:max-w-lg max-w-full glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Add to shortlist</DialogTitle>
-            <DialogDescription>Select a shortlist (or create one) to add this candidate.</DialogDescription>
+            <DialogDescription>
+              {rowShortlistCandidateId === '__BULK__'
+                ? `Select a shortlist (or create one) to add ${selectedIds.size} candidate${selectedIds.size === 1 ? '' : 's'}.`
+                : 'Select a shortlist (or create one) to add this candidate.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -1648,14 +1762,23 @@ export default function TalentPool() {
               onClick={() => {
                 if (!rowShortlistCandidateId) return;
                 if (!rowSelectedShortlistId) return toast.error('Select a shortlist');
-                addSingleToShortlistMutation.mutate({
-                  shortlistId: rowSelectedShortlistId,
-                  candidateId: rowShortlistCandidateId,
-                });
+
+                // Check if this is a bulk operation
+                if (rowShortlistCandidateId === '__BULK__') {
+                  addBulkToShortlistMutation.mutate({
+                    shortlistId: rowSelectedShortlistId,
+                    candidateIds: Array.from(selectedIds),
+                  });
+                } else {
+                  addSingleToShortlistMutation.mutate({
+                    shortlistId: rowSelectedShortlistId,
+                    candidateId: rowShortlistCandidateId,
+                  });
+                }
               }}
-              disabled={addSingleToShortlistMutation.isPending}
+              disabled={addSingleToShortlistMutation.isPending || addBulkToShortlistMutation.isPending}
             >
-              {addSingleToShortlistMutation.isPending ? (
+              {(addSingleToShortlistMutation.isPending || addBulkToShortlistMutation.isPending) ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
               Add
