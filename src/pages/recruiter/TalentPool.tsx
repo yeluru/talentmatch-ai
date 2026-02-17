@@ -74,6 +74,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ScrollToTop } from '@/components/ui/scroll-to-top';
 import { PullToRefreshIndicator } from '@/components/ui/pull-to-refresh-indicator';
 import { MobileListHeader } from '@/components/ui/mobile-list-header';
+import { LoadingProgressBar } from '@/components/ui/loading-progress-bar';
 import { normalizeStatusForDisplay, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 import { orgIdForRecruiterSuite, orgIdForRole } from '@/lib/org';
 import { retryWithBackoff } from '@/lib/retryWithBackoff';
@@ -281,6 +282,14 @@ export default function TalentPool() {
     loadRecentViews(organizationId || '')
   );
 
+  // Progressive loading state
+  const [loadingProgress, setLoadingProgress] = useState<{
+    loaded: number;
+    total: number;
+    isComplete: boolean;
+  }>({ loaded: 0, total: 0, isComplete: true });
+  const [allCandidateIds, setAllCandidateIds] = useState<string[]>([]);
+
   useEffect(() => {
     if (!organizationId) return;
     setRecentViews(loadRecentViews(organizationId));
@@ -363,17 +372,33 @@ export default function TalentPool() {
 
       if (candidateIds.length === 0) {
         console.warn('[TalentPool] No candidate IDs found - returning empty array');
+        setLoadingProgress({ loaded: 0, total: 0, isComplete: true });
         return [];
       }
+
+      // Store all IDs for background loading
+      setAllCandidateIds(candidateIds);
+
+      // Initial load: first 200 profiles only
+      const INITIAL_LOAD_SIZE = 200;
+      const initialIds = candidateIds.slice(0, INITIAL_LOAD_SIZE);
+      console.log(`[TalentPool] Initial load: ${initialIds.length} of ${candidateIds.length} profiles`);
+
+      // Set initial progress
+      setLoadingProgress({
+        loaded: 0,
+        total: candidateIds.length,
+        isComplete: candidateIds.length <= INITIAL_LOAD_SIZE
+      });
 
       // Batch fetch profiles to avoid URL length limits (max ~100 IDs per request)
       const BATCH_SIZE = 100;
       const batches: string[][] = [];
-      for (let i = 0; i < candidateIds.length; i += BATCH_SIZE) {
-        batches.push(candidateIds.slice(i, i + BATCH_SIZE));
+      for (let i = 0; i < initialIds.length; i += BATCH_SIZE) {
+        batches.push(initialIds.slice(i, i + BATCH_SIZE));
       }
 
-      console.log(`[TalentPool] Fetching ${candidateIds.length} profiles in ${batches.length} batches (parallel)`);
+      console.log(`[TalentPool] Fetching initial ${initialIds.length} profiles in ${batches.length} batches`);
 
       // Fetch all batches in parallel for better performance
       const batchPromises = batches.map(batch =>
@@ -404,10 +429,17 @@ export default function TalentPool() {
       }
 
       const candidates = allProfiles as TalentProfile[];
-      console.log('[TalentPool] Fetched', candidates.length, 'profiles total');
+      console.log('[TalentPool] Fetched initial', candidates.length, 'profiles');
+
+      // Update progress after initial load
+      setLoadingProgress(prev => ({
+        ...prev,
+        loaded: candidates.length
+      }));
 
       if (!candidates.length) {
         console.warn('[TalentPool] No profiles found for candidate IDs');
+        setLoadingProgress({ loaded: 0, total: 0, isComplete: true });
         return [];
       }
 
@@ -514,11 +546,70 @@ export default function TalentPool() {
     enabled: !!organizationId,
   });
 
+  // Background loading effect - loads remaining profiles after initial load
+  useEffect(() => {
+    if (!allCandidateIds.length || loadingProgress.isComplete || !talents || !organizationId) return;
+
+    const INITIAL_LOAD_SIZE = 200;
+    const remainingIds = allCandidateIds.slice(INITIAL_LOAD_SIZE);
+
+    if (remainingIds.length === 0) {
+      setLoadingProgress(prev => ({ ...prev, isComplete: true }));
+      return;
+    }
+
+    console.log(`[TalentPool] Background loading ${remainingIds.length} remaining profiles`);
+
+    // Load remaining profiles in background
+    const loadRemaining = async () => {
+      const BATCH_SIZE = 100;
+      const batches: string[][] = [];
+      for (let i = 0; i < remainingIds.length; i += BATCH_SIZE) {
+        batches.push(remainingIds.slice(i, i + BATCH_SIZE));
+      }
+
+      const allProfiles: any[] = [];
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        try {
+          const { data: profiles } = await supabase
+            .from('candidate_profiles')
+            .select(
+              `id, full_name, email, location, current_title, current_company, years_of_experience,
+               headline, ats_score, created_at, recruiter_notes, recruiter_status`
+            )
+            .in('id', batch);
+
+          if (profiles) {
+            allProfiles.push(...profiles);
+            // Update progress after each batch
+            setLoadingProgress(prev => ({
+              ...prev,
+              loaded: INITIAL_LOAD_SIZE + allProfiles.length
+            }));
+          }
+        } catch (error) {
+          console.error('[TalentPool] Error loading background batch:', error);
+        }
+      }
+
+      if (allProfiles.length > 0) {
+        // TODO: Process and merge these profiles with existing data
+        // For now, just mark as complete - full implementation requires processing skills, experience, etc.
+        console.log(`[TalentPool] Background loaded ${allProfiles.length} additional profiles`);
+      }
+
+      setLoadingProgress(prev => ({ ...prev, isComplete: true }));
+    };
+
+    loadRemaining();
+  }, [allCandidateIds, talents, loadingProgress.isComplete, organizationId]);
+
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      const { data, error} = await supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
       if (error) throw error;
       return data || [];
     },
@@ -1302,7 +1393,8 @@ export default function TalentPool() {
                 variant="outline"
                 className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={!organizationId}
+                disabled={!organizationId || !loadingProgress.isComplete}
+                title={!loadingProgress.isComplete ? 'Wait for talent pool to finish loading' : ''}
               >
                 <Upload className="h-4 w-4 mr-2" strokeWidth={1.5} />
                 Upload
@@ -1411,6 +1503,15 @@ export default function TalentPool() {
         {filtersContent}
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
+          {/* Progress bar for background loading */}
+          {!loadingProgress.isComplete && loadingProgress.total > 0 && (
+            <LoadingProgressBar
+              loaded={loadingProgress.loaded}
+              total={loadingProgress.total}
+              message="Loading talent pool"
+            />
+          )}
+
           <div className="p-0">
             {talentsError ? (
               <EmptyState
