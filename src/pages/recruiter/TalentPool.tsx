@@ -654,19 +654,45 @@ export default function TalentPool() {
         body: { organizationId, candidateIds: uniq },
       });
       if (error) throw error;
-      return data as any;
+      return { data, candidateIds: uniq };
     },
-    onSuccess: (data) => {
+    onMutate: async (candidateIds: string[]) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['talent-pool', organizationId] });
+
+      // Snapshot previous value
+      const previousTalents = queryClient.getQueryData(['talent-pool', organizationId]);
+
+      // Optimistically remove candidates from cache
+      queryClient.setQueryData(['talent-pool', organizationId], (old: any) => {
+        if (!old) return old;
+        return old.filter((t: any) => !candidateIds.includes(t.id));
+      });
+
+      // Close dialog immediately
+      setRemoveDialogOpen(false);
+      setRemoveCandidateIds([]);
+
+      return { previousTalents };
+    },
+    onSuccess: ({ data }) => {
       const deleted = Number((data as any)?.results?.deleted ?? 0);
       const skipped = Number((data as any)?.results?.skipped ?? 0);
       if (deleted > 0 && skipped === 0) toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
       else if (deleted > 0) toast.success(`Deleted ${deleted}, skipped ${skipped}`);
       else toast.error('Nothing was deleted');
+
+      // Refetch to ensure accuracy
       queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
     },
-    onError: (err: any) => {
+    onError: (err: any, _variables, context: any) => {
+      // Rollback on error
+      if (context?.previousTalents) {
+        queryClient.setQueryData(['talent-pool', organizationId], context.previousTalents);
+      }
       toast.error(err?.message || 'Failed to delete');
+      setRemoveDialogOpen(false);
     },
   });
 
@@ -1654,7 +1680,6 @@ export default function TalentPool() {
               disabled={deleteFromTalentPoolMutation.isPending}
               onClick={() => {
                 deleteFromTalentPoolMutation.mutate(removeCandidateIds);
-                setRemoveCandidateIds([]);
               }}
             >
               {deleteFromTalentPoolMutation.isPending ? 'Deleting…' : 'Delete'}
