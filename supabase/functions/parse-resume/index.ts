@@ -1659,8 +1659,8 @@ IMPORTANT:
       parseWarning = e?.message || "AI unavailable";
       parsed = heuristicParseResume(
         textContent || "",
-        (user.user_metadata as any)?.full_name || null,
-        user.email || extractedEmail || null,
+        null, // Don't use uploader's name as fallback - extract from resume or leave null
+        extractedEmail || null, // Use extracted email from resume, not uploader's email
       );
     }
 
