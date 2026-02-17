@@ -1783,6 +1783,17 @@ IMPORTANT:
       parseRetried ? `(retried: ${parseRetryReason})` : ""
     );
 
+    // CRITICAL: Name is mandatory - reject resume if we couldn't extract it
+    if (!parsed?.full_name || String(parsed.full_name).trim().length === 0) {
+      console.error("Resume parsing failed: Could not extract candidate name from resume");
+      return new Response(JSON.stringify({
+        error: "Could not extract name from resume. Please ensure the resume contains a clear name at the top, or try a different format."
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Include the chosen extracted text so clients can persist it and use it as a canonical source of truth
     // for later tailoring (prevents "missing bullets" when structured extraction is imperfect).
     const extracted_text = textContent || "";

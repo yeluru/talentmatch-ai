@@ -241,7 +241,13 @@ serve(async (req) => {
         const validatedLinkedin = validateUrl(profile.linkedin_url);
         const validatedGithub = pickFirstUrl((profile as any).github_url);
         const validatedWebsite = pickFirstUrl((profile as any).website, (profile as any).source_url);
-        const validatedName = sanitizeString(profile.full_name, 200) || "Unknown";
+        // Name is now mandatory - parse-resume rejects resumes without names
+        const validatedName = sanitizeString(profile.full_name, 200);
+        if (!validatedName) {
+          results.errors.push(`Missing name for profile: ${profile.email || 'unknown email'}`);
+          results.skipped++;
+          continue;
+        }
         const validatedLocation = sanitizeString(profile.location);
         const validatedTitle = sanitizeString(profile.headline || profile.current_title);
         const validatedCompany = sanitizeString(profile.current_company);
