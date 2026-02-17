@@ -550,6 +550,47 @@ export default function TalentPool() {
     onError: (e: any) => toast.error(e?.message || 'Failed to start engagement'),
   });
 
+  const startBulkEngagementMutation = useMutation({
+    mutationFn: async ({ candidateIds, jobId }: { candidateIds: string[]; jobId: string }) => {
+      if (!organizationId || !user) throw new Error('Not authorized');
+      if (!jobId) throw new Error('Select a job');
+
+      // Start engagement for each candidate
+      const results = await Promise.allSettled(
+        candidateIds.map(candidateId =>
+          supabase.rpc('start_engagement', {
+            _candidate_id: candidateId,
+            _job_id: jobId,
+          })
+        )
+      );
+
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error));
+      const succeeded = results.length - failed.length;
+
+      return { succeeded, failed: failed.length, total: results.length };
+    },
+    onSuccess: async ({ succeeded, failed, total }) => {
+      if (failed === 0) {
+        toast.success(`Started engagement for ${succeeded} candidate${succeeded === 1 ? '' : 's'}`);
+      } else if (succeeded > 0) {
+        toast.success(`Started engagement for ${succeeded} of ${total} candidates (${failed} failed)`);
+      } else {
+        toast.error('Failed to start engagements');
+      }
+      setEngageOpen(false);
+      setEngageCandidateId(null);
+      setEngageJobId('');
+      clearSelection();
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      await queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      navigate('/recruiter/pipeline');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to start engagements'),
+  });
+
   // Fetch shortlists for this organization
   const { data: shortlists } = useQuery({
     queryKey: ['shortlists', organizationId],
@@ -775,9 +816,9 @@ export default function TalentPool() {
 
   const handleBulkStartEngagement = () => {
     if (selectedIds.size === 0) return;
-    // For bulk engagement, we'll need to handle multiple candidates
-    // For now, show a message that this needs job selection
-    toast.info('Select candidates and use the engagement dialog');
+    // Use a special marker to indicate bulk operation
+    setEngageCandidateId('__BULK__');
+    setEngageOpen(true);
   };
 
   // Extract unique companies and locations for filter dropdowns
@@ -1650,6 +1691,11 @@ export default function TalentPool() {
         <DialogContent className="sm:max-w-lg max-w-full glass-panel border-white/20">
           <DialogHeader>
             <DialogTitle>Start engagement</DialogTitle>
+            {engageCandidateId === '__BULK__' && (
+              <DialogDescription>
+                Starting engagement for {selectedIds.size} candidate{selectedIds.size === 1 ? '' : 's'}
+              </DialogDescription>
+            )}
           </DialogHeader>
 
           <div className="space-y-4">
@@ -1673,17 +1719,24 @@ export default function TalentPool() {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEngageOpen(false)} disabled={startEngagementMutation.isPending} className="hover:bg-white/5">
+              <Button variant="outline" onClick={() => setEngageOpen(false)} disabled={startEngagementMutation.isPending || startBulkEngagementMutation.isPending} className="hover:bg-white/5">
                 Cancel
               </Button>
               <Button
                 onClick={() => {
                   if (!engageCandidateId) return;
-                  startEngagementMutation.mutate({ candidateId: engageCandidateId, jobId: engageJobId });
+                  if (engageCandidateId === '__BULK__') {
+                    startBulkEngagementMutation.mutate({
+                      candidateIds: Array.from(selectedIds),
+                      jobId: engageJobId,
+                    });
+                  } else {
+                    startEngagementMutation.mutate({ candidateId: engageCandidateId, jobId: engageJobId });
+                  }
                 }}
-                disabled={startEngagementMutation.isPending || !engageCandidateId || !engageJobId}
+                disabled={startEngagementMutation.isPending || startBulkEngagementMutation.isPending || !engageCandidateId || !engageJobId}
               >
-                {startEngagementMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {(startEngagementMutation.isPending || startBulkEngagementMutation.isPending) ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Start
               </Button>
             </div>
