@@ -594,9 +594,109 @@ export default function TalentPool() {
       }
 
       if (allProfiles.length > 0) {
-        // TODO: Process and merge these profiles with existing data
-        // For now, just mark as complete - full implementation requires processing skills, experience, etc.
-        console.log(`[TalentPool] Background loaded ${allProfiles.length} additional profiles`);
+        // Process and merge background profiles
+        console.log(`[TalentPool] Processing ${allProfiles.length} background profiles`);
+
+        // Dedupe
+        const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
+        const identityKey = (c: any) => {
+          const li = norm(c.linkedin_url);
+          if (li) return `li:${li}`;
+          const em = norm(c.email);
+          if (em) return `em:${em}`;
+          return `id:${String(c.id || '')}`;
+        };
+
+        const sorted = allProfiles.slice().sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        const byIdentity = new Map<string, any>();
+        for (const c of sorted) {
+          const k = identityKey(c);
+          if (!byIdentity.has(k)) byIdentity.set(k, c);
+        }
+        const deduped = Array.from(byIdentity.values());
+        const dedupedIds = deduped.map(c => c.id);
+
+        // Fetch skills, experience, and uploader data for background profiles
+        const BATCH_SIZE = 100;
+        const skillsMap = new Map<string, any[]>();
+        const experienceMap = new Map<string, any[]>();
+
+        try {
+          // Fetch skills
+          for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
+            const batch = dedupedIds.slice(i, i + BATCH_SIZE);
+            const { data: skills } = await supabase
+              .from('candidate_skills')
+              .select('candidate_id, skill_name')
+              .in('candidate_id', batch);
+            if (skills) {
+              skills.forEach(s => {
+                if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
+                skillsMap.get(s.candidate_id)!.push(s);
+              });
+            }
+          }
+
+          // Fetch experience
+          for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
+            const batch = dedupedIds.slice(i, i + BATCH_SIZE);
+            const { data: experience } = await supabase
+              .from('candidate_experience')
+              .select('candidate_id, company_name')
+              .in('candidate_id', batch);
+            if (experience) {
+              experience.forEach(e => {
+                if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
+                experienceMap.get(e.candidate_id)!.push(e);
+              });
+            }
+          }
+
+          // Fetch uploader data
+          const uploaderMap = new Map();
+          const { data: uploaderData } = await supabase
+            .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
+          if (uploaderData) {
+            uploaderData.forEach((u: any) => {
+              uploaderMap.set(u.candidate_id, {
+                email: u.uploader_email,
+                full_name: u.uploader_name
+              });
+            });
+          }
+
+          // Build complete profile objects
+          const processedProfiles = deduped.map(c => ({
+            ...c,
+            uploaded_by_user: uploaderMap.get(c.id) || null,
+            skills: skillsMap.get(c.id) || [],
+            companies: Array.from(new Set([
+              ...(experienceMap.get(c.id) || []).map((e: any) => e.company_name).filter(Boolean),
+              c.current_company
+            ].filter(Boolean))) as string[],
+          }));
+
+          // Merge with existing talents using queryClient
+          queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
+            if (!oldData) return processedProfiles;
+            // Dedupe combined list
+            const combined = [...oldData, ...processedProfiles];
+            const combinedMap = new Map();
+            for (const profile of combined) {
+              const k = identityKey(profile);
+              if (!combinedMap.has(k)) combinedMap.set(k, profile);
+            }
+            return Array.from(combinedMap.values()).sort((a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+          });
+
+          console.log(`[TalentPool] Merged ${processedProfiles.length} background profiles into cache`);
+        } catch (error) {
+          console.error('[TalentPool] Error processing background profiles:', error);
+        }
       }
 
       setLoadingProgress(prev => ({ ...prev, isComplete: true }));
