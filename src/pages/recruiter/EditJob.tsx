@@ -506,14 +506,30 @@ export default function EditJob() {
           )}
           <Button
             variant="outline"
-            onClick={() => updateJob.mutate('draft')}
+            onClick={() => {
+              console.log('[EditJob] Draft button clicked!', {
+                isValid,
+                isPending: updateJob.isPending,
+                formDataClientId: formData.client_id,
+                jobClientId: (job as any)?.client_id,
+              });
+              updateJob.mutate('draft');
+            }}
             disabled={!isValid || updateJob.isPending}
           >
             {updateJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Save as Draft
           </Button>
           <Button
-            onClick={() => updateJob.mutate('published')}
+            onClick={() => {
+              console.log('[EditJob] Update button clicked!', {
+                isValid,
+                isPending: updateJob.isPending,
+                formDataClientId: formData.client_id,
+                jobClientId: (job as any)?.client_id,
+              });
+              updateJob.mutate('published');
+            }}
             disabled={!isValid || updateJob.isPending}
           >
             {updateJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
