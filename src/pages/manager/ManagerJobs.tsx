@@ -34,6 +34,14 @@ interface Assignment {
   user_id: string;
 }
 
+interface PipelineStats {
+  applied: number;
+  screening: number;
+  interviewing: number;
+  submitted: number;
+  total: number;
+}
+
 export default function ManagerJobs() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { organizationId, user, isLoading: authLoading } = useAuth();
@@ -42,6 +50,8 @@ export default function ManagerJobs() {
   const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
   const [assignedNames, setAssignedNames] = useState<Record<string, string>>({});
   const [clientNames, setClientNames] = useState<Record<string, string>>({});
+  const [pipelineStats, setPipelineStats] = useState<Record<string, PipelineStats>>({});
+  const [lastActivity, setLastActivity] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const [assignDialogJobId, setAssignDialogJobId] = useState<string | null>(null);
@@ -87,7 +97,7 @@ export default function ManagerJobs() {
         const ownerIds = [...new Set((jobsData as Job[]).map((j) => j.recruiter_id))];
         const clientIds = [...new Set((jobsData as Job[]).map((j) => j.client_id).filter(Boolean))];
 
-        const [{ data: assignData }, { data: profiles }, { data: clients }] = await Promise.all([
+        const [{ data: assignData }, { data: profiles }, { data: clients }, { data: applications }] = await Promise.all([
           jobIds.length > 0
             ? supabase
                 .from('job_recruiter_assignments')
@@ -98,6 +108,12 @@ export default function ManagerJobs() {
           clientIds.length > 0
             ? supabase.from('clients').select('id, name').in('id', clientIds)
             : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+          jobIds.length > 0
+            ? supabase
+                .from('applications')
+                .select('job_id, status, applied_at')
+                .in('job_id', jobIds)
+            : Promise.resolve({ data: [] as { job_id: string; status: string; applied_at: string }[] }),
         ]);
 
         const assignList = (assignData || []) as Assignment[];
@@ -115,6 +131,34 @@ export default function ManagerJobs() {
         // Set client names
         const byClientId = new Map((clients || []).map((c: { id: string; name: string }) => [c.id, c.name]));
         setClientNames(Object.fromEntries([...byClientId]));
+
+        // Calculate pipeline stats per job
+        const statsMap: Record<string, PipelineStats> = {};
+        const activityMap: Record<string, string> = {};
+
+        jobIds.forEach((jobId: string) => {
+          const jobApps = (applications || []).filter((app: { job_id: string }) => app.job_id === jobId);
+
+          // Calculate pipeline stats
+          statsMap[jobId] = {
+            applied: jobApps.filter((a: { status: string }) => a.status === 'applied' || a.status === 'engaged').length,
+            screening: jobApps.filter((a: { status: string }) => a.status === 'screening' || a.status === 'reviewing').length,
+            interviewing: jobApps.filter((a: { status: string }) => a.status === 'interviewing').length,
+            submitted: jobApps.filter((a: { status: string }) => a.status === 'submission' || a.status === 'offered').length,
+            total: jobApps.length,
+          };
+
+          // Find last activity date
+          if (jobApps.length > 0) {
+            const sortedApps = [...jobApps].sort((a: { applied_at: string }, b: { applied_at: string }) =>
+              new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime()
+            );
+            activityMap[jobId] = sortedApps[0].applied_at;
+          }
+        });
+
+        setPipelineStats(statsMap);
+        setLastActivity(activityMap);
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -193,6 +237,28 @@ export default function ManagerJobs() {
       case 'closed': return 'bg-destructive/10 text-destructive';
       default: return 'bg-muted';
     }
+  };
+
+  const getDaysSinceLastActivity = (jobId: string) => {
+    const lastDate = lastActivity[jobId];
+    if (!lastDate) return null;
+    const last = new Date(lastDate);
+    const now = new Date();
+    return Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const isJobAtRisk = (job: Job) => {
+    if (job.status !== 'published') return false;
+    const daysSinceActivity = getDaysSinceLastActivity(job.id);
+    const stats = pipelineStats[job.id];
+
+    // At risk if: no activity in 7+ days, or open 30+ days with no submissions
+    if (daysSinceActivity !== null && daysSinceActivity >= 7) return true;
+
+    const daysOpen = job.posted_at ? Math.floor((new Date().getTime() - new Date(job.posted_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    if (daysOpen >= 30 && stats && stats.submitted === 0) return true;
+
+    return false;
   };
 
   if (isLoading) {
@@ -293,9 +359,12 @@ export default function ManagerJobs() {
               {jobs.map((job) => {
                 const assignedIds = getAssignedForJob(job.id);
                 const ownedByMe = isJobOwnedByMe(job);
+                const stats = pipelineStats[job.id];
+                const atRisk = isJobAtRisk(job);
+                const daysSinceActivity = getDaysSinceLastActivity(job.id);
                 return (
                   <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex flex-wrap items-center justify-between gap-4">
-                    <Link to={`/manager/jobs/${job.id}`} className="space-y-1 min-w-0 flex-1">
+                    <Link to={`/manager/jobs/${job.id}`} className="space-y-2 min-w-0 flex-1">
                       <p className="font-sans font-medium truncate hover:text-manager transition-colors cursor-pointer">{job.title}</p>
                       <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
                         {job.client_id && (
@@ -316,6 +385,18 @@ export default function ManagerJobs() {
                           {formatDate(job.posted_at)}
                         </span>
                       </div>
+                      {stats && stats.total > 0 && (
+                        <div className="flex items-center gap-2 text-xs font-sans font-medium text-foreground/70">
+                          <span className="text-blue-600 dark:text-blue-400">{stats.applied}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-yellow-600 dark:text-yellow-400">{stats.screening}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-purple-600 dark:text-purple-400">{stats.interviewing}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-green-600 dark:text-green-400 font-bold">{stats.submitted}</span>
+                          <span className="text-muted-foreground ml-1">({stats.total} total)</span>
+                        </div>
+                      )}
                     </Link>
                     <div className="flex items-center gap-4 shrink-0 text-sm font-sans text-muted-foreground">
                       <span title="Owner">Owner: {ownerNames[job.recruiter_id] ?? '—'}</span>
@@ -323,7 +404,7 @@ export default function ManagerJobs() {
                         Assigned: {assignedIds.length ? assignedIds.map((id) => assignedNames[id] ?? '—').join(', ') : '—'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
                       <div className="flex items-center gap-1 text-sm font-sans text-muted-foreground">
                         <Users className="h-4 w-4" strokeWidth={1.5} />
                         {job.applications_count || 0} applicants
@@ -331,6 +412,14 @@ export default function ManagerJobs() {
                       <Badge className={`font-sans ${getStatusColor(job.status || 'draft')}`}>
                         {job.status || 'draft'}
                       </Badge>
+                      {atRisk && (
+                        <Badge variant="destructive" className="font-sans">
+                          ⚠️ At Risk
+                          {daysSinceActivity !== null && daysSinceActivity >= 7 && (
+                            <span className="ml-1">({daysSinceActivity}d)</span>
+                          )}
+                        </Badge>
+                      )}
                       {ownedByMe && (
                         <Button
                           variant="outline"
