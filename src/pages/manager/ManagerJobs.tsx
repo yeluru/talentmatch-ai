@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Job {
@@ -82,6 +83,10 @@ export default function ManagerJobs() {
   const [assignDialogLoading, setAssignDialogLoading] = useState(false);
   const [selectedRecruiterIds, setSelectedRecruiterIds] = useState<Set<string>>(new Set());
   const [assignSaving, setAssignSaving] = useState(false);
+
+  const [clientDialogJobId, setClientDialogJobId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [clientSaving, setClientSaving] = useState(false);
 
   const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<any | null>(null);
   const [loadingJobDetails, setLoadingJobDetails] = useState(false);
@@ -311,6 +316,33 @@ export default function ManagerJobs() {
       toast.error((e as Error)?.message || 'Failed to update assignments');
     } finally {
       setAssignSaving(false);
+    }
+  };
+
+  const openClientDialog = (job: Job) => {
+    setClientDialogJobId(job.id);
+    setSelectedClientId(job.client_id || '');
+  };
+
+  const saveClientAssignment = async () => {
+    if (!clientDialogJobId || !selectedClientId) return;
+    setClientSaving(true);
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ client_id: selectedClientId })
+        .eq('id', clientDialogJobId);
+
+      if (error) throw error;
+
+      toast.success('Client assigned successfully');
+      setClientDialogJobId(null);
+      setSelectedClientId('');
+      fetchJobs();
+    } catch (e: unknown) {
+      toast.error((e as Error)?.message || 'Failed to assign client');
+    } finally {
+      setClientSaving(false);
     }
   };
 
@@ -641,12 +673,29 @@ export default function ManagerJobs() {
                           )}
                         </Badge>
                       )}
+                      {!job.client_id && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="font-sans"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openClientDialog(job);
+                          }}
+                        >
+                          <Building2 className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                          Assign Client
+                        </Button>
+                      )}
                       {isJobUnassigned(job.id) ? (
                         <Button
                           variant="destructive"
                           size="sm"
                           className="font-sans"
-                          onClick={() => openAssignDialog(job.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAssignDialog(job.id);
+                          }}
                         >
                           <AlertCircle className="h-4 w-4 mr-1" strokeWidth={1.5} />
                           Assign Recruiter
@@ -654,12 +703,15 @@ export default function ManagerJobs() {
                       ) : (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openAssignDialog(job.id)}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              openAssignDialog(job.id);
+                            }}>
                               <UserPlus className="h-4 w-4 mr-2" strokeWidth={1.5} />
                               Edit Assignments
                             </DropdownMenuItem>
@@ -713,6 +765,61 @@ export default function ManagerJobs() {
               <Button onClick={saveAssignments} disabled={assignSaving || assignDialogLoading} className="bg-manager hover:bg-manager/90">
                 {assignSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
                 Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!clientDialogJobId} onOpenChange={(open) => {
+          if (!open) {
+            setClientDialogJobId(null);
+            setSelectedClientId('');
+          }
+        }}>
+          <DialogContent className="sm:max-w-md max-w-full">
+            <DialogHeader>
+              <DialogTitle>Assign Client to Job</DialogTitle>
+              <DialogDescription>Select a client for this job. This can be changed later if needed.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="client-select">Client</Label>
+                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                  <SelectTrigger id="client-select">
+                    <SelectValue placeholder="Select a client">
+                      {selectedClientId && allClients.find(c => c.id === selectedClientId)?.name}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allClients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          {client.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                    {allClients.length === 0 && (
+                      <div className="px-2 py-3 text-sm text-muted-foreground">
+                        No active clients available
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setClientDialogJobId(null);
+                setSelectedClientId('');
+              }}>Cancel</Button>
+              <Button
+                onClick={saveClientAssignment}
+                disabled={clientSaving || !selectedClientId}
+                className="bg-manager hover:bg-manager/90"
+              >
+                {clientSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" strokeWidth={1.5} /> : null}
+                Assign Client
               </Button>
             </DialogFooter>
           </DialogContent>
