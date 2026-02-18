@@ -8,20 +8,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
-import { applicationStageColumnKey } from '@/lib/statusOptions';
+import { applicationStageColumnKey, PIPELINE_STAGE_ORDER, type ApplicationStage, type FinalOutcome } from '@/lib/statusOptions';
 
-const APP_STATUS_ORDER = ['outreach', 'applied', 'rtr_rate', 'document_check', 'screening', 'submission', 'client_shortlist', 'client_interview', 'offered', 'hired'];
+// Unified pipeline stages (7 stages matching current design)
+const PIPELINE_STAGES: ApplicationStage[] = PIPELINE_STAGE_ORDER;
 
-type EngagementRow = {
+// Final outcomes (shown separately from pipeline stages)
+const FINAL_OUTCOMES: FinalOutcome[] = ['hired', 'job_offered', 'client_rejected', 'candidate_declined', 'withdrawn'];
+
+type ApplicationRow = {
   id: string;
-  stage: string;
+  status: string;
+  outcome: string | null;
   updated_at: string;
-  owner_user_id: string | null;
+  candidate_id: string;
+  job_id: string;
   candidate_profiles: { full_name: string | null } | null;
   jobs: { title: string } | null;
 };
-
-const STAGES = ['outreach', 'applied', 'rtr_rate', 'document_check', 'screening', 'submission', 'client_shortlist', 'client_interview', 'offered', 'hired', 'rejected', 'withdrawn'];
 
 export default function ManagerRecruiterProgress() {
   const { recruiterUserId } = useParams();
@@ -69,40 +73,7 @@ export default function ManagerRecruiterProgress() {
     enabled: !!recruiterUserId && !!assignmentOk,
   });
 
-  const { data: engagements, isLoading } = useQuery({
-    queryKey: ['recruiter-engagements-by-owner', organizationId, recruiterUserId],
-    queryFn: async (): Promise<EngagementRow[]> => {
-      if (!organizationId || !recruiterUserId) return [];
-      const { data, error } = await supabase
-        .from('candidate_engagements')
-        .select(
-          `
-          id, stage, updated_at, owner_user_id,
-          candidate_profiles:candidate_id(full_name),
-          jobs:job_id(title)
-        `
-        )
-        .eq('organization_id', organizationId)
-        .eq('owner_user_id', recruiterUserId)
-        .order('updated_at', { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data || []) as any;
-    },
-    enabled: !!organizationId && !!recruiterUserId && !!assignmentOk,
-  });
-
-  const counts = useMemo(() => {
-    const map: Record<string, number> = {};
-    STAGES.forEach((s) => (map[s] = 0));
-    (engagements || []).forEach((e) => {
-      const k = applicationStageColumnKey(e.stage) ?? String(e.stage || 'outreach');
-      map[k] = (map[k] || 0) + 1;
-    });
-    return map;
-  }, [engagements]);
-
-  // Application pipeline: jobs owned by this recruiter, applications by status
+  // Fetch recruiter's jobs
   const { data: recruiterJobs } = useQuery({
     queryKey: ['recruiter-jobs-for-progress', organizationId, recruiterUserId],
     queryFn: async () => {
@@ -119,27 +90,93 @@ export default function ManagerRecruiterProgress() {
   });
   const recruiterJobIds = (recruiterJobs || []).map((j: { id: string }) => j.id);
 
-  const { data: applications } = useQuery({
-    queryKey: ['recruiter-applications-by-status', recruiterJobIds],
-    queryFn: async () => {
+  // Fetch applications on recruiter's jobs
+  const { data: applications, isLoading } = useQuery({
+    queryKey: ['recruiter-applications-for-progress', recruiterJobIds],
+    queryFn: async (): Promise<ApplicationRow[]> => {
       if (recruiterJobIds.length === 0) return [];
-      const { data, error } = await supabase
+
+      // Try with outcome field first
+      let query = supabase
         .from('applications')
-        .select('id, status')
-        .in('job_id', recruiterJobIds);
-      if (error) throw error;
-      return (data || []) as { id: string; status: string }[];
+        .select(`
+          id, status, outcome, updated_at, candidate_id, job_id,
+          candidate_profiles:candidate_id(full_name),
+          jobs:job_id(title)
+        `)
+        .in('job_id', recruiterJobIds)
+        .order('updated_at', { ascending: false })
+        .limit(200);
+
+      let result = await query;
+
+      // Fallback if outcome column doesn't exist
+      if (result.error && (result.error.message?.includes('outcome') || result.error.code === '42703')) {
+        query = supabase
+          .from('applications')
+          .select(`
+            id, status, updated_at, candidate_id, job_id,
+            candidate_profiles:candidate_id(full_name),
+            jobs:job_id(title)
+          `)
+          .in('job_id', recruiterJobIds)
+          .order('updated_at', { ascending: false })
+          .limit(200);
+        result = await query;
+      }
+
+      if (result.error) throw result.error;
+      return (result.data || []) as any;
     },
     enabled: recruiterJobIds.length > 0,
   });
-  const appByStatus = useMemo(() => {
-    const map: Record<string, number> = {};
-    APP_STATUS_ORDER.forEach((s) => (map[s] = 0));
-    (applications || []).forEach((a) => {
-      const s = applicationStageColumnKey(a.status) ?? a.status ?? 'applied';
-      map[s] = (map[s] || 0) + 1;
+
+  // Count by pipeline stage (combining outreach + applied into one)
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      'engaged_applied': 0, // Combined outreach + applied
+      'rtr_rate': 0,
+      'document_check': 0,
+      'screening': 0,
+      'submission': 0,
+      'final_update': 0,
+    };
+
+    (applications || []).forEach((app) => {
+      const stage = applicationStageColumnKey(app.status) ?? (app.status as ApplicationStage);
+
+      // Combine outreach and applied
+      if (stage === 'outreach' || stage === 'applied') {
+        counts['engaged_applied']++;
+      } else if (stage && counts.hasOwnProperty(stage)) {
+        counts[stage]++;
+      }
     });
-    return map;
+
+    return counts;
+  }, [applications]);
+
+  // Count outcomes separately (within final_update stage)
+  const outcomeCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      'hired': 0,
+      'job_offered': 0,
+      'client_rejected': 0,
+      'candidate_declined': 0,
+      'withdrawn': 0,
+    };
+
+    (applications || []).forEach((app) => {
+      const stage = applicationStageColumnKey(app.status) ?? app.status;
+      if (stage === 'final_update' && app.outcome) {
+        const outcome = app.outcome.toLowerCase();
+        if (counts.hasOwnProperty(outcome)) {
+          counts[outcome]++;
+        }
+      }
+    });
+
+    return counts;
   }, [applications]);
 
   if (loadingAssign) {
@@ -226,96 +263,144 @@ export default function ManagerRecruiterProgress() {
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto pb-6">
           <div className="space-y-8">
-            {/* Application pipeline */}
+            {/* Pipeline Breakdown */}
             <section className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
               <div className="flex items-center gap-2 mb-1">
                 <FileText className="h-5 w-5 text-manager shrink-0" strokeWidth={1.5} />
-                <h2 className="font-display text-lg font-bold text-foreground">Application pipeline</h2>
+                <h2 className="font-display text-lg font-bold text-foreground">Pipeline Breakdown</h2>
               </div>
               <p className="text-sm text-muted-foreground font-sans mb-4">
-                Applications on this recruiter&apos;s jobs by status.
+                Candidates in each pipeline stage for this recruiter&apos;s jobs.
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                {APP_STATUS_ORDER.map((s) => (
-                  <div
-                    key={s}
-                    className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20"
-                  >
-                    <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      {s.replace(/_/g, ' ')}
-                    </p>
-                    <p className="text-2xl font-display font-bold text-foreground tabular-nums">{appByStatus[s] ?? 0}</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Engaged/Applied
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{stageCounts['engaged_applied'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    RTR & Rate
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{stageCounts['rtr_rate'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Document Check
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{stageCounts['document_check'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Screening
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{stageCounts['screening'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Submission
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{stageCounts['submission'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Outcome
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{stageCounts['final_update'] ?? 0}</p>
+                </div>
               </div>
               <Button variant="ghost" size="sm" asChild className="rounded-lg text-manager hover:bg-manager/10 font-sans font-medium mt-4">
                 <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                  Open full Application Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
+                  Open Full Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
                 </Link>
               </Button>
             </section>
 
-            {/* Engagement pipeline stages */}
+            {/* Outcomes */}
             <section className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
               <div className="flex items-center gap-2 mb-1">
                 <Users className="h-5 w-5 text-manager shrink-0" strokeWidth={1.5} />
-                <h2 className="font-display text-lg font-bold text-foreground">Engagement pipeline</h2>
+                <h2 className="font-display text-lg font-bold text-foreground">Outcomes</h2>
               </div>
               <p className="text-sm text-muted-foreground font-sans mb-4">
-                Candidates in each engagement stage (sourced by this recruiter).
+                Final outcomes for candidates who reached the outcome stage.
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                {STAGES.map((s) => (
-                  <div
-                    key={s}
-                    className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20"
-                  >
-                    <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      {s.replaceAll('_', ' ')}
-                    </p>
-                    <p className="text-2xl font-display font-bold text-foreground tabular-nums">{counts[s] ?? 0}</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="rounded-xl border border-border bg-success/10 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-success/30">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Hired
+                  </p>
+                  <p className="text-2xl font-display font-bold text-success tabular-nums">{outcomeCounts['hired'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-green-500/10 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-green-500/30">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Job Offered
+                  </p>
+                  <p className="text-2xl font-display font-bold text-green-600 dark:text-green-400 tabular-nums">{outcomeCounts['job_offered'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-destructive/10 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-destructive/30">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Client Rejected
+                  </p>
+                  <p className="text-2xl font-display font-bold text-destructive tabular-nums">{outcomeCounts['client_rejected'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-orange-500/10 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-orange-500/30">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Candidate Declined
+                  </p>
+                  <p className="text-2xl font-display font-bold text-orange-600 dark:text-orange-400 tabular-nums">{outcomeCounts['candidate_declined'] ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 min-h-[88px] flex flex-col justify-center transition-all duration-300 hover:border-manager/20">
+                  <p className="text-xs font-sans font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Withdrawn
+                  </p>
+                  <p className="text-2xl font-display font-bold text-foreground tabular-nums">{outcomeCounts['withdrawn'] ?? 0}</p>
+                </div>
               </div>
-              <Button variant="ghost" size="sm" asChild className="rounded-lg text-manager hover:bg-manager/10 font-sans font-medium mt-4">
-                <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
-                  Open full Pipeline <ArrowUpRight className="ml-1 h-3 w-3 inline" strokeWidth={1.5} />
-                </Link>
-              </Button>
             </section>
 
-            {/* Recent engagements */}
+            {/* Recent Activity */}
             <section className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
               <div className="flex items-center gap-2 mb-1">
                 <Users className="h-5 w-5 text-manager shrink-0" strokeWidth={1.5} />
-                <h2 className="font-display text-lg font-bold text-foreground">Recent engagements</h2>
+                <h2 className="font-display text-lg font-bold text-foreground">Recent Activity</h2>
               </div>
               <p className="text-sm text-muted-foreground font-sans mb-4">
-                Latest engagements owned by this recruiter.
+                Latest applications on this recruiter&apos;s jobs.
               </p>
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-manager" strokeWidth={1.5} />
                 </div>
-              ) : (engagements || []).length === 0 ? (
-                <p className="text-sm font-sans text-muted-foreground py-6">No engagements yet.</p>
+              ) : (applications || []).length === 0 ? (
+                <p className="text-sm font-sans text-muted-foreground py-6">No applications yet.</p>
               ) : (
                 <ul className="space-y-3">
-                  {(engagements || []).map((e) => (
-                    <li key={e.id}>
-                      <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-4 bg-muted/30 hover:bg-manager/5 hover:border-manager/20 transition-all">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-sans font-medium text-foreground truncate">{e.candidate_profiles?.full_name || 'Candidate'}</p>
-                          <p className="text-sm font-sans text-muted-foreground truncate mt-0.5">
-                            {e.jobs?.title ?? 'No job'} · {new Date(e.updated_at).toLocaleString()}
-                          </p>
+                  {(applications || []).slice(0, 10).map((app) => {
+                    const stage = applicationStageColumnKey(app.status) ?? app.status;
+                    const stageLabel = stage === 'outreach' || stage === 'applied' ? 'Engaged/Applied' :
+                                      stage === 'rtr_rate' ? 'RTR & Rate' :
+                                      stage === 'document_check' ? 'Document Check' :
+                                      stage === 'final_update' && app.outcome ? app.outcome.replace(/_/g, ' ') :
+                                      String(stage || '').replace(/_/g, ' ');
+
+                    return (
+                      <li key={app.id}>
+                        <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-4 bg-muted/30 hover:bg-manager/5 hover:border-manager/20 transition-all">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-sans font-medium text-foreground truncate">{app.candidate_profiles?.full_name || 'Candidate'}</p>
+                            <p className="text-sm font-sans text-muted-foreground truncate mt-0.5">
+                              {app.jobs?.title ?? 'No job'} · {new Date(app.updated_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0 font-sans text-xs border-manager/20 bg-manager/10 text-manager capitalize">
+                            {stageLabel}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="shrink-0 font-sans text-xs border-manager/20 bg-manager/10 text-manager capitalize">
-                          {String(e.stage || 'started').replaceAll('_', ' ')}
-                        </Badge>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
