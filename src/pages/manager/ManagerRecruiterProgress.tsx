@@ -31,14 +31,30 @@ export default function ManagerRecruiterProgress() {
     queryKey: ['am-assignment-check', organizationId, user?.id, recruiterUserId],
     queryFn: async () => {
       if (!organizationId || !user?.id || !recruiterUserId) return false;
-      const { data } = await supabase
+
+      // Check if this specific recruiter is assigned to this AM
+      const { data: specificAssignment } = await supabase
         .from('account_manager_recruiter_assignments')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('account_manager_user_id', user.id)
         .eq('recruiter_user_id', recruiterUserId)
         .maybeSingle();
-      return !!data;
+
+      if (specificAssignment) return true;
+
+      // If no specific assignment, check if ANY assignments exist for this AM
+      // If none exist (single-AM org), allow viewing all recruiters
+      const { data: anyAssignments } = await supabase
+        .from('account_manager_recruiter_assignments')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('account_manager_user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+
+      // If this AM has no assignments at all, allow viewing (single-AM fallback)
+      return !anyAssignments;
     },
     enabled: !!organizationId && !!user?.id && !!recruiterUserId,
   });
