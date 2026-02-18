@@ -90,9 +90,9 @@ export default function ManagerRecruiterProgress() {
   });
   const recruiterJobIds = (recruiterJobs || []).map((j: { id: string }) => j.id);
 
-  // Fetch applications on recruiter's jobs
+  // Fetch applications on recruiter's jobs (with ownership filtering)
   const { data: applications, isLoading } = useQuery({
-    queryKey: ['recruiter-applications-for-progress', recruiterJobIds],
+    queryKey: ['recruiter-applications-for-progress', recruiterJobIds, recruiterUserId],
     queryFn: async (): Promise<ApplicationRow[]> => {
       if (recruiterJobIds.length === 0) return [];
 
@@ -102,7 +102,7 @@ export default function ManagerRecruiterProgress() {
         .select(`
           id, status, outcome, updated_at, candidate_id, job_id,
           candidate_profiles:candidate_id(full_name),
-          jobs:job_id(title)
+          jobs:job_id(title, recruiter_id)
         `)
         .in('job_id', recruiterJobIds)
         .order('updated_at', { ascending: false })
@@ -117,7 +117,7 @@ export default function ManagerRecruiterProgress() {
           .select(`
             id, status, updated_at, candidate_id, job_id,
             candidate_profiles:candidate_id(full_name),
-            jobs:job_id(title)
+            jobs:job_id(title, recruiter_id)
           `)
           .in('job_id', recruiterJobIds)
           .order('updated_at', { ascending: false })
@@ -126,7 +126,37 @@ export default function ManagerRecruiterProgress() {
       }
 
       if (result.error) throw result.error;
-      return (result.data || []) as any;
+      let apps = (result.data || []) as any[];
+
+      // Filter by engagement ownership (same logic as recruiter's pipeline view)
+      if (recruiterUserId && recruiterJobIds.length > 0) {
+        const { data: engagements } = await supabase
+          .from('candidate_engagements')
+          .select('job_id, candidate_id, owner_user_id')
+          .in('job_id', recruiterJobIds);
+
+        const engagementOwnerByKey = new Map<string, string>(
+          (engagements ?? []).map((e: any) => [
+            `${e.job_id},${e.candidate_id}`,
+            e.owner_user_id ?? '',
+          ])
+        );
+
+        apps = apps.filter((app: any) => {
+          const key = `${app.job_id},${app.candidate_id}`;
+          const engagementOwner = engagementOwnerByKey.get(key);
+
+          // If engagement exists with owner, check if it matches this recruiter
+          if (engagementOwner != null && engagementOwner !== '') {
+            return engagementOwner === recruiterUserId;
+          }
+
+          // Otherwise, check if job's recruiter_id matches
+          return app.jobs?.recruiter_id === recruiterUserId;
+        });
+      }
+
+      return apps;
     },
     enabled: recruiterJobIds.length > 0,
   });
