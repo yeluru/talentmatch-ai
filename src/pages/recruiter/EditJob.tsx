@@ -19,8 +19,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Briefcase, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, X, Loader2, Building2, AlertCircle, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function EditJob() {
   const { user, roles } = useAuth();
@@ -44,10 +45,28 @@ export default function EditJob() {
     required_skills: [] as string[],
     nice_to_have_skills: [] as string[],
     status: 'draft' as string,
+    client_id: '' as string,
   });
 
   const [newSkill, setNewSkill] = useState('');
   const [newNiceSkill, setNewNiceSkill] = useState('');
+
+  // Fetch active clients for this organization
+  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+    queryKey: ['clients', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, status')
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', jobId],
@@ -55,7 +74,10 @@ export default function EditJob() {
       if (!jobId) throw new Error('No job ID');
       const { data, error } = await supabase
         .from('jobs')
-        .select('*')
+        .select(`
+          *,
+          client:clients(id, name, status)
+        `)
         .eq('id', jobId)
         .single();
       if (error) throw error;
@@ -80,6 +102,7 @@ export default function EditJob() {
         required_skills: job.required_skills || [],
         nice_to_have_skills: job.nice_to_have_skills || [],
         status: job.status || 'draft',
+        client_id: (job as any).client_id || '',
       });
     }
   }, [job]);
@@ -87,10 +110,11 @@ export default function EditJob() {
   const updateJob = useMutation({
     mutationFn: async (newStatus?: 'draft' | 'published' | 'closed') => {
       if (!user || !organizationId || !jobId) throw new Error('Not authorized');
-      
+
       const status = newStatus || formData.status;
-      
-      const { error } = await supabase.from('jobs').update({
+
+      // Build update payload
+      const updatePayload: any = {
         title: formData.title,
         description: formData.description,
         location: formData.location || null,
@@ -104,11 +128,18 @@ export default function EditJob() {
         required_skills: formData.required_skills,
         nice_to_have_skills: formData.nice_to_have_skills,
         status,
-        posted_at: status === 'published' && job?.status !== 'published' 
-          ? new Date().toISOString() 
+        posted_at: status === 'published' && job?.status !== 'published'
+          ? new Date().toISOString()
           : job?.posted_at,
-      }).eq('id', jobId);
-      
+      };
+
+      // Only allow setting client_id if not already set (cannot change once assigned)
+      if (formData.client_id && !(job as any)?.client_id) {
+        updatePayload.client_id = formData.client_id;
+      }
+
+      const { error } = await supabase.from('jobs').update(updatePayload).eq('id', jobId);
+
       if (error) throw error;
       return status;
     },
@@ -204,6 +235,55 @@ export default function EditJob() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="client">Client *</Label>
+              {(job as any)?.client_id ? (
+                // Client already assigned - show as read-only
+                <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-muted/50">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="flex-1">{(job as any).client?.name || 'Unknown Client'}</span>
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                </div>
+              ) : (
+                // No client assigned yet - allow selection
+                <>
+                  <Select
+                    value={formData.client_id}
+                    onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+                  >
+                    <SelectTrigger id="client" className="w-full">
+                      <SelectValue placeholder={clientsLoading ? "Loading clients..." : clients.length === 0 ? "No active clients available" : "Select a client"}>
+                        {formData.client_id && clients.find(c => c.id === formData.client_id)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            {client.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!formData.client_id && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        This job needs a client assigned. Please select a client before saving.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {(job as any)?.client_id
+                  ? "Client cannot be changed once assigned."
+                  : "Select which client this job is for. This cannot be changed later."}
+              </p>
             </div>
 
             <div className="space-y-2">

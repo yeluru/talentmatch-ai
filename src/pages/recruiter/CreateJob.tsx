@@ -18,10 +18,11 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Wand2, X, Loader2 } from 'lucide-react';
+import { Sparkles, Wand2, X, Loader2, Building2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function CreateJob() {
   const { user, roles } = useAuth();
@@ -29,6 +30,23 @@ export default function CreateJob() {
   const queryClient = useQueryClient();
   
   const organizationId = orgIdForRecruiterSuite(roles);
+
+  // Fetch active clients for this organization
+  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+    queryKey: ['clients', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, status')
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
 
   const [mode, setMode] = useState<'paste' | 'manual'>('paste');
   const [jdText, setJdText] = useState('');
@@ -49,6 +67,7 @@ export default function CreateJob() {
     responsibilities: '',
     required_skills: [] as string[],
     nice_to_have_skills: [] as string[],
+    client_id: '' as string,
   });
 
   const [newSkill, setNewSkill] = useState('');
@@ -59,7 +78,12 @@ export default function CreateJob() {
   const createJob = useMutation({
     mutationFn: async (status: 'draft' | 'published') => {
       if (!user || !organizationId) throw new Error('Not authorized');
-      
+
+      // Validate client is selected (hard block)
+      if (!formData.client_id) {
+        throw new Error('Please select a client for this job');
+      }
+
       const { data, error } = await supabase.from('jobs').insert({
         title: formData.title,
         description: formData.description,
@@ -76,10 +100,11 @@ export default function CreateJob() {
         recruiter_id: user.id,
         created_by: user.id,
         organization_id: organizationId,
+        client_id: formData.client_id,
         status,
         posted_at: status === 'published' ? new Date().toISOString() : null,
       }).select('id').single();
-      
+
       if (error) throw error;
       return { jobId: data?.id, status };
     },
@@ -124,7 +149,7 @@ export default function CreateJob() {
     }
   };
 
-  const isValid = formData.title.trim() && formData.description.trim();
+  const isValid = formData.title.trim() && formData.description.trim() && formData.client_id;
 
   const dbWorkMode = (jobType: any): 'onsite' | 'hybrid' | 'remote' | 'unknown' => {
     switch (jobType) {
@@ -335,6 +360,41 @@ export default function CreateJob() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="client">Client *</Label>
+              <Select
+                value={formData.client_id}
+                onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+              >
+                <SelectTrigger id="client" className="w-full">
+                  <SelectValue placeholder={clientsLoading ? "Loading clients..." : clients.length === 0 ? "No active clients available" : "Select a client"}>
+                    {formData.client_id && clients.find(c => c.id === formData.client_id)?.name}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {client.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {clients.length === 0 && !clientsLoading && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No active clients found. Please create a client in Client Management before creating a job.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Select which client this job is for. This cannot be changed later.
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -35,7 +35,9 @@ import {
   Pencil,
   XCircle,
   CheckCircle2,
-  RotateCcw
+  RotateCcw,
+  Building2,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -54,6 +56,7 @@ export default function RecruiterJobs() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [clientFilter, setClientFilter] = useState<string>('all');
   const isMobile = useIsMobile();
 
   const organizationId = orgIdForRecruiterSuite(roles);
@@ -76,7 +79,8 @@ export default function RecruiterJobs() {
         .from('jobs')
         .select(`
           *,
-          organization:organizations(name)
+          organization:organizations(name),
+          client:clients(id, name, status)
         `)
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
@@ -86,6 +90,22 @@ export default function RecruiterJobs() {
       const { data, error } = await q;
       if (error) throw error;
       return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  // Fetch all clients for filter dropdown
+  const { data: allClients = [] } = useQuery({
+    queryKey: ['clients', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, status')
+        .eq('organization_id', organizationId)
+        .order('name');
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!organizationId,
   });
@@ -189,7 +209,11 @@ export default function RecruiterJobs() {
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.location?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesClient =
+      clientFilter === 'all' ||
+      (clientFilter === 'no-client' && !(job as any).client_id) ||
+      (job as any).client_id === clientFilter;
+    return matchesSearch && matchesStatus && matchesClient;
   });
 
   const getStatusBadge = (status: string) => {
@@ -266,6 +290,28 @@ export default function RecruiterJobs() {
               <SelectItem value="closed">Closed</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+              <SelectValue placeholder="Client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clients</SelectItem>
+              <SelectItem value="no-client">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <span>No Client Assigned</span>
+                </div>
+              </SelectItem>
+              {allClients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    {client.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {!filteredJobs?.length ? (
@@ -312,6 +358,17 @@ export default function RecruiterJobs() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground font-sans">
+                      <span className="flex items-center gap-1.5">
+                        <Building2 className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
+                        {(job as any).client?.name ? (
+                          <span className="truncate">{(job as any).client.name}</span>
+                        ) : (
+                          <span className="text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            No Client - <Link to={`/recruiter/jobs/${job.id}/edit`} className="underline hover:text-destructive/80">Assign Now</Link>
+                          </span>
+                        )}
+                      </span>
                       {job.recruiter_id && job.recruiter_id !== user?.id && (
                         <span className="flex items-center gap-1.5">
                           <Briefcase className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
