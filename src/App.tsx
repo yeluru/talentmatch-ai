@@ -74,6 +74,7 @@ const ManagerDashboard = lazy(() => import("./pages/manager/ManagerDashboard"));
 const ManagerTeam = lazy(() => import("./pages/manager/ManagerTeam"));
 const ManagerRecruiterProgress = lazy(() => import("./pages/manager/ManagerRecruiterProgress"));
 const ManagerJobs = lazy(() => import("./pages/manager/ManagerJobs"));
+const ManagerJobDetail = lazy(() => import("./pages/manager/ManagerJobDetail"));
 const ManagerCandidates = lazy(() => import("./pages/manager/ManagerCandidates"));
 const ManagerOrganization = lazy(() => import("./pages/manager/ManagerOrganization"));
 const ClientManagement = lazy(() => import("./pages/manager/ClientManagement"));
@@ -512,6 +513,16 @@ const App = () => (
                       <ProtectedRoute allowedRoles={["account_manager"]}>
                         <RouteErrorBoundary title="Manager jobs failed to load">
                           {withSuspense(<ManagerJobs />)}
+                        </RouteErrorBoundary>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/manager/jobs/:jobId"
+                    element={
+                      <ProtectedRoute allowedRoles={["account_manager"]}>
+                        <RouteErrorBoundary title="Job details failed to load">
+                          {withSuspense(<ManagerJobDetail />)}
                         </RouteErrorBoundary>
                       </ProtectedRoute>
                     }

@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus } from 'lucide-react';
+import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -26,6 +26,7 @@ interface Job {
   posted_at: string | null;
   is_remote: boolean;
   recruiter_id: string;
+  client_id: string | null;
 }
 
 interface Assignment {
@@ -40,6 +41,7 @@ export default function ManagerJobs() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
   const [assignedNames, setAssignedNames] = useState<Record<string, string>>({});
+  const [clientNames, setClientNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const [assignDialogJobId, setAssignDialogJobId] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export default function ManagerJobs() {
     try {
       const { data: jobsData } = await supabase
         .from('jobs')
-        .select('id, title, location, status, applications_count, posted_at, is_remote, recruiter_id')
+        .select('id, title, location, status, applications_count, posted_at, is_remote, recruiter_id, client_id')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false });
 
@@ -83,8 +85,9 @@ export default function ManagerJobs() {
         setJobs(jobsData as Job[]);
         const jobIds = jobsData.map((j: { id: string }) => j.id);
         const ownerIds = [...new Set((jobsData as Job[]).map((j) => j.recruiter_id))];
+        const clientIds = [...new Set((jobsData as Job[]).map((j) => j.client_id).filter(Boolean))];
 
-        const [{ data: assignData }, { data: profiles }] = await Promise.all([
+        const [{ data: assignData }, { data: profiles }, { data: clients }] = await Promise.all([
           jobIds.length > 0
             ? supabase
                 .from('job_recruiter_assignments')
@@ -92,6 +95,9 @@ export default function ManagerJobs() {
                 .in('job_id', jobIds)
             : Promise.resolve({ data: [] as Assignment[] }),
           supabase.from('profiles').select('user_id, full_name, email').in('user_id', ownerIds),
+          clientIds.length > 0
+            ? supabase.from('clients').select('id, name').in('id', clientIds)
+            : Promise.resolve({ data: [] as { id: string; name: string }[] }),
         ]);
 
         const assignList = (assignData || []) as Assignment[];
@@ -105,6 +111,10 @@ export default function ManagerJobs() {
         const byUserId = new Map((allProfiles || []).map((p: { user_id: string; full_name: string | null; email: string }) => [p.user_id, p.full_name || p.email || p.user_id]));
         setOwnerNames(Object.fromEntries([...byUserId]));
         setAssignedNames(Object.fromEntries([...byUserId]));
+
+        // Set client names
+        const byClientId = new Map((clients || []).map((c: { id: string; name: string }) => [c.id, c.name]));
+        setClientNames(Object.fromEntries([...byClientId]));
       }
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -285,9 +295,15 @@ export default function ManagerJobs() {
                 const ownedByMe = isJobOwnedByMe(job);
                 return (
                   <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex flex-wrap items-center justify-between gap-4">
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <p className="font-sans font-medium truncate">{job.title}</p>
+                    <Link to={`/manager/jobs/${job.id}`} className="space-y-1 min-w-0 flex-1">
+                      <p className="font-sans font-medium truncate hover:text-manager transition-colors cursor-pointer">{job.title}</p>
                       <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
+                        {job.client_id && (
+                          <span className="flex items-center gap-1">
+                            <Building2 className="h-3 w-3" strokeWidth={1.5} />
+                            {clientNames[job.client_id] || 'Unknown Client'}
+                          </span>
+                        )}
                         {job.location && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" strokeWidth={1.5} />
@@ -300,7 +316,7 @@ export default function ManagerJobs() {
                           {formatDate(job.posted_at)}
                         </span>
                       </div>
-                    </div>
+                    </Link>
                     <div className="flex items-center gap-4 shrink-0 text-sm font-sans text-muted-foreground">
                       <span title="Owner">Owner: {ownerNames[job.recruiter_id] ?? '—'}</span>
                       <span title="Assigned to">

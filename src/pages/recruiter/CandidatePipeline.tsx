@@ -309,6 +309,17 @@ export default function CandidatePipeline() {
     enabled: !!organizationId,
   });
 
+  // Auto-select job from query parameter if provided
+  useEffect(() => {
+    const jobParam = searchParams.get('job');
+    if (jobParam && jobs && jobs.length > 0) {
+      const jobExists = jobs.some((j: { id: string }) => j.id === jobParam);
+      if (jobExists && selectedJob === 'all') {
+        setSelectedJob(jobParam);
+      }
+    }
+  }, [jobs, searchParams, selectedJob]);
+
   const { data: ownerProfile } = useQuery({
     queryKey: ['owner-profile-pipeline', viewAsOwnerId],
     queryFn: async () => {
