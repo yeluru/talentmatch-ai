@@ -151,15 +151,21 @@ export default function EditJob() {
       }
 
       console.log('[EditJob] Update payload:', updatePayload);
+      console.log('[EditJob] client_id in payload?', 'client_id' in updatePayload, updatePayload.client_id);
 
-      const { error } = await supabase.from('jobs').update(updatePayload).eq('id', jobId);
+      const { data, error } = await supabase
+        .from('jobs')
+        .update(updatePayload)
+        .eq('id', jobId)
+        .select('id, title, client_id');
 
       if (error) {
         console.error('[EditJob] Update error:', error);
         throw error;
       }
 
-      console.log('[EditJob] Update successful');
+      console.log('[EditJob] Update successful, returned data:', data);
+      console.log('[EditJob] Client ID after update:', data?.[0]?.client_id);
       return status;
     },
     onSuccess: (status) => {
