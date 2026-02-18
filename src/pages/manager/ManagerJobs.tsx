@@ -10,10 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2, MoreVertical, AlertCircle, Search } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2, MoreVertical, AlertCircle, Search, Pencil, ExternalLink, TrendingUp, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -24,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Job {
   id: string;
@@ -52,6 +60,7 @@ interface PipelineStats {
 
 export default function ManagerJobs() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { organizationId, user, isLoading: authLoading } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -73,6 +82,8 @@ export default function ManagerJobs() {
   const [assignDialogLoading, setAssignDialogLoading] = useState(false);
   const [selectedRecruiterIds, setSelectedRecruiterIds] = useState<Set<string>>(new Set());
   const [assignSaving, setAssignSaving] = useState(false);
+
+  const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<Job | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -497,12 +508,15 @@ export default function ManagerJobs() {
               <SelectItem value="no-client">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-destructive" />
-                  No Client
+                  <span>No Client Assigned</span>
                 </div>
               </SelectItem>
               {allClients.map((client) => (
                 <SelectItem key={client.id} value={client.id}>
-                  {client.name}
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    {client.name}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -543,8 +557,11 @@ export default function ManagerJobs() {
                 const daysSinceActivity = getDaysSinceLastActivity(job.id);
                 return (
                   <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex flex-wrap items-center justify-between gap-4">
-                    <Link to={`/manager/jobs/${job.id}`} className="space-y-2 min-w-0 flex-1">
-                      <p className="font-sans font-medium truncate hover:text-manager transition-colors cursor-pointer">{job.title}</p>
+                    <div
+                      onClick={() => setSelectedJobForDrawer(job)}
+                      className="space-y-2 min-w-0 flex-1 cursor-pointer"
+                    >
+                      <p className="font-sans font-medium truncate hover:text-manager transition-colors">{job.title}</p>
                       <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
                         {job.client_id && (
                           <span className="flex items-center gap-1">
@@ -576,7 +593,7 @@ export default function ManagerJobs() {
                           <span className="text-muted-foreground ml-1">({stats.total} total)</span>
                         </div>
                       )}
-                    </Link>
+                    </div>
                     <div className="flex items-center gap-4 shrink-0 text-sm font-sans text-muted-foreground">
                       <span title="Owner">Owner: {ownerNames[job.recruiter_id] ?? '—'}</span>
                       <span title="Assigned to">
@@ -675,6 +692,135 @@ export default function ManagerJobs() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Sheet open={!!selectedJobForDrawer} onOpenChange={(open) => !open && setSelectedJobForDrawer(null)}>
+          <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+            {selectedJobForDrawer && (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="text-2xl font-display font-bold">
+                    {selectedJobForDrawer.title}
+                  </SheetTitle>
+                  <SheetDescription>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-2">
+                      {selectedJobForDrawer.client_id && (
+                        <span className="flex items-center gap-1">
+                          <Building2 className="h-4 w-4" strokeWidth={1.5} />
+                          {clientNames[selectedJobForDrawer.client_id] || 'Unknown Client'}
+                        </span>
+                      )}
+                      {selectedJobForDrawer.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" strokeWidth={1.5} />
+                          {selectedJobForDrawer.location}
+                          {selectedJobForDrawer.is_remote && ' (Remote)'}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" strokeWidth={1.5} />
+                        Posted {formatDate(selectedJobForDrawer.posted_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <Badge className={`font-sans ${getStatusColor(selectedJobForDrawer.status || 'draft')}`}>
+                        {selectedJobForDrawer.status || 'draft'}
+                      </Badge>
+                    </div>
+                  </SheetDescription>
+                </SheetHeader>
+
+                <div className="space-y-6 mt-6">
+                  {/* Quick Stats */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <TrendingUp className="h-5 w-5 text-manager" strokeWidth={1.5} />
+                        Quick Stats
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Applications</span>
+                        <span className="text-lg font-semibold">{selectedJobForDrawer.applications_count || 0}</span>
+                      </div>
+                      {pipelineStats[selectedJobForDrawer.id] && (
+                        <div className="flex items-center gap-2 text-xs font-medium">
+                          <span className="text-blue-600 dark:text-blue-400">
+                            {pipelineStats[selectedJobForDrawer.id].applied} applied
+                          </span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-yellow-600 dark:text-yellow-400">
+                            {pipelineStats[selectedJobForDrawer.id].screening} screening
+                          </span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-purple-600 dark:text-purple-400">
+                            {pipelineStats[selectedJobForDrawer.id].interviewing} interviewing
+                          </span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-green-600 dark:text-green-400">
+                            {pipelineStats[selectedJobForDrawer.id].submitted} submitted
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Team */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Users className="h-5 w-5 text-manager" strokeWidth={1.5} />
+                        Team
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Owner</p>
+                        <p className="text-base">{ownerNames[selectedJobForDrawer.recruiter_id] || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Assigned Recruiters</p>
+                        <p className="text-base">
+                          {(() => {
+                            const assignedIds = getAssignedForJob(selectedJobForDrawer.id);
+                            return assignedIds.length
+                              ? assignedIds.map((id) => assignedNames[id] ?? '—').join(', ')
+                              : '—';
+                          })()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      onClick={() => {
+                        setSelectedJobForDrawer(null);
+                        navigate(`/recruiter/jobs/${selectedJobForDrawer.id}/edit`);
+                      }}
+                      className="w-full bg-manager hover:bg-manager/90"
+                    >
+                      <Pencil className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                      Edit Job
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setSelectedJobForDrawer(null);
+                        navigate(`/recruiter/pipeline?job=${selectedJobForDrawer.id}`);
+                      }}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                      View Pipeline
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
           </div>
         </div>
       </div>
