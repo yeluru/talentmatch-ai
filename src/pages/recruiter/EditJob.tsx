@@ -113,6 +113,16 @@ export default function EditJob() {
 
       const status = newStatus || formData.status;
 
+      // Get the current client_id from the database (not from form)
+      const currentClientId = (job as any)?.client_id;
+      const newClientId = formData.client_id;
+
+      console.log('[EditJob] Update mutation:', {
+        currentClientId,
+        newClientId,
+        willUpdateClient: !currentClientId && newClientId,
+      });
+
       // Build update payload
       const updatePayload: any = {
         title: formData.title,
@@ -134,13 +144,22 @@ export default function EditJob() {
       };
 
       // Only allow setting client_id if not already set (cannot change once assigned)
-      if (formData.client_id && !(job as any)?.client_id) {
-        updatePayload.client_id = formData.client_id;
+      // Current client_id is null/undefined AND user selected a new client
+      if (!currentClientId && newClientId) {
+        console.log('[EditJob] Adding client_id to update payload:', newClientId);
+        updatePayload.client_id = newClientId;
       }
+
+      console.log('[EditJob] Update payload:', updatePayload);
 
       const { error } = await supabase.from('jobs').update(updatePayload).eq('id', jobId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[EditJob] Update error:', error);
+        throw error;
+      }
+
+      console.log('[EditJob] Update successful');
       return status;
     },
     onSuccess: (status) => {

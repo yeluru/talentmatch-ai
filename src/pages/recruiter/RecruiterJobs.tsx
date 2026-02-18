@@ -365,7 +365,7 @@ export default function RecruiterJobs() {
                         ) : (
                           <span className="text-destructive flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
-                            No Client - <Link to={`/recruiter/jobs/${job.id}/edit`} className="underline hover:text-destructive/80">Assign Now</Link>
+                            No Client Assigned
                           </span>
                         )}
                       </span>
