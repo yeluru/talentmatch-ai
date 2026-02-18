@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2, MoreVertical, AlertCircle } from 'lucide-react';
+import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2, MoreVertical, AlertCircle, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 interface Job {
   id: string;
@@ -60,8 +61,12 @@ export default function ManagerJobs() {
   const [pipelineStats, setPipelineStats] = useState<Record<string, PipelineStats>>({});
   const [lastActivity, setLastActivity] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [clientFilter, setClientFilter] = useState<string>('all');
   const [selectedRecruiterFilter, setSelectedRecruiterFilter] = useState<string>('all');
   const [allOrgRecruiters, setAllOrgRecruiters] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
+  const [allClients, setAllClients] = useState<{ id: string; name: string }[]>([]);
 
   const [assignDialogJobId, setAssignDialogJobId] = useState<string | null>(null);
   const [orgRecruiters, setOrgRecruiters] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
@@ -74,6 +79,7 @@ export default function ManagerJobs() {
     if (organizationId) {
       fetchJobs();
       fetchAllRecruiters();
+      fetchAllClients();
     } else {
       setIsLoading(false);
     }
@@ -103,6 +109,20 @@ export default function ManagerJobs() {
       })));
     } catch (error) {
       console.error('Error fetching recruiters:', error);
+    }
+  };
+
+  const fetchAllClients = async () => {
+    if (!organizationId) return;
+    try {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('organization_id', organizationId)
+        .order('name');
+      setAllClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
     }
   };
 
@@ -243,14 +263,35 @@ export default function ManagerJobs() {
       const current = getAssignedForJob(assignDialogJobId);
       const toAdd = [...selectedRecruiterIds].filter((id) => !current.includes(id));
       const toRemove = current.filter((id) => !selectedRecruiterIds.has(id));
+
+      // Add new assignments
       for (const uid of toAdd) {
         const { error } = await supabase.from('job_recruiter_assignments').insert({ job_id: assignDialogJobId, user_id: uid, assigned_by: user.id });
         if (error) throw error;
       }
+
+      // Remove unassigned recruiters
       for (const uid of toRemove) {
         const { error } = await supabase.from('job_recruiter_assignments').delete().eq('job_id', assignDialogJobId).eq('user_id', uid);
         if (error) throw error;
       }
+
+      // Send email notifications to newly assigned recruiters
+      if (toAdd.length > 0) {
+        try {
+          await supabase.functions.invoke('notify-job-assignment', {
+            body: {
+              jobId: assignDialogJobId,
+              recruiterIds: toAdd,
+              assignedByUserId: user.id,
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send email notifications:', emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
+
       toast.success('Assignments updated');
       setAssignDialogJobId(null);
       fetchJobs();
@@ -345,12 +386,34 @@ export default function ManagerJobs() {
     );
   }
 
-  // Filter jobs by selected recruiter
+  // Filter jobs by all criteria
   const filteredJobs = jobs.filter((job) => {
-    if (selectedRecruiterFilter === 'all') return true;
-    if (selectedRecruiterFilter === 'unassigned') return isJobUnassigned(job.id);
-    const assignedIds = getAssignedForJob(job.id);
-    return assignedIds.includes(selectedRecruiterFilter);
+    // Search filter
+    const matchesSearch =
+      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.location?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Status filter
+    const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+
+    // Client filter
+    const matchesClient =
+      clientFilter === 'all' ||
+      (clientFilter === 'no-client' && !job.client_id) ||
+      job.client_id === clientFilter;
+
+    // Recruiter filter
+    let matchesRecruiter = true;
+    if (selectedRecruiterFilter !== 'all') {
+      if (selectedRecruiterFilter === 'unassigned') {
+        matchesRecruiter = isJobUnassigned(job.id);
+      } else {
+        const assignedIds = getAssignedForJob(job.id);
+        matchesRecruiter = assignedIds.includes(selectedRecruiterFilter);
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesClient && matchesRecruiter;
   });
 
   const publishedJobs = jobs.filter(j => j.status === 'published');
@@ -404,10 +467,49 @@ export default function ManagerJobs() {
         </div>
 
         {/* Filter Bar */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+            <Input
+              placeholder="Search by title or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans w-full"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
+              <SelectValue placeholder="Client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Clients</SelectItem>
+              <SelectItem value="no-client">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  No Client
+                </div>
+              </SelectItem>
+              {allClients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedRecruiterFilter} onValueChange={setSelectedRecruiterFilter}>
-            <SelectTrigger className="w-full md:w-64 h-11 rounded-lg border-border bg-background font-sans">
-              <SelectValue placeholder="Filter by recruiter" />
+            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
+              <SelectValue placeholder="Recruiter" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Recruiters</SelectItem>
