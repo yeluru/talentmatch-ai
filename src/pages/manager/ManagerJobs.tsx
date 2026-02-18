@@ -10,12 +10,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2 } from 'lucide-react';
+import { Loader2, MapPin, Users, Calendar, Briefcase, Plus, UserPlus, Building2, MoreVertical, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Job {
   id: string;
@@ -53,6 +60,8 @@ export default function ManagerJobs() {
   const [pipelineStats, setPipelineStats] = useState<Record<string, PipelineStats>>({});
   const [lastActivity, setLastActivity] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedRecruiterFilter, setSelectedRecruiterFilter] = useState<string>('all');
+  const [allOrgRecruiters, setAllOrgRecruiters] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
 
   const [assignDialogJobId, setAssignDialogJobId] = useState<string | null>(null);
   const [orgRecruiters, setOrgRecruiters] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
@@ -62,9 +71,40 @@ export default function ManagerJobs() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (organizationId) fetchJobs();
-    else setIsLoading(false);
+    if (organizationId) {
+      fetchJobs();
+      fetchAllRecruiters();
+    } else {
+      setIsLoading(false);
+    }
   }, [organizationId, authLoading]);
+
+  const fetchAllRecruiters = async () => {
+    if (!organizationId) return;
+    try {
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('organization_id', organizationId)
+        .eq('role', 'recruiter');
+      const userIds = (rolesData || []).map((r: { user_id: string }) => r.user_id);
+      if (userIds.length === 0) {
+        setAllOrgRecruiters([]);
+        return;
+      }
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .in('user_id', userIds);
+      setAllOrgRecruiters((profiles || []).map((p: { user_id: string; full_name: string | null; email: string }) => ({
+        user_id: p.user_id,
+        full_name: p.full_name || p.email || 'Recruiter',
+        email: p.email || ''
+      })));
+    } catch (error) {
+      console.error('Error fetching recruiters:', error);
+    }
+  };
 
   const assignJobIdFromUrl = searchParams.get('assign');
 
@@ -261,6 +301,11 @@ export default function ManagerJobs() {
     return false;
   };
 
+  const isJobUnassigned = (jobId: string) => {
+    const assignedIds = getAssignedForJob(jobId);
+    return assignedIds.length === 0;
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -299,6 +344,14 @@ export default function ManagerJobs() {
       </DashboardLayout>
     );
   }
+
+  // Filter jobs by selected recruiter
+  const filteredJobs = jobs.filter((job) => {
+    if (selectedRecruiterFilter === 'all') return true;
+    if (selectedRecruiterFilter === 'unassigned') return isJobUnassigned(job.id);
+    const assignedIds = getAssignedForJob(job.id);
+    return assignedIds.includes(selectedRecruiterFilter);
+  });
 
   const publishedJobs = jobs.filter(j => j.status === 'published');
   const draftJobs = jobs.filter(j => j.status === 'draft');
@@ -350,13 +403,37 @@ export default function ManagerJobs() {
           </div>
         </div>
 
+        {/* Filter Bar */}
+        <div className="flex items-center gap-3">
+          <Select value={selectedRecruiterFilter} onValueChange={setSelectedRecruiterFilter}>
+            <SelectTrigger className="w-full md:w-64 h-11 rounded-lg border-border bg-background font-sans">
+              <SelectValue placeholder="Filter by recruiter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Recruiters</SelectItem>
+              <SelectItem value="unassigned" className="text-destructive font-medium">
+                Unassigned
+              </SelectItem>
+              {allOrgRecruiters.map((recruiter) => (
+                <SelectItem key={recruiter.user_id} value={recruiter.user_id}>
+                  {recruiter.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
-          <h2 className="font-display text-lg font-bold text-foreground mb-4">All Jobs</h2>
-          {jobs.length === 0 ? (
-            <p className="text-sm font-sans text-muted-foreground">No jobs created yet.</p>
+          <h2 className="font-display text-lg font-bold text-foreground mb-4">
+            All Jobs {selectedRecruiterFilter !== 'all' && `(${filteredJobs.length} filtered)`}
+          </h2>
+          {filteredJobs.length === 0 ? (
+            <p className="text-sm font-sans text-muted-foreground">
+              {jobs.length === 0 ? 'No jobs created yet.' : 'No jobs match the selected filter.'}
+            </p>
           ) : (
             <div className="space-y-3">
-              {jobs.map((job) => {
+              {filteredJobs.map((job) => {
                 const assignedIds = getAssignedForJob(job.id);
                 const ownedByMe = isJobOwnedByMe(job);
                 const stats = pipelineStats[job.id];
@@ -420,16 +497,30 @@ export default function ManagerJobs() {
                           )}
                         </Badge>
                       )}
-                      {ownedByMe && (
+                      {isJobUnassigned(job.id) ? (
                         <Button
-                          variant="outline"
+                          variant="destructive"
                           size="sm"
-                          className="border-manager/30 text-manager hover:bg-manager/10"
+                          className="font-sans"
                           onClick={() => openAssignDialog(job.id)}
                         >
-                          <UserPlus className="h-4 w-4 mr-1" strokeWidth={1.5} />
-                          Assign recruiters
+                          <AlertCircle className="h-4 w-4 mr-1" strokeWidth={1.5} />
+                          Assign Recruiter
                         </Button>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openAssignDialog(job.id)}>
+                              <UserPlus className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                              Edit Assignments
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </div>
