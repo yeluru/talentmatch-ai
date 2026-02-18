@@ -83,7 +83,8 @@ export default function ManagerJobs() {
   const [selectedRecruiterIds, setSelectedRecruiterIds] = useState<Set<string>>(new Set());
   const [assignSaving, setAssignSaving] = useState(false);
 
-  const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<Job | null>(null);
+  const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<any | null>(null);
+  const [loadingJobDetails, setLoadingJobDetails] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -311,6 +312,30 @@ export default function ManagerJobs() {
     } finally {
       setAssignSaving(false);
     }
+  };
+
+  const fetchJobDetails = async (jobId: string) => {
+    setLoadingJobDetails(true);
+    try {
+      const { data: jobData, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+
+      if (error) throw error;
+      setSelectedJobForDrawer(jobData);
+    } catch (error) {
+      console.error('Error fetching job details:', error);
+      toast.error('Failed to load job details');
+      setSelectedJobForDrawer(null);
+    } finally {
+      setLoadingJobDetails(false);
+    }
+  };
+
+  const handleJobClick = (job: Job) => {
+    fetchJobDetails(job.id);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -558,7 +583,7 @@ export default function ManagerJobs() {
                 return (
                   <div key={job.id} className="group p-4 rounded-xl border border-border hover:bg-manager/5 hover:border-manager/30 hover:shadow-md transition-all flex flex-wrap items-center justify-between gap-4">
                     <div
-                      onClick={() => setSelectedJobForDrawer(job)}
+                      onClick={() => handleJobClick(job)}
                       className="space-y-2 min-w-0 flex-1 cursor-pointer"
                     >
                       <p className="font-sans font-medium truncate hover:text-manager transition-colors">{job.title}</p>
@@ -693,9 +718,18 @@ export default function ManagerJobs() {
           </DialogContent>
         </Dialog>
 
-        <Sheet open={!!selectedJobForDrawer} onOpenChange={(open) => !open && setSelectedJobForDrawer(null)}>
+        <Sheet open={!!selectedJobForDrawer || loadingJobDetails} onOpenChange={(open) => {
+          if (!open) {
+            setSelectedJobForDrawer(null);
+            setLoadingJobDetails(false);
+          }
+        }}>
           <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-            {selectedJobForDrawer && (
+            {loadingJobDetails ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-manager" strokeWidth={1.5} />
+              </div>
+            ) : selectedJobForDrawer ? (
               <>
                 <SheetHeader className="space-y-4">
                   <div>
@@ -911,7 +945,7 @@ export default function ManagerJobs() {
                   </div>
                 </div>
               </>
-            )}
+            ) : null}
           </SheetContent>
         </Sheet>
           </div>

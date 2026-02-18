@@ -67,6 +67,7 @@ export default function RecruiterJobs() {
   const [clientFilter, setClientFilter] = useState<string>('all');
   const isMobile = useIsMobile();
   const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<any | null>(null);
+  const [loadingJobDetails, setLoadingJobDetails] = useState(false);
 
   const organizationId = orgIdForRecruiterSuite(roles);
   const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
@@ -177,6 +178,33 @@ export default function RecruiterJobs() {
 
   const openPublicJobPage = (job: { id: string; organization?: { name: string } | null }) => {
     window.open(getPublicJobUrl(job), '_blank', 'noopener,noreferrer');
+  };
+
+  const fetchJobDetails = async (jobId: string) => {
+    setLoadingJobDetails(true);
+    try {
+      const { data: jobData, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          client:clients(id, name, status)
+        `)
+        .eq('id', jobId)
+        .single();
+
+      if (error) throw error;
+      setSelectedJobForDrawer(jobData);
+    } catch (error) {
+      console.error('Error fetching job details:', error);
+      toast.error('Failed to load job details');
+      setSelectedJobForDrawer(null);
+    } finally {
+      setLoadingJobDetails(false);
+    }
+  };
+
+  const handleJobClick = (job: any) => {
+    fetchJobDetails(job.id);
   };
 
   const updateJobStatus = useMutation({
@@ -348,7 +376,7 @@ export default function RecruiterJobs() {
                 key={job.id}
                 className="group rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
               >
-                <div onClick={() => setSelectedJobForDrawer(job)} className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-6 block cursor-pointer">
+                <div onClick={() => handleJobClick(job)} className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-6 block cursor-pointer">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <span className="font-display font-semibold text-lg text-foreground group-hover:text-recruiter transition-colors truncate block">
@@ -499,9 +527,18 @@ export default function RecruiterJobs() {
         </div>
       </div>
 
-      <Sheet open={!!selectedJobForDrawer} onOpenChange={(open) => !open && setSelectedJobForDrawer(null)}>
+      <Sheet open={!!selectedJobForDrawer || loadingJobDetails} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedJobForDrawer(null);
+          setLoadingJobDetails(false);
+        }
+      }}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          {selectedJobForDrawer && (
+          {loadingJobDetails ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
+            </div>
+          ) : selectedJobForDrawer ? (
             <>
               <SheetHeader className="space-y-4">
                 <div>
@@ -707,7 +744,7 @@ export default function RecruiterJobs() {
                 </div>
               </div>
             </>
-          )}
+          ) : null}
         </SheetContent>
       </Sheet>
     </DashboardLayout>
