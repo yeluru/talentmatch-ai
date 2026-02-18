@@ -16,6 +16,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite, effectiveRecruiterOwnerId } from '@/lib/org';
@@ -37,7 +44,8 @@ import {
   CheckCircle2,
   RotateCcw,
   Building2,
-  AlertCircle
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -58,6 +66,7 @@ export default function RecruiterJobs() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
   const isMobile = useIsMobile();
+  const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<any | null>(null);
 
   const organizationId = orgIdForRecruiterSuite(roles);
   const ownerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, searchParams.get('owner'));
@@ -339,7 +348,7 @@ export default function RecruiterJobs() {
                 key={job.id}
                 className="group rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
               >
-                <Link to={`/recruiter/jobs/${job.id}/edit`} className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-6 block">
+                <div onClick={() => setSelectedJobForDrawer(job)} className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-6 block cursor-pointer">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <span className="font-display font-semibold text-lg text-foreground group-hover:text-recruiter transition-colors truncate block">
@@ -480,7 +489,7 @@ export default function RecruiterJobs() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   </div>
-                </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -489,6 +498,218 @@ export default function RecruiterJobs() {
           </div>
         </div>
       </div>
+
+      <Sheet open={!!selectedJobForDrawer} onOpenChange={(open) => !open && setSelectedJobForDrawer(null)}>
+        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+          {selectedJobForDrawer && (
+            <>
+              <SheetHeader className="space-y-4">
+                <div>
+                  <SheetTitle className="text-2xl font-display font-bold mb-2">
+                    {selectedJobForDrawer.title}
+                  </SheetTitle>
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <Badge className={selectedJobForDrawer.status === 'published' ? 'bg-success/10 text-success border-success/20' : selectedJobForDrawer.status === 'closed' ? 'bg-destructive/10 text-destructive' : 'bg-muted'}>
+                      {selectedJobForDrawer.status === 'published' ? 'Published' : selectedJobForDrawer.status === 'draft' ? 'Draft' : selectedJobForDrawer.status === 'closed' ? 'Closed' : selectedJobForDrawer.status}
+                    </Badge>
+                    {(selectedJobForDrawer as any).visibility === 'public' ? (
+                      <Badge variant="outline" className="border-recruiter/30 text-recruiter bg-recruiter/10 font-sans">
+                        Public
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground font-sans">
+                        Private
+                      </Badge>
+                    )}
+                    {(selectedJobForDrawer as any).client?.name ? (
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <Building2 className="h-4 w-4" strokeWidth={1.5} />
+                        {(selectedJobForDrawer as any).client.name}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-destructive">
+                        <AlertCircle className="h-4 w-4" strokeWidth={1.5} />
+                        No Client Assigned
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </SheetHeader>
+
+              <div className="space-y-6 mt-6">
+                {/* Basic Info */}
+                <div className="space-y-4 pb-4 border-b">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {selectedJobForDrawer.location && (
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-1">Location</p>
+                        <p className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                          {selectedJobForDrawer.location}
+                          {selectedJobForDrawer.is_remote && ' (Remote)'}
+                        </p>
+                      </div>
+                    )}
+                    {selectedJobForDrawer.posted_at && (
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-1">Posted Date</p>
+                        <p className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                          {format(new Date(selectedJobForDrawer.posted_at), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground font-medium mb-1">Applications</p>
+                      <span className="text-2xl font-bold">{selectedJobForDrawer.applications_count || 0}</span>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground font-medium mb-1">Views</p>
+                      <span className="text-2xl font-bold">{selectedJobForDrawer.views_count || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {selectedJobForDrawer.description && (
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Description</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {selectedJobForDrawer.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Requirements */}
+                {selectedJobForDrawer.requirements && (
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Requirements</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {selectedJobForDrawer.requirements}
+                    </p>
+                  </div>
+                )}
+
+                {/* Responsibilities */}
+                {selectedJobForDrawer.responsibilities && (
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Responsibilities</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {selectedJobForDrawer.responsibilities}
+                    </p>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {(selectedJobForDrawer.required_skills?.length > 0 || selectedJobForDrawer.nice_to_have_skills?.length > 0) && (
+                  <div>
+                    <h3 className="font-semibold text-base mb-3">Skills</h3>
+                    <div className="space-y-3">
+                      {selectedJobForDrawer.required_skills?.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground mb-2">Required</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedJobForDrawer.required_skills.map((skill: string) => (
+                              <Badge key={skill} variant="secondary">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedJobForDrawer.nice_to_have_skills?.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground mb-2">Nice to Have</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedJobForDrawer.nice_to_have_skills.map((skill: string) => (
+                              <Badge key={skill} variant="outline">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Job Details */}
+                <div>
+                  <h3 className="font-semibold text-base mb-3">Job Details</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {(selectedJobForDrawer as any).job_type && (
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-1">Job Type</p>
+                        <p className="capitalize">{(selectedJobForDrawer as any).job_type.replace('_', '-')}</p>
+                      </div>
+                    )}
+                    {(selectedJobForDrawer as any).experience_level && (
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-1">Experience Level</p>
+                        <p className="capitalize">{(selectedJobForDrawer as any).experience_level}</p>
+                      </div>
+                    )}
+                    {(selectedJobForDrawer as any).work_mode && (selectedJobForDrawer as any).work_mode !== 'unknown' && (
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-1">Work Mode</p>
+                        <p className="capitalize">{(selectedJobForDrawer as any).work_mode}</p>
+                      </div>
+                    )}
+                    {(selectedJobForDrawer as any).visibility && (
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-1">Visibility</p>
+                        <p className="capitalize">{(selectedJobForDrawer as any).visibility}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Owner info (if not the current user) */}
+                {selectedJobForDrawer.recruiter_id && selectedJobForDrawer.recruiter_id !== user?.id && ownerNames[selectedJobForDrawer.recruiter_id] && (
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Owner</h3>
+                    <p className="text-sm">{ownerNames[selectedJobForDrawer.recruiter_id]}</p>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 pt-4 border-t sticky bottom-0 bg-background pb-4">
+                  <Button
+                    onClick={() => {
+                      setSelectedJobForDrawer(null);
+                      navigate(`/recruiter/jobs/${selectedJobForDrawer.id}/edit`);
+                    }}
+                    className="w-full bg-recruiter hover:bg-recruiter/90"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                    Edit Job
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setSelectedJobForDrawer(null);
+                      navigate(`/recruiter/pipeline?job=${selectedJobForDrawer.id}`);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                    View Pipeline
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setSelectedJobForDrawer(null);
+                      navigate(`/recruiter/jobs/${selectedJobForDrawer.id}/applicants`);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Users className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                    View Applicants
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </DashboardLayout>
   );
 }

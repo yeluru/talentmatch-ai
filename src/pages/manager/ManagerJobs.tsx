@@ -694,106 +694,199 @@ export default function ManagerJobs() {
         </Dialog>
 
         <Sheet open={!!selectedJobForDrawer} onOpenChange={(open) => !open && setSelectedJobForDrawer(null)}>
-          <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
             {selectedJobForDrawer && (
               <>
-                <SheetHeader>
-                  <SheetTitle className="text-2xl font-display font-bold">
-                    {selectedJobForDrawer.title}
-                  </SheetTitle>
-                  <SheetDescription>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-2">
+                <SheetHeader className="space-y-4">
+                  <div>
+                    <SheetTitle className="text-2xl font-display font-bold mb-2">
+                      {selectedJobForDrawer.title}
+                    </SheetTitle>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <Badge className={`font-sans ${getStatusColor(selectedJobForDrawer.status || 'draft')}`}>
+                        {selectedJobForDrawer.status || 'draft'}
+                      </Badge>
                       {selectedJobForDrawer.client_id && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 text-muted-foreground">
                           <Building2 className="h-4 w-4" strokeWidth={1.5} />
                           {clientNames[selectedJobForDrawer.client_id] || 'Unknown Client'}
                         </span>
                       )}
-                      {selectedJobForDrawer.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" strokeWidth={1.5} />
-                          {selectedJobForDrawer.location}
-                          {selectedJobForDrawer.is_remote && ' (Remote)'}
+                      {!selectedJobForDrawer.client_id && (
+                        <span className="flex items-center gap-1 text-destructive">
+                          <AlertCircle className="h-4 w-4" strokeWidth={1.5} />
+                          No Client Assigned
                         </span>
                       )}
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" strokeWidth={1.5} />
-                        Posted {formatDate(selectedJobForDrawer.posted_at)}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-3">
-                      <Badge className={`font-sans ${getStatusColor(selectedJobForDrawer.status || 'draft')}`}>
-                        {selectedJobForDrawer.status || 'draft'}
-                      </Badge>
-                    </div>
-                  </SheetDescription>
+                  </div>
                 </SheetHeader>
 
                 <div className="space-y-6 mt-6">
-                  {/* Quick Stats */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <TrendingUp className="h-5 w-5 text-manager" strokeWidth={1.5} />
-                        Quick Stats
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Applications</span>
-                        <span className="text-lg font-semibold">{selectedJobForDrawer.applications_count || 0}</span>
-                      </div>
-                      {pipelineStats[selectedJobForDrawer.id] && (
-                        <div className="flex items-center gap-2 text-xs font-medium">
-                          <span className="text-blue-600 dark:text-blue-400">
-                            {pipelineStats[selectedJobForDrawer.id].applied} applied
-                          </span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="text-yellow-600 dark:text-yellow-400">
-                            {pipelineStats[selectedJobForDrawer.id].screening} screening
-                          </span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="text-purple-600 dark:text-purple-400">
-                            {pipelineStats[selectedJobForDrawer.id].interviewing} interviewing
-                          </span>
-                          <span className="text-muted-foreground">→</span>
-                          <span className="text-green-600 dark:text-green-400">
-                            {pipelineStats[selectedJobForDrawer.id].submitted} submitted
-                          </span>
+                  {/* Basic Info */}
+                  <div className="space-y-4 pb-4 border-b">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {selectedJobForDrawer.location && (
+                        <div>
+                          <p className="text-muted-foreground font-medium mb-1">Location</p>
+                          <p className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                            {selectedJobForDrawer.location}
+                            {selectedJobForDrawer.is_remote && ' (Remote)'}
+                          </p>
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                      {selectedJobForDrawer.posted_at && (
+                        <div>
+                          <p className="text-muted-foreground font-medium mb-1">Posted Date</p>
+                          <p className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                            {formatDate(selectedJobForDrawer.posted_at)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground font-medium mb-1 text-sm">Applications</p>
+                      <div className="flex items-center gap-4">
+                        <span className="text-2xl font-bold">{selectedJobForDrawer.applications_count || 0}</span>
+                        {pipelineStats[selectedJobForDrawer.id] && pipelineStats[selectedJobForDrawer.id].total > 0 && (
+                          <div className="flex items-center gap-2 text-xs font-medium">
+                            <span className="text-blue-600 dark:text-blue-400">
+                              {pipelineStats[selectedJobForDrawer.id].applied}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="text-yellow-600 dark:text-yellow-400">
+                              {pipelineStats[selectedJobForDrawer.id].screening}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="text-purple-600 dark:text-purple-400">
+                              {pipelineStats[selectedJobForDrawer.id].interviewing}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="text-green-600 dark:text-green-400 font-bold">
+                              {pipelineStats[selectedJobForDrawer.id].submitted}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {(selectedJobForDrawer as any).description && (
+                    <div>
+                      <h3 className="font-semibold text-base mb-2">Description</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {(selectedJobForDrawer as any).description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Requirements */}
+                  {(selectedJobForDrawer as any).requirements && (
+                    <div>
+                      <h3 className="font-semibold text-base mb-2">Requirements</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {(selectedJobForDrawer as any).requirements}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Responsibilities */}
+                  {(selectedJobForDrawer as any).responsibilities && (
+                    <div>
+                      <h3 className="font-semibold text-base mb-2">Responsibilities</h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {(selectedJobForDrawer as any).responsibilities}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Skills */}
+                  {((selectedJobForDrawer as any).required_skills?.length > 0 || (selectedJobForDrawer as any).nice_to_have_skills?.length > 0) && (
+                    <div>
+                      <h3 className="font-semibold text-base mb-3">Skills</h3>
+                      <div className="space-y-3">
+                        {(selectedJobForDrawer as any).required_skills?.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-2">Required</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedJobForDrawer as any).required_skills.map((skill: string) => (
+                                <Badge key={skill} variant="secondary">{skill}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {(selectedJobForDrawer as any).nice_to_have_skills?.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-2">Nice to Have</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedJobForDrawer as any).nice_to_have_skills.map((skill: string) => (
+                                <Badge key={skill} variant="outline">{skill}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Job Details */}
+                  <div>
+                    <h3 className="font-semibold text-base mb-3">Job Details</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {(selectedJobForDrawer as any).job_type && (
+                        <div>
+                          <p className="text-muted-foreground font-medium mb-1">Job Type</p>
+                          <p className="capitalize">{(selectedJobForDrawer as any).job_type.replace('_', '-')}</p>
+                        </div>
+                      )}
+                      {(selectedJobForDrawer as any).experience_level && (
+                        <div>
+                          <p className="text-muted-foreground font-medium mb-1">Experience Level</p>
+                          <p className="capitalize">{(selectedJobForDrawer as any).experience_level}</p>
+                        </div>
+                      )}
+                      {(selectedJobForDrawer as any).work_mode && (selectedJobForDrawer as any).work_mode !== 'unknown' && (
+                        <div>
+                          <p className="text-muted-foreground font-medium mb-1">Work Mode</p>
+                          <p className="capitalize">{(selectedJobForDrawer as any).work_mode}</p>
+                        </div>
+                      )}
+                      {(selectedJobForDrawer as any).visibility && (
+                        <div>
+                          <p className="text-muted-foreground font-medium mb-1">Visibility</p>
+                          <p className="capitalize">{(selectedJobForDrawer as any).visibility}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Team */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Users className="h-5 w-5 text-manager" strokeWidth={1.5} />
-                        Team
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                  <div>
+                    <h3 className="font-semibold text-base mb-3">Team</h3>
+                    <div className="space-y-3 text-sm">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Owner</p>
-                        <p className="text-base">{ownerNames[selectedJobForDrawer.recruiter_id] || '—'}</p>
+                        <p className="text-muted-foreground font-medium mb-1">Owner</p>
+                        <p>{ownerNames[selectedJobForDrawer.recruiter_id] || '—'}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Assigned Recruiters</p>
-                        <p className="text-base">
+                        <p className="text-muted-foreground font-medium mb-1">Assigned Recruiters</p>
+                        <p>
                           {(() => {
                             const assignedIds = getAssignedForJob(selectedJobForDrawer.id);
                             return assignedIds.length
                               ? assignedIds.map((id) => assignedNames[id] ?? '—').join(', ')
-                              : '—';
+                              : 'None';
                           })()}
                         </p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 pt-4 border-t sticky bottom-0 bg-background pb-4">
                     <Button
                       onClick={() => {
                         setSelectedJobForDrawer(null);
