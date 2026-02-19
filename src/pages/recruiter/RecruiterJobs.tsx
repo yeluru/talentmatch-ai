@@ -430,11 +430,10 @@ export default function RecruiterJobs() {
                           </span>
                         )}
                       </span>
-                      {job.recruiter_id && (
+                      {job.recruiter_id && job.recruiter_id !== user?.id && (
                         <span className="flex items-center gap-1.5">
                           <Briefcase className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
                           Owner: {ownerNames[job.recruiter_id] ?? '—'}
-                          {job.recruiter_id === user?.id && <span className="text-xs">(You)</span>}
                         </span>
                       )}
                       {job.location && (
@@ -730,14 +729,11 @@ export default function RecruiterJobs() {
                   </div>
                 </div>
 
-                {/* Owner info */}
-                {selectedJobForDrawer.recruiter_id && ownerNames[selectedJobForDrawer.recruiter_id] && (
+                {/* Owner info (only show if not current user) */}
+                {selectedJobForDrawer.recruiter_id && selectedJobForDrawer.recruiter_id !== user?.id && ownerNames[selectedJobForDrawer.recruiter_id] && (
                   <div>
                     <h3 className="font-semibold text-base mb-2">Owner</h3>
-                    <p className="text-sm">
-                      {ownerNames[selectedJobForDrawer.recruiter_id]}
-                      {selectedJobForDrawer.recruiter_id === user?.id && <span className="text-muted-foreground ml-1">(You)</span>}
-                    </p>
+                    <p className="text-sm">{ownerNames[selectedJobForDrawer.recruiter_id]}</p>
                   </div>
                 )}
 
