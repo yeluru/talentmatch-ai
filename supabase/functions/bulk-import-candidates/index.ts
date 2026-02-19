@@ -466,7 +466,7 @@ serve(async (req) => {
                 const startISO = parseLooseDateToISO(e?.start);
                 const endISO = parseLooseDateToISO(e?.end);
                 const is_current = !endISO && /present|current/i.test(String(e?.end || "")) ? true : false;
-                const bullets = Array.isArray(e?.bullets) ? e.bullets.map((b: any) => sanitizeString(String(b ?? ""), 500) || "").filter(Boolean) : [];
+                const bullets = Array.isArray(e?.bullets) ? e.bullets.map((b: any) => sanitizeString(String(b ?? ""), 1500) || "").filter(Boolean) : []; // Increased from 500 to 1500 for complete bullet content
                 const description = bullets.length ? bullets.join("\n") : null;
 
                 // candidate_experience requires company_name + job_title. start_date is NOT NULL in schema,

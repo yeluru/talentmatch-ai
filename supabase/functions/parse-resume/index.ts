@@ -9,7 +9,7 @@ const corsHeaders = {
 
 // Input validation constants
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-const MAX_TEXT_LENGTH = 100000; // 100KB of text
+const MAX_TEXT_LENGTH = 300000; // 300KB of text (increased for complete extraction)
 const PARSER_VERSION = "2026-01-15-parse-resume-v3-links";
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
@@ -319,7 +319,7 @@ function mergeExperienceAppendMissing(baseExp: any[], moreExp: any[]) {
 async function recoverExperienceChunked(experienceText: string) {
   const chunks = splitIntoChunksByLines(experienceText, 6500);
   const recovered: any[] = [];
-  for (const chunk of chunks.slice(0, 10)) {
+  for (const chunk of chunks.slice(0, 20)) { // Increased from 10 to support longer resumes
     if (!chunk.trim()) continue;
     const sys = `You extract WORK EXPERIENCE entries from resume text.
 Hard rules:
@@ -1486,7 +1486,7 @@ STRUCTURE HINTS (do not invent; these come from deterministic scanning of the ex
 - Education hints (may be partial): ${JSON.stringify(eduHints.slice(0, 12))}
 
 RESUME CONTENT:
-${textContent.substring(0, 80000)}
+${textContent.substring(0, 200000)}
 
 IMPORTANT:
 - The email "${extractedEmail || ''}" and phone "${extractedPhone || ''}" shown above were extracted via regex. If they look valid, USE THEM in your response.
@@ -1760,8 +1760,8 @@ IMPORTANT:
     const techNorm = normalizeSkillList(parsed.technical_skills, 80);
     const softNorm = normalizeSkillList(parsed.soft_skills, 80);
     const classified = postClassifySkills(techNorm, softNorm);
-    parsed.technical_skills = classified.technical_skills.slice(0, 60);
-    parsed.soft_skills = classified.soft_skills.slice(0, 40);
+    parsed.technical_skills = classified.technical_skills.slice(0, 100); // Increased from 60
+    parsed.soft_skills = classified.soft_skills.slice(0, 60); // Increased from 40
 
     // Calibrate ATS score to be stricter and less "same-y".
     // The model-provided ats_score often clusters around the 80s; we blend it with a deterministic
