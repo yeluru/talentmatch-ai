@@ -618,14 +618,33 @@ export default function ManagerJobs() {
                       onClick={() => handleJobClick(job)}
                       className="space-y-2 min-w-0 flex-1 cursor-pointer"
                     >
-                      <p className="font-sans font-medium truncate hover:text-manager transition-colors">{job.title}</p>
-                      <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
-                        {job.client_id && (
-                          <span className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" strokeWidth={1.5} />
-                            {clientNames[job.client_id] || 'Unknown Client'}
-                          </span>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <p className="font-sans font-medium truncate hover:text-manager transition-colors">{job.title}</p>
+                        <Badge className={`font-sans ${getStatusColor(job.status || 'draft')}`}>
+                          {job.status || 'draft'}
+                        </Badge>
+                        {(job as any).visibility === 'public' ? (
+                          <Badge variant="outline" className="border-manager/30 text-manager bg-manager/10 font-sans">
+                            Public
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground font-sans">
+                            Private
+                          </Badge>
                         )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm font-sans text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Building2 className="h-3 w-3" strokeWidth={1.5} />
+                          {job.client_id ? (
+                            <span>{clientNames[job.client_id] || 'Unknown Client'}</span>
+                          ) : (
+                            <span className="text-destructive flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              No Client Assigned
+                            </span>
+                          )}
+                        </span>
                         {job.location && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" strokeWidth={1.5} />
@@ -637,6 +656,16 @@ export default function ManagerJobs() {
                           <Calendar className="h-3 w-3" strokeWidth={1.5} />
                           {formatDate(job.posted_at)}
                         </span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" strokeWidth={1.5} />
+                          {job.applications_count || 0} applicants
+                        </span>
+                        {(job as any).views_count !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
+                            {(job as any).views_count || 0} views
+                          </span>
+                        )}
                       </div>
                       {stats && stats.total > 0 && (
                         <div className="flex items-center gap-2 text-xs font-sans font-medium text-foreground/70">

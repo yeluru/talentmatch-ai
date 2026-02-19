@@ -418,6 +418,12 @@ export default function RecruiterJobs() {
                           <span className="truncate">{job.location}{job.is_remote ? ' (Remote)' : ''}</span>
                         </span>
                       )}
+                      {(job.posted_at || job.created_at) && (
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
+                          {job.posted_at ? format(new Date(job.posted_at), 'MMM d, yyyy') : format(new Date(job.created_at), 'MMM d, yyyy')}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1.5">
                         <Users className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
                         {job.applications_count || 0} applicants
