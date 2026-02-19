@@ -65,7 +65,7 @@ export default function RecruiterJobs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
-  const [ownerFilter, setOwnerFilter] = useState<string>('my-jobs');
+  const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const isMobile = useIsMobile();
   const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<any | null>(null);
   const [loadingJobDetails, setLoadingJobDetails] = useState(false);
