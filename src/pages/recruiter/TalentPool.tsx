@@ -57,7 +57,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, Users, Briefcase, MapPin, Filter, X, ListPlus, Plus, Send, MessageSquare, Save, Trash2, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Loader2, Users, Briefcase, MapPin, Filter, X, ListPlus, Plus, Send, MessageSquare, Save, Trash2, Upload, CheckCircle, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScoreBadge } from '@/components/ui/score-badge';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -312,7 +312,7 @@ export default function TalentPool() {
     },
   });
 
-  const { data: talents, isLoading, error: talentsError } = useQuery({
+  const { data: talents, isLoading, error: talentsError, dataUpdatedAt } = useQuery({
     queryKey: ['talent-pool', organizationId],
     queryFn: async (): Promise<TalentProfile[]> => {
       if (!organizationId) {
@@ -544,7 +544,29 @@ export default function TalentPool() {
       return result;
     },
     enabled: !!organizationId,
+    staleTime: 2 * 60 * 60 * 1000, // 2 hours - data stays fresh for 2 hours (aggressive caching)
+    cacheTime: 3 * 60 * 60 * 1000, // 3 hours - keep in cache for 3 hours
+    refetchOnWindowFocus: false, // Don't refetch when user tabs back
+    refetchOnMount: false, // Don't refetch when component remounts
   });
+
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+    toast.success('Talent pool refreshed');
+  };
+
+  // Format time ago for last updated indicator
+  const getTimeAgo = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
   // Background loading effect - loads remaining profiles after initial load
   useEffect(() => {
@@ -1479,8 +1501,24 @@ export default function TalentPool() {
               <p className="text-lg text-muted-foreground font-sans">
                 Sourced profiles from bulk uploads and searches
               </p>
+              {dataUpdatedAt && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>Updated {getTimeAgo(dataUpdatedAt)}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-lg h-11 w-11 border border-border/50 hover:bg-accent"
+                onClick={handleManualRefresh}
+                disabled={isLoading}
+                title="Refresh talent pool"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+              </Button>
               <input
                 ref={fileInputRef}
                 type="file"
