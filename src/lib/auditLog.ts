@@ -61,8 +61,9 @@ export async function logBulkUploadStart(fileCount: number, source: string = 're
   await createAuditLog({
     action: 'bulk_import_start',
     entity_type: 'bulk_upload_session',
-    entity_id: sessionId,
+    entity_id: null, // Session ID stored in details instead since entity_id must be UUID
     details: {
+      session_id: sessionId,
       total_files: fileCount,
       source,
       status: 'started',
@@ -86,8 +87,9 @@ export async function logBulkUploadProgress(
   await createAuditLog({
     action: 'bulk_import_progress',
     entity_type: 'bulk_upload_session',
-    entity_id: sessionId,
+    entity_id: null, // Session ID stored in details instead since entity_id must be UUID
     details: {
+      session_id: sessionId,
       processed,
       total,
       succeeded,
@@ -111,8 +113,9 @@ export async function logBulkUploadComplete(
   await createAuditLog({
     action: 'bulk_import_complete',
     entity_type: 'bulk_upload_session',
-    entity_id: sessionId,
+    entity_id: null, // Session ID stored in details instead since entity_id must be UUID
     details: {
+      session_id: sessionId,
       total_files: total,
       succeeded,
       failed,
@@ -134,8 +137,9 @@ export async function logBulkUploadError(
   await createAuditLog({
     action: 'bulk_import_error',
     entity_type: 'bulk_upload_session',
-    entity_id: sessionId,
+    entity_id: null, // Session ID stored in details instead since entity_id must be UUID
     details: {
+      session_id: sessionId,
       error,
       context,
       occurred_at: new Date().toISOString(),
@@ -179,7 +183,7 @@ export async function logRetryAttempt(
   await createAuditLog({
     action: 'retry_attempt',
     entity_type: entityType || 'operation',
-    entity_id: entityId,
+    entity_id: entityId || null, // Only use if it's a valid UUID
     details: {
       operation,
       attempt,
