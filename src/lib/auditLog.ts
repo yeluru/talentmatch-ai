@@ -9,6 +9,15 @@ export interface AuditLogEntry {
 }
 
 /**
+ * Validate if a string is a valid UUID
+ */
+function isValidUUID(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+}
+
+/**
  * Create an audit log entry
  */
 export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
@@ -156,14 +165,18 @@ export async function logResumeUpload(
   success: boolean,
   error?: string
 ): Promise<void> {
+  // Validate UUID - only use entity_id if it's a valid UUID format
+  const validCandidateId = isValidUUID(candidateId) ? candidateId : null;
+
   await createAuditLog({
     action: 'upload_resume',
     entity_type: 'resumes',
-    entity_id: candidateId,
+    entity_id: validCandidateId,
     details: {
       file_name: fileName,
       success,
       error,
+      candidate_id: candidateId, // Store original value in details for reference
       uploaded_at: new Date().toISOString(),
     },
   });
@@ -180,15 +193,19 @@ export async function logRetryAttempt(
   entityType?: string,
   entityId?: string
 ): Promise<void> {
+  // Validate UUID - only use entity_id if it's a valid UUID format
+  const validEntityId = isValidUUID(entityId) ? entityId : null;
+
   await createAuditLog({
     action: 'retry_attempt',
     entity_type: entityType || 'operation',
-    entity_id: entityId || null, // Only use if it's a valid UUID
+    entity_id: validEntityId,
     details: {
       operation,
       attempt,
       max_retries: maxRetries,
       error,
+      entity_id: entityId, // Store original value in details for reference
       timestamp: new Date().toISOString(),
     },
   });
