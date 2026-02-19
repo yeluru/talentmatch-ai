@@ -65,6 +65,7 @@ export default function RecruiterJobs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
+  const [ownerFilter, setOwnerFilter] = useState<string>('my-jobs');
   const isMobile = useIsMobile();
   const [selectedJobForDrawer, setSelectedJobForDrawer] = useState<any | null>(null);
   const [loadingJobDetails, setLoadingJobDetails] = useState(false);
@@ -250,7 +251,16 @@ export default function RecruiterJobs() {
       clientFilter === 'all' ||
       (clientFilter === 'no-client' && !(job as any).client_id) ||
       (job as any).client_id === clientFilter;
-    return matchesSearch && matchesStatus && matchesClient;
+
+    // Owner filter
+    let matchesOwner = true;
+    if (ownerFilter === 'my-jobs') {
+      matchesOwner = job.recruiter_id === user?.id || assignedSet.has(job.id);
+    } else if (ownerFilter !== 'all') {
+      matchesOwner = job.recruiter_id === ownerFilter;
+    }
+
+    return matchesSearch && matchesStatus && matchesClient && matchesOwner;
   });
 
   const getStatusBadge = (status: string) => {
@@ -287,11 +297,11 @@ export default function RecruiterJobs() {
                   <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                 </div>
                 <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-foreground truncate">
-                  My <span className="text-gradient-recruiter">Jobs</span>
+                  <span className="text-gradient-recruiter">Jobs</span>
                 </h1>
               </div>
               <p className="text-base sm:text-lg text-muted-foreground font-sans">
-                Manage openness, visibility, and applicants for your roles.
+                Manage and view jobs across your organization
               </p>
             </div>
             <Button asChild className="shrink-0 rounded-lg h-11 px-4 sm:px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shadow-lg w-full sm:w-auto">
@@ -345,6 +355,20 @@ export default function RecruiterJobs() {
                     <Building2 className="h-4 w-4 text-muted-foreground" />
                     {client.name}
                   </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+              <SelectValue placeholder="Owner" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="my-jobs">My Jobs</SelectItem>
+              <SelectItem value="all">All Jobs</SelectItem>
+              {ownerIds.map((ownerId) => (
+                <SelectItem key={ownerId} value={ownerId}>
+                  {ownerNames[ownerId] || 'Unknown'}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -406,10 +430,11 @@ export default function RecruiterJobs() {
                           </span>
                         )}
                       </span>
-                      {job.recruiter_id && job.recruiter_id !== user?.id && (
+                      {job.recruiter_id && (
                         <span className="flex items-center gap-1.5">
                           <Briefcase className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
                           Owner: {ownerNames[job.recruiter_id] ?? '—'}
+                          {job.recruiter_id === user?.id && <span className="text-xs">(You)</span>}
                         </span>
                       )}
                       {job.location && (
@@ -705,11 +730,14 @@ export default function RecruiterJobs() {
                   </div>
                 </div>
 
-                {/* Owner info (if not the current user) */}
-                {selectedJobForDrawer.recruiter_id && selectedJobForDrawer.recruiter_id !== user?.id && ownerNames[selectedJobForDrawer.recruiter_id] && (
+                {/* Owner info */}
+                {selectedJobForDrawer.recruiter_id && ownerNames[selectedJobForDrawer.recruiter_id] && (
                   <div>
                     <h3 className="font-semibold text-base mb-2">Owner</h3>
-                    <p className="text-sm">{ownerNames[selectedJobForDrawer.recruiter_id]}</p>
+                    <p className="text-sm">
+                      {ownerNames[selectedJobForDrawer.recruiter_id]}
+                      {selectedJobForDrawer.recruiter_id === user?.id && <span className="text-muted-foreground ml-1">(You)</span>}
+                    </p>
                   </div>
                 )}
 

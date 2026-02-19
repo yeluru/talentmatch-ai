@@ -97,7 +97,7 @@ const recruiterNavGroups: NavGroup[] = [
   {
     label: 'Jobs',
     items: [
-      { title: 'My Jobs', href: '/recruiter/jobs', icon: Briefcase },
+      { title: 'Jobs', href: '/recruiter/jobs', icon: Briefcase },
       { title: 'Post a Job', href: '/recruiter/jobs/new', icon: PlusCircle },
       { title: 'My Applicants', href: '/recruiter/candidates', icon: Users },
       // { title: 'AI Matching', href: '/recruiter/ai-matching', icon: Sparkles },
