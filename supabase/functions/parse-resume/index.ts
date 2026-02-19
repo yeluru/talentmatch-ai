@@ -44,6 +44,51 @@ function validateFileType(fileType: string | null | undefined, fileName: string 
   return false;
 }
 
+/**
+ * Extract name from filename as fallback when AI parsing fails
+ * Example: "Sundeep Kumar Lead roles.pdf" -> "Sundeep Kumar"
+ */
+function extractNameFromFilename(fileName: string | null | undefined): string | null {
+  if (!fileName) return null;
+
+  // Remove file extension
+  let name = fileName.replace(/\.(pdf|docx?|txt)$/i, '').trim();
+
+  // Common patterns to remove
+  const patternsToRemove = [
+    /resume/gi,
+    /cv/gi,
+    /curriculum\s+vitae/gi,
+    /_+/g,  // underscores
+    /\d{4,}/g,  // long numbers (years, IDs)
+    /\(.*?\)/g,  // content in parentheses
+    /\[.*?\]/g,  // content in brackets
+  ];
+
+  patternsToRemove.forEach(pattern => {
+    name = name.replace(pattern, ' ');
+  });
+
+  // Clean up multiple spaces
+  name = name.replace(/\s+/g, ' ').trim();
+
+  // Extract first 2-4 words that look like a name
+  // Names typically have 2-4 parts and contain letters
+  const words = name.split(/\s+/).filter(w => /^[A-Za-z][A-Za-z'-]*$/.test(w));
+
+  if (words.length >= 2 && words.length <= 4) {
+    return words.join(' ');
+  } else if (words.length > 4) {
+    // Take first 3 words as name
+    return words.slice(0, 3).join(' ');
+  } else if (words.length === 1 && words[0].length >= 3) {
+    // Single word that might be a name
+    return words[0];
+  }
+
+  return null;
+}
+
 function decodeXmlEntities(s: string): string {
   return String(s || "")
     .replaceAll("&amp;", "&")
@@ -1783,15 +1828,23 @@ IMPORTANT:
       parseRetried ? `(retried: ${parseRetryReason})` : ""
     );
 
-    // CRITICAL: Name is mandatory - reject resume if we couldn't extract it
+    // CRITICAL: Name is mandatory - try fallback to filename if AI didn't extract it
     if (!parsed?.full_name || String(parsed.full_name).trim().length === 0) {
-      console.error("Resume parsing failed: Could not extract candidate name from resume");
-      return new Response(JSON.stringify({
-        error: "Could not extract name from resume. Please ensure the resume contains a clear name at the top, or try a different format."
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.warn("AI parsing did not extract name, attempting filename fallback");
+      const nameFromFile = extractNameFromFilename(fileName);
+
+      if (nameFromFile) {
+        console.log(`Using name from filename: "${nameFromFile}"`);
+        parsed.full_name = nameFromFile;
+      } else {
+        console.error("Resume parsing failed: Could not extract candidate name from resume or filename");
+        return new Response(JSON.stringify({
+          error: "Could not extract name from resume. Please ensure the resume contains a clear name at the top, or try a different format."
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Include the chosen extracted text so clients can persist it and use it as a canonical source of truth
