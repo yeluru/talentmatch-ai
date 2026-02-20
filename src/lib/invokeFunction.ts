@@ -29,6 +29,10 @@ export async function invokeFunction<T = unknown>(
     if (import.meta.env.DEV) console.info('[supabase] functions direct:', url);
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token ?? '';
+    console.log('[invokeFunction] Token present:', !!token, 'Token length:', token?.length || 0);
+    if (!token) {
+      console.error('[invokeFunction] No auth token available! User may not be logged in.');
+    }
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -39,6 +43,9 @@ export async function invokeFunction<T = unknown>(
       body: JSON.stringify(options.body ?? {}),
     });
     if (!res.ok) {
+      console.error('[invokeFunction] HTTP error:', res.status, res.statusText);
+      const errorText = await res.text().catch(() => 'Unable to read error body');
+      console.error('[invokeFunction] Error body:', errorText);
       return {
         data: null,
         error: { name: 'FunctionsHttpError', context: res },
@@ -55,9 +62,18 @@ export async function invokeFunction<T = unknown>(
     }
     return { data, error: null };
   }
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token ?? '';
+  console.log('[invokeFunction] Production - Token present:', !!token, 'Token length:', token?.length || 0);
+  if (!token) {
+    console.error('[invokeFunction] No auth token available in production! User may not be logged in.');
+  }
   const result = await supabase.functions.invoke(name, {
     body: options.body,
     headers: options.headers,
   });
+  if (result.error) {
+    console.error('[invokeFunction] Production error:', result.error);
+  }
   return result as { data: T | null; error: { name: string; context: Response } | null };
 }
