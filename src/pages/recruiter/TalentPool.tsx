@@ -1840,7 +1840,7 @@ export default function TalentPool() {
                   <div className="w-16 text-left cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.toggle('ats_score')}>
                     ATS {tableSort.sort.key === 'ats_score' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-32 hidden xl:block text-left cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => tableSort.toggle('created_at')}>
+                  <div className="w-20 hidden xl:block text-left cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => tableSort.toggle('created_at')}>
                     Date {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[120px] hidden lg:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('uploaded_by_user')}>

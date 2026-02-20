@@ -315,7 +315,7 @@ export function CompactTalentPoolRow({
         )}
       </div>
 
-      <div className="w-32 hidden xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
+      <div className="w-20 hidden xl:block text-xs text-muted-foreground whitespace-nowrap text-left shrink-0">
         {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
       </div>
 
