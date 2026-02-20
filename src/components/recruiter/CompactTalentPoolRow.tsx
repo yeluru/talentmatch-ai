@@ -299,7 +299,7 @@ export function CompactTalentPoolRow({
           </SelectTrigger>
           <SelectContent>
             {CANDIDATE_STATUSES.map((status) => (
-              <SelectItem key={status.value} value={status.value} className="px-0">
+              <SelectItem key={status.value} value={status.value}>
                 {status.label}
               </SelectItem>
             ))}
