@@ -25,7 +25,7 @@ const statusConfig: Record<ApplicationStatus | 'new', { label: string; className
   outreach: { label: 'Engaged', className: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800/50 dark:text-slate-200 dark:border-slate-700' },
   applied: { label: 'Applied', className: 'stage-applied' },
   rtr_rate: { label: 'RTR & rate', className: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' },
-  document_check: { label: 'Document check', className: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800' },
+  document_check: { label: 'Doc check', className: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800' },
   screening: { label: 'Screening', className: 'stage-screening' },
   submission: { label: 'Submission', className: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' },
   final_update: { label: 'Outcome', className: 'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/40 dark:text-teal-200 dark:border-teal-800' },

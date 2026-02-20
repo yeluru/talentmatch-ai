@@ -58,7 +58,7 @@ const APPLIED_ENGAGED_STAGE_ID = 'applied_engaged';
 const PIPELINE_STAGES = [
   { id: APPLIED_ENGAGED_STAGE_ID, label: 'Applied / Engaged', dot: 'bg-slate-500', border: 'border-slate-400/60', headerBg: 'bg-slate-200 dark:bg-slate-800' },
   { id: 'rtr_rate', label: 'RTR & rate', dot: 'bg-indigo-500', border: 'border-indigo-500/40', headerBg: 'bg-indigo-100 dark:bg-indigo-950' },
-  { id: 'document_check', label: 'Document check', dot: 'bg-sky-500', border: 'border-sky-500/40', headerBg: 'bg-sky-100 dark:bg-sky-950' },
+  { id: 'document_check', label: 'Doc check', dot: 'bg-sky-500', border: 'border-sky-500/40', headerBg: 'bg-sky-100 dark:bg-sky-950' },
   { id: 'screening', label: 'Screening', dot: 'bg-amber-500', border: 'border-amber-500/40', headerBg: 'bg-amber-100 dark:bg-amber-950' },
   { id: 'submission', label: 'Submission', dot: 'bg-purple-500', border: 'border-purple-500/40', headerBg: 'bg-purple-100 dark:bg-purple-950' },
   { id: 'final_update', label: 'Outcome', dot: 'bg-teal-600', border: 'border-teal-500/40', headerBg: 'bg-teal-100 dark:bg-teal-950' },
@@ -1084,7 +1084,7 @@ export default function CandidatePipeline() {
         }}
       />
 
-      {/* Document check: custom modal so it never closes on blur; draft saved to sessionStorage */}
+      {/* Doc check: custom modal so it never closes on blur; draft saved to sessionStorage */}
       <PipelineModal
         open={!!documentCheckPending}
         onClose={() => {
@@ -1094,7 +1094,7 @@ export default function CandidatePipeline() {
           setDocumentCheckPending(null);
         }}
         title="Request verification documents"
-        description="Send an email asking for ID, visa status, I-94, etc. Once sent, the candidate will be moved to Document check."
+        description="Send an email asking for ID, visa status, I-94, etc. Once sent, the candidate will be moved to Doc check."
       >
         {documentCheckPending && (
           <div className="space-y-4 pt-2">
@@ -1170,7 +1170,7 @@ export default function CandidatePipeline() {
                       candidateId: documentCheckPending.app.candidate_id,
                     });
                     setDocumentCheckPending(null);
-                    toast.success('Email sent and candidate moved to Document check');
+                    toast.success('Email sent and candidate moved to Doc check');
                   } catch (err: unknown) {
                     const message = err instanceof Error ? err.message : 'Failed to send email';
                     toast.error(message);
@@ -1180,7 +1180,7 @@ export default function CandidatePipeline() {
                 }}
               >
                 {sendingDocCheck ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                Send & move to Document check
+                Send & move to Doc check
               </Button>
             </div>
           </div>

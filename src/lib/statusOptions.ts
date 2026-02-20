@@ -1,4 +1,4 @@
-// Recruiter pipeline: Applied/Engaged → RTR → Document check → Screening → Submission → Outcome.
+// Recruiter pipeline: Applied/Engaged → RTR → Doc check → Screening → Submission → Outcome.
 // After Submission, candidate is in Manager's pipeline. Recruiter records outcome in "Outcome" stage (final_update).
 
 export type ApplicationStage =
@@ -33,7 +33,7 @@ export const APPLICATION_STAGE_OPTIONS: { value: ApplicationStage; label: string
   { value: 'outreach', label: 'Engaged' },
   { value: 'applied', label: 'Applied' },
   { value: 'rtr_rate', label: 'RTR & rate' },
-  { value: 'document_check', label: 'Document check' },
+  { value: 'document_check', label: 'Doc check' },
   { value: 'screening', label: 'Screening' },
   { value: 'submission', label: 'Submission' },
   { value: 'final_update', label: 'Outcome' },

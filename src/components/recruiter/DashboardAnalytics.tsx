@@ -50,7 +50,7 @@ const STAGE_LABEL: Record<string, string> = {
   outreach: 'Engaged',
   applied: 'Applied',
   rtr_rate: 'RTR & rate',
-  document_check: 'Document check',
+  document_check: 'Doc check',
   screening: 'Screening',
   submission: 'Submission',
   final_update: 'Outcome',

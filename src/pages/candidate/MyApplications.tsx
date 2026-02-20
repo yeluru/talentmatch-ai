@@ -33,7 +33,7 @@ const CLOSED_STAGE_SET = new Set<string>(['hired', 'rejected', 'withdrawn']);
 function statusLeadLabel(status: string): string {
   const s = (status || 'applied').toLowerCase();
   if (s === 'outreach') return 'Engaged';
-  if (s === 'document_check') return 'Document check';
+  if (s === 'document_check') return 'Doc check';
   if (s === 'rtr_rate') return 'RTR & rate';
   if (s === 'submission') return 'Submitted to client';
   if (s === 'client_shortlist') return 'Client shortlist';

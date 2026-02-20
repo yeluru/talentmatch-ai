@@ -135,9 +135,9 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
       {
         title: 'Pipelines',
         description:
-          'One pipeline for all candidates: applicants (from job page) and people you engage (from talent pool). Candidates start at New until you start engagement, then Applied/Engaged → RTR & rate → Document check → Screening → Submission → Outcome. Kanban-style board with drag-and-drop.',
+          'One pipeline for all candidates: applicants (from job page) and people you engage (from talent pool). Candidates start at New until you start engagement, then Applied/Engaged → RTR & rate → Doc check → Screening → Submission → Outcome. Kanban-style board with drag-and-drop.',
         details: [
-          'Stages: Applied/Engaged → RTR & rate → Document check → Screening → Submission → Outcome',
+          'Stages: Applied/Engaged → RTR & rate → Doc check → Screening → Submission → Outcome',
           'Drag-and-drop and stage updates; filter by job',
           'Applicants and engaged candidates in one view',
         ],

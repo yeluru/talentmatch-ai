@@ -195,7 +195,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'One pipeline for all candidates: applicants and engaged. Move by stage from Applied/Engaged to outcome.',
     route: '/recruiter/pipeline',
     overview:
-      'The Pipeline (Jobs → Candidates Pipeline) shows all candidates for your jobs in one place. Candidates who applied via the job page start at **Applied**; candidates you add from the talent pool start at **New** until you start an engagement, then they appear at **Engaged**. Stages run from Applied/Engaged → RTR & rate → Document check → Screening → Submission → Outcome. You can drag and drop cards between stages, open a candidate for notes or status change, and filter by job. The page header aligns with other recruiter pages (no extra top spacing). Scoped to jobs you own; Account Managers can view a specific recruiter’s pipeline in oversight mode.',
+      'The Pipeline (Jobs → Candidates Pipeline) shows all candidates for your jobs in one place. Candidates who applied via the job page start at **Applied**; candidates you add from the talent pool start at **New** until you start an engagement, then they appear at **Engaged**. Stages run from Applied/Engaged → RTR & rate → Doc check → Screening → Submission → Outcome. You can drag and drop cards between stages, open a candidate for notes or status change, and filter by job. The page header aligns with other recruiter pages (no extra top spacing). Scoped to jobs you own; Account Managers can view a specific recruiter’s pipeline in oversight mode.',
     steps: [
       'Go to Pipelines → Pipelines.',
       'Select a job (or “All Jobs”) to see candidates by stage.',
