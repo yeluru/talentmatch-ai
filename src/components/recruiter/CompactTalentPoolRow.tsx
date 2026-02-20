@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -52,6 +51,7 @@ interface TalentProfile {
 interface CompactTalentPoolRowProps {
   talent: TalentProfile;
   displayId?: number;
+  isEvenRow?: boolean;
   onViewProfile: (id: string) => void;
   onRequestRemove?: (candidateId: string) => void;
   onAddToShortlist?: (id: string) => void;
@@ -65,6 +65,7 @@ interface CompactTalentPoolRowProps {
 export function CompactTalentPoolRow({
   talent,
   displayId,
+  isEvenRow = false,
   onViewProfile,
   onRequestRemove,
   onAddToShortlist,
@@ -113,7 +114,7 @@ export function CompactTalentPoolRow({
 
   return (
     <div
-      className="glass-panel py-1.5 px-3 hover-card-premium flex flex-nowrap items-center gap-4 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10"
+      className={`glass-panel py-0.5 px-2 hover-card-premium flex flex-nowrap items-center gap-3 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10 ${isEvenRow ? 'bg-white/5' : 'bg-transparent'}`}
       onClick={() => onViewProfile(talent.id)}
     >
       {onToggleSelect && (
@@ -129,14 +130,9 @@ export function CompactTalentPoolRow({
           {displayId}
         </div>
       )}
-      <div className="flex-1 min-w-0 flex items-center gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
-          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
-            {(name || 'U').charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="font-bold text-xs text-foreground truncate">{name}</div>
+      <div className="flex-1 min-w-0">
+        <div className="min-w-0">
+          <div className="font-semibold text-sm text-foreground truncate">{name}</div>
           {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' && (
             <TooltipProvider delayDuration={200}>
               <Tooltip>

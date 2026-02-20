@@ -1850,12 +1850,13 @@ export default function TalentPool() {
                   <div className="w-10"></div>
                 </div>
 
-                <div className="space-y-1.5 px-2">
+                <div className="space-y-0.5 px-2">
                   {paginatedTalents.map((talent, idx) => (
                     <CompactTalentPoolRow
                       key={talent.id}
                       talent={talent}
                       displayId={groupedTalents.length - ((currentPage - 1) * itemsPerPage + idx)}
+                      isEvenRow={idx % 2 === 0}
                       onViewProfile={handleTalentClick}
                       onRequestRemove={(candidateId) => requestRemove([candidateId])}
                       onAddToShortlist={openRowAddToShortlist}
