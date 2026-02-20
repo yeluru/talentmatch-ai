@@ -757,6 +757,10 @@ export default function TalentPool() {
       setEngageOpen(false);
       setEngageCandidateId(null);
       setEngageJobId('');
+
+      // Wait a moment for DB transaction to commit before refetching
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
       // Use refetchQueries to force immediate refetch (bypasses refetchOnMount: false)
@@ -799,6 +803,10 @@ export default function TalentPool() {
       setEngageCandidateId(null);
       setEngageJobId('');
       clearSelection();
+
+      // Wait a moment for DB transaction to commit before refetching
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
       // Use refetchQueries to force immediate refetch (bypasses refetchOnMount: false)
