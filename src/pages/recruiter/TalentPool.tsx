@@ -759,7 +759,8 @@ export default function TalentPool() {
       setEngageJobId('');
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
-      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      // Use refetchQueries to force immediate refetch (bypasses refetchOnMount: false)
+      await queryClient.refetchQueries({ queryKey: ['talent-pool', organizationId] });
       await queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       navigate('/recruiter/pipeline');
     },
@@ -800,7 +801,8 @@ export default function TalentPool() {
       clearSelection();
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
-      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
+      // Use refetchQueries to force immediate refetch (bypasses refetchOnMount: false)
+      await queryClient.refetchQueries({ queryKey: ['talent-pool', organizationId] });
       await queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       navigate('/recruiter/pipeline');
     },
