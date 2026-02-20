@@ -333,9 +333,14 @@ export function CompactTalentPoolRow({
               e.stopPropagation();
               onOpenShortlist(shortlistButton.shortlistId);
             }}
+            title={shortlistButton.label}
           >
             <ListPlus className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">{shortlistButton.label}</span>
+            <span className="hidden xl:inline">
+              {shortlistButton.label.length > 10
+                ? `${shortlistButton.label.slice(0, 10)}…`
+                : shortlistButton.label}
+            </span>
           </Button>
         ) : onAddToShortlist ? (
           <Button
