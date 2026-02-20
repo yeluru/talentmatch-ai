@@ -746,25 +746,35 @@ export default function TalentPool() {
       if (!organizationId || !user) throw new Error('Not authorized');
       if (!jobId) throw new Error('Select a job');
 
-      const { error } = await supabase.rpc('start_engagement', {
+      console.log('[TalentPool] Calling start_engagement RPC:', { candidateId, jobId });
+      const { data, error } = await supabase.rpc('start_engagement', {
         _candidate_id: candidateId,
         _job_id: jobId,
       });
-      if (error) throw error;
+      console.log('[TalentPool] RPC result:', { data, error });
+      if (error) {
+        console.error('[TalentPool] RPC error:', error);
+        throw error;
+      }
+
+      // Verify the update happened by checking candidate_profiles
+      const { data: profile, error: profileError } = await supabase
+        .from('candidate_profiles')
+        .select('recruiter_status')
+        .eq('id', candidateId)
+        .single();
+      console.log('[TalentPool] Profile status after RPC:', profile?.recruiter_status, 'Error:', profileError);
+
+      return { candidateId, jobId };
     },
     onSuccess: async () => {
       toast.success('Engagement started');
       setEngageOpen(false);
       setEngageCandidateId(null);
       setEngageJobId('');
-
-      // Wait a moment for DB transaction to commit before refetching
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
-      // Use refetchQueries to force immediate refetch (bypasses refetchOnMount: false)
-      await queryClient.refetchQueries({ queryKey: ['talent-pool', organizationId] });
+      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
       await queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       navigate('/recruiter/pipeline');
     },
@@ -803,14 +813,9 @@ export default function TalentPool() {
       setEngageCandidateId(null);
       setEngageJobId('');
       clearSelection();
-
-      // Wait a moment for DB transaction to commit before refetching
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       await queryClient.invalidateQueries({ queryKey: ['recruiter-engagements'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['recruiter-applications'], exact: false });
-      // Use refetchQueries to force immediate refetch (bypasses refetchOnMount: false)
-      await queryClient.refetchQueries({ queryKey: ['talent-pool', organizationId] });
+      await queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
       await queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       navigate('/recruiter/pipeline');
     },
