@@ -1325,16 +1325,16 @@ export default function TalentPool() {
     (experienceFilter ? 1 : 0);
 
   const filtersContent = (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Search row (hero) */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center glass-panel p-1 rounded-xl border border-white/10">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center glass-panel p-1 rounded-xl border border-white/10">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder='Search (boolean): "fannie and freddie", react or angular'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-11 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
+            className="pl-10 h-9 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 text-sm"
           />
         </div>
 
@@ -1490,18 +1490,18 @@ export default function TalentPool() {
       <ScrollToTop />
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1344px] mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="shrink-0 flex flex-col gap-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
-                  <Users className="h-5 w-5" strokeWidth={1.5} />
+              <div className="flex items-center gap-2 mb-0.5">
+                <div className="p-1.5 rounded-lg bg-recruiter/10 text-recruiter border border-recruiter/20">
+                  <Users className="h-4 w-4" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground">
                   Talent <span className="text-gradient-recruiter">Pool</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-sm text-muted-foreground font-sans">
                 Sourced profiles from bulk uploads and searches
               </p>
               {dataUpdatedAt && (
@@ -1511,11 +1511,11 @@ export default function TalentPool() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-lg h-11 w-11 border border-border/50 hover:bg-accent"
+                className="rounded-lg h-9 w-9 border border-border/50 hover:bg-accent"
                 onClick={handleManualRefresh}
                 disabled={isLoading}
                 title="Refresh talent pool"
@@ -1532,7 +1532,7 @@ export default function TalentPool() {
               />
               <Button
                 variant="outline"
-                className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold"
+                className="rounded-lg h-9 px-4 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold text-sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={!organizationId || !loadingProgress.isComplete}
                 title={!loadingProgress.isComplete ? 'Wait for talent pool to finish loading' : ''}
@@ -1540,7 +1540,7 @@ export default function TalentPool() {
                 <Upload className="h-4 w-4 mr-2" strokeWidth={1.5} />
                 Upload
               </Button>
-              <Button asChild className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold">
+              <Button asChild className="rounded-lg h-9 px-4 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold text-sm">
                 <Link to="/recruiter/talent-search/search">
                   <Search className="h-4 w-4 mr-2" strokeWidth={1.5} />
                   Find Talent
@@ -1814,7 +1814,7 @@ export default function TalentPool() {
                 )}
 
                 {/* Header Row */}
-                <div className="hidden lg:flex items-center px-6 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-4">
+                <div className="hidden lg:flex items-center px-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-3">
                   <div className="w-10 flex items-center justify-center">
                     <Checkbox
                       checked={paginatedTalents.length > 0 && paginatedTalents.every(t => selectedIds.has(t.id))}
