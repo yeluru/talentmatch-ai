@@ -658,16 +658,29 @@ serve(async (req: Request) => {
 
     const svc = createClient(supabaseUrl, supabaseServiceKey);
 
+    console.log("[send-rtr-email] Auth check:", {
+      userId: user.id,
+      userEmail: user.email,
+      organizationId,
+    });
+
     if (organizationId) {
-      const { data: role } = await svc
+      const { data: role, error: roleError } = await svc
         .from("user_roles")
-        .select("id")
+        .select("id, role, organization_id")
         .eq("user_id", user.id)
         .eq("organization_id", organizationId)
         .in("role", ["recruiter", "account_manager", "org_admin", "super_admin"])
         .maybeSingle();
+
+      console.log("[send-rtr-email] Role check result:", { role, roleError });
+
       if (!role) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
+        console.error("[send-rtr-email] No matching role found for user:", user.id, "org:", organizationId);
+        return new Response(JSON.stringify({
+          error: "Forbidden",
+          details: `No role found for user ${user.id} in org ${organizationId}`
+        }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
