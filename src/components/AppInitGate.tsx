@@ -9,20 +9,30 @@ interface AppInitGateProps {
 
 /**
  * Shows a lightweight branded loading screen while the auth session + profile/roles are initializing.
+ * CRITICAL: Only shows on FIRST load, never again (to prevent form data loss on tab switches).
  */
 export function AppInitGate({ children }: AppInitGateProps) {
   const { isLoading } = useAuth();
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   // Avoid flicker for very fast loads
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (isLoading) {
+    // Once hydrated, never show loading screen again (prevents form data loss)
+    if (!isLoading && !hasHydrated) {
+      setHasHydrated(true);
+    }
+
+    if (isLoading && !hasHydrated) {
       const t = window.setTimeout(() => setShow(true), 150);
       return () => window.clearTimeout(t);
     }
     setShow(false);
-  }, [isLoading]);
+  }, [isLoading, hasHydrated]);
+
+  // After first hydration, NEVER unmount children (preserves form state)
+  if (hasHydrated) return <>{children}</>;
 
   if (!isLoading || !show) return <>{children}</>;
 
