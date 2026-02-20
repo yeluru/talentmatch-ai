@@ -1855,7 +1855,7 @@ export default function TalentPool() {
                     <CompactTalentPoolRow
                       key={talent.id}
                       talent={talent}
-                      displayId={(currentPage - 1) * itemsPerPage + idx + 1}
+                      displayId={groupedTalents.length - ((currentPage - 1) * itemsPerPage + idx)}
                       onViewProfile={handleTalentClick}
                       onRequestRemove={(candidateId) => requestRemove([candidateId])}
                       onAddToShortlist={openRowAddToShortlist}
