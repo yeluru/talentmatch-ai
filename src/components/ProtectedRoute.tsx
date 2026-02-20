@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,9 +11,18 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, currentRole, isLoading, isSuperAdmin, profile, signOut } = useAuth();
   const location = useLocation();
+  const [hasHydrated, setHasHydrated] = useState(false);
 
-  // Initial auth/role hydration
-  if (isLoading) {
+  // Track when auth has hydrated - after first load, never show loading screen again
+  useEffect(() => {
+    if (!isLoading && !hasHydrated) {
+      setHasHydrated(true);
+    }
+  }, [isLoading, hasHydrated]);
+
+  // CRITICAL: After first hydration, NEVER unmount children (preserves form state)
+  // Only show loading screen on initial load, not on token refreshes/tab switches
+  if (isLoading && !hasHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
