@@ -326,23 +326,16 @@ export default function TalentPool() {
       let candidateIds: string[] = [];
       // IMPORTANT: PostgREST defaults to 1000 row limit - must explicitly set higher limit
       // Using .range(0, 49999) instead of .limit(50000) for RPC calls (more reliable)
-      console.log('[TalentPool] About to call RPC with .range(0, 49999)...');
       const { data: poolIds, error: rpcError } = await supabase
         .rpc('get_talent_pool_candidate_ids')
         .range(0, 49999); // Support up to 50k candidates (well above realistic org size)
 
-      console.log('[TalentPool] RPC response - data length:', poolIds?.length || 0, 'error:', rpcError);
       if (rpcError) {
-        console.error('[TalentPool] RPC error details:', rpcError);
-      } else {
-        console.log('[TalentPool] RPC returned', poolIds?.length || 0, 'candidate IDs');
+        console.error('[TalentPool] RPC error:', rpcError);
       }
 
       if (!rpcError && poolIds?.length) {
-        const rawIds = (poolIds as { candidate_id: string }[]).map((r) => r.candidate_id);
-        console.log('[TalentPool] Raw IDs from RPC:', rawIds.length);
-        candidateIds = Array.from(new Set(rawIds.filter(Boolean)));
-        console.log('[TalentPool] After dedup & filter:', candidateIds.length, 'unique candidates');
+        candidateIds = Array.from(new Set((poolIds as { candidate_id: string }[]).map((r) => r.candidate_id).filter(Boolean)));
       }
 
       if (candidateIds.length === 0) {
@@ -1769,7 +1762,7 @@ export default function TalentPool() {
                 <div className="flex items-center justify-between gap-2 p-4 border-b border-white/10 bg-white/5 backdrop-blur-sm">
                   <span className="text-sm font-medium text-muted-foreground">
                     {groupedTalents.length > 0
-                      ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}`
+                      ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}${talents && groupedTalents.length !== talents.length ? ` (${talents.length} total profiles)` : ''}`
                       : ''}
                   </span>
                   <div className="flex items-center gap-3">
@@ -1828,6 +1821,7 @@ export default function TalentPool() {
                       onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
                     />
                   </div>
+                  <div className="w-12 text-center shrink-0">#</div>
                   <div className="flex-1 text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
@@ -1857,10 +1851,11 @@ export default function TalentPool() {
                 </div>
 
                 <div className="space-y-1.5 px-2">
-                  {paginatedTalents.map((talent) => (
+                  {paginatedTalents.map((talent, idx) => (
                     <CompactTalentPoolRow
                       key={talent.id}
                       talent={talent}
+                      displayId={(currentPage - 1) * itemsPerPage + idx + 1}
                       onViewProfile={handleTalentClick}
                       onRequestRemove={(candidateId) => requestRemove([candidateId])}
                       onAddToShortlist={openRowAddToShortlist}

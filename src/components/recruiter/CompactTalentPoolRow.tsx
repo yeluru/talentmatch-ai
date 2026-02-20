@@ -51,6 +51,7 @@ interface TalentProfile {
 
 interface CompactTalentPoolRowProps {
   talent: TalentProfile;
+  displayId?: number;
   onViewProfile: (id: string) => void;
   onRequestRemove?: (candidateId: string) => void;
   onAddToShortlist?: (id: string) => void;
@@ -63,6 +64,7 @@ interface CompactTalentPoolRowProps {
 
 export function CompactTalentPoolRow({
   talent,
+  displayId,
   onViewProfile,
   onRequestRemove,
   onAddToShortlist,
@@ -120,6 +122,11 @@ export function CompactTalentPoolRow({
             checked={isSelected}
             onCheckedChange={onToggleSelect}
           />
+        </div>
+      )}
+      {displayId !== undefined && (
+        <div className="w-12 hidden lg:flex items-center justify-center shrink-0 text-xs text-muted-foreground font-mono">
+          {displayId}
         </div>
       )}
       <div className="flex-1 min-w-0 flex items-center gap-3">
