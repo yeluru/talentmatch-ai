@@ -325,19 +325,23 @@ export default function TalentPool() {
 
       let candidateIds: string[] = [];
       // IMPORTANT: PostgREST defaults to 1000 row limit - must explicitly set higher limit
+      console.log('[TalentPool] About to call RPC with .limit(50000)...');
       const { data: poolIds, error: rpcError } = await supabase
         .rpc('get_talent_pool_candidate_ids')
         .limit(50000); // Support up to 50k candidates (well above realistic org size)
 
+      console.log('[TalentPool] RPC response - data length:', poolIds?.length || 0, 'error:', rpcError);
       if (rpcError) {
-        console.error('[TalentPool] RPC error:', rpcError);
+        console.error('[TalentPool] RPC error details:', rpcError);
       } else {
         console.log('[TalentPool] RPC returned', poolIds?.length || 0, 'candidate IDs');
       }
 
       if (!rpcError && poolIds?.length) {
-        candidateIds = Array.from(new Set((poolIds as { candidate_id: string }[]).map((r) => r.candidate_id).filter(Boolean)));
-        console.log('[TalentPool] Using RPC results:', candidateIds.length, 'candidates');
+        const rawIds = (poolIds as { candidate_id: string }[]).map((r) => r.candidate_id);
+        console.log('[TalentPool] Raw IDs from RPC:', rawIds.length);
+        candidateIds = Array.from(new Set(rawIds.filter(Boolean)));
+        console.log('[TalentPool] After dedup & filter:', candidateIds.length, 'unique candidates');
       }
 
       if (candidateIds.length === 0) {
