@@ -294,7 +294,7 @@ export function CompactTalentPoolRow({
           onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
           disabled={updateStatus.isPending}
         >
-          <SelectTrigger className="h-8 text-xs w-full bg-white/5 border-white/10 px-0" onClick={(e) => e.stopPropagation()}>
+          <SelectTrigger className="h-8 text-xs w-full bg-white/5 border-white/10" onClick={(e) => e.stopPropagation()}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
