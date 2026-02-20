@@ -324,7 +324,10 @@ export default function TalentPool() {
       console.log('[TalentPool] User roles:', roles?.map(r => `${r.role} @ ${r.organization_id}`));
 
       let candidateIds: string[] = [];
-      const { data: poolIds, error: rpcError } = await supabase.rpc('get_talent_pool_candidate_ids');
+      // IMPORTANT: PostgREST defaults to 1000 row limit - must explicitly set higher limit
+      const { data: poolIds, error: rpcError } = await supabase
+        .rpc('get_talent_pool_candidate_ids')
+        .limit(50000); // Support up to 50k candidates (well above realistic org size)
 
       if (rpcError) {
         console.error('[TalentPool] RPC error:', rpcError);
