@@ -325,10 +325,11 @@ export default function TalentPool() {
 
       let candidateIds: string[] = [];
       // IMPORTANT: PostgREST defaults to 1000 row limit - must explicitly set higher limit
-      console.log('[TalentPool] About to call RPC with .limit(50000)...');
+      // Using .range(0, 49999) instead of .limit(50000) for RPC calls (more reliable)
+      console.log('[TalentPool] About to call RPC with .range(0, 49999)...');
       const { data: poolIds, error: rpcError } = await supabase
         .rpc('get_talent_pool_candidate_ids')
-        .limit(50000); // Support up to 50k candidates (well above realistic org size)
+        .range(0, 49999); // Support up to 50k candidates (well above realistic org size)
 
       console.log('[TalentPool] RPC response - data length:', poolIds?.length || 0, 'error:', rpcError);
       if (rpcError) {
@@ -355,7 +356,7 @@ export default function TalentPool() {
             'resume_upload', 'web_search', 'google_xray', 'linkedin_search',
             'sourced_resume', 'sourced_web', 'sourced', 'unknown',
           ])
-          .limit(50000); // PostgREST default is 1000 - set explicit high limit
+          .range(0, 49999); // PostgREST default is 1000 - set explicit high range
         if (sourcedLinksError) {
           console.error('[TalentPool] Error fetching sourced links:', sourcedLinksError);
           throw sourcedLinksError;
@@ -367,7 +368,7 @@ export default function TalentPool() {
           .from('applications')
           .select('candidate_id, jobs!inner(organization_id)')
           .eq('jobs.organization_id', organizationId)
-          .limit(50000); // PostgREST default is 1000 - set explicit high limit
+          .range(0, 49999); // PostgREST default is 1000 - set explicit high range
         if (applicantLinksError) {
           console.error('[TalentPool] Error fetching applicant links:', applicantLinksError);
           throw applicantLinksError;
