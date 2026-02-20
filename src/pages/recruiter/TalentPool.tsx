@@ -1814,7 +1814,7 @@ export default function TalentPool() {
                 )}
 
                 {/* Header Row */}
-                <div className="hidden lg:flex items-center px-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-3">
+                <div className="hidden lg:flex items-center px-4 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-widest gap-3">
                   <div className="w-10 flex items-center justify-center">
                     <Checkbox
                       checked={paginatedTalents.length > 0 && paginatedTalents.every(t => selectedIds.has(t.id))}
