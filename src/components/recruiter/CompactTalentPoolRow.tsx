@@ -193,7 +193,7 @@ export function CompactTalentPoolRow({
           {displayId}
         </div>
       )}
-      <div className="flex-1 min-w-0">
+      <div className="w-[180px] min-w-0">
         <div className="min-w-0">
           {editingField === 'name' ? (
             <input
@@ -247,7 +247,7 @@ export function CompactTalentPoolRow({
         </div>
       </div>
 
-      <div className="w-[140px] hidden xl:block" title={rawTitle}>
+      <div className="w-[200px] hidden xl:block" title={rawTitle}>
         {editingField === 'title' ? (
           <input
             type="text"

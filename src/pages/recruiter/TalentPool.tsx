@@ -1822,10 +1822,10 @@ export default function TalentPool() {
                     />
                   </div>
                   <div className="w-12 text-center shrink-0">#</div>
-                  <div className="flex-1 text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('full_name')}>
+                  <div className="w-[180px] text-left cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[140px] hidden xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('current_title')}>
+                  <div className="w-[200px] hidden xl:block text-left cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('current_title')}>
                     Title {tableSort.sort.key === 'current_title' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[100px] hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('location')}>
