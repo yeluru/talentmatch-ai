@@ -350,7 +350,8 @@ export default function TalentPool() {
           .in('link_type', [
             'resume_upload', 'web_search', 'google_xray', 'linkedin_search',
             'sourced_resume', 'sourced_web', 'sourced', 'unknown',
-          ]);
+          ])
+          .limit(50000); // PostgREST default is 1000 - set explicit high limit
         if (sourcedLinksError) {
           console.error('[TalentPool] Error fetching sourced links:', sourcedLinksError);
           throw sourcedLinksError;
@@ -361,7 +362,8 @@ export default function TalentPool() {
         const { data: applicantLinks, error: applicantLinksError } = await supabase
           .from('applications')
           .select('candidate_id, jobs!inner(organization_id)')
-          .eq('jobs.organization_id', organizationId);
+          .eq('jobs.organization_id', organizationId)
+          .limit(50000); // PostgREST default is 1000 - set explicit high limit
         if (applicantLinksError) {
           console.error('[TalentPool] Error fetching applicant links:', applicantLinksError);
           throw applicantLinksError;
