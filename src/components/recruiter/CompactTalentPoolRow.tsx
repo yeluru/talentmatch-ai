@@ -1,3 +1,4 @@
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -76,6 +77,68 @@ export function CompactTalentPoolRow({
   onToggleSelect,
 }: CompactTalentPoolRowProps) {
   const queryClient = useQueryClient();
+  const [editingField, setEditingField] = React.useState<'name' | 'title' | null>(null);
+  const [editedName, setEditedName] = React.useState(talent.full_name || '');
+  const [editedTitle, setEditedTitle] = React.useState(talent.current_title || '');
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const saveField = async (field: 'name' | 'title') => {
+    if (isSaving) return;
+
+    const newValue = field === 'name' ? editedName.trim() : editedTitle.trim();
+    const oldValue = field === 'name' ? talent.full_name : talent.current_title;
+
+    // No change, just exit edit mode
+    if (newValue === oldValue) {
+      setEditingField(null);
+      return;
+    }
+
+    // Don't allow empty name
+    if (field === 'name' && !newValue) {
+      toast.error('Name cannot be empty');
+      setEditedName(talent.full_name || '');
+      setEditingField(null);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updateData = field === 'name'
+        ? { full_name: newValue }
+        : { current_title: newValue };
+
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update(updateData)
+        .eq('id', talent.id);
+
+      if (error) throw error;
+
+      // Update local state
+      if (field === 'name') {
+        talent.full_name = newValue;
+      } else {
+        talent.current_title = newValue;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      toast.success(`${field === 'name' ? 'Name' : 'Title'} updated`);
+      setEditingField(null);
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
+      toast.error(`Failed to update ${field}`);
+      // Revert to original value
+      if (field === 'name') {
+        setEditedName(talent.full_name || '');
+      } else {
+        setEditedTitle(talent.current_title || '');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -132,7 +195,36 @@ export function CompactTalentPoolRow({
       )}
       <div className="flex-1 min-w-0">
         <div className="min-w-0">
-          <div className="font-semibold text-sm text-foreground truncate">{name}</div>
+          {editingField === 'name' ? (
+            <input
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={() => saveField('name')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveField('name');
+                if (e.key === 'Escape') {
+                  setEditedName(talent.full_name || '');
+                  setEditingField(null);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+              disabled={isSaving}
+              className="font-semibold text-sm text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          ) : (
+            <div
+              className="font-semibold text-sm text-foreground truncate cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingField('name');
+              }}
+              title="Click to edit name"
+            >
+              {name}
+            </div>
+          )}
           {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' && (
             <TooltipProvider delayDuration={200}>
               <Tooltip>
@@ -156,7 +248,36 @@ export function CompactTalentPoolRow({
       </div>
 
       <div className="w-[140px] hidden xl:block" title={rawTitle}>
-        <span className="text-xs text-foreground/80 truncate block">{title}</span>
+        {editingField === 'title' ? (
+          <input
+            type="text"
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onBlur={() => saveField('title')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveField('title');
+              if (e.key === 'Escape') {
+                setEditedTitle(talent.current_title || '');
+                setEditingField(null);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            disabled={isSaving}
+            className="text-xs text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : (
+          <span
+            className="text-xs text-foreground/80 truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingField('title');
+            }}
+            title="Click to edit title"
+          >
+            {title}
+          </span>
+        )}
       </div>
 
       <div className="w-[100px] hidden 2xl:block truncate text-xs text-muted-foreground text-left" title={location}>
