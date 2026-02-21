@@ -665,17 +665,16 @@ serve(async (req: Request) => {
     });
 
     if (organizationId) {
-      const { data: role, error: roleError } = await svc
+      const { data: roles, error: roleError } = await svc
         .from("user_roles")
         .select("id, role, organization_id")
         .eq("user_id", user.id)
         .eq("organization_id", organizationId)
-        .in("role", ["recruiter", "account_manager", "org_admin", "super_admin"])
-        .maybeSingle();
+        .in("role", ["recruiter", "account_manager", "org_admin", "super_admin"]);
 
-      console.log("[send-rtr-email] Role check result:", { role, roleError });
+      console.log("[send-rtr-email] Role check result:", { roles, roleError, count: roles?.length });
 
-      if (!role) {
+      if (!roles || roles.length === 0) {
         console.error("[send-rtr-email] No matching role found for user:", user.id, "org:", organizationId);
         return new Response(JSON.stringify({
           error: "Forbidden",
