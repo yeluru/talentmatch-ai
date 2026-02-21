@@ -40,10 +40,10 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'Organization-wide overview: activity, team, and key metrics.',
     route: '/manager',
     overview:
-      "The Manager Dashboard gives you a bird's-eye view of your organization's recruiting activity. You see high-level metrics (e.g. open jobs, applications, pipeline movement), recent activity across the org, and quick links to Team, Jobs, or Audit Logs. As a hiring manager or Account Manager you use this to monitor overall health and drill into specific recruiters or jobs. Account Managers can also switch to Recruiter role to do hands-on recruiting; when in Manager role you see org-wide data.",
+      "The Manager Dashboard gives you a bird\'s-eye view of your organization\'s recruiting activity. You see high-level metrics (e.g. open jobs, applications, pipeline movement), recent activity across the org, and quick links to Team, Jobs, or Audit Logs. As a hiring manager or Account Manager you use this to monitor overall health and drill into specific recruiters or jobs. Account Managers can also switch to Recruiter role to do hands-on recruiting; when in Manager role you see org-wide data.",
     steps: [
       'Click on "Dashboard" in the left sidebar when signed in as Manager or Account Manager (it appears at the top of the navigation menu).',
-      "Look at the top row of metric cards showing your organization's key numbers: total open jobs, total applications received, active candidates in the pipeline, and team size.",
+      "Look at the top row of metric cards showing your organization\'s key numbers: total open jobs, total applications received, active candidates in the pipeline, and team size.",
       'Scroll down to view the Pipeline Funnel visualization, which shows how many candidates are at each stage (Engaged → Applied → RTR → Doc Check → Screening → Submission → Outcome).',
       'Check the "Applications (last 30 days)" chart to see the trend of new applications over time, with a percentage change indicator.',
       'Review the "Needs Attention" section for jobs or candidates that require immediate action (e.g., pending applications, stalled candidates).',
@@ -58,7 +58,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'Pipeline and metrics are now on the Manager Dashboard.',
     route: '/manager',
     overview:
-      'Analytics provides reports and visualizations on your organization's recruiting performance: applications over time, time-to-fill, pipeline conversion, source effectiveness, recruiter activity, and more. Data is scoped to your organization so you can compare jobs, recruiters, or periods. Use it to spot trends, allocate resources, or report to leadership. Filters typically let you narrow by date range, job, or recruiter.',
+      'Analytics provides reports and visualizations on your organization\'s recruiting performance: applications over time, time-to-fill, pipeline conversion, source effectiveness, recruiter activity, and more. Data is scoped to your organization so you can compare jobs, recruiters, or periods. Use it to spot trends, allocate resources, or report to leadership. Filters typically let you narrow by date range, job, or recruiter.',
     steps: [
       'Navigate to the Manager Dashboard (all analytics are now integrated into the main Dashboard view rather than a separate page).',
       'Locate the Pipeline Funnel chart on the Dashboard, which shows the conversion rate at each recruiting stage (how many candidates move from Engaged to Applied to RTR, etc.).',
@@ -75,7 +75,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'View recruiters and account managers; assign and manage team structure.',
     route: '/manager/team',
     overview:
-      'Team Management shows everyone in your organization with a recruiter or account-manager role. You can see who is on the team, what roles they have, and (depending on setup) assign account managers to recruiters or clients. You can invite new recruiters or managers via email; they receive an invite link and complete signup. This is also where you may assign which recruiters an Account Manager oversees, so that the AM can view that recruiter's pipeline or progress.',
+      'Team Management shows everyone in your organization with a recruiter or account-manager role. You can see who is on the team, what roles they have, and (depending on setup) assign account managers to recruiters or clients. You can invite new recruiters or managers via email; they receive an invite link and complete signup. This is also where you may assign which recruiters an Account Manager oversees, so that the AM can view that recruiter\'s pipeline or progress.',
     steps: [
       'Click on "Team" or "Team Management" in the left sidebar menu to open the team list page.',
       'View the table or cards showing all team members, including their name, email address, role (Recruiter, Account Manager, Org Admin), and activity metrics.',
@@ -92,14 +92,14 @@ const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'recruiter-progress',
     title: 'Recruiter Progress (view as)',
-    description: 'See a specific recruiter's pipeline and activity (AM oversight).',
+    description: 'See a specific recruiter\'s pipeline and activity (AM oversight).',
     route: '/manager/team',
     overview:
-      'When you are an Account Manager (or manager with oversight), you can "view as" a specific recruiter to see their pipeline, jobs, and applicants as they see it. This is called Recruiter Progress or "view as recruiter." You select a recruiter from the team; the system then shows that recruiter's Pipeline or related views so you can coach or audit without taking over their account. Data is read-only in this mode; you are observing, not acting as that user.',
+      'When you are an Account Manager (or manager with oversight), you can "view as" a specific recruiter to see their pipeline, jobs, and applicants as they see it. This is called Recruiter Progress or "view as recruiter." You select a recruiter from the team; the system then shows that recruiter\'s Pipeline or related views so you can coach or audit without taking over their account. Data is read-only in this mode; you are observing, not acting as that user.',
     steps: [
       'Go to Team Management by clicking "Team" in the left sidebar.',
       'Find the recruiter whose progress you want to review in the team member list.',
-      'Click on the recruiter's name or row to open their team member detail page.',
+      'Click on the recruiter\'s name or row to open their team member detail page.',
       'Look for a button labeled "View Progress", "View as Recruiter", or "View Pipeline" (usually near the top of their profile).',
       'Click this button to enter the "view as" mode, where you'll see the system from their perspective.',
       'You'll now see their specific jobs, their candidate pipeline, their engagements, and their outreach activities, exactly as they see it in Recruiter role.',
@@ -141,8 +141,8 @@ const GUIDE_SECTIONS: GuideSection[] = [
       'View the table or cards showing all candidates linked to your organization, including their name, current status, job(s) applied to, recruiter owner, and last activity date.',
       'Use the search box to find a candidate by name, email, phone number, or skills.',
       'Apply filters to narrow the list: filter by job (to see all candidates for a specific role), by recruiter (to see one person's candidates), by status (e.g., only Screening or only Outcome), or by date range.',
-      'Click on a candidate's name to open their full profile, where you can see their resume, work history, applications across multiple jobs, timeline of interactions, and notes from recruiters.',
-      'Review the candidate's application timeline to see what stage they're in for each job, when they last moved stages, and what actions recruiters have taken (e.g., sent RTR, scheduled screening).',
+      'Click on a candidate\'s name to open their full profile, where you can see their resume, work history, applications across multiple jobs, timeline of interactions, and notes from recruiters.',
+      'Review the candidate\'s application timeline to see what stage they're in for each job, when they last moved stages, and what actions recruiters have taken (e.g., sent RTR, scheduled screening).',
       'Use this view to identify candidates who may have applied to multiple jobs or are being considered by multiple recruiters, to avoid duplicate outreach or conflicting communications.',
       'Export the candidate list (if available) to create reports, share with hiring managers, or analyze sourcing effectiveness across the organization.',
     ],
@@ -159,7 +159,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
       'View the list of all clients your organization works with, showing client name, assigned account manager, number of active jobs, and contact information.',
       'To add a new client, click the "+ Add Client" or "Create Client" button (usually in the top-right corner).',
       'In the client creation form, enter the client's company name, contact person name, email address, phone number, and any notes or additional details.',
-      'Click "Save" or "Create Client" to add the client to your organization's client list.',
+      'Click "Save" or "Create Client" to add the client to your organization\'s client list.',
       'To assign an Account Manager or recruiter to a client, click on the client row to open the client detail page, then use the "Assign Account Manager" dropdown to select the responsible person.',
       'Link jobs to clients by editing a job and selecting the client from the "Client" dropdown, or by using the "Add Job" button on the client detail page to create a new job for that client.',
       'View all jobs associated with a client by opening the client detail page and scrolling to the "Jobs" section, where you'll see all open and closed positions for that client.',
@@ -201,7 +201,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
       'Click on a log entry row to expand it and see full details, including before/after values (e.g., status changed from "Screening" to "Submission"), IP address, and any notes or context.',
       'Use the "Load Older Logs" or "Show More" button at the bottom to fetch additional history beyond the initial results.',
       'Export audit logs (if available) for compliance reporting, external audits, or long-term record-keeping by clicking the "Export" button and selecting CSV or PDF format.',
-      'Regularly review audit logs to spot unusual patterns, ensure compliance with recruiting processes, or troubleshoot issues (e.g., "Who changed this candidate's status?" or "When was this job created?").',
+      'Regularly review audit logs to spot unusual patterns, ensure compliance with recruiting processes, or troubleshoot issues (e.g., "Who changed this candidate\'s status?" or "When was this job created?").',
     ],
   },
   {
@@ -210,7 +210,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'How AM and Recruiter roles differ and when to switch.',
     route: '/manager',
     overview:
-      'Account Managers (AMs) have an oversight role: they see org-wide data (team, jobs overview, analytics, audit logs, candidates) and can "view as" a specific recruiter to see that recruiter's pipeline and progress. They do not, by default, see only their own jobs or pipelines—they see the whole org. When an AM switches to Recruiter role (same account, role switch in the UI), they then see only their own recruiter data: their jobs, their applicants, their pipelines, their outreach. The talent pool stays shared. So: use Manager/AM role for oversight and reporting; use Recruiter role for hands-on recruiting.',
+      'Account Managers (AMs) have an oversight role: they see org-wide data (team, jobs overview, analytics, audit logs, candidates) and can "view as" a specific recruiter to see that recruiter\'s pipeline and progress. They do not, by default, see only their own jobs or pipelines—they see the whole org. When an AM switches to Recruiter role (same account, role switch in the UI), they then see only their own recruiter data: their jobs, their applicants, their pipelines, their outreach. The talent pool stays shared. So: use Manager/AM role for oversight and reporting; use Recruiter role for hands-on recruiting.',
     steps: [
       'When signed in as Account Manager, look at the left sidebar menu; you'll see Manager pages: Dashboard, Team, Jobs Overview, Candidates, Clients, Organization, and Audit Logs.',
       'In Manager/AM role, you see organization-wide data: all jobs across all recruiters, all candidates in the org, team member activity, and audit logs. This is your oversight mode.',
@@ -219,7 +219,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
       'After switching, the left sidebar now shows Recruiter pages: My Jobs, Talent Pool, Pipelines, Outreach, and Campaigns. You now see only your own recruiter data.',
       'In Recruiter role, you see only the jobs you own, the candidates you engaged, your pipeline progress, and your outreach campaigns. The Talent Pool remains shared across all recruiters.',
       'Use Recruiter role when you need to do hands-on recruiting work: creating jobs, engaging candidates, moving them through your pipeline, sending RTRs, and tracking your own performance.',
-      'Switch back to Manager/AM role when you need org-wide visibility: reviewing team performance, checking audit logs, managing clients, or viewing a specific recruiter's progress for coaching.',
+      'Switch back to Manager/AM role when you need org-wide visibility: reviewing team performance, checking audit logs, managing clients, or viewing a specific recruiter\'s progress for coaching.',
       'Remember: the Talent Pool is shared regardless of role, so candidates added by any recruiter appear in the pool for everyone, but pipeline engagements are recruiter-specific.',
       'If you're ever unsure which role you're in, check the left sidebar menu (Manager pages = Manager role; Recruiter pages = Recruiter role) or the role indicator in the top navigation bar.',
     ],
@@ -245,10 +245,10 @@ const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: 'job-detail',
     title: 'Job Details & Performance',
-    description: 'Deep-dive into a specific job's metrics, applicants, and pipeline.',
+    description: 'Deep-dive into a specific job\'s metrics, applicants, and pipeline.',
     route: '/manager/jobs/:jobId',
     overview:
-      'The Job Detail page gives you a complete view of a single job's performance and activity. You can see the full job description, which recruiter owns it, which client it's linked to, how many applications it has received, and the distribution of candidates across pipeline stages. Use this page to understand if a job is performing well, needs more sourcing, or has candidates stuck in a particular stage.',
+      'The Job Detail page gives you a complete view of a single job\'s performance and activity. You can see the full job description, which recruiter owns it, which client it's linked to, how many applications it has received, and the distribution of candidates across pipeline stages. Use this page to understand if a job is performing well, needs more sourcing, or has candidates stuck in a particular stage.',
     steps: [
       'Navigate to Jobs Overview by clicking "Jobs" in the left sidebar.',
       'Find the job you want to analyze in the jobs list (use search or filters if needed).',
@@ -273,11 +273,11 @@ const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       'Navigate to Team Management by clicking "Team" in the left sidebar.',
       'Find the recruiter you want to analyze in the team member list.',
-      'Click on the recruiter's name to open their team member profile.',
+      'Click on the recruiter\'s name to open their team member profile.',
       'Click the "View Progress" or "View Detailed Metrics" button to open the Recruiter Progress Detail page.',
-      'At the top, view the recruiter's summary metrics: total jobs owned, total candidates added to the talent pool, total applications (across all their jobs), and current pipeline distribution.',
+      'At the top, view the recruiter\'s summary metrics: total jobs owned, total candidates added to the talent pool, total applications (across all their jobs), and current pipeline distribution.',
       'Scroll down to the "Jobs" section to see a list of all jobs this recruiter owns, with application counts, last activity date, and status for each job.',
-      'Review the "Pipeline Distribution" chart showing how many of this recruiter's candidates are at each stage (Engaged, RTR, Screening, etc.), which helps you understand their workload and bottlenecks.',
+      'Review the "Pipeline Distribution" chart showing how many of this recruiter\'s candidates are at each stage (Engaged, RTR, Screening, etc.), which helps you understand their workload and bottlenecks.',
       'Check the "Candidate Import Sources" section (if available) to see where this recruiter is sourcing candidates from (e.g., LinkedIn, referrals, job boards), which helps assess sourcing effectiveness.',
       'Use the "Activity Timeline" or "Recent Actions" section to see what this recruiter has done recently: which candidates they engaged, which status changes they made, when they last took action.',
       'Click on any job in their jobs list to drill down to the Job Detail page for that specific job.',
@@ -537,7 +537,7 @@ export default function ManagerHowToGuide() {
                 <div className="space-y-4">
                   {chatMessages.length === 0 && (
                     <p className="text-sm text-muted-foreground font-sans">
-                      Ask how to do something (e.g. &quot;How do I view a recruiter's pipeline?&quot; or &quot;Where are audit logs?&quot;). I'll use the guide to answer.
+                      Ask how to do something (e.g. &quot;How do I view a recruiter\'s pipeline?&quot; or &quot;Where are audit logs?&quot;). I'll use the guide to answer.
                     </p>
                   )}
                   {chatMessages.map((m, i) => (
