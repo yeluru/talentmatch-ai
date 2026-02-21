@@ -11,7 +11,7 @@ import { getEdgeFunctionErrorMessage } from '@/lib/edgeFunctionError';
 import { invokeFunction } from '@/lib/invokeFunction';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, GripVertical, Users, Send, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, GripVertical, Users, Send, Calendar as CalendarIcon, UserMinus } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -556,6 +556,24 @@ export default function CandidatePipeline() {
     onError: (err: Error) => toast.error(err?.message ?? 'Failed to save comments'),
   });
 
+  const disengageMutation = useMutation({
+    mutationFn: async ({ candidateId, jobId }: { candidateId: string; jobId: string }) => {
+      const { error } = await supabase.rpc('disengage_candidate', {
+        _candidate_id: candidateId,
+        _job_id: jobId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
+      toast.success('Candidate disengaged');
+    },
+    onError: (err: Error) => toast.error(err?.message ?? 'Failed to disengage candidate'),
+  });
+
   const handleDragStart = (e: React.DragEvent, appId: string) => {
     setDraggedApp(appId);
     e.dataTransfer.effectAllowed = 'move';
@@ -1059,8 +1077,35 @@ export default function CandidatePipeline() {
                                   </PopoverContent>
                                 </Popover>
                               </div>
-                              <div className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-grab text-slate-400 hover:text-slate-600 shrink-0">
-                                <GripVertical className="h-4 w-4" />
+                              <div className="flex items-center gap-1 shrink-0">
+                                {stage.id === APPLIED_ENGAGED_STAGE_ID && (
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm(`Disengage ${app.candidate_profiles?.full_name || 'this candidate'}? They will be moved back to New status in the talent pool.`)) {
+                                              disengageMutation.mutate({
+                                                candidateId: app.candidate_id,
+                                                jobId: app.job_id,
+                                              });
+                                            }
+                                          }}
+                                          className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                                        >
+                                          <UserMinus className="h-4 w-4" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        <p>Disengage candidate</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                                <div className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-grab text-slate-400 hover:text-slate-600">
+                                  <GripVertical className="h-4 w-4" />
+                                </div>
                               </div>
                             </div>
                           </div>
