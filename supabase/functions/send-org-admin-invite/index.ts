@@ -68,13 +68,13 @@ const handler = async (req: Request): Promise<Response> => {
     if (authError || !user) throw new Error("Unauthorized");
 
     // Only platform super_admin can create orgs + org admins
-    const { data: superRole } = await supabase
+    const { data: superRoles } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "super_admin")
-      .maybeSingle();
-    if (!superRole) throw new Error("Only platform super admins can invite org admins");
+      ;
+    if (!superRoles || superRoles.length === 0) throw new Error("Only platform super admins can invite org admins");
 
     const { email, fullName, organizationName }: CreateOrgAdminInviteRequest =
       await req.json();

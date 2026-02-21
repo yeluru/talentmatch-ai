@@ -77,18 +77,19 @@ const handler = async (req: Request): Promise<Response> => {
     const { email, fullName, organizationId, organizationName }: InviteRequest = await req.json();
 
     // Verify inviter is allowed (org_admin or account_manager) and org matches
-    const { data: inviterRole } = await supabase
+    const { data: inviterRoles } = await supabase
       .from("user_roles")
       .select("role, organization_id")
       .eq("user_id", user.id)
-      .in("role", ["account_manager", "org_admin"])
-      .maybeSingle();
+      .in("role", ["account_manager", "org_admin"]);
 
-    if (!inviterRole) {
+    if (!inviterRoles || inviterRoles.length === 0) {
       throw new Error("Only org admins or account managers can invite recruiters");
     }
 
-    if (inviterRole.organization_id !== organizationId) {
+    // Check if any of the user's roles match the organization
+    const matchingRole = inviterRoles.find(r => r.organization_id === organizationId);
+    if (!matchingRole) {
       throw new Error("Organization mismatch");
     }
 
