@@ -521,7 +521,7 @@ export default function CandidatePipeline() {
       queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['application-detail'], exact: false });
-      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.refetchQueries({ queryKey: ['talent-pool'] }); // Force refetch to update status dropdown immediately
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       toast.success('Candidate moved');
     },
@@ -548,7 +548,7 @@ export default function CandidatePipeline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
-      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.refetchQueries({ queryKey: ['talent-pool'] }); // Force refetch to update comments immediately
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       setCommentsEditApp(null);
       toast.success('Comments saved');
@@ -567,7 +567,7 @@ export default function CandidatePipeline() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-applications'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['job-applicants'], exact: false });
-      queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
+      queryClient.refetchQueries({ queryKey: ['talent-pool'] }); // Force refetch to update status immediately
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
       toast.success('Candidate disengaged');
     },
