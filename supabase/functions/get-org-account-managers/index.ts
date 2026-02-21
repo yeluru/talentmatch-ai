@@ -54,14 +54,13 @@ serve(async (req: Request) => {
 
     const svc = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: role } = await svc
+    const { data: roles } = await svc
       .from("user_roles")
       .select("id")
       .eq("user_id", user.id)
       .eq("organization_id", organizationId)
-      .in("role", ["recruiter", "account_manager", "org_admin", "super_admin"])
-      .maybeSingle();
-    if (!role) {
+      .in("role", ["recruiter", "account_manager", "org_admin", "super_admin"]);
+    if (!roles || roles.length === 0) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
