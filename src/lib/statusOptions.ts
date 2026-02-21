@@ -39,10 +39,11 @@ export const APPLICATION_STAGE_OPTIONS: { value: ApplicationStage; label: string
   { value: 'final_update', label: 'Outcome' },
 ];
 
-/** Talent Pool stage options: "New" (no engagement yet) + pipeline stages. New candidates show as New until recruiter starts engagement. */
+/** Talent Pool stage options: "New" (no engagement yet) + pipeline stages. New candidates show as New until recruiter starts engagement.
+ * Excludes "Applied" since sourced candidates are "Engaged" directly (not self-applied). */
 export const TALENT_POOL_STAGE_OPTIONS: { value: 'new' | ApplicationStage; label: string }[] = [
   { value: 'new', label: 'New' },
-  ...APPLICATION_STAGE_OPTIONS,
+  ...APPLICATION_STAGE_OPTIONS.filter(opt => opt.value !== 'applied'),
 ];
 
 /** Options when moving a candidate to Outcome (final_update). */
@@ -156,11 +157,12 @@ export const TALENT_POOL_STATUS_OPTIONS: { value: TalentPoolStatus; label: strin
   { value: 'withdrawn', label: 'Withdrawn' },
 ];
 
-/** Map recruiter_status to display stage. New/empty = "New" (no engagement yet). Engaged only when recruiter has started engagement (outreach). */
+/** Map recruiter_status to display stage. New/empty = "New" (no engagement yet). Engaged only when recruiter has started engagement (outreach).
+ * "applied" is treated as "outreach" (Engaged) since sourced candidates don't self-apply. */
 export function normalizeStatusForDisplay(status: string | null | undefined): 'new' | ApplicationStage | string {
   const s = String(status || '').trim().toLowerCase();
   if (!s || s === 'new') return 'new';
-  if (s === 'contacted') return 'outreach';
+  if (s === 'applied' || s === 'contacted') return 'outreach';
   if (s === 'interviewing') return 'final_update';
   if (s === 'rejected' || s === 'withdrawn' || s === 'offered' || s === 'hired') return 'final_update';
   return s as ApplicationStage;
