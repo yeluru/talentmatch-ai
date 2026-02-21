@@ -24,6 +24,16 @@ import { RTR_RECRUITER_FIELDS, getDefaultRtrFieldValue } from '@/lib/rtrFields';
 import { ApplicantDetailSheet } from '@/components/recruiter/ApplicantDetailSheet';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -204,6 +214,8 @@ export default function CandidatePipeline() {
   const [sendingOutcome, setSendingOutcome] = useState(false);
   const [commentsEditApp, setCommentsEditApp] = useState<Application | null>(null);
   const [commentsEditValue, setCommentsEditValue] = useState<string>('');
+  const [disengageDialogOpen, setDisengageDialogOpen] = useState(false);
+  const [disengagePending, setDisengagePending] = useState<{ candidateId: string; jobId: string; candidateName: string } | null>(null);
 
   const organizationId = orgIdForRecruiterSuite(roles);
   const viewAsOwnerId = effectiveRecruiterOwnerId(currentRole ?? null, user?.id, ownerParam);
@@ -1085,12 +1097,12 @@ export default function CandidatePipeline() {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            if (window.confirm(`Disengage ${app.candidate_profiles?.full_name || 'this candidate'}? They will be moved back to New status in the talent pool.`)) {
-                                              disengageMutation.mutate({
-                                                candidateId: app.candidate_id,
-                                                jobId: app.job_id,
-                                              });
-                                            }
+                                            setDisengagePending({
+                                              candidateId: app.candidate_id,
+                                              jobId: app.job_id,
+                                              candidateName: app.candidate_profiles?.full_name || 'this candidate',
+                                            });
+                                            setDisengageDialogOpen(true);
                                           }}
                                           className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-slate-400 hover:text-red-600 dark:hover:text-red-400"
                                         >
@@ -1819,6 +1831,40 @@ export default function CandidatePipeline() {
           </div>
         )}
       </PipelineModal>
+
+      {/* Disengage candidate confirmation dialog */}
+      <AlertDialog open={disengageDialogOpen} onOpenChange={setDisengageDialogOpen}>
+        <AlertDialogContent className="glass-panel border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disengage candidate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to disengage {disengagePending?.candidateName}?
+              They will be removed from this job's pipeline and moved back to "New" status in the talent pool.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disengageMutation.isPending} className="hover:bg-white/5">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-none border-0"
+              disabled={disengageMutation.isPending}
+              onClick={() => {
+                if (disengagePending) {
+                  disengageMutation.mutate({
+                    candidateId: disengagePending.candidateId,
+                    jobId: disengagePending.jobId,
+                  });
+                  setDisengageDialogOpen(false);
+                  setDisengagePending(null);
+                }
+              }}
+            >
+              {disengageMutation.isPending ? 'Disengaging…' : 'Disengage'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout >
   );
 }
