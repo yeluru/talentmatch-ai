@@ -537,7 +537,7 @@ export default function ManagerHowToGuide() {
                 <div className="space-y-4">
                   {chatMessages.length === 0 && (
                     <p className="text-sm text-muted-foreground font-sans">
-                      Ask how to do something (e.g. &quot;How do I view a recruiter’s pipeline?&quot; or &quot;Where are audit logs?&quot;). I’ll use the guide to answer.
+                      Ask how to do something (e.g. &quot;How do I view a recruiter's pipeline?&quot; or &quot;Where are audit logs?&quot;). I'll use the guide to answer.
                     </p>
                   )}
                   {chatMessages.map((m, i) => (
