@@ -40,10 +40,10 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: 'Organization-wide overview: activity, team, and key metrics.',
     route: '/manager',
     overview:
-      'The Manager Dashboard gives you a bird's-eye view of your organization's recruiting activity. You see high-level metrics (e.g. open jobs, applications, pipeline movement), recent activity across the org, and quick links to Team, Jobs, or Audit Logs. As a hiring manager or Account Manager you use this to monitor overall health and drill into specific recruiters or jobs. Account Managers can also switch to Recruiter role to do hands-on recruiting; when in Manager role you see org-wide data.',
+      "The Manager Dashboard gives you a bird's-eye view of your organization's recruiting activity. You see high-level metrics (e.g. open jobs, applications, pipeline movement), recent activity across the org, and quick links to Team, Jobs, or Audit Logs. As a hiring manager or Account Manager you use this to monitor overall health and drill into specific recruiters or jobs. Account Managers can also switch to Recruiter role to do hands-on recruiting; when in Manager role you see org-wide data.",
     steps: [
       'Click on "Dashboard" in the left sidebar when signed in as Manager or Account Manager (it appears at the top of the navigation menu).',
-      'Look at the top row of metric cards showing your organization's key numbers: total open jobs, total applications received, active candidates in the pipeline, and team size.',
+      "Look at the top row of metric cards showing your organization's key numbers: total open jobs, total applications received, active candidates in the pipeline, and team size.",
       'Scroll down to view the Pipeline Funnel visualization, which shows how many candidates are at each stage (Engaged → Applied → RTR → Doc Check → Screening → Submission → Outcome).',
       'Check the "Applications (last 30 days)" chart to see the trend of new applications over time, with a percentage change indicator.',
       'Review the "Needs Attention" section for jobs or candidates that require immediate action (e.g., pending applications, stalled candidates).',
