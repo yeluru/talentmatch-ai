@@ -145,10 +145,30 @@ serve(async (req: Request) => {
         if (!dlErr && fileData) {
           const bytes = new Uint8Array(await fileData.arrayBuffer());
           const baseName = (resumeRow.file_name || "resume").replace(/[^a-zA-Z0-9._-]/g, "_");
-          const ext = baseName.toLowerCase().endsWith(".pdf") ? "" : ".pdf";
+
+          // Detect actual file type from extension
+          const lowerName = baseName.toLowerCase();
+          let contentType = "application/octet-stream"; // default
+          let filename = baseName;
+
+          if (lowerName.endsWith(".pdf")) {
+            contentType = "application/pdf";
+            filename = baseName;
+          } else if (lowerName.endsWith(".docx")) {
+            contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            filename = baseName;
+          } else if (lowerName.endsWith(".doc")) {
+            contentType = "application/msword";
+            filename = baseName;
+          } else {
+            // No recognized extension - assume PDF and add .pdf extension
+            contentType = "application/pdf";
+            filename = baseName + ".pdf";
+          }
+
           attachment = {
-            contentType: "application/pdf",
-            filename: baseName.endsWith(".pdf") ? baseName : baseName + ext,
+            contentType,
+            filename,
             content: bytes,
             encoding: "binary",
           };
