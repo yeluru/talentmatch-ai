@@ -89,90 +89,6 @@ function extractNameFromFilename(fileName: string | null | undefined): string | 
   return null;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  const chunkSize = 8192;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-    for (let j = 0; j < chunk.length; j++) binary += String.fromCharCode(chunk[j]);
-  }
-  return btoa(binary);
-}
-
-/**
- * Convert legacy .doc file to .docx using CloudConvert API
- * This allows us to process .doc files using the existing DOCX extraction logic
- */
-async function convertDocToDocxWithCloudConvert(docBytes: Uint8Array): Promise<Uint8Array> {
-  const apiKey = (Deno.env.get("CLOUDCONVERT_API_KEY") || "").trim();
-  if (!apiKey) {
-    throw new Error("CLOUDCONVERT_API_KEY not set - cannot convert .doc files");
-  }
-
-  console.log("[parse-resume] Converting .doc to .docx using CloudConvert...");
-  const docB64 = bytesToBase64(docBytes);
-
-  const jobRes = await fetch("https://sync.api.cloudconvert.com/v2/jobs", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      tasks: {
-        "import-doc": {
-          operation: "import/base64",
-          file: docB64,
-          filename: "resume.doc",
-        },
-        "convert-to-docx": {
-          operation: "convert",
-          input: "import-doc",
-          output_format: "docx",
-        },
-        "export-docx": {
-          operation: "export/url",
-          input: "convert-to-docx",
-        },
-      },
-    }),
-  });
-
-  if (!jobRes.ok) {
-    const errText = await jobRes.text();
-    throw new Error(`CloudConvert job failed: ${jobRes.status} ${errText}`);
-  }
-
-  const job = (await jobRes.json()) as {
-    data?: {
-      tasks?: Record<string, { result?: { files?: { url?: string }[] } }> | { result?: { files?: { url?: string }[] }; operation?: string }[];
-    };
-  };
-
-  let url: string | undefined;
-  const tasks = job.data?.tasks;
-  if (Array.isArray(tasks)) {
-    const exportTask = tasks.find((t: { operation?: string }) => t.operation === "export/url");
-    url = exportTask?.result?.files?.[0]?.url;
-  } else if (tasks && typeof tasks === "object") {
-    const tasksArr = Object.values(tasks);
-    const exportTask = tasksArr.find((t) => t.operation === "export/url");
-    url = exportTask?.result?.files?.[0]?.url;
-  }
-
-  if (!url) throw new Error("CloudConvert did not return export URL");
-
-  console.log("[parse-resume] Downloading converted .docx from CloudConvert...");
-  const docxRes = await fetch(url);
-  if (!docxRes.ok) {
-    throw new Error(`Failed to download converted DOCX: ${docxRes.status}`);
-  }
-
-  const docxBytes = new Uint8Array(await docxRes.arrayBuffer());
-  console.log("[parse-resume] .doc → .docx conversion successful, size:", docxBytes.length, "bytes");
-  return docxBytes;
-}
-
 function decodeXmlEntities(s: string): string {
   return String(s || "")
     .replaceAll("&amp;", "&")
@@ -1279,24 +1195,10 @@ serve(async (req) => {
       console.log("Processing file:", validatedFileName, "Type:", validatedFileType);
 
       // Decode base64 to get file content
-      let binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
+      const binaryContent = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
 
-      // Handle legacy .doc files by converting to .docx first
-      if (validatedFileType === "application/msword" || validatedFileName?.toLowerCase().endsWith('.doc')) {
-        console.log("[parse-resume] Detected legacy .doc file, attempting conversion to .docx");
-        try {
-          const docxBytes = await convertDocToDocxWithCloudConvert(binaryContent);
-          // Replace binaryContent with converted .docx and update file type
-          binaryContent = docxBytes;
-          validatedFileType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-          console.log("[parse-resume] .doc converted successfully, will process as .docx");
-        } catch (conversionError) {
-          const msg = conversionError instanceof Error ? conversionError.message : String(conversionError);
-          console.error("[parse-resume] .doc conversion failed:", msg);
-          // Fall through to try UTF-8 decode (will likely fail, but better than crashing)
-          console.warn("[parse-resume] Falling back to UTF-8 decode (will likely produce poor results)");
-        }
-      }
+      // NOTE: Legacy .doc files will fall back to AI vision parsing if text extraction fails.
+      // The AI can handle various document formats including legacy .doc files.
 
       if (validatedFileType === "application/pdf" || validatedFileName?.toLowerCase().endsWith('.pdf')) {
         // PDF text extraction using a serverless PDF.js build that works in Deno/edge runtimes
