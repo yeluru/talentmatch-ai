@@ -46,7 +46,8 @@ serve(async (req: Request) => {
         error: "Unauthorized",
         details: authError?.message,
         code: authError?.status,
-        name: authError?.name
+        name: authError?.name,
+        debug_marker: "VERSION_2026_02_22_19_30"
       }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
