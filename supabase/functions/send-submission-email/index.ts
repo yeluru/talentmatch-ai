@@ -114,7 +114,7 @@ serve(async (req: Request) => {
     // Additional safety from RLS policies on data access
 
     let attachment: { contentType: string; filename: string; content: Uint8Array; encoding: "binary" } | null = null;
-    const { data: resumeRow } = await svc
+    const { data: resumeRow } = await supabase
       .from("resumes")
       .select("file_url, file_name")
       .eq("candidate_id", candidateId)
@@ -125,7 +125,7 @@ serve(async (req: Request) => {
     if (resumeRow?.file_url) {
       const objectPath = resumesObjectPath(resumeRow.file_url);
       if (objectPath) {
-        const { data: fileData, error: dlErr } = await svc.storage.from("resumes").download(objectPath);
+        const { data: fileData, error: dlErr } = await supabase.storage.from("resumes").download(objectPath);
         if (!dlErr && fileData) {
           const bytes = new Uint8Array(await fileData.arrayBuffer());
           const baseName = (resumeRow.file_name || "resume").replace(/[^a-zA-Z0-9._-]/g, "_");
