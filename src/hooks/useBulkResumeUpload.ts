@@ -228,10 +228,12 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
                 }
               }
 
+              // Check for existing resume, but ignore if candidate is deleted
               const { data: existingResume } = await supabase
                 .from('resumes')
-                .select('id, file_name')
+                .select('id, file_name, candidate:candidate_profiles!inner(deleted_at)')
                 .eq('content_hash', fileHash)
+                .is('candidate.deleted_at', null)
                 .maybeSingle();
 
               if (isStale()) {
