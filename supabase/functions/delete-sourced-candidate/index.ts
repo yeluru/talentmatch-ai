@@ -44,11 +44,17 @@ serve(async (req: Request) => {
 
     const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser();
     if (userErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      console.error("[DELETE] Auth failed:", { userErr, hasUser: !!user });
+      return new Response(JSON.stringify({
+        error: "Unauthorized",
+        debug: { message: userErr?.message, status: userErr?.status }
+      }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("[DELETE] Auth success:", { userId: user.id, email: user.email });
 
     // Create service role client for privileged operations
     const supabase = createClient(supabaseUrl, serviceKey);
