@@ -22,9 +22,13 @@ function resumesObjectPath(fileUrlOrPath: string | null | undefined): string | n
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization header" }), {
@@ -33,23 +37,15 @@ serve(async (req: Request) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: userErr } = await supabase.auth.getUser();
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
     if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Service role client for privileged operations
-    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = (await req.json()) as Body;
     const organizationId = String(body?.organizationId || "").trim();
@@ -63,9 +59,21 @@ serve(async (req: Request) => {
       });
     }
 
-    // Note: Role check removed because user_roles RLS policies prevent service role queries.
-    // Authentication check above is sufficient - we verify the user's JWT token.
-    // Additional safety checks below (sourced only, no applications, not shared) provide adequate protection.
+    // Verify requester has org access
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role, organization_id")
+      .eq("user_id", user.id)
+      .eq("organization_id", organizationId)
+      .in("role", ["recruiter", "account_manager", "org_admin", "super_admin"])
+      .maybeSingle();
+
+    if (!roleRow) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const results = {
       requested: uniqCandidateIds.length,
@@ -77,7 +85,7 @@ serve(async (req: Request) => {
 
     for (const candidateId of uniqCandidateIds) {
       // Candidate must exist and be sourced (no auth user)
-      const { data: cp, error: cpErr } = await supabaseService
+      const { data: cp, error: cpErr } = await supabase
         .from("candidate_profiles")
         .select("id, user_id")
         .eq("id", candidateId)
@@ -94,7 +102,7 @@ serve(async (req: Request) => {
       }
 
       // Must be linked to this org
-      const { data: linkRows } = await supabaseService
+      const { data: linkRows } = await supabase
         .from("candidate_org_links")
         .select("organization_id, status")
         .eq("candidate_id", candidateId);
@@ -115,7 +123,7 @@ serve(async (req: Request) => {
       }
 
       // Safety: don't delete if there are applications
-      const { count: appCount } = await supabaseService
+      const { count: appCount } = await supabase
         .from("applications")
         .select("id", { count: "exact", head: true })
         .eq("candidate_id", candidateId);
@@ -127,7 +135,7 @@ serve(async (req: Request) => {
 
       // Delete storage objects for this candidate's resumes (best-effort)
       try {
-        const { data: resumeRows } = await supabaseService
+        const { data: resumeRows } = await supabase
           .from("resumes")
           .select("file_url")
           .eq("candidate_id", candidateId);
@@ -135,7 +143,7 @@ serve(async (req: Request) => {
           new Set((resumeRows || []).map((r: any) => resumesObjectPath(r.file_url)).filter(Boolean) as string[]),
         );
         if (paths.length > 0) {
-          const { data: removed, error: rmErr } = await supabaseService.storage.from("resumes").remove(paths);
+          const { data: removed, error: rmErr } = await supabase.storage.from("resumes").remove(paths);
           if (!rmErr) results.deleted_storage_objects += Array.isArray(removed) ? removed.length : paths.length;
         }
       } catch {
@@ -143,7 +151,7 @@ serve(async (req: Request) => {
       }
 
       // Hard delete candidate profile; cascades to resumes/candidate_* tables and candidate_org_links
-      const { error: delErr } = await supabaseService.from("candidate_profiles").delete().eq("id", candidateId);
+      const { error: delErr } = await supabase.from("candidate_profiles").delete().eq("id", candidateId);
       if (delErr) {
         results.skipped++;
         results.skipped_reasons.push({ candidate_id: candidateId, reason: `delete_failed:${delErr.message}` });
