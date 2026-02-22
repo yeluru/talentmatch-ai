@@ -35,7 +35,7 @@ export async function getEdgeFunctionErrorMessage(error: unknown): Promise<strin
   // Improve generic error messages
   const errorMsg = error instanceof Error ? error.message : String(error);
   if (errorMsg.includes('non-2xx status code')) {
-    return 'Upload failed. Please try again or contact support if the issue persists.';
+    return 'An unexpected error occurred. Please try again or contact support.';
   }
 
   return errorMsg;

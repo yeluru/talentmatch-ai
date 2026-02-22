@@ -1858,6 +1858,16 @@ export default function TalentSourcing() {
       updateResult(resultIndex, { status: 'parsing' });
 
       try {
+        // Check for legacy .doc files and reject them upfront
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith('.doc') && !fileName.endsWith('.docx')) {
+          updateResult(resultIndex, {
+            status: 'error',
+            error: 'Legacy .doc files are not supported. Please convert to .docx or PDF:\n\n1. Open the file in Microsoft Word or Google Docs\n2. Click "File" → "Save As" or "Download"\n3. Choose "Word Document (.docx)" or "PDF"\n4. Upload the converted file\n\nOnline converters: CloudConvert, Zamzar, or OnlineConvert'
+          });
+          continue;
+        }
+
         // Read file as base64
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
