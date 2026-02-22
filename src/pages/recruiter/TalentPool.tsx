@@ -978,9 +978,31 @@ export default function TalentPool() {
     onSuccess: ({ data }) => {
       const deleted = Number((data as any)?.results?.deleted ?? 0);
       const skipped = Number((data as any)?.results?.skipped ?? 0);
-      if (deleted > 0 && skipped === 0) toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
-      else if (deleted > 0) toast.success(`Deleted ${deleted}, skipped ${skipped}`);
-      else toast.error('Nothing was deleted');
+      const skipReasons = (data as any)?.results?.skipped_reasons || [];
+
+      if (deleted > 0 && skipped === 0) {
+        toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
+      } else if (deleted > 0) {
+        toast.success(`Deleted ${deleted}, skipped ${skipped}`);
+      } else {
+        // Show specific reason why nothing was deleted
+        const reasons = skipReasons.map((r: any) => r.reason).filter(Boolean);
+        const uniqueReasons = Array.from(new Set(reasons));
+
+        if (uniqueReasons.includes('has_applications')) {
+          toast.error('Cannot delete: Candidate has applications. Remove applications first.');
+        } else if (uniqueReasons.includes('linked_to_other_orgs')) {
+          toast.error('Cannot delete: Candidate is shared with other organizations.');
+        } else if (uniqueReasons.includes('not_sourced_candidate')) {
+          toast.error('Cannot delete: Only sourced candidates can be deleted.');
+        } else if (uniqueReasons.includes('not_linked_to_org')) {
+          toast.error('Cannot delete: Candidate not linked to your organization.');
+        } else if (uniqueReasons.includes('candidate_not_found')) {
+          toast.error('Cannot delete: Candidate not found.');
+        } else {
+          toast.error('Nothing was deleted. Check candidate status.');
+        }
+      }
 
       // Refetch to ensure accuracy
       queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
