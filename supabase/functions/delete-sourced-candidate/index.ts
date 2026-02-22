@@ -35,11 +35,14 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Use anon client for JWT validation (works with ECC keys)
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       console.error("Auth error:", authError);
       return new Response(JSON.stringify({
@@ -55,6 +58,9 @@ serve(async (req: Request) => {
     }
 
     console.log("Authenticated user:", user.id);
+
+    // Use service role client for database operations (bypasses RLS)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = (await req.json()) as Body;
     const organizationId = String(body?.organizationId || "").trim();
