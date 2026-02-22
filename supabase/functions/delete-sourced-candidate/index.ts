@@ -35,23 +35,20 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Create client with user's auth to verify identity
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser();
-    if (userErr || !user) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError?.message || "No user found");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create service role client for privileged operations
-    const supabase = createClient(supabaseUrl, serviceKey);
+    console.log("Authenticated user:", user.id);
 
     const body = (await req.json()) as Body;
     const organizationId = String(body?.organizationId || "").trim();
