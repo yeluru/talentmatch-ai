@@ -952,7 +952,8 @@ export default function TalentPool() {
       if (uniq.length === 0) return { deleted: 0, candidateIds: [] };
 
       const errors: string[] = [];
-      const toDelete: string[] = [];
+      const toDelete: string[] = []; // Full delete (not shared)
+      const toUnlink: string[] = []; // Just unlink from this org (shared)
 
       // Validate each candidate before deletion
       for (const candidateId of uniq) {
@@ -998,20 +999,21 @@ export default function TalentPool() {
         const otherOrgLinks = linkList.filter(
           (l) => l.organization_id !== organizationId && l.status === 'active'
         );
-        if (otherOrgLinks.length > 0) {
-          errors.push(`Cannot delete ${profile.full_name}: Shared with other organizations`);
-          continue;
-        }
 
-        // 4. Check if candidate has applications
+        const isShared = otherOrgLinks.length > 0;
+
+        // 4. Check if candidate has applications IN THIS ORG
         const { data: apps } = await supabase
           .from('applications')
-          .select('id, status, job:jobs(title)')
+          .select('id, status, job:jobs(title, organization_id)')
           .eq('candidate_id', candidateId);
 
-        if (apps && apps.length > 0) {
+        // Filter to only applications in THIS organization
+        const thisOrgApps = (apps || []).filter((app: any) => app.job?.organization_id === organizationId);
+
+        if (thisOrgApps && thisOrgApps.length > 0) {
           // Check if any application is beyond "outreach" stage
-          const advancedApps = apps.filter((app) => {
+          const advancedApps = thisOrgApps.filter((app) => {
             const appStatus = String(app.status || '').trim().toLowerCase();
             const allowedAppStatuses = ['', 'outreach', 'contacted'];
             return !allowedAppStatuses.includes(appStatus);
@@ -1021,14 +1023,20 @@ export default function TalentPool() {
             const jobTitles = advancedApps.map((app: any) => app.job?.title || 'Unknown job').join(', ');
             errors.push(`Cannot delete ${profile.full_name}: Has applications in progress (${jobTitles})`);
             continue;
-          } else if (apps.length > 0) {
+          } else if (thisOrgApps.length > 0) {
             errors.push(`Cannot delete ${profile.full_name}: Has applications (remove from jobs first)`);
             continue;
           }
         }
 
-        // Passed all checks
-        toDelete.push(candidateId);
+        // Passed all checks - categorize into unlink vs full delete
+        if (isShared) {
+          // Shared with other orgs: just unlink from this org
+          toUnlink.push(candidateId);
+        } else {
+          // Only in this org: full delete
+          toDelete.push(candidateId);
+        }
       }
 
       // If there are errors, throw them
@@ -1036,17 +1044,32 @@ export default function TalentPool() {
         throw new Error(errors.join('\n'));
       }
 
-      // Hard delete: permanently remove (safe because all checks passed)
+      let totalRemoved = 0;
+
+      // 1. Unlink from this org (shared candidates)
+      if (toUnlink.length > 0) {
+        const { error: unlinkError } = await supabase
+          .from('candidate_org_links')
+          .delete()
+          .eq('organization_id', organizationId)
+          .in('candidate_id', toUnlink);
+
+        if (unlinkError) throw unlinkError;
+        totalRemoved += toUnlink.length;
+      }
+
+      // 2. Full delete (not shared with other orgs)
       if (toDelete.length > 0) {
-        const { error } = await supabase
+        const { error: deleteError } = await supabase
           .from('candidate_profiles')
           .delete()
           .in('id', toDelete);
 
-        if (error) throw error;
+        if (deleteError) throw deleteError;
+        totalRemoved += toDelete.length;
       }
 
-      return { deleted: toDelete.length, candidateIds: toDelete };
+      return { deleted: totalRemoved, candidateIds: [...toUnlink, ...toDelete] };
     },
     onMutate: async (candidateIds: string[]) => {
       // Cancel outgoing refetches
