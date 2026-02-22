@@ -37,12 +37,12 @@ serve(async (req: Request) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Validate user JWT with anon client (correct way to validate user tokens)
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    // Create client with user's auth to verify identity
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
     });
 
-    const { data: { user }, error: userErr } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser();
     if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -50,7 +50,7 @@ serve(async (req: Request) => {
       });
     }
 
-    // Use service role client for database operations
+    // Create service role client for privileged operations
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = (await req.json()) as Body;
