@@ -82,6 +82,7 @@ import { useBulkResumeUpload } from '@/hooks/useBulkResumeUpload';
 import { useNavigate, Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getEdgeFunctionErrorMessage } from '@/lib/edgeFunctionError';
 
 interface TalentProfile {
   id: string;
@@ -1008,12 +1009,13 @@ export default function TalentPool() {
       queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
     },
-    onError: (err: any, _variables, context: any) => {
+    onError: async (err: any, _variables, context: any) => {
       // Rollback on error
       if (context?.previousTalents) {
         queryClient.setQueryData(['talent-pool', organizationId], context.previousTalents);
       }
-      toast.error(err?.message || 'Failed to delete');
+      const errorMsg = await getEdgeFunctionErrorMessage(err);
+      toast.error(errorMsg || 'Failed to delete');
       setRemoveDialogOpen(false);
     },
   });
