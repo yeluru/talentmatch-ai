@@ -950,7 +950,7 @@ export default function TalentPool() {
       if (!organizationId) throw new Error('Missing organization');
       const uniq = Array.from(new Set(candidateIds.map(String))).map((s) => s.trim()).filter(Boolean);
       if (uniq.length === 0) return { removed: 0 };
-      const { data, error } = await supabase.functions.invoke('delete-sourced-candidate', {
+      const { data, error } = await supabase.functions.invoke('delete-candidate-v2', {
         body: { organizationId, candidateIds: uniq },
       });
       if (error) throw error;
