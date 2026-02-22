@@ -64,7 +64,7 @@ serve(async (req: Request) => {
       });
     }
 
-    // Find existing resume by hash
+    // Find existing resume by hash (including deleted candidates)
     const { data: resumeRow, error: resErr } = await supabase
       .from("resumes")
       .select("id, candidate_id, file_name, file_url, ats_score")
@@ -80,6 +80,23 @@ serve(async (req: Request) => {
     }
 
     const candidateId = String(resumeRow.candidate_id);
+
+    // Check if candidate is soft-deleted and resurrect if needed
+    const { data: candidate } = await supabase
+      .from("candidate_profiles")
+      .select("deleted_at")
+      .eq("id", candidateId)
+      .maybeSingle();
+
+    if (candidate?.deleted_at) {
+      // Resurrect the candidate by clearing deleted_at
+      const { error: undeleteErr } = await supabase
+        .from("candidate_profiles")
+        .update({ deleted_at: null })
+        .eq("id", candidateId);
+
+      if (undeleteErr) throw undeleteErr;
+    }
 
     // Re-activate org link (safe "undelete" for Talent Pool)
     const { error: linkErr } = await supabase

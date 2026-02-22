@@ -1892,12 +1892,11 @@ export default function TalentSourcing() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Check if this exact file already exists BEFORE parsing (ignore deleted candidates)
+        // Check if this exact file already exists BEFORE parsing (including deleted - they'll be resurrected)
         const { data: existingResume } = await supabase
           .from('resumes')
-          .select('id, file_name, candidate:candidate_profiles!inner(deleted_at)')
+          .select('id, file_name')
           .eq('content_hash', fileHash)
-          .is('candidate.deleted_at', null)
           .maybeSingle();
 
         if (existingResume) {
