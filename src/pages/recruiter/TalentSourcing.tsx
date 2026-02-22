@@ -1892,17 +1892,11 @@ export default function TalentSourcing() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Check for existing resume, but ONLY if candidate is NOT deleted
-        // Using inner join - if candidate is deleted, this returns null
+        // Check for existing resume (hard delete means deleted candidates are gone)
         const { data: existingResume } = await supabase
           .from('resumes')
-          .select(`
-            id,
-            file_name,
-            candidate:candidate_profiles!inner(id, deleted_at)
-          `)
+          .select('id, file_name')
           .eq('content_hash', fileHash)
-          .is('candidate.deleted_at', null)
           .maybeSingle();
 
         if (existingResume) {

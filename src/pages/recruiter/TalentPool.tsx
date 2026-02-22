@@ -412,8 +412,7 @@ export default function TalentPool() {
               `id, full_name, email, location, current_title, current_company, years_of_experience,
                headline, ats_score, created_at, recruiter_notes, recruiter_status`
             )
-            .in('id', batch)
-            .is('deleted_at', null),
+            .in('id', batch),
           {
             maxRetries: 3,
             timeoutMs: 30000, // 30s timeout for profile queries
@@ -604,8 +603,7 @@ export default function TalentPool() {
               `id, full_name, email, location, current_title, current_company, years_of_experience,
                headline, ats_score, created_at, recruiter_notes, recruiter_status`
             )
-            .in('id', batch)
-            .is('deleted_at', null);
+            .in('id', batch);
 
           if (profiles) {
             allProfiles.push(...profiles);
@@ -764,7 +762,6 @@ export default function TalentPool() {
         .from('candidate_profiles')
         .select('recruiter_status')
         .eq('id', candidateId)
-        .is('deleted_at', null)
         .single();
       console.log('[TalentPool] Profile status after RPC:', profile?.recruiter_status, 'Error:', profileError);
 
@@ -964,7 +961,6 @@ export default function TalentPool() {
           .from('candidate_profiles')
           .select('id, user_id, full_name, recruiter_status')
           .eq('id', candidateId)
-          .is('deleted_at', null)
           .maybeSingle();
 
         if (profileErr || !profile) {
@@ -1040,11 +1036,11 @@ export default function TalentPool() {
         throw new Error(errors.join('\n'));
       }
 
-      // Soft delete: set deleted_at timestamp
+      // Hard delete: permanently remove (safe because all checks passed)
       if (toDelete.length > 0) {
         const { error } = await supabase
           .from('candidate_profiles')
-          .update({ deleted_at: new Date().toISOString() })
+          .delete()
           .in('id', toDelete);
 
         if (error) throw error;
