@@ -954,14 +954,103 @@ export default function TalentPool() {
       const uniq = Array.from(new Set(candidateIds.map(String))).map((s) => s.trim()).filter(Boolean);
       if (uniq.length === 0) return { deleted: 0, candidateIds: [] };
 
-      // Soft delete: set deleted_at timestamp
-      const { error } = await supabase
-        .from('candidate_profiles')
-        .update({ deleted_at: new Date().toISOString() })
-        .in('id', uniq);
+      const errors: string[] = [];
+      const toDelete: string[] = [];
 
-      if (error) throw error;
-      return { deleted: uniq.length, candidateIds: uniq };
+      // Validate each candidate before deletion
+      for (const candidateId of uniq) {
+        // 1. Check candidate exists and is sourced (no user_id)
+        const { data: profile, error: profileErr } = await supabase
+          .from('candidate_profiles')
+          .select('id, user_id, full_name, recruiter_status')
+          .eq('id', candidateId)
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (profileErr || !profile) {
+          errors.push(`Candidate not found`);
+          continue;
+        }
+
+        if (profile.user_id) {
+          errors.push(`Cannot delete ${profile.full_name}: Not a sourced candidate (has user account)`);
+          continue;
+        }
+
+        // 2. Check if candidate is in pipeline beyond "outreach"
+        const status = String(profile.recruiter_status || '').trim().toLowerCase();
+        const allowedStatuses = ['', 'new', 'outreach', 'contacted'];
+        if (status && !allowedStatuses.includes(status)) {
+          const statusLabel = status.replace(/_/g, ' ');
+          errors.push(`Cannot delete ${profile.full_name}: In pipeline stage "${statusLabel}"`);
+          continue;
+        }
+
+        // 3. Check org links
+        const { data: links } = await supabase
+          .from('candidate_org_links')
+          .select('organization_id, status')
+          .eq('candidate_id', candidateId);
+
+        const linkList = links || [];
+        const hasThisOrg = linkList.some((l) => l.organization_id === organizationId);
+        if (!hasThisOrg) {
+          errors.push(`Cannot delete ${profile.full_name}: Not linked to your organization`);
+          continue;
+        }
+
+        const otherOrgLinks = linkList.filter(
+          (l) => l.organization_id !== organizationId && l.status === 'active'
+        );
+        if (otherOrgLinks.length > 0) {
+          errors.push(`Cannot delete ${profile.full_name}: Shared with other organizations`);
+          continue;
+        }
+
+        // 4. Check if candidate has applications
+        const { data: apps } = await supabase
+          .from('applications')
+          .select('id, status, job:jobs(title)')
+          .eq('candidate_id', candidateId);
+
+        if (apps && apps.length > 0) {
+          // Check if any application is beyond "outreach" stage
+          const advancedApps = apps.filter((app) => {
+            const appStatus = String(app.status || '').trim().toLowerCase();
+            const allowedAppStatuses = ['', 'outreach', 'contacted'];
+            return !allowedAppStatuses.includes(appStatus);
+          });
+
+          if (advancedApps.length > 0) {
+            const jobTitles = advancedApps.map((app: any) => app.job?.title || 'Unknown job').join(', ');
+            errors.push(`Cannot delete ${profile.full_name}: Has applications in progress (${jobTitles})`);
+            continue;
+          } else if (apps.length > 0) {
+            errors.push(`Cannot delete ${profile.full_name}: Has applications (remove from jobs first)`);
+            continue;
+          }
+        }
+
+        // Passed all checks
+        toDelete.push(candidateId);
+      }
+
+      // If there are errors, throw them
+      if (errors.length > 0) {
+        throw new Error(errors.join('\n'));
+      }
+
+      // Soft delete: set deleted_at timestamp
+      if (toDelete.length > 0) {
+        const { error } = await supabase
+          .from('candidate_profiles')
+          .update({ deleted_at: new Date().toISOString() })
+          .in('id', toDelete);
+
+        if (error) throw error;
+      }
+
+      return { deleted: toDelete.length, candidateIds: toDelete };
     },
     onMutate: async (candidateIds: string[]) => {
       // Cancel outgoing refetches
