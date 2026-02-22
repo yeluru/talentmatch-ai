@@ -4333,7 +4333,7 @@ export default function TalentSourcing() {
                           <div className="text-sm font-sans truncate">{item.parsed.current_title}</div>
                         )}
                         {item.status === 'error' && item.error && (
-                          <div className="text-sm font-sans text-destructive">{item.error}</div>
+                          <div className="text-sm font-sans text-destructive whitespace-pre-line">{item.error}</div>
                         )}
                         {item.status !== 'error' && item.note && (
                           <div className="text-sm font-sans">{item.note}</div>
