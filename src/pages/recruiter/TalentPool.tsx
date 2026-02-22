@@ -412,7 +412,8 @@ export default function TalentPool() {
               `id, full_name, email, location, current_title, current_company, years_of_experience,
                headline, ats_score, created_at, recruiter_notes, recruiter_status`
             )
-            .in('id', batch),
+            .in('id', batch)
+            .is('deleted_at', null),
           {
             maxRetries: 3,
             timeoutMs: 30000, // 30s timeout for profile queries
@@ -603,7 +604,8 @@ export default function TalentPool() {
               `id, full_name, email, location, current_title, current_company, years_of_experience,
                headline, ats_score, created_at, recruiter_notes, recruiter_status`
             )
-            .in('id', batch);
+            .in('id', batch)
+            .is('deleted_at', null);
 
           if (profiles) {
             allProfiles.push(...profiles);
@@ -762,6 +764,7 @@ export default function TalentPool() {
         .from('candidate_profiles')
         .select('recruiter_status')
         .eq('id', candidateId)
+        .is('deleted_at', null)
         .single();
       console.log('[TalentPool] Profile status after RPC:', profile?.recruiter_status, 'Error:', profileError);
 
@@ -949,12 +952,16 @@ export default function TalentPool() {
     mutationFn: async (candidateIds: string[]) => {
       if (!organizationId) throw new Error('Missing organization');
       const uniq = Array.from(new Set(candidateIds.map(String))).map((s) => s.trim()).filter(Boolean);
-      if (uniq.length === 0) return { removed: 0 };
-      const { data, error } = await supabase.functions.invoke('delete-candidate-v2', {
-        body: { organizationId, candidateIds: uniq },
-      });
+      if (uniq.length === 0) return { deleted: 0, candidateIds: [] };
+
+      // Soft delete: set deleted_at timestamp
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update({ deleted_at: new Date().toISOString() })
+        .in('id', uniq);
+
       if (error) throw error;
-      return { data, candidateIds: uniq };
+      return { deleted: uniq.length, candidateIds: uniq };
     },
     onMutate: async (candidateIds: string[]) => {
       // Cancel outgoing refetches
@@ -975,12 +982,12 @@ export default function TalentPool() {
 
       return { previousTalents };
     },
-    onSuccess: ({ data }) => {
-      const deleted = Number((data as any)?.results?.deleted ?? 0);
-      const skipped = Number((data as any)?.results?.skipped ?? 0);
-      if (deleted > 0 && skipped === 0) toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
-      else if (deleted > 0) toast.success(`Deleted ${deleted}, skipped ${skipped}`);
-      else toast.error('Nothing was deleted');
+    onSuccess: ({ deleted }) => {
+      if (deleted > 0) {
+        toast.success(`Deleted ${deleted} profile${deleted === 1 ? '' : 's'}`);
+      } else {
+        toast.error('Nothing was deleted');
+      }
 
       // Refetch to ensure accuracy
       queryClient.invalidateQueries({ queryKey: ['talent-pool', organizationId] });
