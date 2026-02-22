@@ -34,15 +34,14 @@ serve(async (req: Request) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Create client with user's auth to verify identity
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Use service role client to validate JWT token
+    const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { data: { user }, error: userErr } = await supabaseAuth.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
+
     if (userErr || !user) {
       console.error("[DELETE] Auth failed:", { userErr, hasUser: !!user });
       return new Response(JSON.stringify({
@@ -55,9 +54,6 @@ serve(async (req: Request) => {
     }
 
     console.log("[DELETE] Auth success:", { userId: user.id, email: user.email });
-
-    // Create service role client for privileged operations
-    const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = (await req.json()) as Body;
     const organizationId = String(body?.organizationId || "").trim();
