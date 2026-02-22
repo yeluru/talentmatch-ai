@@ -22,7 +22,7 @@ function resumesObjectPath(fileUrlOrPath: string | null | undefined): string | n
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
