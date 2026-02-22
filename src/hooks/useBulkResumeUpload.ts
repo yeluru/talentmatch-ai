@@ -228,12 +228,28 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
                 }
               }
 
-              // Check for existing resume (including deleted candidates - they'll be resurrected)
-              const { data: existingResume } = await supabase
+              // Check for existing resume, but ignore deleted candidates (will create new profile)
+              const { data: resumeData } = await supabase
                 .from('resumes')
-                .select('id, file_name')
+                .select('id, file_name, candidate_id')
                 .eq('content_hash', fileHash)
                 .maybeSingle();
+
+              let existingResume = resumeData;
+
+              // If resume exists, check if candidate is deleted
+              if (existingResume?.candidate_id) {
+                const { data: candidateCheck } = await supabase
+                  .from('candidate_profiles')
+                  .select('deleted_at')
+                  .eq('id', existingResume.candidate_id)
+                  .maybeSingle();
+
+                // If candidate is deleted, treat as no duplicate (will create new candidate)
+                if (candidateCheck?.deleted_at) {
+                  existingResume = null;
+                }
+              }
 
               if (isStale()) {
                 throw new Error('CANCELLED');
