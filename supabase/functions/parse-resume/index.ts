@@ -14,7 +14,7 @@ const PARSER_VERSION = "2026-01-15-parse-resume-v3-links";
 const ALLOWED_FILE_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword', // Legacy .doc files
+  // Legacy .doc files (application/msword) are NOT supported - conversion produces poor results
   'text/plain'
 ];
 
@@ -33,9 +33,8 @@ function validateFileType(fileType: string | null | undefined, fileName: string 
   // Check by extension as fallback
   if (fileName) {
     const lowerName = fileName.toLowerCase();
-    if (lowerName.endsWith('.pdf') || 
-        lowerName.endsWith('.docx') || 
-        lowerName.endsWith('.doc') || 
+    if (lowerName.endsWith('.pdf') ||
+        lowerName.endsWith('.docx') ||
         lowerName.endsWith('.txt')) {
       return true;
     }
@@ -1170,9 +1169,20 @@ serve(async (req) => {
     const validatedFileName = sanitizeString(fileName, 255);
     const validatedFileType = sanitizeString(fileType, 100);
 
+    // Reject legacy .doc files - they produce unreliable extraction results
+    if (fileBase64 && (validatedFileType === "application/msword" || validatedFileName?.toLowerCase().endsWith('.doc'))) {
+      return new Response(JSON.stringify({
+        error: "Legacy .doc files are not supported",
+        details: "Please convert your resume to .docx or PDF format using Microsoft Word, Google Docs, or an online converter, then upload again."
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Validate file type
     if (fileBase64 && !validateFileType(validatedFileType, validatedFileName)) {
-      return new Response(JSON.stringify({ error: "Invalid file type. Supported formats: PDF, DOCX, DOC, TXT" }), {
+      return new Response(JSON.stringify({ error: "Invalid file type. Supported formats: PDF, DOCX, TXT" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
