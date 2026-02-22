@@ -197,6 +197,18 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
 
         updateResult(resultIndex, { status: 'parsing' });
 
+        // Check for legacy .doc files and reject them upfront
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith('.doc') && !fileName.endsWith('.docx')) {
+          updateResult(resultIndex, {
+            status: 'error',
+            error: 'Legacy .doc files are not supported. Please convert to .docx or PDF:\n\n1. Open the file in Microsoft Word or Google Docs\n2. Click "File" → "Save As" or "Download"\n3. Choose "Word Document (.docx)" or "PDF"\n4. Upload the converted file\n\nOnline converters: CloudConvert, Zamzar, or OnlineConvert'
+          });
+          failedCount++;
+          errorMessages.push(`${file.name}: Unsupported .doc format`);
+          return { success: false };
+        }
+
         try {
           if (isStale()) {
             updateResult(resultIndex, { status: 'cancelled', error: 'Cancelled' });
