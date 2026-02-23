@@ -1892,11 +1892,20 @@ export default function TalentSourcing() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Check for existing resume (hard delete means deleted candidates are gone)
+        // Check for existing resume within THIS organization only (org-scoped duplicate detection)
         const { data: existingResume } = await supabase
           .from('resumes')
-          .select('id, file_name')
+          .select(`
+            id,
+            file_name,
+            candidate:candidate_profiles!inner(
+              id,
+              candidate_org_links!inner(organization_id, status)
+            )
+          `)
           .eq('content_hash', fileHash)
+          .eq('candidate.candidate_org_links.organization_id', organizationId)
+          .eq('candidate.candidate_org_links.status', 'active')
           .maybeSingle();
 
         if (existingResume) {

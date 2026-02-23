@@ -64,41 +64,39 @@ serve(async (req: Request) => {
       });
     }
 
-    // Find existing resume by hash (including deleted candidates)
-    const { data: resumeRow, error: resErr } = await supabase
+    // Find existing resume within THIS organization only (org-scoped duplicate detection)
+    // Only find resumes that are already linked to the current organization
+    const { data: resumeRows, error: resErr } = await supabase
       .from("resumes")
-      .select("id, candidate_id, file_name, file_url, ats_score")
+      .select(`
+        id,
+        candidate_id,
+        file_name,
+        file_url,
+        ats_score,
+        candidate_profiles!inner(
+          id,
+          candidate_org_links!inner(organization_id, status)
+        )
+      `)
       .eq("content_hash", contentHash)
-      .maybeSingle();
+      .eq("candidate_profiles.candidate_org_links.organization_id", organizationId)
+      .eq("candidate_profiles.candidate_org_links.status", "active");
 
     if (resErr) throw resErr;
-    if (!resumeRow?.candidate_id) {
+
+    // If no resume found in this org, return not found (let parse-resume create new candidate)
+    if (!resumeRows || resumeRows.length === 0) {
       return new Response(JSON.stringify({ ok: true, found: false }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const resumeRow = resumeRows[0];
     const candidateId = String(resumeRow.candidate_id);
 
-    // Check if candidate is soft-deleted and resurrect if needed
-    const { data: candidate } = await supabase
-      .from("candidate_profiles")
-      .select("deleted_at")
-      .eq("id", candidateId)
-      .maybeSingle();
-
-    if (candidate?.deleted_at) {
-      // Resurrect the candidate by clearing deleted_at
-      const { error: undeleteErr } = await supabase
-        .from("candidate_profiles")
-        .update({ deleted_at: null })
-        .eq("id", candidateId);
-
-      if (undeleteErr) throw undeleteErr;
-    }
-
-    // Re-activate org link (safe "undelete" for Talent Pool)
+    // Re-activate org link (in case status was inactive)
     const { error: linkErr } = await supabase
       .from("candidate_org_links")
       .upsert({
