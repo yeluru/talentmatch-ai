@@ -115,18 +115,18 @@
 
 ## 2️⃣ CANDIDATE MANAGEMENT - Delete & Unlink
 
-### TC-006: Delete Candidate (Not Shared, Outreach Status)
+### TC-006: Delete Candidate (Outreach Status)
 **Priority:** Critical
 **Steps:**
 1. Find a candidate with status "New" or "Outreach"
-2. Verify candidate is NOT shared with other orgs (no multi-org icon)
-3. Click the delete/trash icon
-4. Confirm deletion in dialog
+2. Click the delete/trash icon
+3. Confirm deletion in dialog
 
 **Expected Result:**
 - ✅ Candidate is removed from Talent Pool immediately
 - ✅ Success message: "Deleted 1 profile"
 - ✅ Hard refresh - candidate does NOT reappear
+- ✅ Database record is permanently deleted
 
 **Status:** [ ] Pass | [ ] Fail
 
@@ -163,37 +163,38 @@
 
 ---
 
-### TC-009: Unlink Candidate - Shared with Multiple Orgs
+### TC-009: Org-Scoped Candidates - Same Resume in Multiple Orgs
 **Priority:** Critical
 **Steps:**
-1. Upload same resume in TWO different organizations (creates shared candidate)
-2. In Organization A, verify candidate shows in Talent Pool
-3. In Organization A, delete the candidate (status must be Outreach/New)
-4. Check Organization A's Talent Pool
-5. Switch to Organization B and check their Talent Pool
+1. Upload Resume A in Organization 1
+2. Note the candidate name/ID
+3. Upload the SAME Resume A in Organization 2
+4. Check both organizations' Talent Pools
 
 **Expected Result:**
-- ✅ Organization A: Candidate is removed from Talent Pool
-- ✅ Organization A: Success message: "Deleted 1 profile"
-- ✅ Organization B: Candidate STILL appears in Talent Pool (not affected)
-- ✅ Candidate profile still exists in database (just unlinked from Org A)
+- ✅ Organization 1: Has Candidate 1 (separate record)
+- ✅ Organization 2: Has Candidate 2 (separate record, NOT shared)
+- ✅ Two completely independent candidate records created
+- ✅ No "duplicate detected" message when uploading to different org
 
 **Status:** [ ] Pass | [ ] Fail
 
 ---
 
-### TC-010: Delete After Unlinking (Last Org)
+### TC-010: Independent Deletion - Multiple Orgs
 **Priority:** High
 **Steps:**
-1. Create a shared candidate (in 2 orgs)
-2. Delete from Org A (unlinks)
-3. Delete from Org B (should fully delete)
-4. Try to re-upload the same resume
+1. Upload Resume A in Org 1 (creates Candidate 1)
+2. Upload same Resume A in Org 2 (creates Candidate 2)
+3. Delete Candidate 1 from Org 1 (status must be outreach/new)
+4. Check Org 1's Talent Pool
+5. Check Org 2's Talent Pool
 
 **Expected Result:**
-- ✅ Org A deletion: Unlinks (candidate stays for Org B)
-- ✅ Org B deletion: Fully deletes candidate (not shared anymore)
-- ✅ Re-upload: Creates NEW candidate (no duplicate message)
+- ✅ Org 1: Candidate 1 is deleted and gone permanently
+- ✅ Org 2: Candidate 2 is UNAFFECTED and still visible
+- ✅ Each org's delete operations are completely independent
+- ✅ No cross-org impact
 
 **Status:** [ ] Pass | [ ] Fail
 
@@ -337,17 +338,19 @@
 
 ---
 
-### TC-018: Shared Candidate - Independent Status
+### TC-018: Separate Candidates - Independent Status per Org
 **Priority:** High
 **Steps:**
-1. Create shared candidate (upload same resume in Org A and Org B)
-2. In Org A: Change candidate status to "RTR & rate"
-3. In Org B: Check candidate status
+1. Upload same resume in Org A (creates Candidate A)
+2. Upload same resume in Org B (creates Candidate B - separate record)
+3. In Org A: Change Candidate A status to "RTR & rate"
+4. In Org B: Check Candidate B status
 
 **Expected Result:**
-- ✅ Org A: Status shows "RTR & rate"
-- ✅ Org B: Status shows "New" or original status (independent)
-- ✅ Each org maintains separate pipeline status
+- ✅ Org A: Candidate A status shows "RTR & rate"
+- ✅ Org B: Candidate B status shows "New" (completely independent)
+- ✅ Each org has separate candidate records with independent pipeline status
+- ✅ No data sharing between orgs
 
 **Status:** [ ] Pass | [ ] Fail
 
