@@ -952,10 +952,9 @@ export default function TalentPool() {
       if (uniq.length === 0) return { deleted: 0, candidateIds: [] };
 
       const errors: string[] = [];
-      const toDelete: string[] = []; // Full delete (not shared)
-      const toUnlink: string[] = []; // Just unlink from this org (shared)
+      const toDelete: string[] = [];
 
-      // Validate each candidate before deletion
+      // Validate each candidate before deletion (org-scoped checks only)
       for (const candidateId of uniq) {
         // 1. Check candidate exists and is sourced (no user_id)
         const { data: profile, error: profileErr } = await supabase
@@ -974,7 +973,8 @@ export default function TalentPool() {
           continue;
         }
 
-        // 2. Check if candidate is in pipeline beyond "outreach"
+        // 2. Check if candidate status is "outreach" or earlier WITHIN THIS ORG
+        // With org-scoped duplicates, each org has independent candidate records
         const status = String(profile.recruiter_status || '').trim().toLowerCase();
         const allowedStatuses = ['', 'new', 'outreach', 'contacted'];
         if (status && !allowedStatuses.includes(status)) {
@@ -983,26 +983,20 @@ export default function TalentPool() {
           continue;
         }
 
-        // 3. Check org links
-        const { data: links } = await supabase
+        // 3. Verify candidate is linked to THIS organization
+        const { data: orgLink } = await supabase
           .from('candidate_org_links')
-          .select('organization_id, status')
-          .eq('candidate_id', candidateId);
+          .select('status')
+          .eq('candidate_id', candidateId)
+          .eq('organization_id', organizationId)
+          .maybeSingle();
 
-        const linkList = links || [];
-        const hasThisOrg = linkList.some((l) => l.organization_id === organizationId);
-        if (!hasThisOrg) {
+        if (!orgLink) {
           errors.push(`Cannot delete ${profile.full_name}: Not linked to your organization`);
           continue;
         }
 
-        const otherOrgLinks = linkList.filter(
-          (l) => l.organization_id !== organizationId && l.status === 'active'
-        );
-
-        const isShared = otherOrgLinks.length > 0;
-
-        // 4. Check if candidate has applications IN THIS ORG
+        // 4. Check if candidate has applications IN THIS ORG ONLY
         const { data: apps } = await supabase
           .from('applications')
           .select('id, status, job:jobs(title, organization_id)')
@@ -1029,14 +1023,9 @@ export default function TalentPool() {
           }
         }
 
-        // Passed all checks - categorize into unlink vs full delete
-        if (isShared) {
-          // Shared with other orgs: just unlink from this org
-          toUnlink.push(candidateId);
-        } else {
-          // Only in this org: full delete
-          toDelete.push(candidateId);
-        }
+        // Passed all checks - safe to delete
+        // With org-scoped duplicates, candidates are never shared across orgs
+        toDelete.push(candidateId);
       }
 
       // If there are errors, throw them
@@ -1044,21 +1033,7 @@ export default function TalentPool() {
         throw new Error(errors.join('\n'));
       }
 
-      let totalRemoved = 0;
-
-      // 1. Unlink from this org (shared candidates)
-      if (toUnlink.length > 0) {
-        const { error: unlinkError } = await supabase
-          .from('candidate_org_links')
-          .delete()
-          .eq('organization_id', organizationId)
-          .in('candidate_id', toUnlink);
-
-        if (unlinkError) throw unlinkError;
-        totalRemoved += toUnlink.length;
-      }
-
-      // 2. Full delete (not shared with other orgs)
+      // Delete candidates (full delete - org-scoped, never shared)
       if (toDelete.length > 0) {
         const { error: deleteError } = await supabase
           .from('candidate_profiles')
@@ -1066,10 +1041,9 @@ export default function TalentPool() {
           .in('id', toDelete);
 
         if (deleteError) throw deleteError;
-        totalRemoved += toDelete.length;
       }
 
-      return { deleted: totalRemoved, candidateIds: [...toUnlink, ...toDelete] };
+      return { deleted: toDelete.length, candidateIds: toDelete };
     },
     onMutate: async (candidateIds: string[]) => {
       // Cancel outgoing refetches
