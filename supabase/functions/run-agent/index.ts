@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
-import { callChatCompletions } from "../_shared/ai.ts";
+// No AI needed - using deterministic skill matching instead
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,7 +45,7 @@ serve(async (req) => {
 
     const { agentId, searchCriteria, candidates } = await req.json();
     
-    // Verify user has access to this agent's organization
+    // Verify user has access to this search agent's organization (org-scoped agents only)
     const { data: agent, error: agentError } = await supabaseAuth
       .from('ai_recruiting_agents')
       .select('organization_id')
@@ -63,124 +63,151 @@ serve(async (req) => {
     // AI provider is resolved by callChatCompletions (OPENAI_API_KEY preferred, LOVABLE_API_KEY fallback)
 
     if (!candidates || candidates.length === 0) {
-      console.log("No candidates provided to evaluate");
+      console.log("No org-scoped candidates provided to evaluate");
       return new Response(
-        JSON.stringify({ 
-          error: "No candidates to evaluate", 
+        JSON.stringify({
+          error: "No org-scoped candidates to evaluate",
           recommendations: [],
-          summary: "No candidates were provided for evaluation",
-          total_evaluated: 0 
+          summary: "No candidates from this organization were provided for evaluation",
+          total_evaluated: 0
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Running agent:", agentId);
+    console.log("Running search agent:", agentId);
     console.log("Search criteria:", JSON.stringify(searchCriteria));
-    console.log("Candidates to evaluate:", candidates.length);
+    console.log("Org-scoped candidates to evaluate:", candidates.length);
 
     // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const systemPrompt = `You are an autonomous AI recruiting agent. Your job is to continuously evaluate candidates against job criteria and recommend the best matches.
+    // DETERMINISTIC SKILL MATCHING - No AI hallucinations, no API costs
+    const requiredSkills = (searchCriteria?.skills || []).map((s: string) => s.toLowerCase().trim());
 
-You should:
-1. Score each candidate (0-100) based on how well they match the criteria
-2. Provide a detailed reason for each recommendation
-3. Flag any candidates that are exceptionally good fits (score >= 85)
-4. Be thorough but also practical - focus on must-have skills first
+    console.log('=== SEARCH AGENT DEBUG ===');
+    console.log('Required skills:', requiredSkills);
+    console.log('Evaluating candidates:', candidates.length);
 
-Criteria to match against:
-${JSON.stringify(searchCriteria, null, 2)}`;
+    if (requiredSkills.length === 0) {
+      console.warn('No required skills specified');
+      return new Response(
+        JSON.stringify({
+          error: "No skills specified in search criteria",
+          recommendations: [],
+          summary: "Please specify required skills for this search agent",
+          total_evaluated: 0
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    const candidateSummaries = candidates.map((c: any, i: number) => 
-      `[${i + 1}] ID: ${c.id}
-       Name: ${c.name || 'Unknown'}
-       Title: ${c.title || 'N/A'}
-       Experience: ${c.years_experience || 0} years
-       Skills: ${c.skills?.join(', ') || 'None listed'}
-       Summary: ${c.summary || 'N/A'}`
-    ).join('\n\n');
+    // Evaluate each candidate with exact skill matching
+    const recommendations = candidates
+      .map((candidate: any) => {
+        const candidateSkills = (candidate.skills || []).map((s: string) => s.toLowerCase().trim());
 
-    const { res: response } = await callChatCompletions({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Evaluate these candidates:\n\n${candidateSummaries}` },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "recommend_candidates",
-            description: "Returns AI agent recommendations for candidates",
-            parameters: {
-              type: "object",
-              properties: {
-                recommendations: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      candidate_id: { type: "string" },
-                      match_score: { type: "number" },
-                      recommendation_reason: { type: "string" },
-                      is_high_priority: { type: "boolean" },
-                    },
-                    required: ["candidate_id", "match_score", "recommendation_reason"],
-                  },
-                },
-                summary: { type: "string" },
-                total_evaluated: { type: "number" },
-                top_matches_count: { type: "number" },
-              },
-              required: ["recommendations", "summary", "total_evaluated"],
-            },
-          },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "recommend_candidates" } },
+        // Find exact matches (case-insensitive)
+        const matchedSkills = requiredSkills.filter((reqSkill: string) =>
+          candidateSkills.some((candSkill: string) =>
+            candSkill === reqSkill ||
+            candSkill.includes(reqSkill) ||
+            reqSkill.includes(candSkill)
+          )
+        );
+
+        const matchCount = matchedSkills.length;
+        const matchPercentage = (matchCount / requiredSkills.length) * 100;
+
+        // Base score on skill match percentage
+        let score = Math.round(matchPercentage);
+
+        // Bonus: Add up to 15 points for strong experience (3 points per 5 years, max 15)
+        const experienceBonus = Math.min(15, Math.floor((candidate.years_experience || 0) / 5) * 3);
+        score += experienceBonus;
+
+        // Cap at 100
+        score = Math.min(100, score);
+
+        // Build reason with ACTUAL matched skills
+        let reason = '';
+        if (matchCount === 0) {
+          reason = `No matching skills found. Candidate has: ${candidateSkills.join(', ') || 'none listed'}`;
+        } else if (matchCount === requiredSkills.length) {
+          reason = `Perfect match! Has all ${matchCount} required skills: ${matchedSkills.join(', ')}`;
+        } else {
+          reason = `Matched ${matchCount}/${requiredSkills.length} skills: ${matchedSkills.join(', ')}`;
+        }
+
+        // Add experience note if significant
+        if (candidate.years_experience >= 10) {
+          reason += ` | ${candidate.years_experience} years experience`;
+        }
+
+        return {
+          candidate_id: candidate.id,
+          match_score: score,
+          recommendation_reason: reason,
+          is_high_priority: score >= 85,
+          matched_count: matchCount,
+          candidate_name: candidate.name, // For debugging
+        };
+      })
+      .filter((rec: any) => rec.match_score >= 60) // Only recommend 60+ scores
+      .sort((a: any, b: any) => b.match_score - a.match_score); // Sort by score descending
+
+    console.log(`Found ${recommendations.length} matches out of ${candidates.length} candidates`);
+    recommendations.slice(0, 5).forEach((rec: any) => {
+      console.log(`  - ${rec.candidate_name}: ${rec.match_score}% (${rec.matched_count}/${requiredSkills.length} skills)`);
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
+    const result = {
+      recommendations,
+      summary: `Evaluated ${candidates.length} candidates. Found ${recommendations.length} matches with 60%+ skill match.`,
+      total_evaluated: candidates.length,
+      top_matches_count: recommendations.filter((r: any) => r.match_score >= 85).length,
+    };
 
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall) {
-      throw new Error("No tool call in response");
-    }
-
-    const result = JSON.parse(toolCall.function.arguments);
-    console.log("Agent recommendations:", JSON.stringify(result));
+    console.log("Search results:", JSON.stringify(result, null, 2));
 
     // Store recommendations in database
-    if (agentId && result.recommendations?.length > 0) {
-      console.log(`Storing ${result.recommendations.length} recommendations for agent ${agentId}`);
-      
-      for (const rec of result.recommendations) {
-        console.log(`Storing recommendation for candidate ${rec.candidate_id} with score ${rec.match_score}`);
-        
-        const { error: upsertError } = await supabase
-          .from('agent_recommendations')
-          .upsert({
-            agent_id: agentId,
-            candidate_id: rec.candidate_id,
-            match_score: rec.match_score,
-            recommendation_reason: rec.recommendation_reason,
-            status: rec.is_high_priority ? 'high_priority' : 'pending'
-          }, { onConflict: 'agent_id,candidate_id' });
-        
-        if (upsertError) {
-          console.error('Error storing recommendation:', upsertError);
+    if (agentId) {
+      // CRITICAL: Delete ALL old recommendations for this agent first to avoid mixing old AI garbage with new results
+      console.log(`Deleting old recommendations for agent ${agentId}`);
+      const { error: deleteError } = await supabase
+        .from('agent_recommendations')
+        .delete()
+        .eq('agent_id', agentId);
+
+      if (deleteError) {
+        console.error('Error deleting old recommendations:', deleteError);
+      } else {
+        console.log('Old recommendations cleared successfully');
+      }
+
+      // Insert fresh recommendations (if any)
+      if (result.recommendations?.length > 0) {
+        console.log(`Inserting ${result.recommendations.length} new recommendations for agent ${agentId}`);
+
+        for (const rec of result.recommendations) {
+          console.log(`Storing recommendation for candidate ${rec.candidate_id} with score ${rec.match_score}`);
+
+          const { error: insertError } = await supabase
+            .from('agent_recommendations')
+            .insert({
+              agent_id: agentId,
+              candidate_id: rec.candidate_id,
+              match_score: rec.match_score,
+              recommendation_reason: rec.recommendation_reason,
+              status: rec.is_high_priority ? 'high_priority' : 'pending'
+            });
+
+          if (insertError) {
+            console.error('Error storing recommendation:', insertError);
+          }
         }
+      } else {
+        console.log('No new recommendations to insert (0 matches found)');
       }
 
       // Update agent stats
@@ -191,12 +218,12 @@ ${JSON.stringify(searchCriteria, null, 2)}`;
           candidates_found: result.recommendations.filter((r: any) => r.match_score >= 70).length
         })
         .eq('id', agentId);
-      
+
       if (updateError) {
         console.error('Error updating agent stats:', updateError);
       }
     } else {
-      console.log('No recommendations to store or no agentId provided');
+      console.log('No agentId provided - skipping database storage');
     }
 
     return new Response(JSON.stringify(result), {

@@ -58,7 +58,6 @@ const TalentSearch = lazy(() => import("./pages/recruiter/TalentSearch"));
 const TalentSourcing = lazy(() => import("./pages/recruiter/TalentSourcing"));
 const TalentPool = lazy(() => import("./pages/recruiter/TalentPool"));
 const TalentInsights = lazy(() => import("./pages/recruiter/TalentInsights"));
-const AIAgents = lazy(() => import("./pages/recruiter/AIAgents"));
 const OutreachCampaigns = lazy(() => import("./pages/recruiter/OutreachCampaigns"));
 const Shortlists = lazy(() => import("./pages/recruiter/Shortlists"));
 const CandidatePipeline = lazy(() => import("./pages/recruiter/CandidatePipeline"));
@@ -410,14 +409,6 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
                         {withSuspense(<TalentInsights />)}
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/recruiter/agents"
-                    element={
-                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
-                        {withSuspense(<AIAgents />)}
                       </ProtectedRoute>
                     }
                   />

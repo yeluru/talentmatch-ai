@@ -211,25 +211,6 @@ export const RECRUITER_CATEGORY_LANDINGS: Record<string, CategoryLandingConfig> 
       },
     ],
   },
-  Automation: {
-    title: 'Automation',
-    description: 'AI-powered automation for sourcing and outreach.',
-    blocks: [
-      {
-        title: 'AI Agents',
-        description:
-          'Configure and run AI agents to automate sourcing, screening, and outreach. Let AI handle repetitive tasks like screening resumes, scoring candidates, or drafting messages so you can focus on high-value decisions.',
-        details: [
-          'Configure agents for sourcing or screening',
-          'Run on schedule or on demand',
-          'Review and approve AI suggestions',
-        ],
-        href: '/recruiter/agents',
-        icon: Bot,
-        image: IMG.automation,
-      },
-    ],
-  },
 };
 
 /** Base path for each category landing (for sidebar links). Only categories that appear in the recruiter nav are linked. */
@@ -237,5 +218,4 @@ export const CATEGORY_LANDING_HREFS: Record<string, string> = {
   'TALENT MANAGEMENT': '/recruiter/talent-management',
   Jobs: '/recruiter/jobs-home',
   Pipelines: '/recruiter/pipelines',
-  Automation: '/recruiter/automation-home',
 };

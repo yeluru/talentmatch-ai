@@ -148,7 +148,7 @@ This document explains **who does what** in the recruitment platform in plain la
 | Use Applications and Engagement pipelines | **What it means:** See candidates in columns by stage (Applied, Reviewing, Screening, Interview, Offered, Hired, etc.) and drag-and-drop or click to move them. The Applications pipeline is for people who applied to your jobs; the Engagement pipeline is for people you are actively engaging (rate, screening, offer, onboarding). **In the app:** Candidate Pipeline (applications) and Engagement Pipeline (engagements) provide these views. | Code | **Done** |
 | Use email templates | **What it means:** Save reusable email text (e.g. for screening invite, offer) so you don’t type the same thing every time. **In the app:** Email Templates lets you create and use templates when sending emails. | Code | **Done** |
 | View talent insights | **What it means:** See data and insights about your talent pool and hiring (e.g. where candidates come from, pipeline conversion). **In the app:** Talent Insights shows these analytics. | Code | **Done** |
-| Use AI Agents | **What it means:** Set up and run automated recruiting assistants (AI agents) that can do tasks like suggesting candidates or sending follow-ups. **In the app:** AI Agents page lets you configure and run agents. | Code | **Done** |
+| Use Search Agents | **What it means:** Set up and run automated search agents that continuously monitor your talent pool for candidates matching specific job criteria. **In the app:** Search Agents page lets you create job-specific agents and run them to get recommendations. | Code | **Done** |
 
 ---
 

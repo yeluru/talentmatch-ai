@@ -74,13 +74,6 @@ interface UpcomingInterview {
   job_title: string;
 }
 
-interface RecentAgent {
-  id: string;
-  name: string;
-  job_title: string | null;
-  last_run_at: string | null;
-}
-
 export default function RecruiterDashboard() {
   const { roles, organizationId, user, currentRole, switchRole } = useAuth();
   const hasAccountManagerRole = roles.some((r) => r.role === 'account_manager');
@@ -97,7 +90,6 @@ export default function RecruiterDashboard() {
   const [recentTalent, setRecentTalent] = useState<RecentTalent[]>([]);
   const [recentShortlists, setRecentShortlists] = useState<RecentShortlist[]>([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState<UpcomingInterview[]>([]);
-  const [recentAgents, setRecentAgents] = useState<RecentAgent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingCode, setIsCreatingCode] = useState(false);
   const navigate = useNavigate();
@@ -266,22 +258,6 @@ export default function RecruiterDashboard() {
       } else {
         setUpcomingInterviews([]);
       }
-
-      // AI agents (recent 3)
-      let agentsQuery = supabase
-        .from('ai_recruiting_agents')
-        .select('id, name, last_run_at, jobs(title)')
-        .eq('organization_id', orgId)
-        .order('last_run_at', { ascending: false, nullsFirst: false })
-        .limit(3);
-      if (effectiveOwnerId) agentsQuery = agentsQuery.eq('created_by', effectiveOwnerId);
-      const { data: agentRows } = await agentsQuery;
-      setRecentAgents((agentRows || []).map((a: any) => ({
-        id: a.id,
-        name: a.name || 'Unnamed',
-        job_title: a.jobs?.title ?? null,
-        last_run_at: a.last_run_at ?? null,
-      })));
 
       // Fetch invite codes
       const { data: codes } = await supabase
@@ -539,15 +515,6 @@ export default function RecruiterDashboard() {
                 <div key={i.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/interviews')}>
                   <p className="font-sans font-medium text-foreground truncate">{i.candidate_name}</p>
                   <p className="text-xs text-muted-foreground font-sans truncate">{i.job_title} · {formatDate(i.scheduled_at)}</p>
-                </div>
-              ))}
-            </QuickActionBlock>
-
-            <QuickActionBlock title="AI Agents" href="/recruiter/agents" icon={Bot} emptyMessage="No AI agents yet. Create one to match candidates to jobs.">
-              {recentAgents.slice(0, 3).map((a) => (
-                <div key={a.id} className="p-3 rounded-lg border border-border bg-background/50 hover:bg-recruiter/5 transition-colors cursor-pointer" onClick={() => navigate('/recruiter/agents')}>
-                  <p className="font-sans font-medium text-foreground truncate">{a.name}</p>
-                  <p className="text-xs text-muted-foreground font-sans truncate">{a.job_title || 'No job linked'}{a.last_run_at ? ` · Ran ${formatDate(a.last_run_at)}` : ''}</p>
                 </div>
               ))}
             </QuickActionBlock>

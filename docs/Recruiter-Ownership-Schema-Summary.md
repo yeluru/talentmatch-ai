@@ -36,7 +36,7 @@ So: **all talent pool profiles visible to an org are common for everyone in that
 | **Sourced leads** | `sourced_leads` | `created_by` (NOT NULL) | Who created the lead (e.g. from search/upload). |
 | **Email templates** | `email_templates` | `created_by` (NOT NULL) | Org-scoped; creator tracked. |
 | **Outreach campaigns** | `outreach_campaigns` | `created_by` (NOT NULL) | Campaign created by that user. |
-| **AI agents** | `ai_recruiting_agents` | `created_by` (NOT NULL) | Agent created by that user. |
+| **Search agents** | `ai_recruiting_agents` | `created_by` (NOT NULL) | Search agent created by that user; job_id required. |
 
 So: **jobs (and other recruiter-created entities) do belong to that particular recruiter** in the schema; talent pool is the only major “shared” construct.
 

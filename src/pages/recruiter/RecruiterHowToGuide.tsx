@@ -218,20 +218,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
     ],
   },
   {
-    id: 'ai-agents',
-    title: 'AI Agents',
-    description: 'Configure AI agents to recommend candidates for your criteria.',
-    route: '/recruiter/agents',
-    overview:
-      'AI Agents let you match candidates from the talent pool against job criteria. You create an agent (name and criteria), then click **Run** to analyze; the agent uses candidates already in your organization’s talent pool. You can view recommendations, approve or reject, and shortlist or contact candidates. Agents are owned by you; each recruiter has their own agents. If there are no candidates in the pool, Run will notify you—add candidates via Talent Pool (e.g. upload or import) first. The page has one main section: heading, Create Agent, and your agents list with Run and recommendations.',
-    steps: [
-      'Go to Automation → AI Agents.',
-      'Click **Create Agent**: name it and set search criteria (e.g. job, skills, location).',
-      'Click **Run** on an agent to analyze candidates from the talent pool; review recommendations.',
-      'Approve or reject recommendations; shortlist or contact candidates from the recommendations list.',
-    ],
-  },
-  {
     id: 'search-modes',
     title: 'Search Modes Comparison',
     description: 'Web Search vs Basic LinkedIn vs Deep LinkedIn - which to use when.',

@@ -123,10 +123,6 @@ const recruiterNavGroups: NavGroup[] = [
   //   items: [{ title: 'Insights', href: '/recruiter/insights', icon: BarChart3 }],
   // },
   {
-    label: 'Automation',
-    items: [{ title: 'AI Agents', href: '/recruiter/agents', icon: Bot }],
-  },
-  {
     label: 'Support',
     items: [{ title: 'Help & How-to', href: '/recruiter/help', icon: BookOpen }],
   },
@@ -238,7 +234,7 @@ function DashboardLayoutInner({
         return typeof key === 'string' && (
           key.startsWith('pipeline-') || key.startsWith('recruiter-') || key.startsWith('owner-') ||
           key === 'talent-pool' || key === 'talent-detail' || key === 'job-applicants' ||
-          key.startsWith('job-applicants') || key === 'interviews' || key === 'ai-agents' ||
+          key.startsWith('job-applicants') || key === 'interviews' ||
           key === 'org-jobs-agents' || key === 'org-jobs-outreach' || key === 'outreach-campaigns' ||
           key === 'email-templates' || key === 'shortlist-candidates' || key === 'shortlists'
         );

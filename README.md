@@ -68,13 +68,13 @@ UltraHire is a comprehensive recruitment solution designed to streamline the hir
 
 ![Database ERD](src/assets/diagrams/database-erd.png)
 
-*Central ORGANIZATIONS entity connecting to: USER_ROLES, PROFILES, JOBS, CANDIDATE_PROFILES, APPLICATIONS, RESUMES, CANDIDATE_SHORTLISTS, AI_RECRUITING_AGENTS, OUTREACH_CAMPAIGNS, and more*
+*Central ORGANIZATIONS entity connecting to: USER_ROLES, PROFILES, JOBS, CANDIDATE_PROFILES, APPLICATIONS, RESUMES, CANDIDATE_SHORTLISTS, SEARCH_AGENTS (ai_recruiting_agents table), OUTREACH_CAMPAIGNS, and more*
 
 ### Recruiter Workflow
 
 ![Recruiter Workflow](src/assets/diagrams/recruiter-workflow.png)
 
-*Complete recruiter journey: Login → Dashboard → (Post Job | View Talent Pool | Manage Shortlists | Configure AI Agents) → AI Matching → Review → Outreach → Track Responses → Schedule Interviews*
+*Complete recruiter journey: Login → Dashboard → (Post Job | View Talent Pool | Manage Shortlists | Configure Search Agents) → AI Matching → Review → Outreach → Track Responses → Schedule Interviews*
 
 ### Edge Function Architecture
 
@@ -101,7 +101,7 @@ UltraHire is a comprehensive recruitment solution designed to streamline the hir
 - 📧 **Outreach Campaigns** - Automated email sequences
 - 📋 **Shortlists** - Create and manage candidate shortlists
 - 🔎 **Talent Search** - Advanced search with multiple criteria
-- 🤖 **AI Agents** - Automated recruiting assistants
+- 🤖 **Search Agents** - Job-specific continuous candidate monitoring
 - 📈 **Talent Insights** - Data-driven hiring analytics
 - 📅 **Interview Scheduling** - Calendar-based interview management
 - ✉️ **Email Templates** - Reusable email templates
@@ -485,7 +485,7 @@ The platform supports **five** roles (see `docs/RBAC-for-Product.txt` for the pr
 | `shortlist_candidates` | Candidates in shortlists |
 | `outreach_campaigns` | Email campaigns |
 | `campaign_recipients` | Campaign recipients |
-| `ai_recruiting_agents` | AI agent configurations |
+| `ai_recruiting_agents` | Search agent configurations (job-specific, org-scoped) |
 | `agent_recommendations` | AI recommendations |
 | `ai_resume_analyses` | Resume analysis results |
 | `talent_insights` | Generated insights |
@@ -587,7 +587,7 @@ The platform includes **35+** Supabase Edge Functions in `supabase/functions/`. 
 | `parse-resume`, `parse-job-description` | Text extraction (PDF/DOCX) |
 | `tailor-resume` | ATS-optimized resume tailoring |
 | `generate-email`, `generate-insights`, `recommend-jobs` | AI generation and recommendations |
-| `run-agent` | Execute AI agents |
+| `run-agent` | Execute search agents (org-scoped candidate matching) |
 | **Talent & sourcing** | |
 | `bulk-import-candidates`, `talent-search` | Bulk import and talent search |
 | `linkedin-search`, `fetch-linkedin-text`, `enrich-linkedin-profile` | LinkedIn integration |

@@ -35,7 +35,7 @@ Recommendation: **Option B** (“My Shortlists”) is more consistent with “my
 - **Engagement Pipeline:** Already filters by current user when role is recruiter (`effectiveOwnerUserId`).
 - **Candidate Pipeline:** Had “view as owner” for AM only; recruiters saw all org jobs. **Fixed:** recruiters now see only their jobs (filter by `recruiter_id` = current user).
 - **Recruiter Jobs / My Applicants / Dashboard / AI Matching / JobApplicants / CreateJob / EditJob:** Previously scoped by `organization_id` only. **Fixed:** scoped by current user’s `recruiter_id` when role is recruiter.
-- **Email Templates / Outreach / AI Agents / Interviews:** Scoped by `created_by` (templates, campaigns, agents) and by recruiter’s jobs (interviews).
+- **Email Templates / Outreach / Search Agents / Interviews:** Scoped by `created_by` (templates, campaigns, agents) and by recruiter's jobs (interviews).
 
 ## Summary
 

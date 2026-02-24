@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { orgIdForRecruiterSuite } from '@/lib/org';
@@ -91,7 +92,7 @@ function displayNameFromEmail(email?: string | null) {
 
 // CSV export helper
 function exportToCSV(results: SearchResult[], filename: string) {
-  const headers = ['Name', 'Title', 'Years Experience', 'Location', 'Company', 'Skills', 'Match Score'];
+  const headers = ['Name', 'Title', 'Years Experience', 'Location', 'Skills', 'Match Score'];
   const rows = results.map(r => {
     const candidate = r.candidate;
     return [
@@ -99,7 +100,6 @@ function exportToCSV(results: SearchResult[], filename: string) {
       candidate?.title || '',
       candidate?.years_experience?.toString() || '',
       candidate?.location || '',
-      candidate?.current_company || '',
       candidate?.skills?.join('; ') || '',
       r.match_score.toString()
     ];
@@ -123,6 +123,8 @@ export default function TalentSearch() {
   const navigate = useNavigate();
 
   // Search state
+  const [searchMode, setSearchMode] = useState<'freeText' | 'byJob'>('freeText');
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
@@ -161,11 +163,43 @@ export default function TalentSearch() {
   const STORAGE_KEY = `talent_search:last:${organizationId || 'no-org'}`;
 
   // Queries
+  const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
+    queryKey: ['org-jobs', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      console.log('Fetching jobs for org:', organizationId);
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('id, title, required_skills, nice_to_have_skills')
+        .eq('organization_id', organizationId)
+        .order('title');
+
+      if (error) {
+        console.error('Jobs query error:', error);
+        throw error;
+      }
+
+      console.log('Jobs fetched:', data?.length || 0, data);
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
+  // Log jobs data for debugging
+  useEffect(() => {
+    if (jobsError) {
+      console.error('Jobs fetch error:', jobsError);
+    }
+    if (jobs) {
+      console.log('Jobs available:', jobs.length, jobs);
+    }
+  }, [jobs, jobsError]);
+
   const { data: shortlists } = useQuery({
     queryKey: ['shortlists', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('candidate_shortlists')
         .select('id, name')
         .eq('organization_id', organizationId)
@@ -402,6 +436,23 @@ export default function TalentSearch() {
     }
     searchMutation.mutate(searchQuery);
   };
+
+  // Auto-populate search query when a job is selected in "by Job" mode
+  useEffect(() => {
+    if (searchMode === 'byJob' && selectedJobId && jobs) {
+      const selectedJob = jobs.find(j => j.id === selectedJobId);
+      if (selectedJob) {
+        const requiredSkills = selectedJob.required_skills || [];
+        const niceToHaveSkills = selectedJob.nice_to_have_skills || [];
+        const allSkills = [...requiredSkills, ...niceToHaveSkills];
+        const skillsText = allSkills.join(', ');
+        setSearchQuery(`${selectedJob.title}${skillsText ? `, ${skillsText}` : ''}`);
+      }
+    } else if (searchMode === 'freeText') {
+      // Clear when switching back to free text
+      setSelectedJobId('');
+    }
+  }, [searchMode, selectedJobId, jobs]);
 
   const handleLoadSavedSearch = (search: any) => {
     setSearchQuery(search.search_query);
@@ -895,44 +946,110 @@ export default function TalentSearch() {
                     What are you looking for?
                   </h2>
                   <p className="text-sm text-muted-foreground font-sans mt-1">
-                    Type a role, skills, location, or experience—e.g. &quot;Senior React developer, 5+ years, remote&quot;
+                    Search by entering free text or selecting a job
                   </p>
                 </div>
                 <div className="p-6 space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" strokeWidth={1.5} />
-                      <Input
-                        placeholder="e.g. Backend engineer, Python, 3+ years, fintech..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        className="pl-12 h-11 rounded-lg border-border bg-background text-base font-sans focus:ring-2 focus:ring-recruiter/20 placeholder:text-muted-foreground/70"
-                      />
+                  {/* Search Mode Selection */}
+                  <RadioGroup value={searchMode} onValueChange={(value: 'freeText' | 'byJob') => setSearchMode(value)} className="flex items-center gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="freeText" id="mode-freetext" />
+                      <Label htmlFor="mode-freetext" className="font-normal cursor-pointer">Free Text Search</Label>
                     </div>
-                    <Button
-                      onClick={() => setFiltersOpen(!filtersOpen)}
-                      variant="outline"
-                      className="shrink-0 h-11 px-4 rounded-lg border-border font-sans"
-                    >
-                      <Filter className="h-5 w-5 mr-2" strokeWidth={1.5} />
-                      Filters
-                    </Button>
-                    <Button
-                      onClick={handleSearch}
-                      disabled={searchMutation.isPending}
-                      className="shrink-0 h-11 px-6 rounded-lg border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold"
-                    >
-                      {searchMutation.isPending ? (
-                        <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.5} />
-                      ) : (
-                        <>
-                          <Sparkles className="h-5 w-5 mr-2" strokeWidth={1.5} />
-                          Search
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="byJob" id="mode-byjob" />
+                      <Label htmlFor="mode-byjob" className="font-normal cursor-pointer">Search by Job</Label>
+                    </div>
+                  </RadioGroup>
+
+                  {/* Free Text Search Input */}
+                  {searchMode === 'freeText' && (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" strokeWidth={1.5} />
+                        <Input
+                          placeholder="e.g. Backend engineer, Python, 3+ years, fintech..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                          className="pl-12 h-11 rounded-lg border-border bg-background text-base font-sans focus:ring-2 focus:ring-recruiter/20 placeholder:text-muted-foreground/70"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => setFiltersOpen(!filtersOpen)}
+                        variant="outline"
+                        className="shrink-0 h-11 px-4 rounded-lg border-border font-sans"
+                      >
+                        <Filter className="h-5 w-5 mr-2" strokeWidth={1.5} />
+                        Filters
+                      </Button>
+                      <Button
+                        onClick={handleSearch}
+                        disabled={searchMutation.isPending}
+                        className="shrink-0 h-11 px-6 rounded-lg border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold"
+                      >
+                        {searchMutation.isPending ? (
+                          <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.5} />
+                        ) : (
+                          <>
+                            <Sparkles className="h-5 w-5 mr-2" strokeWidth={1.5} />
+                            Search
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Job-Based Search */}
+                  {searchMode === 'byJob' && (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="flex-1">
+                        <Select value={selectedJobId} onValueChange={setSelectedJobId} disabled={jobsLoading}>
+                          <SelectTrigger className="h-11 rounded-lg border-border bg-background font-sans">
+                            <SelectValue placeholder={jobsLoading ? "Loading jobs..." : jobs && jobs.length > 0 ? "Select a job..." : "No jobs available"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {jobsLoading ? (
+                              <SelectItem value="loading" disabled>Loading jobs...</SelectItem>
+                            ) : jobs && jobs.length > 0 ? (
+                              jobs.map((job) => (
+                                <SelectItem key={job.id} value={job.id}>
+                                  {job.title}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="none" disabled>No jobs found</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {jobsError && (
+                          <p className="text-xs text-destructive mt-1">Error loading jobs</p>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => setFiltersOpen(!filtersOpen)}
+                        variant="outline"
+                        className="shrink-0 h-11 px-4 rounded-lg border-border font-sans"
+                      >
+                        <Filter className="h-5 w-5 mr-2" strokeWidth={1.5} />
+                        Filters
+                      </Button>
+                      <Button
+                        onClick={handleSearch}
+                        disabled={searchMutation.isPending || !selectedJobId}
+                        className="shrink-0 h-11 px-6 rounded-lg border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold"
+                      >
+                        {searchMutation.isPending ? (
+                          <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.5} />
+                        ) : (
+                          <>
+                            <Sparkles className="h-5 w-5 mr-2" strokeWidth={1.5} />
+                            Search
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Filter Chips */}
                   {parsedQuery && (Object.keys(parsedQuery).length > 0 || parsedQuery.skills?.length) && (
@@ -1096,7 +1213,6 @@ export default function TalentSearch() {
                               <SortIcon column="experience" />
                             </div>
                           </TableHead>
-                          <TableHead className="max-w-[140px] hidden md:table-cell py-4 font-display font-semibold text-foreground">Company</TableHead>
                           <TableHead className="max-w-[120px] hidden lg:table-cell py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('location')}>
                             <div className="flex items-center gap-1">
                               Location
@@ -1146,11 +1262,6 @@ export default function TalentSearch() {
                               <TableCell className="hidden sm:table-cell py-4 cursor-pointer" onClick={() => openTalent(candId)}>
                                 <span className="text-sm text-muted-foreground font-sans">
                                   {candidate.years_experience ? `${candidate.years_experience}y` : '—'}
-                                </span>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell py-4 max-w-[140px] cursor-pointer" onClick={() => openTalent(candId)}>
-                                <span className="text-sm text-muted-foreground font-sans truncate block" title={candidate.current_company || undefined}>
-                                  {candidate.current_company || '—'}
                                 </span>
                               </TableCell>
                               <TableCell className="hidden lg:table-cell py-4 max-w-[120px] cursor-pointer" onClick={() => openTalent(candId)}>

@@ -11,9 +11,9 @@
 - **Platform** = one place for: **sourcing** (Web, Google X-Ray, Serp), **talent pool**, **jobs**, **pipelines**, **outreach**, **analytics**, and **agents**—all sharing the same data and audit trail.
 
 Today TalentMatch already has:
-- **One agent type:** “Match candidates to job” (manual Run; no tools, no schedule).
+- **One agent type:** "Search Agents" - job-specific candidate matching (manual Run; no tools, no schedule; org-scoped only).
 - **Many tools as edge functions:** web-search, google-search-linkedin, serpapi-search-linkedin, parse-resume, match-candidates, generate-email, send-engagement-email, enrich-linkedin-profile, etc.
-- **No orchestration:** the agent cannot call these tools; it only scores a pre-loaded candidate list.
+- **No orchestration:** the agent cannot call these tools; it only scores a pre-loaded candidate list from the organization.
 
 The strategy below adds **orchestration**, **tool use**, **new agent types**, and **triggers** so TalentMatch becomes a true Agentic AI platform.
 
@@ -93,8 +93,8 @@ Store in DB: `agent_schedules` (agent_id, cron, timezone, enabled). Use Supabase
    - Return structured result (e.g. “Added 3 candidates; 2 failed duplicate”) so LLM can reason.
 3. **Extend `ai_recruiting_agents`**
    - Add `agent_type` (e.g. `matching` | `sourcing` | `outreach`), `goal_template`, `allowed_tools` (JSON array), `schedule_cron`, `is_active` (for schedule).
-4. **UI: “Run with goal”**
-   - On AI Agents page: for a given agent, optional “Goal” text box (e.g. “Find 10 Python devs in NYC”); Run calls `run-agentic-agent` with that goal. Show run history (last run, step count, result summary).
+4. **UI: "Run with goal"**
+   - On Search Agents page: for a given agent, optional "Goal" text box (e.g. "Find 10 Python devs in NYC"); Run calls `run-agentic-agent` with that goal. Show run history (last run, step count, result summary).
 
 This gives **one** agent that can both match (current behavior) and, if given the right tools and goal, source (search + enrich + add to pool). No new agent types yet—just “one agent that can use tools.”
 
@@ -151,7 +151,7 @@ This makes the platform **“source + match + draft outreach”** in one place w
 1. **Align on Phase 1 scope:** Orchestrator + tool adapter + one “match + optional source” agent with “Run with goal” in UI.
 2. **Design `agent_runs` and `agent_run_steps` schema** (and any `outreach_queue`) in Supabase.
 3. **Implement `run-agentic-agent`** with a minimal tool set (e.g. get_job_criteria, list_talent_pool, match_candidates, create_recommendation; then add web_search / add_to_talent_pool).
-4. **Add “Goal” + run history to AI Agents page** and ship Phase 1.
+4. **Add "Goal" + run history to Search Agents page** and ship Phase 1.
 5. **Then** Phase 2 (Sourcing Agent + schedule), Phase 3 (Outreach Agent + queue), Phase 4 (observability + events).
 
 Once Phase 1–3 are in place, TalentMatch is a **single, agentic recruiting platform** where recruiters and AMs run agents that search, match, and queue outreach—all in one place, with full audit and control.
