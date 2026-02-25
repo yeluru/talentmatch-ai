@@ -57,6 +57,7 @@ serve(async (req) => {
     const candidates = body?.candidates;
     const organizationId = body?.organizationId;
     const structuredSearch = body?.structuredSearch; // From "Search by Job" mode
+    const strictMode = Boolean(body?.strictMode); // Must have ALL skills (Free Text only)
     const prefilterLimit = Number(body?.prefilterLimit || 200);
     const topN = Number(body?.topN || 30);
 
@@ -161,29 +162,78 @@ serve(async (req) => {
       let candidateIds: string[] = [];
 
       if (skills.length) {
-        const skillsOr = toIlikeOr(skills, "skill_name");
-        const { data: skillRows, error: skillErr } = await supabase
-          .from("candidate_skills")
-          .select("candidate_id")
-          .or(skillsOr)
-          .limit(5000);
-        if (skillErr) throw skillErr;
-        const skillIds = Array.from(
-          new Set((skillRows || []).map((r: any) => r?.candidate_id).filter(Boolean)),
-        ).slice(0, 5000);
+        if (strictMode) {
+          // STRICT MODE: Candidate must have ALL skills (AND logic)
+          console.log("Using strict mode - candidate must have ALL skills");
 
-        if (skillIds.length) {
-          const { data: linkRows, error: linkErr } = await supabase
-            .from("candidate_org_links")
+          // Get candidates for each skill, then find intersection
+          const skillCandidateSets: Set<string>[] = [];
+
+          for (const skill of skills) {
+            const { data: skillRows, error: skillErr } = await supabase
+              .from("candidate_skills")
+              .select("candidate_id")
+              .ilike("skill_name", `%${skill}%`)
+              .limit(5000);
+
+            if (skillErr) throw skillErr;
+
+            const candidatesWithThisSkill = new Set(
+              (skillRows || []).map((r: any) => r?.candidate_id).filter(Boolean)
+            );
+            skillCandidateSets.push(candidatesWithThisSkill);
+          }
+
+          // Find intersection - candidates that have ALL skills
+          if (skillCandidateSets.length > 0) {
+            let intersection = skillCandidateSets[0];
+            for (let i = 1; i < skillCandidateSets.length; i++) {
+              intersection = new Set([...intersection].filter(x => skillCandidateSets[i].has(x)));
+            }
+
+            const skillIds = Array.from(intersection).slice(0, 5000);
+            console.log(`Strict mode: ${skillIds.length} candidates have ALL ${skills.length} skills`);
+
+            if (skillIds.length) {
+              const { data: linkRows, error: linkErr } = await supabase
+                .from("candidate_org_links")
+                .select("candidate_id")
+                .eq("organization_id", organizationId)
+                .eq("status", "active")
+                .in("candidate_id", skillIds)
+                .limit(Math.max(50, prefilterLimit));
+              if (linkErr) throw linkErr;
+              candidateIds = Array.from(
+                new Set((linkRows || []).map((r: any) => r?.candidate_id).filter(Boolean)),
+              );
+            }
+          }
+        } else {
+          // NORMAL MODE: Candidate can have ANY skills (OR logic)
+          const skillsOr = toIlikeOr(skills, "skill_name");
+          const { data: skillRows, error: skillErr } = await supabase
+            .from("candidate_skills")
             .select("candidate_id")
-            .eq("organization_id", organizationId)
-            .eq("status", "active")
-            .in("candidate_id", skillIds)
-            .limit(Math.max(50, prefilterLimit));
-          if (linkErr) throw linkErr;
-          candidateIds = Array.from(
-            new Set((linkRows || []).map((r: any) => r?.candidate_id).filter(Boolean)),
-          );
+            .or(skillsOr)
+            .limit(5000);
+          if (skillErr) throw skillErr;
+          const skillIds = Array.from(
+            new Set((skillRows || []).map((r: any) => r?.candidate_id).filter(Boolean)),
+          ).slice(0, 5000);
+
+          if (skillIds.length) {
+            const { data: linkRows, error: linkErr } = await supabase
+              .from("candidate_org_links")
+              .select("candidate_id")
+              .eq("organization_id", organizationId)
+              .eq("status", "active")
+              .in("candidate_id", skillIds)
+              .limit(Math.max(50, prefilterLimit));
+            if (linkErr) throw linkErr;
+            candidateIds = Array.from(
+              new Set((linkRows || []).map((r: any) => r?.candidate_id).filter(Boolean)),
+            );
+          }
         }
       } else {
         let q = supabase

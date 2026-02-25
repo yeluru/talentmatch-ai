@@ -126,6 +126,7 @@ export default function TalentSearch() {
   const [searchMode, setSearchMode] = useState<'freeText' | 'byJob'>('freeText');
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [strictMode, setStrictMode] = useState(false); // Must have ALL skills (Free Text only)
   const [results, setResults] = useState<SearchResult[]>([]);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
 
@@ -383,7 +384,13 @@ export default function TalentSearch() {
   const searchMutation = useMutation({
     mutationFn: async (query: string) => {
       // If Search by Job mode, send structured job data
-      let body: any = { searchQuery: query, organizationId, prefilterLimit: 200, topN: 50 };
+      let body: any = {
+        searchQuery: query,
+        organizationId,
+        prefilterLimit: 200,
+        topN: 50,
+        strictMode: searchMode === 'freeText' ? strictMode : false // Only for Free Text
+      };
 
       if (searchMode === 'byJob' && selectedJobId && jobs) {
         const selectedJob = jobs.find(j => j.id === selectedJobId);
@@ -981,6 +988,22 @@ export default function TalentSearch() {
                       <Label htmlFor="mode-byjob" className="font-normal cursor-pointer">Search by Job</Label>
                     </div>
                   </RadioGroup>
+
+                  {/* Strict Mode Checkbox (Free Text only) */}
+                  {searchMode === 'freeText' && (
+                    <div className="flex items-center space-x-2 pl-1">
+                      <input
+                        type="checkbox"
+                        id="strict-mode"
+                        checked={strictMode}
+                        onChange={(e) => setStrictMode(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-recruiter focus:ring-recruiter cursor-pointer"
+                      />
+                      <Label htmlFor="strict-mode" className="text-sm font-normal cursor-pointer text-muted-foreground">
+                        Must have ALL skills (strict matching)
+                      </Label>
+                    </div>
+                  )}
 
                   {/* Free Text Search Input */}
                   {searchMode === 'freeText' && (
