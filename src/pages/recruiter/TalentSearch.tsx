@@ -507,6 +507,11 @@ export default function TalentSearch() {
       toast.error('Please enter a search query');
       return;
     }
+
+    // Clear previous results for visual feedback that new search is starting
+    setResults([]);
+    setParsedQuery(null);
+
     searchMutation.mutate(searchQuery);
   };
 
