@@ -1455,7 +1455,7 @@ export default function TalentSearch() {
               )}
 
               {/* Results with bulk actions (Free Text mode) */}
-              {searchMode === 'freeText' && sortedResults.length > 0 && (
+              {searchMode === 'freeText' && results.length > 0 && (
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -1563,6 +1563,24 @@ export default function TalentSearch() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
+                        {sortedResults.length === 0 && results.length > 0 && (
+                          <TableRow>
+                            <TableCell colSpan={9} className="text-center py-12">
+                              <div className="flex flex-col items-center gap-3">
+                                <Filter className="h-12 w-12 text-muted-foreground/30" />
+                                <div>
+                                  <p className="text-lg font-semibold text-foreground">No matches at ≥ {freeTextThreshold}%</p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Found {results.length} candidates, but all are below {freeTextThreshold}% match.
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Try lowering the threshold using the dropdown above.
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
                         {sortedResults.map((result, idx) => {
                           const candidate = getCandidateForResult(result);
                           if (!candidate) return null;
