@@ -131,7 +131,7 @@ export default function TalentSearch() {
   const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
   const [searchThresholds, setSearchThresholds] = useState<Map<string, number>>(new Map()); // Per-search thresholds
-  const [freeTextThreshold, setFreeTextThreshold] = useState(75); // Free Text search threshold
+  const [freeTextThreshold, setFreeTextThreshold] = useState(25); // Free Text search threshold (lower for simple scoring)
 
   // Get threshold for a specific search (default 75%)
   const getThreshold = (searchJobId: string) => searchThresholds.get(searchJobId) || 75;
