@@ -131,6 +131,7 @@ export default function TalentSearch() {
   const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
   const [searchThresholds, setSearchThresholds] = useState<Map<string, number>>(new Map()); // Per-search thresholds
+  const [freeTextThreshold, setFreeTextThreshold] = useState(75); // Free Text search threshold
 
   // Get threshold for a specific search (default 75%)
   const getThreshold = (searchJobId: string) => searchThresholds.get(searchJobId) || 75;
@@ -581,6 +582,11 @@ export default function TalentSearch() {
   const filteredResults = useMemo(() => {
     let filtered = [...results];
 
+    // Threshold filter (match score)
+    filtered = filtered.filter(r => {
+      return Number(r?.match_score || 0) >= freeTextThreshold;
+    });
+
     // Experience filter
     filtered = filtered.filter(r => {
       const exp = r.candidate?.years_experience ?? 0;
@@ -602,7 +608,7 @@ export default function TalentSearch() {
     }
 
     return filtered;
-  }, [results, manualFilters]);
+  }, [results, manualFilters, freeTextThreshold]);
 
   // Sort results
   const sortedResults = useMemo(() => {
@@ -1453,13 +1459,28 @@ export default function TalentSearch() {
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
                           <Users className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
                           {sortedResults.length} {sortedResults.length === 1 ? 'match' : 'matches'}
                           {selectedIds.size > 0 && <span className="text-muted-foreground font-normal">· {selectedIds.size} selected</span>}
                         </h2>
-                        <p className="text-sm text-muted-foreground font-sans mt-0.5">Click row to view profile · Select for bulk actions</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-sm text-muted-foreground font-sans">
+                            Click row to view profile · Select for bulk actions · Showing ≥ {freeTextThreshold}%
+                          </p>
+                          <Select value={String(freeTextThreshold)} onValueChange={(v) => setFreeTextThreshold(Number(v))}>
+                            <SelectTrigger className="h-7 w-[140px] text-xs border-border">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="75">Show ≥ 75%</SelectItem>
+                              <SelectItem value="60">Show ≥ 60%</SelectItem>
+                              <SelectItem value="50">Show ≥ 50%</SelectItem>
+                              <SelectItem value="25">Show ≥ 25%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       {selectedIds.size > 0 && (
                         <div className="flex gap-2">
