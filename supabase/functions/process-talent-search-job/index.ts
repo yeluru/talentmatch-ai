@@ -7,6 +7,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Process this many batches per invocation to avoid timeout
+const BATCHES_PER_INVOCATION = 5;
+const BATCH_SIZE = 50;
+const CANDIDATES_PER_INVOCATION = BATCHES_PER_INVOCATION * BATCH_SIZE; // 250 candidates
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,8 +55,11 @@ serve(async (req) => {
 
     console.log("Processing search job:", searchJobId);
 
+    // Use service role for all DB operations to avoid RLS issues
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
     // Fetch search job
-    const { data: searchJob, error: fetchErr } = await supabase
+    const { data: searchJob, error: fetchErr } = await supabaseAdmin
       .from('talent_search_jobs')
       .select('*, jobs(title, required_skills, nice_to_have_skills)')
       .eq('id', searchJobId)
@@ -61,11 +69,20 @@ serve(async (req) => {
       throw new Error("Search job not found");
     }
 
-    // Update status to processing
-    await supabase
-      .from('talent_search_jobs')
-      .update({ status: 'processing', started_at: new Date().toISOString() })
-      .eq('id', searchJobId);
+    // Check if this is first invocation or resuming
+    const lastProcessedIndex = searchJob.last_processed_index || 0;
+    const isFirstInvocation = lastProcessedIndex === 0;
+
+    if (isFirstInvocation) {
+      // First invocation - set to processing
+      await supabaseAdmin
+        .from('talent_search_jobs')
+        .update({ status: 'processing', started_at: new Date().toISOString() })
+        .eq('id', searchJobId);
+      console.log("Started processing search job");
+    } else {
+      console.log(`Resuming from index ${lastProcessedIndex}`);
+    }
 
     // Get job skills
     const job = searchJob.jobs;
@@ -76,8 +93,8 @@ serve(async (req) => {
 
     console.log(`Searching for candidates with skills:`, skills.slice(0, 5));
 
-    // Fetch ALL org candidates (no limit)
-    const { data: orgCandidates, error: orgErr } = await supabase
+    // Fetch ALL org candidate IDs
+    const { data: orgCandidates, error: orgErr } = await supabaseAdmin
       .from("candidate_org_links")
       .select("candidate_id")
       .eq("organization_id", searchJob.organization_id)
@@ -89,17 +106,26 @@ serve(async (req) => {
       new Set((orgCandidates || []).map((r: any) => r?.candidate_id).filter(Boolean))
     );
 
-    console.log(`Found ${candidateIds.length} total candidates in org`);
+    const totalCandidates = candidateIds.length;
+    console.log(`Total candidates in org: ${totalCandidates}, already processed: ${lastProcessedIndex}`);
 
-    // Fetch profiles in batches of 50
-    const BATCH_SIZE = 50;
-    const allMatches: any[] = [];
+    // Get candidates for this invocation
+    const startIndex = lastProcessedIndex;
+    const endIndex = Math.min(startIndex + CANDIDATES_PER_INVOCATION, totalCandidates);
+    const candidatesToProcess = candidateIds.slice(startIndex, endIndex);
 
-    for (let i = 0; i < candidateIds.length; i += BATCH_SIZE) {
-      const batch = candidateIds.slice(i, i + BATCH_SIZE);
+    console.log(`Processing candidates ${startIndex} to ${endIndex} (${candidatesToProcess.length} candidates)`);
+
+    // Load existing matches (if resuming)
+    const existingMatches = searchJob.results?.matches || [];
+    const newMatches: any[] = [];
+
+    // Process in batches
+    for (let i = 0; i < candidatesToProcess.length; i += BATCH_SIZE) {
+      const batch = candidatesToProcess.slice(i, i + BATCH_SIZE);
 
       // Fetch candidate profiles with skills
-      const { data: profiles, error: profErr } = await supabase
+      const { data: profiles, error: profErr } = await supabaseAdmin
         .from("candidate_profiles")
         .select(`
           id,
@@ -205,34 +231,85 @@ Summary: ${c.summary || "N/A"}`
             })
             .filter(Boolean);
 
-          allMatches.push(...batchMatches);
+          newMatches.push(...batchMatches);
         }
       }
 
-      console.log(`Processed batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(candidateIds.length/BATCH_SIZE)}`);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(candidatesToProcess.length / BATCH_SIZE);
+      console.log(`Processed batch ${batchNum}/${totalBatches} in this invocation`);
     }
 
-    // Sort by score and save results
-    allMatches.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
-    const topMatches = allMatches.slice(0, 100);
+    // Combine existing and new matches
+    const allMatches = [...existingMatches, ...newMatches];
 
-    console.log(`Total matches: ${allMatches.length}, saving top 100`);
+    // Update progress
+    const newProcessedIndex = endIndex;
+    const isComplete = newProcessedIndex >= totalCandidates;
 
-    // Save results
-    await supabase
-      .from('talent_search_jobs')
-      .update({
-        status: 'completed',
-        results: { matches: topMatches },
-        total_candidates_searched: candidateIds.length,
-        matches_found: topMatches.length,
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', searchJobId);
+    if (isComplete) {
+      // All done - sort and save top 100
+      allMatches.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+      const topMatches = allMatches.slice(0, 100);
 
-    return new Response(JSON.stringify({ success: true, matches: topMatches.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      console.log(`COMPLETE: Total matches: ${allMatches.length}, saving top 100`);
+
+      await supabaseAdmin
+        .from('talent_search_jobs')
+        .update({
+          status: 'completed',
+          results: { matches: topMatches },
+          total_candidates_searched: totalCandidates,
+          matches_found: topMatches.length,
+          completed_at: new Date().toISOString(),
+          last_processed_index: newProcessedIndex
+        })
+        .eq('id', searchJobId);
+
+      return new Response(JSON.stringify({
+        success: true,
+        complete: true,
+        matches: topMatches.length,
+        total_searched: totalCandidates
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    } else {
+      // More to process - save progress and trigger next invocation
+      console.log(`Progress: ${newProcessedIndex}/${totalCandidates} (${Math.round(newProcessedIndex/totalCandidates*100)}%)`);
+
+      await supabaseAdmin
+        .from('talent_search_jobs')
+        .update({
+          results: { matches: allMatches },
+          total_candidates_searched: newProcessedIndex,
+          last_processed_index: newProcessedIndex
+        })
+        .eq('id', searchJobId);
+
+      // Trigger next invocation (recursive)
+      console.log("Triggering next invocation...");
+      supabase.functions.invoke('process-talent-search-job', {
+        body: { searchJobId }
+      }).then(() => {
+        console.log("Next invocation triggered");
+      }).catch(err => {
+        console.error("Failed to trigger next invocation:", err);
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        complete: false,
+        progress: {
+          processed: newProcessedIndex,
+          total: totalCandidates,
+          percent: Math.round(newProcessedIndex/totalCandidates*100)
+        }
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
   } catch (error) {
     console.error("Search job processing error:", error);
