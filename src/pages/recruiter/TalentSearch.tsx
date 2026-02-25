@@ -128,6 +128,7 @@ export default function TalentSearch() {
   const [searchQuery, setSearchQuery] = useState('');
   const [strictMode, setStrictMode] = useState(false); // Must have ALL skills (Free Text only)
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
 
   // Manual filters state
@@ -240,6 +241,30 @@ export default function TalentSearch() {
       return data || [];
     },
     enabled: !!organizationId,
+  });
+
+  // Query for async search jobs (Search by Job mode)
+  const { data: searchJobs, refetch: refetchSearchJobs } = useQuery({
+    queryKey: ['talent-search-jobs', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('talent_search_jobs')
+        .select('*, jobs(title)')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+    refetchInterval: (data) => {
+      // Poll every 5s if there are pending/processing jobs
+      const hasActive = data?.some((j: any) =>
+        j.status === 'pending' || j.status === 'processing'
+      );
+      return hasActive ? 5000 : false;
+    },
   });
 
   // Get available filter options from results
@@ -416,6 +441,16 @@ export default function TalentSearch() {
       return data;
     },
     onSuccess: (data) => {
+      // Check if this is an async search (Search by Job mode)
+      if (data?.searchJobId) {
+        // Async mode - job created, processing in background
+        setSelectedSearchJobId(data.searchJobId);
+        toast.success('Search started! Processing in background...');
+        refetchSearchJobs(); // Refresh the list to show new job
+        return;
+      }
+
+      // Sync mode (Free Text Search) - show results immediately
       const MIN_SCORE = 25;
       const enriched = ((data.matches || []) as any[])
         .filter((m: any) => Number(m?.match_score || 0) >= MIN_SCORE)
@@ -1179,8 +1214,211 @@ export default function TalentSearch() {
                 </div>
               </div>
 
-              {/* Results with bulk actions */}
-              {sortedResults.length > 0 && (
+              {/* Async Search Jobs (Search by Job mode) */}
+              {searchMode === 'byJob' && searchJobs && searchJobs.length > 0 && (
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Left: List of search jobs */}
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <div className="border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
+                      <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-recruiter" strokeWidth={1.5} />
+                        Past Searches
+                      </h2>
+                      <p className="text-sm text-muted-foreground font-sans mt-0.5">
+                        {searchJobs.length} {searchJobs.length === 1 ? 'search' : 'searches'}
+                      </p>
+                    </div>
+                    <div className="p-4 space-y-2 max-h-[600px] overflow-y-auto">
+                      {searchJobs.map((job: any) => {
+                        const isSelected = selectedSearchJobId === job.id;
+                        const statusColor =
+                          job.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                          job.status === 'processing' ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                          job.status === 'failed' ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' :
+                          'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20';
+
+                        return (
+                          <div
+                            key={job.id}
+                            onClick={() => setSelectedSearchJobId(job.id)}
+                            className={cn(
+                              "p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md",
+                              isSelected
+                                ? "border-recruiter bg-recruiter/5 shadow-sm"
+                                : "border-border bg-card hover:border-recruiter/50"
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-display font-semibold text-foreground truncate">
+                                  {job.jobs?.title || 'Unknown Job'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  {new Date(job.created_at).toLocaleString()}
+                                </p>
+                                {job.status === 'completed' && job.matches_found !== null && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {job.matches_found} matches · {job.total_candidates_searched} searched
+                                  </p>
+                                )}
+                              </div>
+                              <Badge variant="secondary" className={cn("text-xs shrink-0", statusColor)}>
+                                {job.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Right: Selected search results */}
+                  <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    {selectedSearchJobId ? (() => {
+                      const selectedJob = searchJobs.find((j: any) => j.id === selectedSearchJobId);
+                      if (!selectedJob) {
+                        return (
+                          <div className="p-8 text-center">
+                            <p className="text-muted-foreground">Search job not found</p>
+                          </div>
+                        );
+                      }
+
+                      const jobResults = selectedJob.results?.matches || [];
+                      const MIN_SCORE = 25;
+                      const filteredJobResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= MIN_SCORE);
+
+                      return (
+                        <>
+                          <div className="border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h2 className="text-lg font-display font-bold text-foreground">
+                                  {selectedJob.jobs?.title || 'Search Results'}
+                                </h2>
+                                <p className="text-sm text-muted-foreground font-sans mt-0.5">
+                                  {selectedJob.status === 'pending' && 'Waiting to start...'}
+                                  {selectedJob.status === 'processing' && `Processing... (${selectedJob.total_candidates_searched || 0} candidates)`}
+                                  {selectedJob.status === 'completed' && `${filteredJobResults.length} matches (≥ ${MIN_SCORE}%)`}
+                                  {selectedJob.status === 'failed' && 'Search failed'}
+                                </p>
+                              </div>
+                              {selectedJob.status === 'pending' || selectedJob.status === 'processing' ? (
+                                <Loader2 className="h-5 w-5 text-recruiter animate-spin" />
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="p-6 max-h-[600px] overflow-y-auto">
+                            {selectedJob.status === 'pending' && (
+                              <EmptyState
+                                icon={Clock}
+                                title="Search queued"
+                                description="Your search is waiting to start. This page will update automatically."
+                              />
+                            )}
+
+                            {selectedJob.status === 'processing' && (
+                              <EmptyState
+                                icon={Loader2}
+                                title="Processing search"
+                                description={`Analyzing candidates... (${selectedJob.total_candidates_searched || 0} processed)`}
+                              />
+                            )}
+
+                            {selectedJob.status === 'failed' && (
+                              <EmptyState
+                                icon={X}
+                                title="Search failed"
+                                description={selectedJob.error_message || 'An error occurred while processing this search.'}
+                              />
+                            )}
+
+                            {selectedJob.status === 'completed' && filteredJobResults.length === 0 && (
+                              <EmptyState
+                                icon={Users}
+                                title="No matches found"
+                                description="No candidates matched this job. Try broadening your search criteria."
+                              />
+                            )}
+
+                            {selectedJob.status === 'completed' && filteredJobResults.length > 0 && (
+                              <div className="space-y-3">
+                                {filteredJobResults.slice(0, 20).map((match: any, idx: number) => {
+                                  const candidate = match.candidate;
+                                  if (!candidate) return null;
+
+                                  return (
+                                    <div
+                                      key={candidate.id || idx}
+                                      onClick={() => openTalent(candidate.id)}
+                                      className="p-4 rounded-lg border border-border bg-card hover:border-recruiter/50 hover:bg-recruiter/5 cursor-pointer transition-all"
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs text-muted-foreground font-mono">#{idx + 1}</span>
+                                            <p className="font-display font-semibold text-foreground truncate">
+                                              {candidate.name || '—'}
+                                            </p>
+                                          </div>
+                                          <p className="text-sm text-muted-foreground mt-1 truncate">
+                                            {candidate.title || 'No title'}
+                                          </p>
+                                          {candidate.location && (
+                                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                              <MapPin className="h-3 w-3" />
+                                              {candidate.location}
+                                            </p>
+                                          )}
+                                          {match.match_reason && (
+                                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                                              {match.match_reason}
+                                            </p>
+                                          )}
+                                          {candidate.skills && candidate.skills.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                              {candidate.skills.slice(0, 5).map((skill: string) => (
+                                                <Badge key={skill} variant="secondary" className="text-xs">
+                                                  {skill}
+                                                </Badge>
+                                              ))}
+                                              {candidate.skills.length > 5 && (
+                                                <span className="text-xs text-muted-foreground">
+                                                  +{candidate.skills.length - 5}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <ScoreBadge score={match.match_score || 0} size="md" showLabel={false} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {filteredJobResults.length > 20 && (
+                                  <p className="text-sm text-center text-muted-foreground py-4">
+                                    Showing top 20 of {filteredJobResults.length} matches
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })() : (
+                      <EmptyState
+                        icon={ChevronRight}
+                        title="Select a search"
+                        description="Click a search on the left to view its results"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Results with bulk actions (Free Text mode) */}
+              {searchMode === 'freeText' && sortedResults.length > 0 && (
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -1357,12 +1595,22 @@ export default function TalentSearch() {
                 </div>
               )}
 
-              {results.length === 0 && organizationId && !searchMutation.isPending && (
+              {searchMode === 'freeText' && results.length === 0 && organizationId && !searchMutation.isPending && (
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                   <EmptyState
                     icon={Search}
                     title="Search your talent pool"
                     description="Describe a role, skills, or location above and hit Search. Results will appear here."
+                  />
+                </div>
+              )}
+
+              {searchMode === 'byJob' && (!searchJobs || searchJobs.length === 0) && !searchMutation.isPending && (
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                  <EmptyState
+                    icon={Search}
+                    title="No searches yet"
+                    description="Select a job above and click Search to start an AI-powered talent search. Your searches will appear here."
                   />
                 </div>
               )}
