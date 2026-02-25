@@ -130,7 +130,7 @@ export default function TalentSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
-  const [minScoreThreshold, setMinScoreThreshold] = useState(60); // Default 60% for good matches
+  const [minScoreThreshold, setMinScoreThreshold] = useState(75); // Default 75% for high-quality matches
 
   // Manual filters state
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1297,36 +1297,27 @@ export default function TalentSearch() {
                                 <h2 className="text-lg font-display font-bold text-foreground">
                                   {selectedJob.jobs?.title || 'Search Results'}
                                 </h2>
-                                <p className="text-sm text-muted-foreground font-sans mt-0.5">
-                                  {selectedJob.status === 'pending' && 'Waiting to start...'}
-                                  {selectedJob.status === 'processing' && `Processing... (${selectedJob.total_candidates_searched || 0} candidates)`}
-                                  {selectedJob.status === 'completed' && (
-                                    <>
-                                      {filteredJobResults.length} matches (≥ {minScoreThreshold}%)
-                                      {minScoreThreshold > 25 && allResults.length > filteredJobResults.length && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => setMinScoreThreshold(25)}
-                                          className="ml-3 h-7 text-xs text-recruiter hover:text-recruiter hover:bg-recruiter/10"
-                                        >
-                                          Show {allResults.length - filteredJobResults.length} more (25%+)
-                                        </Button>
-                                      )}
-                                      {minScoreThreshold === 25 && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => setMinScoreThreshold(60)}
-                                          className="ml-3 h-7 text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                          Show good matches only (60%+)
-                                        </Button>
-                                      )}
-                                    </>
+                                <div className="flex items-center gap-3">
+                                  <p className="text-sm text-muted-foreground font-sans mt-0.5">
+                                    {selectedJob.status === 'pending' && 'Waiting to start...'}
+                                    {selectedJob.status === 'processing' && `Processing... (${selectedJob.total_candidates_searched || 0} candidates)`}
+                                    {selectedJob.status === 'completed' && `${filteredJobResults.length} matches (≥ ${minScoreThreshold}%)`}
+                                    {selectedJob.status === 'failed' && 'Search failed'}
+                                  </p>
+                                  {selectedJob.status === 'completed' && allResults.length > 0 && (
+                                    <Select value={String(minScoreThreshold)} onValueChange={(v) => setMinScoreThreshold(Number(v))}>
+                                      <SelectTrigger className="h-7 w-[140px] text-xs border-border">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="75">Show ≥ 75%</SelectItem>
+                                        <SelectItem value="60">Show ≥ 60%</SelectItem>
+                                        <SelectItem value="50">Show ≥ 50%</SelectItem>
+                                        <SelectItem value="25">Show ≥ 25%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   )}
-                                  {selectedJob.status === 'failed' && 'Search failed'}
-                                </p>
+                                </div>
                               </div>
                               {selectedJob.status === 'pending' || selectedJob.status === 'processing' ? (
                                 <Loader2 className="h-5 w-5 text-recruiter animate-spin" />
