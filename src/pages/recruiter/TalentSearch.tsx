@@ -1289,8 +1289,8 @@ export default function TalentSearch() {
 
               {/* Async Search Jobs (Search by Job mode) */}
               {searchMode === 'byJob' && searchJobs && searchJobs.length > 0 && (
-                <div className="grid gap-6 lg:grid-cols-2">
-                  {/* Left: List of search jobs */}
+                <div className="grid gap-6 lg:grid-cols-[30%_70%]">
+                  {/* Left: List of search jobs (30%) */}
                   <div className="rounded-xl border border-border bg-card overflow-hidden">
                     <div className="border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
                       <h2 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
@@ -1350,7 +1350,7 @@ export default function TalentSearch() {
                     </div>
                   </div>
 
-                  {/* Right: Selected search results */}
+                  {/* Right: Selected search results (70%) */}
                   <div className="rounded-xl border border-border bg-card overflow-hidden">
                     {selectedSearchJobId ? (() => {
                       const selectedJob = searchJobs.find((j: any) => j.id === selectedSearchJobId);
