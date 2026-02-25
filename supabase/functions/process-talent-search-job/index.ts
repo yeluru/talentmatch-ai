@@ -12,6 +12,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let searchJobId: string | null = null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -21,7 +25,6 @@ serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
@@ -36,7 +39,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const searchJobId = body?.searchJobId;
+    searchJobId = body?.searchJobId;
 
     if (!searchJobId) {
       return new Response(JSON.stringify({ error: "Missing searchJobId" }), {
@@ -233,6 +236,27 @@ Summary: ${c.summary || "N/A"}`
 
   } catch (error) {
     console.error("Search job processing error:", error);
+
+    // Try to update the search job status to failed
+    if (searchJobId) {
+      try {
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+        await supabaseAdmin
+          .from('talent_search_jobs')
+          .update({
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : String(error),
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', searchJobId);
+
+        console.log(`Updated search job ${searchJobId} status to failed`);
+      } catch (updateErr) {
+        console.error("Failed to update search job status:", updateErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
