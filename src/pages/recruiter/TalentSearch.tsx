@@ -130,6 +130,7 @@ export default function TalentSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
+  const [minScoreThreshold, setMinScoreThreshold] = useState(75); // Default 75% for quality matches
 
   // Manual filters state
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -452,9 +453,8 @@ export default function TalentSearch() {
       }
 
       // Sync mode (Free Text Search) - show results immediately
-      const MIN_SCORE = 25;
       const enriched = ((data.matches || []) as any[])
-        .filter((m: any) => Number(m?.match_score || 0) >= MIN_SCORE)
+        .filter((m: any) => Number(m?.match_score || 0) >= minScoreThreshold)
         .map((m: any) => ({
           ...m,
           candidate_id: m?.candidate_id || m?.candidate?.id,
@@ -466,7 +466,7 @@ export default function TalentSearch() {
 
       setResults(enriched);
       setParsedQuery(data.parsed_query || null);
-      toast.success(`Found ${enriched.length} candidates (≥ ${MIN_SCORE}%)`);
+      toast.success(`Found ${enriched.length} candidates (≥ ${minScoreThreshold}%)`);
 
       // Save to history
       saveSearchHistory(searchQuery, data.parsed_query, enriched.length);
@@ -1130,8 +1130,8 @@ export default function TalentSearch() {
                     </div>
                   )}
 
-                  {/* Filter Chips */}
-                  {parsedQuery && (Object.keys(parsedQuery).length > 0 || parsedQuery.skills?.length) && (
+                  {/* Filter Chips (Free Text mode only) */}
+                  {searchMode === 'freeText' && parsedQuery && (Object.keys(parsedQuery).length > 0 || parsedQuery.skills?.length) && (
                     <div className="rounded-xl border border-recruiter/20 bg-recruiter/5 p-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-sans font-medium text-muted-foreground">Active filters:</p>
@@ -1286,21 +1286,45 @@ export default function TalentSearch() {
                       }
 
                       const jobResults = selectedJob.results?.matches || [];
-                      const MIN_SCORE = 25;
-                      const filteredJobResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= MIN_SCORE);
+                      const filteredJobResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= minScoreThreshold);
+                      const allResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= 25);
 
                       return (
                         <>
                           <div className="border-b border-recruiter/10 bg-recruiter/5 px-6 py-4">
                             <div className="flex items-center justify-between">
-                              <div>
+                              <div className="flex-1">
                                 <h2 className="text-lg font-display font-bold text-foreground">
                                   {selectedJob.jobs?.title || 'Search Results'}
                                 </h2>
                                 <p className="text-sm text-muted-foreground font-sans mt-0.5">
                                   {selectedJob.status === 'pending' && 'Waiting to start...'}
                                   {selectedJob.status === 'processing' && `Processing... (${selectedJob.total_candidates_searched || 0} candidates)`}
-                                  {selectedJob.status === 'completed' && `${filteredJobResults.length} matches (≥ ${MIN_SCORE}%)`}
+                                  {selectedJob.status === 'completed' && (
+                                    <>
+                                      {filteredJobResults.length} matches (≥ {minScoreThreshold}%)
+                                      {minScoreThreshold > 25 && allResults.length > filteredJobResults.length && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setMinScoreThreshold(25)}
+                                          className="ml-3 h-7 text-xs text-recruiter hover:text-recruiter hover:bg-recruiter/10"
+                                        >
+                                          Show {allResults.length - filteredJobResults.length} more (25%+)
+                                        </Button>
+                                      )}
+                                      {minScoreThreshold === 25 && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setMinScoreThreshold(75)}
+                                          className="ml-3 h-7 text-xs text-muted-foreground hover:text-foreground"
+                                        >
+                                          Show top matches only (75%+)
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
                                   {selectedJob.status === 'failed' && 'Search failed'}
                                 </p>
                               </div>
