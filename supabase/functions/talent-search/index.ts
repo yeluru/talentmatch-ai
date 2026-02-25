@@ -378,11 +378,16 @@ serve(async (req) => {
         candidateSkills.some((cs: string) => cs.includes(skill) || skill.includes(cs))
       ).length;
 
+      // Normalize to 0-100 scale
+      const totalSearchSkills = Math.max(searchSkills.length, 1);
+      const skillMatchPercent = (matchCount / totalSearchSkills) * 80; // 80% weight
+      const experiencePercent = Math.min((c.years_experience || 0) / 20, 1) * 20; // 20% weight
+      const normalizedScore = Math.round(skillMatchPercent + experiencePercent);
+
       return {
         ...c,
         skill_match_count: matchCount,
-        // Simple match score: skill matches + experience bonus
-        match_score: (matchCount * 20) + Math.min(c.years_experience || 0, 20)
+        match_score: normalizedScore
       };
     });
 
