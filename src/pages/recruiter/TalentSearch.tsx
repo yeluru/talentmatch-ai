@@ -130,7 +130,7 @@ export default function TalentSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
-  const [minScoreThreshold, setMinScoreThreshold] = useState(75); // Default 75% for quality matches
+  const [minScoreThreshold, setMinScoreThreshold] = useState(60); // Default 60% for good matches
 
   // Manual filters state
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1317,10 +1317,10 @@ export default function TalentSearch() {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => setMinScoreThreshold(75)}
+                                          onClick={() => setMinScoreThreshold(60)}
                                           className="ml-3 h-7 text-xs text-muted-foreground hover:text-foreground"
                                         >
-                                          Show top matches only (75%+)
+                                          Show good matches only (60%+)
                                         </Button>
                                       )}
                                     </>
