@@ -275,140 +275,51 @@ serve(async (req) => {
       });
     }
 
-    console.log("Candidates to rank (prefiltered):", candidatesToRank.length);
-
-    // Limit candidates to avoid AI timeout
-    if (candidatesToRank.length > 50) {
-      candidatesToRank = candidatesToRank.slice(0, 50);
-      console.log("Capped to 50 candidates for AI ranking");
-    }
+    console.log("Candidates found:", candidatesToRank.length);
 
     // ----------------------------
-    // 3) LLM re-rank (subset only)
+    // 3) Simple sorting (no AI ranking for Phase 1)
     // ----------------------------
-    const systemPrompt = `You are an expert talent search AI assistant (like PeopleGPT). Rank candidates for the given query.
+    // Sort by skill match count (candidates with more matching skills rank higher)
+    const searchSkills = (parsedQuery?.skills || []).map((s: string) => s.toLowerCase());
 
-Scoring rules:
-- Use an integer match_score from 0 to 100 (0 = no match, 100 = perfect match).
-- If the query is a single skill like "React", strong React candidates should generally score > 70.
-- Provide a short 1-2 sentence match_reason for each returned candidate.
+    const candidatesWithScores = candidatesToRank.map((c: any) => {
+      const candidateSkills = (c.skills || []).map((s: string) => s.toLowerCase());
+      const matchCount = searchSkills.filter((skill: string) =>
+        candidateSkills.some((cs: string) => cs.includes(skill) || skill.includes(cs))
+      ).length;
 
-Return only the best matches (do not return everyone).`;
-
-    const candidateSummaries = candidatesToRank
-      .map(
-        (c: any, i: number) => {
-          // Truncate for faster AI processing
-          const skills = Array.isArray(c.skills) ? c.skills.slice(0, 8).join(", ") : "None";
-          const summary = c.summary ? String(c.summary).slice(0, 150) + "..." : "N/A";
-
-          return `[${i + 1}] ${c.name || "Candidate"}
-ID: ${c.id}
-Title: ${c.title || "N/A"}
-Experience: ${c.years_experience || 0} years
-Skills: ${skills}
-Location: ${c.location || "N/A"}
-Summary: ${summary}`;
-        }
-      )
-      .join("\n\n");
-
-    const userPrompt = `Search Query: "${searchQuery}"
-
-Candidates to evaluate:
-${candidateSummaries}
-
-Return the TOP ${topN} candidates (or fewer if there are not enough good matches).`;
-
-    const { res: response } = await callChatCompletions({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "rank_candidates",
-            description: "Returns ranked candidates based on search query match",
-            parameters: {
-              type: "object",
-              properties: {
-                parsed_query: {
-                  type: "object",
-                  properties: {
-                    role: { type: "string" },
-                    location: { type: "string" },
-                    experience_level: { type: "string" },
-                    skills: { type: "array", items: { type: "string" } },
-                    industry: { type: "string" },
-                  },
-                },
-                matches: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      candidate_index: { type: "number" },
-                      candidate_id: { type: "string", description: "Candidate ID (uuid). Prefer using the ID provided in the candidate summary." },
-                      match_score: { type: "number" },
-                      match_reason: { type: "string" },
-                      matched_criteria: { type: "array", items: { type: "string" } },
-                      missing_criteria: { type: "array", items: { type: "string" } },
-                    },
-                    required: ["candidate_index", "match_score", "match_reason"],
-                  },
-                },
-              },
-              required: ["parsed_query", "matches"],
-            },
-          },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "rank_candidates" } },
-      temperature: 0.2,
-      timeoutMs: 60000, // Increased from 30s to 60s for larger result sets
+      return {
+        ...c,
+        skill_match_count: matchCount,
+        // Simple match score: skill matches + experience bonus
+        match_score: (matchCount * 20) + Math.min(c.years_experience || 0, 20)
+      };
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
+    // Sort by match score (descending)
+    candidatesWithScores.sort((a, b) => b.match_score - a.match_score);
 
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (!toolCall) {
-      throw new Error("No tool call in response");
-    }
+    // Return top results (or all if < 100)
+    const topCandidates = candidatesWithScores.slice(0, Math.min(100, candidatesWithScores.length));
 
-    const rawResult = JSON.parse(toolCall.function.arguments);
-    const matchesIn = Array.isArray(rawResult?.matches) ? rawResult.matches : [];
-    const matches = matchesIn
-      .map((m: any) => {
-        const idx = Number(m?.candidate_index || 0);
-        const c = candidatesToRank?.[idx - 1];
-        return {
-          ...m,
-          // Always trust our DB candidate id; LLM may hallucinate ids.
-          candidate_id: c?.id,
-          candidate: c || null,
-        };
-      })
-      .filter((m: any) => m?.candidate_id);
+    console.log(`Returning ${topCandidates.length} candidates (sorted by skill match)`);
+
+    // Format results for frontend (no AI ranking needed)
+    const matches = topCandidates.map((c: any, index: number) => ({
+      candidate_index: index + 1,
+      candidate_id: c.id,
+      candidate: c,
+      match_score: c.match_score,
+      match_reason: `${c.skill_match_count} matching skills`,
+      matched_criteria: searchSkills.slice(0, 5),
+      missing_criteria: []
+    }));
 
     const result = {
-      parsed_query: rawResult?.parsed_query || parsedQuery || {},
+      parsed_query: parsedQuery || {},
       matches,
     };
-    console.log("Search results:", { matches: matches.length });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
