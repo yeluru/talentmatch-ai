@@ -101,11 +101,26 @@ serve(async (req) => {
 
       console.log("Created search job:", searchJob.id);
 
-      // Trigger background processor (don't wait for response)
-      supabase.functions.invoke('process-talent-search-job', {
-        body: { searchJobId: searchJob.id }
-      }).then(() => {
-        console.log("Background processor triggered");
+      // Trigger background processor using service role for reliability
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Use fetch directly instead of supabase.functions.invoke (more reliable)
+      const processorUrl = `${supabaseUrl}/functions/v1/process-talent-search-job`;
+
+      fetch(processorUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        },
+        body: JSON.stringify({ searchJobId: searchJob.id })
+      }).then(res => {
+        if (res.ok) {
+          console.log("Background processor triggered successfully");
+        } else {
+          console.error("Processor invocation failed:", res.status, res.statusText);
+        }
       }).catch(err => {
         console.error("Failed to trigger processor:", err);
       });
