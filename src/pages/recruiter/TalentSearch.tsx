@@ -132,6 +132,7 @@ export default function TalentSearch() {
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
   const [searchThresholds, setSearchThresholds] = useState<Map<string, number>>(new Map()); // Per-search thresholds
   const [freeTextThreshold, setFreeTextThreshold] = useState(75); // Free Text search threshold - show top matches first
+  const [jobResultsLimit, setJobResultsLimit] = useState(20); // Display limit for Search by Job results
 
   // Get threshold for a specific search (default 75%)
   const getThreshold = (searchJobId: string) => searchThresholds.get(searchJobId) || 75;
@@ -157,6 +158,11 @@ export default function TalentSearch() {
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Reset results limit when search changes
+  useEffect(() => {
+    setJobResultsLimit(20);
+  }, [selectedSearchJobId]);
 
   // UI state
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
@@ -1432,7 +1438,7 @@ export default function TalentSearch() {
 
                             {selectedJob.status === 'completed' && filteredJobResults.length > 0 && (
                               <div className="space-y-3">
-                                {filteredJobResults.slice(0, 20).map((match: any, idx: number) => {
+                                {filteredJobResults.slice(0, jobResultsLimit).map((match: any, idx: number) => {
                                   const candidate = match.candidate;
                                   if (!candidate) return null;
 
@@ -1484,10 +1490,19 @@ export default function TalentSearch() {
                                     </div>
                                   );
                                 })}
-                                {filteredJobResults.length > 20 && (
-                                  <p className="text-sm text-center text-muted-foreground py-4">
-                                    Showing top 20 of {filteredJobResults.length} matches
-                                  </p>
+                                {filteredJobResults.length > jobResultsLimit && (
+                                  <div className="text-center py-4 space-y-3">
+                                    <p className="text-sm text-muted-foreground">
+                                      Showing top {jobResultsLimit} of {filteredJobResults.length} matches
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setJobResultsLimit(prev => Math.min(prev + 20, filteredJobResults.length))}
+                                    >
+                                      Show More ({Math.min(20, filteredJobResults.length - jobResultsLimit)} more)
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             )}

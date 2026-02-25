@@ -96,7 +96,8 @@ serve(async (req) => {
         .single();
 
       if (createErr || !searchJob) {
-        throw new Error("Failed to create search job");
+        console.error("Failed to create search job:", createErr);
+        throw new Error(`Failed to create search job: ${createErr?.message || 'Unknown error'}`);
       }
 
       console.log("Created search job:", searchJob.id);
@@ -112,7 +113,8 @@ serve(async (req) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'apikey': supabaseServiceKey
         },
         body: JSON.stringify({ searchJobId: searchJob.id })
       }).then(res => {

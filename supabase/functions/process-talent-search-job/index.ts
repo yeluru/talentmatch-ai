@@ -269,15 +269,28 @@ Summary: ${c.summary || "N/A"}`
         })
         .eq('id', searchJobId);
 
-      // Trigger next invocation (recursive)
+      // Trigger next invocation (recursive) - use await to ensure it completes
       console.log("Triggering next invocation...");
-      supabaseAdmin.functions.invoke('process-talent-search-job', {
-        body: { searchJobId }
-      }).then(() => {
-        console.log("Next invocation triggered");
-      }).catch(err => {
+      const processorUrl = `${supabaseUrl}/functions/v1/process-talent-search-job`;
+      try {
+        const nextRes = await fetch(processorUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey
+          },
+          body: JSON.stringify({ searchJobId })
+        });
+        if (nextRes.ok) {
+          console.log("Next invocation triggered successfully");
+        } else {
+          const errorText = await nextRes.text();
+          console.error("Next invocation failed:", nextRes.status, nextRes.statusText, errorText);
+        }
+      } catch (err) {
         console.error("Failed to trigger next invocation:", err);
-      });
+      }
 
       return new Response(JSON.stringify({
         success: true,
