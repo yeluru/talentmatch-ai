@@ -258,9 +258,10 @@ export default function TalentSearch() {
       return data || [];
     },
     enabled: !!organizationId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 5s if there are pending/processing jobs
-      const hasActive = data?.some((j: any) =>
+      const jobs = query.state.data as any[];
+      const hasActive = jobs?.some((j: any) =>
         j.status === 'pending' || j.status === 'processing'
       );
       return hasActive ? 5000 : false;
