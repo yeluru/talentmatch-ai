@@ -130,7 +130,15 @@ export default function TalentSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedSearchJobId, setSelectedSearchJobId] = useState<string | null>(null);
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery | null>(null);
-  const [minScoreThreshold, setMinScoreThreshold] = useState(75); // Default 75% for high-quality matches
+  const [searchThresholds, setSearchThresholds] = useState<Map<string, number>>(new Map()); // Per-search thresholds
+
+  // Get threshold for a specific search (default 75%)
+  const getThreshold = (searchJobId: string) => searchThresholds.get(searchJobId) || 75;
+
+  // Set threshold for a specific search
+  const setThreshold = (searchJobId: string, threshold: number) => {
+    setSearchThresholds(new Map(searchThresholds.set(searchJobId, threshold)));
+  };
 
   // Manual filters state
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -453,8 +461,9 @@ export default function TalentSearch() {
       }
 
       // Sync mode (Free Text Search) - show results immediately
+      const FREE_TEXT_MIN_SCORE = 25; // Show all matches for free text
       const enriched = ((data.matches || []) as any[])
-        .filter((m: any) => Number(m?.match_score || 0) >= minScoreThreshold)
+        .filter((m: any) => Number(m?.match_score || 0) >= FREE_TEXT_MIN_SCORE)
         .map((m: any) => ({
           ...m,
           candidate_id: m?.candidate_id || m?.candidate?.id,
@@ -466,7 +475,7 @@ export default function TalentSearch() {
 
       setResults(enriched);
       setParsedQuery(data.parsed_query || null);
-      toast.success(`Found ${enriched.length} candidates (≥ ${minScoreThreshold}%)`);
+      toast.success(`Found ${enriched.length} candidates`);
 
       // Save to history
       saveSearchHistory(searchQuery, data.parsed_query, enriched.length);
@@ -1238,9 +1247,10 @@ export default function TalentSearch() {
                           job.status === 'failed' ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' :
                           'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20';
 
-                        // Calculate filtered matches based on current threshold
+                        // Calculate filtered matches based on this job's threshold
                         const jobResults = job.results?.matches || [];
-                        const filteredCount = jobResults.filter((m: any) => Number(m?.match_score || 0) >= minScoreThreshold).length;
+                        const jobThreshold = getThreshold(job.id);
+                        const filteredCount = jobResults.filter((m: any) => Number(m?.match_score || 0) >= jobThreshold).length;
 
                         return (
                           <div
@@ -1263,7 +1273,7 @@ export default function TalentSearch() {
                                 </p>
                                 {job.status === 'completed' && job.total_candidates_searched !== null && (
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    {filteredCount} matches (≥{minScoreThreshold}%) · {job.total_candidates_searched} searched
+                                    {filteredCount} matches (≥{jobThreshold}%) · {job.total_candidates_searched} searched
                                   </p>
                                 )}
                               </div>
@@ -1290,7 +1300,8 @@ export default function TalentSearch() {
                       }
 
                       const jobResults = selectedJob.results?.matches || [];
-                      const filteredJobResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= minScoreThreshold);
+                      const currentThreshold = getThreshold(selectedSearchJobId);
+                      const filteredJobResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= currentThreshold);
                       const allResults = jobResults.filter((m: any) => Number(m?.match_score || 0) >= 25);
 
                       return (
@@ -1305,11 +1316,11 @@ export default function TalentSearch() {
                                   <p className="text-sm text-muted-foreground font-sans mt-0.5">
                                     {selectedJob.status === 'pending' && 'Waiting to start...'}
                                     {selectedJob.status === 'processing' && `Processing... (${selectedJob.total_candidates_searched || 0} candidates)`}
-                                    {selectedJob.status === 'completed' && `${filteredJobResults.length} matches (≥ ${minScoreThreshold}%)`}
+                                    {selectedJob.status === 'completed' && `${filteredJobResults.length} matches (≥ ${currentThreshold}%)`}
                                     {selectedJob.status === 'failed' && 'Search failed'}
                                   </p>
                                   {selectedJob.status === 'completed' && allResults.length > 0 && (
-                                    <Select value={String(minScoreThreshold)} onValueChange={(v) => setMinScoreThreshold(Number(v))}>
+                                    <Select value={String(currentThreshold)} onValueChange={(v) => setThreshold(selectedSearchJobId, Number(v))}>
                                       <SelectTrigger className="h-7 w-[140px] text-xs border-border">
                                         <SelectValue />
                                       </SelectTrigger>
