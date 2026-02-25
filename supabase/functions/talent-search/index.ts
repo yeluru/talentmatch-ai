@@ -76,20 +76,56 @@ serve(async (req) => {
       });
     }
 
-    let parsedQuery: any = {};
-
     // ----------------------------
-    // 1) Parse query (skip if structured data provided)
+    // SEARCH BY JOB: Create async search job
     // ----------------------------
     if (structuredSearch) {
-      // Search by Job mode - use structured data directly
-      console.log("Using structured job data:", structuredSearch.jobId);
-      parsedQuery = {
-        role: structuredSearch.role || "",
-        skills: structuredSearch.skills || [],
-        location: "",
-      };
-    } else {
+      console.log("Search by Job mode - creating async search job");
+
+      // Create search job record
+      const { data: searchJob, error: createErr } = await supabase
+        .from('talent_search_jobs')
+        .insert({
+          organization_id: organizationId,
+          created_by: user.id,
+          job_id: structuredSearch.jobId,
+          search_query: searchQuery,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (createErr || !searchJob) {
+        throw new Error("Failed to create search job");
+      }
+
+      console.log("Created search job:", searchJob.id);
+
+      // Trigger background processor (don't wait for response)
+      supabase.functions.invoke('process-talent-search-job', {
+        body: { searchJobId: searchJob.id }
+      }).then(() => {
+        console.log("Background processor triggered");
+      }).catch(err => {
+        console.error("Failed to trigger processor:", err);
+      });
+
+      // Return immediately with job ID
+      return new Response(JSON.stringify({
+        searchJobId: searchJob.id,
+        status: 'pending',
+        message: 'Search job created. Processing in background.'
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ----------------------------
+    // FREE TEXT SEARCH: Synchronous with simple ranking
+    // ----------------------------
+    let parsedQuery: any = {};
+
+    if (true) { // Free text mode
       // Free text search - use AI to parse
       console.log("Parsing free text query with AI");
       const parseSystem =
