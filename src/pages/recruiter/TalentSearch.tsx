@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -277,6 +277,39 @@ export default function TalentSearch() {
       return hasActive ? 5000 : false;
     },
   });
+
+  // Track previous search job statuses to detect completion
+  const prevSearchJobsRef = useRef<Map<string, string>>(new Map());
+
+  // Show notification when search completes
+  useEffect(() => {
+    if (!searchJobs) return;
+
+    searchJobs.forEach((job: any) => {
+      const prevStatus = prevSearchJobsRef.current.get(job.id);
+      const currentStatus = job.status;
+
+      // Detect transition to "completed"
+      if (
+        prevStatus &&
+        (prevStatus === 'pending' || prevStatus === 'processing') &&
+        currentStatus === 'completed'
+      ) {
+        const jobTitle = job.jobs?.title || 'Job search';
+        const matchCount = job.matches_found || 0;
+        toast.success(`${jobTitle} search complete! Found ${matchCount} matches.`, {
+          duration: 5000,
+          action: {
+            label: 'View Results',
+            onClick: () => setSelectedSearchJobId(job.id),
+          },
+        });
+      }
+
+      // Update tracking map
+      prevSearchJobsRef.current.set(job.id, currentStatus);
+    });
+  }, [searchJobs]);
 
   // Get available filter options from results
   const availableLocations = useMemo(() => {
@@ -1366,7 +1399,7 @@ export default function TalentSearch() {
                               <EmptyState
                                 icon={Clock}
                                 title="Search queued"
-                                description="Your search is waiting to start. This page will update automatically."
+                                description="Your search is waiting to start. This may take some time - feel free to continue your work and we'll notify you when results are ready!"
                               />
                             )}
 
@@ -1374,7 +1407,7 @@ export default function TalentSearch() {
                               <EmptyState
                                 icon={Loader2}
                                 title="Processing search"
-                                description={`Analyzing candidates... (${selectedJob.total_candidates_searched || 0} processed)`}
+                                description={`Analyzing candidates... (${selectedJob.total_candidates_searched || 0} processed)\n\nThis may take some time. Feel free to continue your work - we'll notify you when results are ready!`}
                               />
                             )}
 
