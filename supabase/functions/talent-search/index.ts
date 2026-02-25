@@ -62,6 +62,9 @@ serve(async (req) => {
 
     console.log("Talent search query:", searchQuery);
     console.log("Structured search:", structuredSearch ? "Yes (skip AI parsing)" : "No");
+    if (structuredSearch) {
+      console.log("Structured data:", JSON.stringify(structuredSearch));
+    }
     console.log("Candidates provided:", Array.isArray(candidates) ? candidates.length : 0);
     console.log("Organization:", organizationId || "n/a");
 
@@ -274,6 +277,12 @@ serve(async (req) => {
 
     console.log("Candidates to rank (prefiltered):", candidatesToRank.length);
 
+    // Limit candidates to avoid AI timeout
+    if (candidatesToRank.length > 50) {
+      candidatesToRank = candidatesToRank.slice(0, 50);
+      console.log("Capped to 50 candidates for AI ranking");
+    }
+
     // ----------------------------
     // 3) LLM re-rank (subset only)
     // ----------------------------
@@ -288,14 +297,19 @@ Return only the best matches (do not return everyone).`;
 
     const candidateSummaries = candidatesToRank
       .map(
-        (c: any, i: number) =>
-          `[${i + 1}] ${c.name || "Candidate"}
+        (c: any, i: number) => {
+          // Truncate for faster AI processing
+          const skills = Array.isArray(c.skills) ? c.skills.slice(0, 8).join(", ") : "None";
+          const summary = c.summary ? String(c.summary).slice(0, 150) + "..." : "N/A";
+
+          return `[${i + 1}] ${c.name || "Candidate"}
 ID: ${c.id}
 Title: ${c.title || "N/A"}
 Experience: ${c.years_experience || 0} years
-Skills: ${Array.isArray(c.skills) ? c.skills.join(", ") : "None listed"}
+Skills: ${skills}
 Location: ${c.location || "N/A"}
-Summary: ${c.summary || "N/A"}`,
+Summary: ${summary}`;
+        }
       )
       .join("\n\n");
 
@@ -353,7 +367,7 @@ Return the TOP ${topN} candidates (or fewer if there are not enough good matches
       ],
       tool_choice: { type: "function", function: { name: "rank_candidates" } },
       temperature: 0.2,
-      timeoutMs: 30000,
+      timeoutMs: 60000, // Increased from 30s to 60s for larger result sets
     });
 
     if (!response.ok) {
@@ -401,8 +415,12 @@ Return the TOP ${topN} candidates (or fewer if there are not enough good matches
     });
   } catch (error) {
     console.error("Talent search error:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+        details: error instanceof Error ? error.stack : String(error)
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
