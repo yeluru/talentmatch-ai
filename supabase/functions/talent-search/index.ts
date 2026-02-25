@@ -394,8 +394,8 @@ serve(async (req) => {
     // Sort by match score (descending)
     candidatesWithScores.sort((a, b) => b.match_score - a.match_score);
 
-    // Return top results (or all if < 100)
-    const topCandidates = candidatesWithScores.slice(0, Math.min(100, candidatesWithScores.length));
+    // Return top results (cap at 500 for Free Text, all for others)
+    const topCandidates = candidatesWithScores.slice(0, Math.min(500, candidatesWithScores.length));
 
     console.log(`Returning ${topCandidates.length} candidates (sorted by skill match)`);
 

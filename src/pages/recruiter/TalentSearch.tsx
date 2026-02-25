@@ -519,7 +519,10 @@ export default function TalentSearch() {
 
       setResults(enriched);
       setParsedQuery(data.parsed_query || null);
-      toast.success(`Found ${enriched.length} candidates`);
+
+      // Show count matching current threshold
+      const matchingThreshold = enriched.filter(m => Number(m?.match_score || 0) >= freeTextThreshold);
+      toast.success(`Found ${matchingThreshold.length} candidates ≥${freeTextThreshold}%`);
 
       // Save to history
       saveSearchHistory(searchQuery, data.parsed_query, enriched.length);
