@@ -1238,6 +1238,10 @@ export default function TalentSearch() {
                           job.status === 'failed' ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' :
                           'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20';
 
+                        // Calculate filtered matches based on current threshold
+                        const jobResults = job.results?.matches || [];
+                        const filteredCount = jobResults.filter((m: any) => Number(m?.match_score || 0) >= minScoreThreshold).length;
+
                         return (
                           <div
                             key={job.id}
@@ -1257,9 +1261,9 @@ export default function TalentSearch() {
                                 <p className="text-xs text-muted-foreground mt-1 truncate">
                                   {new Date(job.created_at).toLocaleString()}
                                 </p>
-                                {job.status === 'completed' && job.matches_found !== null && (
+                                {job.status === 'completed' && job.total_candidates_searched !== null && (
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    {job.matches_found} matches · {job.total_candidates_searched} searched
+                                    {filteredCount} matches (≥{minScoreThreshold}%) · {job.total_candidates_searched} searched
                                   </p>
                                 )}
                               </div>
