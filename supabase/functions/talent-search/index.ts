@@ -176,9 +176,12 @@ serve(async (req) => {
     }
 
     // ----------------------------
-    // 2) Prefilter candidates in DB
+    // 2) Prefilter candidates in DB (FAST - no complex queries)
     // ----------------------------
     let candidatesToRank: any[] = [];
+
+    // For Free Text: Skip complex skill queries, just get org candidates
+    const skipSkillFiltering = true;
 
     if (Array.isArray(candidates) && candidates.length > 0) {
       // Backwards compatible path (small orgs only)
@@ -197,7 +200,7 @@ serve(async (req) => {
 
       let candidateIds: string[] = [];
 
-      if (skills.length) {
+      if (skills.length && !skipSkillFiltering) {
         if (strictMode) {
           // STRICT MODE: Candidate must have ALL skills (AND logic)
           console.log("Using strict mode - candidate must have ALL skills");
