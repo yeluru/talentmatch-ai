@@ -11,7 +11,7 @@ function toIlikeOr(parts: string[], column: string) {
   const cleaned = parts
     .map((p) => String(p || "").trim())
     .filter(Boolean)
-    .slice(0, 12);
+    .slice(0, 3); // Limit to 3 skills to prevent timeout
   if (!cleaned.length) return "";
   // PostgREST .or() format: "col.ilike.%foo%,col.ilike.%bar%"
   return cleaned
@@ -210,7 +210,7 @@ serve(async (req) => {
               .from("candidate_skills")
               .select("candidate_id")
               .ilike("skill_name", `%${skill}%`)
-              .limit(5000);
+              .limit(1000); // Reduced from 5000 to prevent timeout
 
             if (skillErr) throw skillErr;
 
@@ -251,7 +251,7 @@ serve(async (req) => {
             .from("candidate_skills")
             .select("candidate_id")
             .or(skillsOr)
-            .limit(5000);
+            .limit(1000); // Reduced from 5000 to prevent timeout
           if (skillErr) throw skillErr;
           const skillIds = Array.from(
             new Set((skillRows || []).map((r: any) => r?.candidate_id).filter(Boolean)),
