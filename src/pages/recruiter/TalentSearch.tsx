@@ -382,8 +382,28 @@ export default function TalentSearch() {
 
   const searchMutation = useMutation({
     mutationFn: async (query: string) => {
+      // If Search by Job mode, send structured job data
+      let body: any = { searchQuery: query, organizationId, prefilterLimit: 200, topN: 50 };
+
+      if (searchMode === 'byJob' && selectedJobId && jobs) {
+        const selectedJob = jobs.find(j => j.id === selectedJobId);
+        if (selectedJob) {
+          body = {
+            ...body,
+            structuredSearch: {
+              jobId: selectedJob.id,
+              role: selectedJob.title,
+              skills: [
+                ...(selectedJob.required_skills || []),
+                ...(selectedJob.nice_to_have_skills || [])
+              ]
+            }
+          };
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('talent-search', {
-        body: { searchQuery: query, organizationId, prefilterLimit: 200, topN: 50 }
+        body
       });
       if (error) throw error;
       return data;

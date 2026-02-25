@@ -56,10 +56,12 @@ serve(async (req) => {
     const searchQuery = body?.searchQuery;
     const candidates = body?.candidates;
     const organizationId = body?.organizationId;
+    const structuredSearch = body?.structuredSearch; // From "Search by Job" mode
     const prefilterLimit = Number(body?.prefilterLimit || 200);
     const topN = Number(body?.topN || 30);
 
     console.log("Talent search query:", searchQuery);
+    console.log("Structured search:", structuredSearch ? "Yes (skip AI parsing)" : "No");
     console.log("Candidates provided:", Array.isArray(candidates) ? candidates.length : 0);
     console.log("Organization:", organizationId || "n/a");
 
@@ -70,54 +72,68 @@ serve(async (req) => {
       });
     }
 
-    // ----------------------------
-    // 1) Parse query (small prompt)
-    // ----------------------------
-    const parseSystem =
-      `You are an expert recruiter assistant. Extract structured filters from a natural language candidate search query.\n` +
-      `Return concise values. Keep skills normalized (e.g. "react", "typescript", "postgres").`;
+    let parsedQuery: any = {};
 
-    const { res: parseRes } = await callChatCompletions({
-      messages: [
-        { role: "system", content: parseSystem },
-        { role: "user", content: `Query: "${searchQuery}"` },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "parse_query",
-            description: "Parse a talent search query into structured filters",
-            parameters: {
-              type: "object",
-              properties: {
-                role: { type: "string" },
-                location: { type: "string" },
-                experience_level: { type: "string" },
-                skills: { type: "array", items: { type: "string" } },
-                industry: { type: "string" },
+    // ----------------------------
+    // 1) Parse query (skip if structured data provided)
+    // ----------------------------
+    if (structuredSearch) {
+      // Search by Job mode - use structured data directly
+      console.log("Using structured job data:", structuredSearch.jobId);
+      parsedQuery = {
+        role: structuredSearch.role || "",
+        skills: structuredSearch.skills || [],
+        location: "",
+      };
+    } else {
+      // Free text search - use AI to parse
+      console.log("Parsing free text query with AI");
+      const parseSystem =
+        `You are an expert recruiter assistant. Extract structured filters from a natural language candidate search query.\n` +
+        `Return concise values. Keep skills normalized (e.g. "react", "typescript", "postgres").`;
+
+      const { res: parseRes } = await callChatCompletions({
+        messages: [
+          { role: "system", content: parseSystem },
+          { role: "user", content: `Query: "${searchQuery}"` },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "parse_query",
+              description: "Parse a talent search query into structured filters",
+              parameters: {
+                type: "object",
+                properties: {
+                  role: { type: "string" },
+                  location: { type: "string" },
+                  experience_level: { type: "string" },
+                  skills: { type: "array", items: { type: "string" } },
+                  industry: { type: "string" },
+                },
+                required: [],
               },
-              required: [],
             },
           },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "parse_query" } },
-      temperature: 0.1,
-      timeoutMs: 20000,
-    });
+        ],
+        tool_choice: { type: "function", function: { name: "parse_query" } },
+        temperature: 0.1,
+        timeoutMs: 20000,
+      });
 
-    if (!parseRes.ok) {
-      const t = await parseRes.text();
-      console.error("Parse error:", parseRes.status, t);
-      throw new Error(`AI parse error: ${parseRes.status}`);
+      if (!parseRes.ok) {
+        const t = await parseRes.text();
+        console.error("Parse error:", parseRes.status, t);
+        throw new Error(`AI parse error: ${parseRes.status}`);
+      }
+
+      const parseJson = await parseRes.json();
+      const parseToolCall = parseJson.choices?.[0]?.message?.tool_calls?.[0];
+      parsedQuery = parseToolCall?.function?.arguments
+        ? JSON.parse(parseToolCall.function.arguments)
+        : {};
     }
-
-    const parseJson = await parseRes.json();
-    const parseToolCall = parseJson.choices?.[0]?.message?.tool_calls?.[0];
-    const parsedQuery = parseToolCall?.function?.arguments
-      ? JSON.parse(parseToolCall.function.arguments)
-      : {};
 
     // ----------------------------
     // 2) Prefilter candidates in DB
