@@ -431,6 +431,16 @@ export default function TalentSearch() {
       if (searchMode === 'byJob' && selectedJobId && jobs) {
         const selectedJob = jobs.find(j => j.id === selectedJobId);
         if (selectedJob) {
+          // Delete any existing searches for this job (reset instead of duplicate)
+          const existingSearches = searchJobs?.filter((sj: any) => sj.job_id === selectedJobId) || [];
+          if (existingSearches.length > 0) {
+            const deleteIds = existingSearches.map((s: any) => s.id);
+            await supabase
+              .from('talent_search_jobs')
+              .delete()
+              .in('id', deleteIds);
+          }
+
           body = {
             ...body,
             structuredSearch: {
@@ -1471,7 +1481,7 @@ export default function TalentSearch() {
                           {selectedIds.size > 0 && <span className="text-muted-foreground font-normal">· {selectedIds.size} selected</span>}
                         </h2>
                         <div className="flex items-center gap-3 mt-0.5">
-                          <p className="text-sm text-muted-foreground font-sans">
+                          <p className="text-sm text-recruiter font-sans font-medium">
                             Click row to view profile · Select for bulk actions · Showing ≥ {freeTextThreshold}%
                           </p>
                           <Select value={String(freeTextThreshold)} onValueChange={(v) => setFreeTextThreshold(Number(v))}>
