@@ -254,6 +254,7 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*, jobs(title)')
         .eq('organization_id', organizationId)
+        .eq('search_type', 'by_job')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
