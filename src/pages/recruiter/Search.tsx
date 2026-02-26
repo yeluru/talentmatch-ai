@@ -1875,6 +1875,33 @@ export default function Search() {
                             />
                           )}
 
+                          {selectedJob.status === 'cancelled' && adaptedByJobResults.length > 0 && (
+                            <>
+                              <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <span className="text-sm text-slate-900 dark:text-slate-100">
+                                  Search was stopped. Showing {adaptedByJobResults.length} matches found before stopping (searched {selectedJob.total_candidates_searched || 0} of 2098 candidates).
+                                </span>
+                              </div>
+                              <UnifiedResultsDisplay
+                                results={adaptedByJobResults}
+                                config={{
+                                  viewMode: 'cards',
+                                  enableSorting: false,
+                                  enableFiltering: false,
+                                  showThresholdSelector: true,
+                                  defaultThreshold: getThreshold(selectedSearchJobId!),
+                                  enableBulkActions: false,
+                                }}
+                                onRowClick={(id, result) => {
+                                  // Open talent detail drawer for internal candidates
+                                  if (result.type === 'internal' && result.internalData?.candidateId) {
+                                    openTalent(result.internalData.candidateId);
+                                  }
+                                }}
+                              />
+                            </>
+                          )}
+
                           {selectedJob.status === 'completed' && adaptedByJobResults.length > 0 && (
                             <UnifiedResultsDisplay
                               results={adaptedByJobResults}
