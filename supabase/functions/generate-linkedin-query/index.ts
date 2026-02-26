@@ -89,9 +89,11 @@ site:linkedin.com/in ("Security Engineer" OR "Information Security Engineer" OR 
 
 Return ONLY the query string, no explanation.`;
 
+    // If user has curated skills, only use those (don't send job description to avoid LLM confusion)
+    // If no skills provided, send job description for LLM to extract skills itself
     const userPrompt = `Job Title: ${jobTitle}
 
-${jobDescription ? `Job Description:\n${jobDescription}\n\n` : ''}${allSkills.length > 0 ? `Skills extracted:\n${allSkills.join('\n')}\n\n` : ''}Generate an optimal LinkedIn X-ray search query for this role.`;
+${allSkills.length > 0 ? `Skills to include (use ONLY these):\n${allSkills.join('\n')}\n\n` : ''}${allSkills.length === 0 && jobDescription ? `Job Description:\n${jobDescription}\n\n` : ''}Generate an optimal LinkedIn X-ray search query for this role.`;
 
     // Call LLM to generate query
     const { res, provider } = await callChatCompletions({

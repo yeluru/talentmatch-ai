@@ -103,6 +103,9 @@ verify_jwt = false
 [functions.parse-job-description]
 verify_jwt = false
 
+[functions.generate-linkedin-query]
+verify_jwt = false
+
 [functions.tailor-resume]
 verify_jwt = true
 

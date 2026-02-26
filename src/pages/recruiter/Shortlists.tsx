@@ -312,13 +312,13 @@ export default function Shortlists() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
-                  <ListChecks className="h-5 w-5" strokeWidth={1.5} />
+                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
+                  <ListChecks className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
                   Candidate <span className="text-gradient-recruiter">Shortlists</span>

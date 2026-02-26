@@ -203,8 +203,8 @@ export default function TalentInsights() {
           <div className="space-y-6 pt-6 pb-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
-              <BarChart3 className="h-5 w-5" strokeWidth={1.5} />
+            <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
+              <BarChart3 className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
             </div>
             <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
               Talent <span className="text-gradient-recruiter">Insights</span>

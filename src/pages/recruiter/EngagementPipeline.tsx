@@ -353,10 +353,10 @@ export default function EngagementPipeline() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20 shrink-0">
-                  <Mail className="h-5 w-5" strokeWidth={1.5} />
+                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50 shrink-0">
+                  <Mail className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
                   Engagement <span className="text-gradient-recruiter">Pipeline</span>
                 </h1>
               </div>

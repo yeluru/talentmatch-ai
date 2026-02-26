@@ -201,8 +201,8 @@ export default function JobApplicants() {
                 </Button>
               </div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 text-recruiter border border-recruiter/20">
-                  <Users className="h-5 w-5" strokeWidth={1.5} />
+                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
+                  <Users className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground truncate">
                   {job?.title}

@@ -1593,19 +1593,19 @@ export default function TalentPool() {
       {/* Scroll to top button */}
       <ScrollToTop />
 
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1344px] mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="shrink-0 flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <div className="p-1.5 rounded-lg bg-recruiter/10 text-recruiter border border-recruiter/20">
-                  <Users className="h-4 w-4" strokeWidth={1.5} />
+                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
+                  <Users className="h-4 w-4 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
                   Talent <span className="text-gradient-recruiter">Pool</span>
                 </h1>
               </div>
-              <p className="text-sm text-muted-foreground font-sans">
+              <p className="text-lg text-muted-foreground font-sans">
                 Sourced profiles from bulk uploads and searches
               </p>
               {dataUpdatedAt && (
