@@ -202,7 +202,7 @@ Summary: ${c.summary || "N/A"}`
         }],
         tool_choice: { type: "function", function: { name: "rank_candidates" } },
         temperature: 0.2,
-        timeoutMs: 60000,
+        timeoutMs: 120000, // 2 minutes - increased for larger skill sets
       });
 
       if (aiRes.ok) {
