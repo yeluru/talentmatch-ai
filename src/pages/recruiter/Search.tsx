@@ -1745,12 +1745,37 @@ export default function Search() {
                             />
                           )}
 
-                          {selectedJob.status === 'processing' && (
+                          {selectedJob.status === 'processing' && adaptedByJobResults.length === 0 && (
                             <EmptyState
                               icon={Loader2}
                               title="Processing search"
                               description={`Analyzing candidates... (${selectedJob.total_candidates_searched || 0} processed)\n\nThis may take some time. Feel free to continue your work - we'll notify you when results are ready!`}
                             />
+                          )}
+
+                          {selectedJob.status === 'processing' && adaptedByJobResults.length > 0 && (
+                            <>
+                              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                                <span className="text-sm text-blue-900 dark:text-blue-100">
+                                  Still processing... {selectedJob.total_candidates_searched || 0} of 2098 candidates analyzed. Results below are partial and will update automatically.
+                                </span>
+                              </div>
+                              <UnifiedResultsDisplay
+                                results={adaptedByJobResults}
+                                config={{
+                                  viewMode: 'cards',
+                                  enableSorting: false,
+                                  enableFiltering: false,
+                                  showThresholdSelector: true,
+                                  defaultThreshold: getThreshold(selectedSearchJobId!),
+                                  enableBulkActions: false,
+                                }}
+                                onRowClick={(id, result) => {
+                                  // Open talent detail drawer for internal candidates
+                                }}
+                              />
+                            </>
                           )}
 
                           {selectedJob.status === 'failed' && (
