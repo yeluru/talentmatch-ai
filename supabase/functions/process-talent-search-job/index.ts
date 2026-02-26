@@ -50,6 +50,19 @@ serve(async (req) => {
       throw new Error("Search job not found");
     }
 
+    // Check if job was cancelled by user
+    if (searchJob.status === 'cancelled') {
+      console.log("Search job was cancelled by user, stopping processing");
+      return new Response(JSON.stringify({
+        success: true,
+        complete: false,
+        cancelled: true,
+        message: 'Search was cancelled by user'
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check if this is first invocation or resuming
     const lastProcessedIndex = searchJob.last_processed_index || 0;
     const isFirstInvocation = lastProcessedIndex === 0;

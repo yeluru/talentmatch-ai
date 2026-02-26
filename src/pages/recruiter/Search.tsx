@@ -15,7 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScoreBadge } from '@/components/ui/score-badge';
-import { Database, Globe, Search as SearchIcon, Sparkles, Filter, X, Loader2, SlidersHorizontal, Users, UserPlus, Download, ArrowUpDown, ArrowUp, ArrowDown, Clock, MapPin, ChevronRight, Star, Plus, Copy } from 'lucide-react';
+import { Database, Globe, Search as SearchIcon, Sparkles, Filter, X, Loader2, SlidersHorizontal, Users, UserPlus, Download, ArrowUpDown, ArrowUp, ArrowDown, Clock, MapPin, ChevronRight, Star, Plus, Copy, Trash2, StopCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -593,6 +593,52 @@ export default function Search() {
     },
   });
 
+  // Stop/Cancel search mutation
+  const cancelSearchMutation = useMutation({
+    mutationFn: async (searchJobId: string) => {
+      const { error } = await supabase
+        .from('talent_search_jobs')
+        .update({
+          status: 'cancelled',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', searchJobId);
+      if (error) throw error;
+      return searchJobId;
+    },
+    onSuccess: () => {
+      toast.success('Search stopped. Results saved.');
+      refetchSearchJobs();
+    },
+    onError: (error: any) => {
+      console.error('Cancel error:', error);
+      toast.error('Failed to stop search');
+    },
+  });
+
+  // Delete search mutation
+  const deleteSearchMutation = useMutation({
+    mutationFn: async (searchJobId: string) => {
+      const { error } = await supabase
+        .from('talent_search_jobs')
+        .delete()
+        .eq('id', searchJobId);
+      if (error) throw error;
+      return searchJobId;
+    },
+    onSuccess: (deletedId) => {
+      toast.success('Search deleted');
+      if (selectedSearchJobId === deletedId) {
+        setSelectedSearchJobId(null);
+      }
+      refetchSearchJobs();
+    },
+    onError: (error: any) => {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete search');
+    },
+  });
+
   const handleByJobSearch = () => {
     if (!selectedJobId) {
       toast.error('Please select a job');
@@ -611,7 +657,7 @@ export default function Search() {
   const adaptedByJobResults = useMemo(() => {
     if (!selectedSearchJobId || !searchJobs) return [];
     const selectedJob = searchJobs.find((j: any) => j.id === selectedSearchJobId);
-    if (!selectedJob || (selectedJob.status !== 'completed' && selectedJob.status !== 'processing')) return [];
+    if (!selectedJob || (selectedJob.status !== 'completed' && selectedJob.status !== 'processing' && selectedJob.status !== 'cancelled')) return [];
     const jobResults = selectedJob.results?.matches || [];
     return jobResults.map((result: any) => adaptInternalResult(result));
   }, [selectedSearchJobId, searchJobs]);
@@ -1642,6 +1688,7 @@ export default function Search() {
                       const statusColor =
                         job.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
                         job.status === 'processing' ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                        job.status === 'cancelled' ? 'text-slate-600 dark:text-slate-400 bg-slate-500/10 border-slate-500/20' :
                         job.status === 'failed' ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20' :
                         'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20';
 
@@ -1674,9 +1721,24 @@ export default function Search() {
                                 </p>
                               )}
                             </div>
-                            <Badge variant="secondary" className={cn("text-xs shrink-0", statusColor)}>
-                              {job.status}
-                            </Badge>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="secondary" className={cn("text-xs", statusColor)}>
+                                {job.status}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Delete this search? This cannot be undone.')) {
+                                    deleteSearchMutation.mutate(job.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1713,6 +1775,7 @@ export default function Search() {
                                   {selectedJob.status === 'pending' && 'Waiting to start...'}
                                   {selectedJob.status === 'processing' && `Processing... (${selectedJob.total_candidates_searched || 0} candidates)`}
                                   {selectedJob.status === 'completed' && `${filteredJobResults.length} matches (≥ ${currentThreshold}%)`}
+                                  {selectedJob.status === 'cancelled' && `Stopped - ${filteredJobResults.length} matches found (≥ ${currentThreshold}%)`}
                                   {selectedJob.status === 'failed' && 'Search failed'}
                                 </p>
                                 {selectedJob.status === 'completed' && jobResults.length > 0 && (
@@ -1730,9 +1793,27 @@ export default function Search() {
                                 )}
                               </div>
                             </div>
-                            {(selectedJob.status === 'pending' || selectedJob.status === 'processing') && (
-                              <Loader2 className="h-5 w-5 text-recruiter animate-spin" />
-                            )}
+                            <div className="flex items-center gap-3">
+                              {selectedJob.status === 'processing' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (confirm('Stop this search? Results found so far will be saved.')) {
+                                      cancelSearchMutation.mutate(selectedSearchJobId);
+                                    }
+                                  }}
+                                  disabled={cancelSearchMutation.isPending}
+                                  className="gap-2"
+                                >
+                                  <StopCircle className="h-4 w-4" />
+                                  Stop Search
+                                </Button>
+                              )}
+                              {(selectedJob.status === 'pending' || selectedJob.status === 'processing') && (
+                                <Loader2 className="h-5 w-5 text-recruiter animate-spin" />
+                              )}
+                            </div>
                           </div>
                         </div>
 
