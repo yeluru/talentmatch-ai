@@ -170,14 +170,13 @@ serve(async (req) => {
       });
     }
 
-    const { data: userRole } = await supabase
+    const { data: userRoles } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["recruiter", "account_manager"])
-      .maybeSingle();
+      .in("role", ["recruiter", "account_manager"]);
 
-    if (!userRole) {
+    if (!userRoles || userRoles.length === 0) {
       return new Response(
         JSON.stringify({ error: "Forbidden - requires recruiter or manager role" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
