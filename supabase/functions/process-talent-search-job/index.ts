@@ -8,9 +8,9 @@ const corsHeaders = {
 };
 
 // Process this many batches per invocation to avoid timeout
-const BATCHES_PER_INVOCATION = 5;
+const BATCHES_PER_INVOCATION = 2; // Reduced from 5 to stay under Edge Function 150s limit
 const BATCH_SIZE = 50;
-const CANDIDATES_PER_INVOCATION = BATCHES_PER_INVOCATION * BATCH_SIZE; // 250 candidates
+const CANDIDATES_PER_INVOCATION = BATCHES_PER_INVOCATION * BATCH_SIZE; // 100 candidates
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
