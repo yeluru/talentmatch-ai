@@ -254,8 +254,6 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*, jobs(title)')
         .eq('organization_id', organizationId)
-        .eq('search_type', 'by_job')
-        .not('job_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -1712,8 +1710,13 @@ export default function Search() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold truncate">
-                                {job.jobs?.title || 'Unknown Job'}
+                                {job.search_type === 'by_job' ? (job.jobs?.title || job.search_query) : job.search_query}
                               </p>
+                              {job.search_type !== 'by_job' && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {job.search_type === 'free_text' ? 'Free Text Search' : 'Web Search'}
+                                </p>
+                              )}
                               <p className="text-xs text-muted-foreground mt-1 truncate">
                                 {new Date(job.created_at).toLocaleString()}
                               </p>

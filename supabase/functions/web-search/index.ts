@@ -433,9 +433,54 @@ Return best-effort structured data. If unknown, return null. Do not hallucinate 
 
     const merged = baseProfiles.map((p) => enrichedByUrl.get(String(p.source_url)) ?? p);
 
+    // Get user's organization for saving search results
+    const { data: userProfile } = await supabase
+      .from("user_profiles")
+      .select("organization_id")
+      .eq("id", user.id)
+      .single();
+
+    const organizationId = userProfile?.organization_id;
+
+    // Save Web Search results to database for retention
+    let searchJobId = null;
+    if (organizationId) {
+      const matches = merged.slice(0, cappedLimit).map((profile, index) => ({
+        candidate_index: index + 1,
+        candidate: profile,
+        match_score: 75, // Default score for web search results
+        match_reason: "Found via web search"
+      }));
+
+      const { data: searchJob, error: saveErr } = await supabase
+        .from('talent_search_jobs')
+        .insert({
+          organization_id: organizationId,
+          created_by: user.id,
+          job_id: null,
+          search_query: rawQuery,
+          search_type: 'web_search',
+          status: 'completed',
+          results: { matches, profiles: merged.slice(0, cappedLimit) },
+          total_candidates_searched: results.length,
+          matches_found: merged.length,
+          completed_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (saveErr) {
+        console.error("Failed to save Web Search:", saveErr);
+        // Continue anyway, return results even if save failed
+      } else {
+        searchJobId = searchJob?.id;
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
+        searchJobId,
         profiles: merged.slice(0, cappedLimit),
         total_found: results.length,
         debug,

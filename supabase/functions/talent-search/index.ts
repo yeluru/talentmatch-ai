@@ -428,7 +428,31 @@ serve(async (req) => {
       missing_criteria: []
     }));
 
+    // Save Free Text search results to database for retention
+    const { data: searchJob, error: saveErr } = await supabase
+      .from('talent_search_jobs')
+      .insert({
+        organization_id: organizationId,
+        created_by: user.id,
+        job_id: null,
+        search_query: searchQuery,
+        search_type: 'free_text',
+        status: 'completed',
+        results: { matches },
+        total_candidates_searched: candidatesToRank.length,
+        matches_found: matches.length,
+        completed_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (saveErr) {
+      console.error("Failed to save Free Text search:", saveErr);
+      // Continue anyway, return results even if save failed
+    }
+
     const result = {
+      searchJobId: searchJob?.id,
       parsed_query: parsedQuery || {},
       matches,
     };
