@@ -90,6 +90,7 @@ serve(async (req) => {
           created_by: user.id,
           job_id: structuredSearch.jobId,
           search_query: searchQuery,
+          search_type: 'by_job',
           status: 'pending'
         })
         .select()
