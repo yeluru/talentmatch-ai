@@ -137,9 +137,9 @@ serve(async (req) => {
           name,
           title: p.current_title,
           years_experience: p.years_of_experience,
-          summary: p.summary ? String(p.summary).slice(0, 200) : null,
+          summary: p.summary ? String(p.summary).slice(0, 300) : null,
           location: p.location,
-          skills: candidateSkills.slice(0, 10),
+          skills: candidateSkills.slice(0, 30), // Increased from 10 to 30
         };
       });
 
@@ -147,8 +147,17 @@ serve(async (req) => {
       const systemPrompt = `You are an expert talent search AI. Rank candidates for the job: "${job?.title}".
 
 Required skills: ${(job?.required_skills || []).join(", ")}
+Nice to have: ${(job?.nice_to_have_skills || []).join(", ")}
 
-Score 0-100 (70+ = strong match). Provide brief reason for each.`;
+Scoring guidelines:
+- 90-100: Exceptional match - has most/all required skills + relevant experience
+- 75-89: Strong match - has many required skills or highly relevant experience
+- 60-74: Good match - has some required skills and relevant background
+- 50-59: Moderate match - transferable skills or related experience
+- 25-49: Weak match - limited relevance but some potential
+- 0-24: Poor match - not relevant
+
+Be generous with scoring. Focus on transferable skills and relevant experience, not just exact keyword matches. Provide brief reason for each candidate.`;
 
       const candidateSummaries = candidatesToRank
         .map((c: any, idx: number) =>
