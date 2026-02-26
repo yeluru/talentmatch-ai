@@ -86,11 +86,13 @@ const recruiterNavGroups: NavGroup[] = [
     label: 'TALENT MANAGEMENT',
     items: [
       { title: 'Talent Pool', href: '/recruiter/talent-pool', icon: Users },
-      // { title: 'Bulk Upload Profiles', href: '/recruiter/talent-search/uploads', icon: Upload },
-      { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
+      { title: 'Talent Search', href: '/recruiter/search', icon: Search }, // Unified: Internal Pool + External Web
       { title: 'Shortlists', href: '/recruiter/shortlists', icon: ListChecks },
+      // OLD ROUTES (kept for rollback):
+      // { title: 'ATS Match Search', href: '/recruiter/ats-match-search', icon: Search },
+      // { title: 'Talent Search', href: '/recruiter/talent-search/search', icon: Search },
+      // { title: 'Bulk Upload Profiles', href: '/recruiter/talent-search/uploads', icon: Upload },
       // { title: 'Marketplace Profiles', href: '/recruiter/marketplace', icon: Search },
-      { title: 'Talent Search', href: '/recruiter/talent-search/search', icon: Search },
       // { title: 'API Integration', href: '/recruiter/talent-search/api', icon: Sparkles },
     ],
   },

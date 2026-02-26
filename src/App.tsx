@@ -56,6 +56,7 @@ const RecruiterCandidates = lazy(() => import("./pages/recruiter/RecruiterCandid
 const AIMatching = lazy(() => import("./pages/recruiter/AIMatching"));
 const TalentSearch = lazy(() => import("./pages/recruiter/TalentSearch"));
 const TalentSourcing = lazy(() => import("./pages/recruiter/TalentSourcing"));
+const Search = lazy(() => import("./pages/recruiter/Search")); // Unified search interface
 const TalentPool = lazy(() => import("./pages/recruiter/TalentPool"));
 const TalentInsights = lazy(() => import("./pages/recruiter/TalentInsights"));
 const OutreachCampaigns = lazy(() => import("./pages/recruiter/OutreachCampaigns"));
@@ -393,6 +394,15 @@ const App = () => (
                     element={
                       <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
                         {withSuspense(<TalentPool />)}
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Unified Talent Search - combines internal pool + external web search */}
+                  <Route
+                    path="/recruiter/search"
+                    element={
+                      <ProtectedRoute allowedRoles={["recruiter", "account_manager", "org_admin", "super_admin"]}>
+                        {withSuspense(<Search />)}
                       </ProtectedRoute>
                     }
                   />
