@@ -246,7 +246,6 @@ export default function Search() {
   });
 
   // Query for async search jobs (Search by Job mode)
-  // Only load searches where job_id IS NOT NULL (excludes Free Text and Web searches)
   const { data: searchJobs, refetch: refetchSearchJobs } = useQuery({
     queryKey: ['talent-search-jobs', organizationId],
     queryFn: async () => {
@@ -255,7 +254,6 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*, jobs(title)')
         .eq('organization_id', organizationId)
-        .not('job_id', 'is', null) // Only load "By Job" searches (job_id IS NOT NULL)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
