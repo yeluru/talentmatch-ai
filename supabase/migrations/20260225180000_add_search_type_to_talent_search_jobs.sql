@@ -2,8 +2,20 @@
 -- This allows storing Free Text, By Job, and Web Search results in the same table
 
 ALTER TABLE public.talent_search_jobs
-ADD COLUMN IF NOT EXISTS search_type TEXT NOT NULL DEFAULT 'by_job'
-CHECK (search_type IN ('free_text', 'by_job', 'web_search'));
+ADD COLUMN IF NOT EXISTS search_type TEXT NOT NULL DEFAULT 'by_job';
+
+-- Add CHECK constraint only if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'check_search_type'
+  ) THEN
+    ALTER TABLE public.talent_search_jobs
+    ADD CONSTRAINT check_search_type
+    CHECK (search_type IN ('free_text', 'by_job', 'web_search'));
+  END IF;
+END $$;
 
 -- Add index for efficient lookup of latest search by type
 CREATE INDEX IF NOT EXISTS idx_talent_search_jobs_org_type_created
