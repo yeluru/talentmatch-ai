@@ -611,7 +611,7 @@ export default function Search() {
   const adaptedByJobResults = useMemo(() => {
     if (!selectedSearchJobId || !searchJobs) return [];
     const selectedJob = searchJobs.find((j: any) => j.id === selectedSearchJobId);
-    if (!selectedJob || selectedJob.status !== 'completed') return [];
+    if (!selectedJob || (selectedJob.status !== 'completed' && selectedJob.status !== 'processing')) return [];
     const jobResults = selectedJob.results?.matches || [];
     return jobResults.map((result: any) => adaptInternalResult(result));
   }, [selectedSearchJobId, searchJobs]);
