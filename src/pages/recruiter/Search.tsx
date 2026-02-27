@@ -715,7 +715,8 @@ export default function Search() {
           organization_id: organizationId,
           created_by: userData?.user?.id,
           job_id: null,
-          search_query: 'web_search', // Special marker for web searches
+          search_query: query, // Use actual query
+          search_type: 'web_search',
           status: 'completed',
           results: {
             pages: [page],
@@ -928,12 +929,13 @@ export default function Search() {
       if (!append) {
         try {
           const { data: userData } = await supabase.auth.getUser();
-          const searchMarker = searchMode === 'basic' ? 'linkedin_xray_basic' : 'linkedin_xray_deep';
+          const searchType = searchMode === 'basic' ? 'linkedin_xray_basic' : 'linkedin_xray_deep';
           await supabase.from('talent_search_jobs').insert({
             organization_id: organizationId,
             created_by: userData?.user?.id,
             job_id: linkedInJobId || null,
-            search_query: searchMarker, // Separate markers for basic and deep modes
+            search_query: generatedQuery || 'LinkedIn X-Ray Search',
+            search_type: searchType,
             status: 'completed',
             results: {
               mode: searchMode, // 'basic' or 'deep'
