@@ -324,7 +324,7 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*')
         .eq('organization_id', organizationId)
-        .is('job_id', null) // Free Text searches have no job_id
+        .eq('search_type', 'free_text')
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -386,29 +386,8 @@ export default function Search() {
       setFreeTextResults(enriched);
       setParsedQuery(searchData.parsed_query || null);
 
-      // Save to database so all recruiters see the same results
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        await supabase.from('talent_search_jobs').insert({
-          organization_id: organizationId,
-          created_by: userData?.user?.id,
-          job_id: null, // NULL indicates Free Text search
-          search_query: query,
-          status: 'completed',
-          results: {
-            matches: enriched,
-            parsed_query: searchData.parsed_query
-          },
-          total_candidates_searched: searchData.total_candidates_searched || enriched.length,
-          matches_found: enriched.length,
-          completed_at: new Date().toISOString()
-        });
-
-        // Invalidate query to refresh for all users
-        queryClient.invalidateQueries({ queryKey: ['latest-free-text-search', organizationId] });
-      } catch (err) {
-        console.error('Failed to save search results:', err);
-      }
+      // Edge function already saved results to database, just invalidate cache to refresh
+      queryClient.invalidateQueries({ queryKey: ['latest-free-text-search', organizationId] });
 
       const matchingThreshold = enriched.filter(m => Number(m?.match_score || 0) >= freeTextThreshold);
       toast.success(`Found ${matchingThreshold.length} candidates ≥${freeTextThreshold}%`);
