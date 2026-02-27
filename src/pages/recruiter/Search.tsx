@@ -245,7 +245,7 @@ export default function Search() {
     enabled: !!organizationId,
   });
 
-  // Query for async search jobs (Search by Job mode)
+  // Query for async search jobs (Search by Job mode ONLY)
   const { data: searchJobs, refetch: refetchSearchJobs } = useQuery({
     queryKey: ['talent-search-jobs', organizationId],
     queryFn: async () => {
@@ -254,6 +254,8 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*, jobs(title)')
         .eq('organization_id', organizationId)
+        .eq('search_type', 'by_job')
+        .not('job_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
