@@ -307,15 +307,6 @@ export default function Search() {
     setJobResultsLimit(20);
   }, [selectedSearchJobId]);
 
-  // Debug: Log when query builder state changes
-  useEffect(() => {
-    console.log('[Query Builder] State changed - selectedSkills:', selectedSkills);
-  }, [selectedSkills]);
-
-  useEffect(() => {
-    console.log('[Query Builder] State changed - generatedQuery:', generatedQuery);
-  }, [generatedQuery]);
-
   // Pool - Free Text search mutation
   // Load latest Free Text search results on mount (shared across all recruiters)
   const { data: latestFreeTextSearch } = useQuery({
