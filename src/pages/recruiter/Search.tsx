@@ -168,7 +168,7 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*')
         .eq('organization_id', organizationId)
-        .eq('search_query', 'linkedin_xray_basic') // Google X-ray (CSE)
+        .eq('search_type', 'linkedin_xray_basic')
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -188,7 +188,7 @@ export default function Search() {
         .from('talent_search_jobs')
         .select('*')
         .eq('organization_id', organizationId)
-        .eq('search_query', 'linkedin_xray_deep') // Serp API
+        .eq('search_type', 'linkedin_xray_deep')
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1)
