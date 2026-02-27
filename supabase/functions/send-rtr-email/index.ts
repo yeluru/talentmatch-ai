@@ -12,10 +12,12 @@ const corsHeaders = {
 
 type Body = {
   toEmail: string;
+  ccEmails?: string[]; // NEW: Editable CC field
   subject: string;
   body: string;
   rate: string;
   rtrFields?: Record<string, string>;
+  templateId: string; // NEW: Which RTR template to use
   organizationId?: string;
   candidateId?: string;
   jobId?: string;
@@ -332,7 +334,8 @@ async function loadRtrDocxTemplate(): Promise<Uint8Array> {
 /** Merge RTR values into DOCX; output is a valid DOCX (JSZip) so Word can open it. */
 async function mergeDocxWithFields(
   docxBytes: Uint8Array,
-  rtrFields: Record<string, string>
+  rtrFields: Record<string, string>,
+  orderedValuesOverride?: (string | null)[]
 ): Promise<Uint8Array> {
   const JSZip = (await import("https://esm.sh/jszip@3.10.1")).default;
   const zip = await JSZip.loadAsync(docxBytes);
@@ -360,9 +363,9 @@ async function mergeDocxWithFields(
     );
   }
 
-  // Replace the 7 sequential [_______________________] (23-underscore) placeholders.
-  // Position #3 (candidate_address) is null = left as-is for the candidate to fill.
-  const orderedValues = buildPlaceholderValues(rtrFields);
+  // Replace sequential placeholders with ordered values.
+  // Use override if provided (for multi-template support), otherwise use legacy function
+  const orderedValues = orderedValuesOverride || buildPlaceholderValues(rtrFields);
   let occurrence = 0;
   const escapedPlaceholder = regexEscape(PLACEHOLDER);
   docXml = docXml.replace(new RegExp(escapedPlaceholder, "g"), (match) => {
@@ -580,6 +583,174 @@ async function fillRtrPdf(templateBytes: Uint8Array, rate: string, rateFieldName
   return pdfDoc.save();
 }
 
+// ============================================================================
+// NEW: Multi-Template Support Functions
+// ============================================================================
+
+interface RTRTemplate {
+  id: string;
+  name: string;
+  docx_filename: string;
+  docuseal_template_id: string | null;
+  field_config: {
+    fields: Array<{
+      key: string;
+      label: string;
+      type: string;
+      recruiterFillable: boolean;
+      order: number;
+      placeholder: string;
+    }>;
+    hardcodedFields?: Record<string, string>;
+  };
+}
+
+/**
+ * Load RTR template configuration from database
+ */
+async function loadTemplateConfig(supabase: any, templateId: string): Promise<RTRTemplate> {
+  const { data, error } = await supabase
+    .from('rtr_templates')
+    .select('*')
+    .eq('id', templateId)
+    .eq('is_active', true)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Template not found: ${templateId}. Error: ${error?.message || 'Not found'}`);
+  }
+
+  return data as RTRTemplate;
+}
+
+/**
+ * Load DOCX template file by filename
+ * Tries: env var, bundled templates, file paths
+ */
+async function loadDocxByFilename(filename: string): Promise<Uint8Array> {
+  // Try environment variable for this specific template
+  const envKey = `RTR_TEMPLATE_${filename.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+  const b64Env = (Deno.env.get(envKey) || "").trim();
+  if (b64Env) {
+    try {
+      return base64ToBytes(b64Env);
+    } catch (e) {
+      console.error(`${envKey} decode error:`, e);
+    }
+  }
+
+  // Try bundled templates (if they exist)
+  // For now, we'll try file paths in docs/RTR Templates/
+  const candidates: string[] = [];
+
+  try {
+    const dir = fromFileUrl(new URL(".", import.meta.url));
+    candidates.push(join(dir, filename));
+  } catch {
+    // ignore
+  }
+
+  const cwd = Deno.cwd();
+  candidates.push(
+    join(cwd, "docs", "RTR Templates", filename),
+    join(cwd, "..", "..", "docs", "RTR Templates", filename),
+    join(cwd, "supabase", "functions", "send-rtr-email", filename),
+    filename
+  );
+
+  for (const p of candidates) {
+    try {
+      return await Deno.readFile(p);
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error(
+    `RTR template file not found: ${filename}. Tried paths: ${candidates.join(", ")}`
+  );
+}
+
+/**
+ * Build placeholder values dynamically from field config
+ * Returns ordered array of values for sequential placeholder replacement
+ */
+function buildPlaceholderValuesDynamic(
+  rtrFields: Record<string, string>,
+  fieldConfig: RTRTemplate['field_config']
+): (string | null)[] {
+  const get = (k: string) => (rtrFields[k] || "").trim();
+
+  // Sort fields by order
+  const orderedFields = [...fieldConfig.fields].sort((a, b) => a.order - b.order);
+
+  return orderedFields.map((field) => {
+    // Skip candidate-fillable fields (they stay as placeholders)
+    if (!field.recruiterFillable) {
+      return null;
+    }
+
+    // Special handling for specific fields
+    if (field.key === 'client_partner' || field.key === 'client') {
+      // Combine client and partner if both exist
+      const client = get('client');
+      const partner = get('client_partner');
+      if (client && partner) {
+        return `${client}'s partner client, ${partner}`;
+      }
+      return partner || client;
+    }
+
+    if (field.key === 'candidate_name' && field.placeholder.includes('[')) {
+      // Keep brackets for candidate name if placeholder has them
+      const name = get('candidate_name');
+      return name ? `[${name}]` : "";
+    }
+
+    return get(field.key);
+  });
+}
+
+/**
+ * Get recruiter and account manager emails for BCC
+ */
+async function getRecruiterAndAccountManager(
+  supabase: any,
+  organizationId: string,
+  jobId: string | null,
+  userId: string
+): Promise<{ recruiterEmail: string | null; accountManagerEmail: string | null }> {
+  // Get recruiter email (user who is sending the RTR)
+  const { data: userProfile } = await supabase
+    .from('user_profiles')
+    .select('email')
+    .eq('id', userId)
+    .single();
+
+  const recruiterEmail = userProfile?.email || null;
+
+  // Get account manager for this recruiter
+  const { data: amAssignment } = await supabase
+    .from('account_manager_recruiter_assignments')
+    .select('account_manager_user_id')
+    .eq('organization_id', organizationId)
+    .eq('recruiter_user_id', userId)
+    .single();
+
+  let accountManagerEmail: string | null = null;
+  if (amAssignment?.account_manager_user_id) {
+    const { data: amProfile } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('id', amAssignment.account_manager_user_id)
+      .single();
+
+    accountManagerEmail = amProfile?.email || null;
+  }
+
+  return { recruiterEmail, accountManagerEmail };
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
@@ -656,6 +827,15 @@ serve(async (req: Request) => {
       });
     }
 
+    // Validate templateId
+    const templateId = body?.templateId ? String(body.templateId).trim() : null;
+    if (!templateId) {
+      return new Response(JSON.stringify({ error: "Missing templateId" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const svc = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log("[send-rtr-email] Auth check:", {
@@ -692,35 +872,81 @@ serve(async (req: Request) => {
     const jobId = body.jobId ? String(body.jobId).trim() : null;
     const applicationId = body.applicationId ? String(body.applicationId).trim() : null;
 
-    // Pipeline: DOCX template → merge recruiter values → convert to PDF → add fillable candidate fields → upload to DocuSeal.
+    // Pipeline: Load template config → Load DOCX → Merge recruiter values → Convert to PDF → Upload to DocuSeal
     let attachmentBytes: Uint8Array;
     const attachmentFilename = "RTR.pdf";
     let docusealSubmission: { submissionId: string; signingUrl: string; templateId: string } | null = null;
+    let template: RTRTemplate;
 
     try {
-      const rawDocx = await loadRtrDocxTemplate();
-      const mergedDocx = await mergeDocxWithFields(rawDocx, rtrFields);
+      // Load template configuration from database
+      console.info("[send-rtr-email] Loading template config:", templateId);
+      template = await loadTemplateConfig(svc, templateId);
+      console.info("[send-rtr-email] Template loaded:", template.name, "File:", template.docx_filename);
+
+      // Load DOCX file by filename
+      const rawDocx = await loadDocxByFilename(template.docx_filename);
+
+      // Build placeholder values dynamically from template config
+      const dynamicValues = buildPlaceholderValuesDynamic(rtrFields, template.field_config);
+      console.info("[send-rtr-email] Dynamic values:", dynamicValues.map(v => v ? v.substring(0, 20) + '...' : 'null'));
+
+      // Merge values into DOCX
+      const mergedDocx = await mergeDocxWithFields(rawDocx, rtrFields, dynamicValues);
+
+      // Convert to PDF
       const pdfBytes = await convertDocxToPdf(mergedDocx);
+
+      // Add fillable fields for candidate (skip for now if using DocuSeal templates with fields)
       attachmentBytes = await addFillableFieldsToPdf(pdfBytes);
 
       // Upload to DocuSeal if API key is configured
       const useDocuSeal = !!(Deno.env.get("DOCUSEAL_API_KEY") || "").trim();
       if (useDocuSeal) {
         const candidateName = rtrFields.candidate_name || "Candidate";
-        console.info("[send-rtr-email] Uploading to DocuSeal...");
-        docusealSubmission = await uploadToDocuSeal(attachmentBytes, toEmail, candidateName);
+        console.info("[send-rtr-email] Uploading to DocuSeal with template:", template.docuseal_template_id);
+        docusealSubmission = await uploadToDocuSeal(
+          attachmentBytes,
+          toEmail,
+          candidateName,
+          template.docuseal_template_id
+        );
         console.info("[send-rtr-email] DocuSeal submission created:", docusealSubmission.submissionId);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return new Response(
         JSON.stringify({
-          error: "RTR failed",
-          details: msg + ". Ensure DOCX template and conversion (CLOUDCONVERT_API_KEY or LibreOffice) are available.",
+          error: "RTR generation failed",
+          details: msg,
         }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    // Get BCC emails (recruiter + account manager)
+    let bccEmails: string[] = [];
+    if (organizationId) {
+      try {
+        const { recruiterEmail, accountManagerEmail } = await getRecruiterAndAccountManager(
+          svc,
+          organizationId,
+          jobId,
+          user.id
+        );
+        if (recruiterEmail) bccEmails.push(recruiterEmail);
+        if (accountManagerEmail) bccEmails.push(accountManagerEmail);
+        console.info("[send-rtr-email] BCC emails:", bccEmails);
+      } catch (e) {
+        console.warn("[send-rtr-email] Could not get BCC emails:", e);
+        // Continue without BCC - not critical
+      }
+    }
+
+    // Parse CC emails from request
+    const ccEmails = body.ccEmails && Array.isArray(body.ccEmails)
+      ? body.ccEmails.filter(e => e && typeof e === 'string').map(e => e.trim().toLowerCase())
+      : [];
 
     // Store RTR document record in database if DocuSeal was used
     if (docusealSubmission && organizationId && candidateId) {
@@ -736,6 +962,11 @@ serve(async (req: Request) => {
           rtr_fields: rtrFields,
           status: "sent",
           created_by: user.id,
+          template_id: templateId,
+          template_name: template.name,
+          to_email: toEmail,
+          cc_emails: ccEmails.length > 0 ? ccEmails : null,
+          bcc_emails: bccEmails.length > 0 ? bccEmails : null,
         });
 
         if (insertError) {
@@ -788,6 +1019,16 @@ serve(async (req: Request) => {
         subject,
         html,
       };
+
+      // Add CC emails if provided
+      if (ccEmails.length > 0) {
+        emailPayload.cc = ccEmails;
+      }
+
+      // Add BCC emails (recruiter + account manager)
+      if (bccEmails.length > 0) {
+        emailPayload.bcc = bccEmails;
+      }
 
       if (!docusealSubmission) {
         emailPayload.attachments = [{ filename: attachmentFilename, content: bytesToBase64(attachmentBytes) }];
@@ -850,14 +1091,26 @@ serve(async (req: Request) => {
     const smtpTimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? Math.min(rawTimeout, 120000) : 45000;
 
     try {
-      const sendPromise = client.send({
+      const emailOptions: any = {
         from: fromEmail,
         to: toEmail,
         subject,
         content: bodyText,
         html,
         attachments: [attachment],
-      });
+      };
+
+      // Add CC emails if provided
+      if (ccEmails.length > 0) {
+        emailOptions.cc = ccEmails.join(', ');
+      }
+
+      // Add BCC emails (recruiter + account manager)
+      if (bccEmails.length > 0) {
+        emailOptions.bcc = bccEmails.join(', ');
+      }
+
+      const sendPromise = client.send(emailOptions);
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`SMTP timeout after ${smtpTimeoutMs / 1000}s`)), smtpTimeoutMs)
       );

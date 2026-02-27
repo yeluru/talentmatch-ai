@@ -46,7 +46,8 @@ function bytesToBase64(bytes: Uint8Array): string {
 export async function uploadToDocuSeal(
   pdfBytes: Uint8Array,
   signerEmail: string,
-  signerName: string
+  signerName: string,
+  docusealTemplateId?: string | null
 ): Promise<DocuSealSubmission> {
   const apiKey = Deno.env.get("DOCUSEAL_API_KEY");
   if (!apiKey) {
@@ -63,9 +64,13 @@ export async function uploadToDocuSeal(
   try {
     let templateId: string;
 
-    if (reuseTemplateId) {
-      // Use pre-configured template (recommended for production)
-      console.info("[DocuSeal] Using reusable template:", reuseTemplateId);
+    // Use provided template ID (from database) if available
+    if (docusealTemplateId) {
+      console.info("[DocuSeal] Using template from database:", docusealTemplateId);
+      templateId = docusealTemplateId;
+    } else if (reuseTemplateId) {
+      // Fallback to env var template (legacy)
+      console.info("[DocuSeal] Using reusable template from env:", reuseTemplateId);
       templateId = reuseTemplateId;
     } else {
       // Create one-time template from PDF (for testing only)
@@ -107,8 +112,13 @@ export async function uploadToDocuSeal(
     }
 
     // Create submission (signing request)
+    // Include the filled PDF as a document so DocuSeal overlays fields on OUR filled PDF
     const submissionPayload = {
       template_id: templateId,
+      documents: [{
+        name: "RTR.pdf",
+        file: bytesToBase64(pdfBytes)  // Upload filled PDF with recruiter values
+      }],
       send_email: false, // We'll send our own email with custom branding
       submitters: [{
         email: signerEmail,

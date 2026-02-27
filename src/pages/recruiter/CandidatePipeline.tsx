@@ -191,6 +191,8 @@ export default function CandidatePipeline() {
   const [rtrBody, setRtrBody] = useState('');
   const [rtrRate, setRtrRate] = useState('');
   const [rtrFieldValues, setRtrFieldValues] = useState<Record<string, string>>({});
+  const [rtrCc, setRtrCc] = useState(''); // NEW: CC field
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(''); // NEW: Template selection
   const [sendingRtr, setSendingRtr] = useState(false);
   const [screeningPending, setScreeningPending] = useState<{ app: Application } | null>(null);
   const [screeningDate, setScreeningDate] = useState<Date>();
@@ -238,12 +240,20 @@ export default function CandidatePipeline() {
     try {
       sessionStorage.setItem(
         PIPELINE_DRAFT_KEY('rtr', rtrPending.app.id),
-        JSON.stringify({ to: rtrTo, subject: rtrSubject, body: rtrBody, rate: rtrRate, rtrFields: rtrFieldValues }),
+        JSON.stringify({
+          to: rtrTo,
+          subject: rtrSubject,
+          body: rtrBody,
+          rate: rtrRate,
+          rtrFields: rtrFieldValues,
+          cc: rtrCc,  // NEW
+          templateId: selectedTemplateId  // NEW
+        }),
       );
     } catch {
       // ignore
     }
-  }, [rtrPending?.app.id, rtrTo, rtrSubject, rtrBody, rtrRate, rtrFieldValues]);
+  }, [rtrPending?.app.id, rtrTo, rtrSubject, rtrBody, rtrRate, rtrFieldValues, rtrCc, selectedTemplateId]);
 
   useEffect(() => {
     if (!screeningPending?.app.id) return;
@@ -342,6 +352,43 @@ export default function CandidatePipeline() {
     enabled: !!viewAsOwnerId,
   });
 
+  // NEW: Load RTR templates for organization
+  const { data: rtrTemplates } = useQuery({
+    queryKey: ['rtr-templates', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('rtr_templates')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw error;
+      return data as Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        docx_filename: string;
+        field_config: {
+          fields: Array<{
+            key: string;
+            label: string;
+            type: string;
+            recruiterFillable: boolean;
+            order: number;
+            placeholder: string;
+          }>;
+        };
+      }>;
+    },
+    enabled: !!organizationId,
+  });
+
+  // Compute dynamic fields based on selected template
+  const dynamicFields = selectedTemplateId && rtrTemplates
+    ? rtrTemplates.find((t) => t.id === selectedTemplateId)?.field_config.fields.filter((f) => f.recruiterFillable).sort((a, b) => a.order - b.order) || []
+    : [];
+
   const jobIds = (jobs || []).map((j: { id: string }) => j.id);
 
   const { data: applications, isLoading, isFetching } = useQuery({
@@ -439,13 +486,23 @@ export default function CandidatePipeline() {
       } else if (type === 'rtr') {
         const draftRaw = sessionStorage.getItem(PIPELINE_DRAFT_KEY('rtr', appId));
         if (draftRaw) {
-          const d = JSON.parse(draftRaw) as { to?: string; subject?: string; body?: string; rate?: string; rtrFields?: Record<string, string> };
+          const d = JSON.parse(draftRaw) as {
+            to?: string;
+            subject?: string;
+            body?: string;
+            rate?: string;
+            rtrFields?: Record<string, string>;
+            cc?: string;  // NEW
+            templateId?: string;  // NEW
+          };
           if (d.to != null) setRtrTo(d.to);
           if (d.subject != null) setRtrSubject(d.subject);
           if (d.body != null) setRtrBody(d.body);
           if (d.rate != null) setRtrRate(d.rate);
           if (d.rtrFields && typeof d.rtrFields === 'object') setRtrFieldValues(d.rtrFields);
           else setRtrFieldValues({});
+          if (d.cc != null) setRtrCc(d.cc);  // NEW
+          if (d.templateId != null) setSelectedTemplateId(d.templateId);  // NEW
         } else {
           const email = app.candidate_profiles?.email?.trim() || '';
           const jobTitle = app.jobs?.title || 'this role';
@@ -677,13 +734,23 @@ export default function CandidatePipeline() {
         try {
           const raw = sessionStorage.getItem(PIPELINE_DRAFT_KEY('rtr', app.id));
           if (raw) {
-            const d = JSON.parse(raw) as { to?: string; subject?: string; body?: string; rate?: string; rtrFields?: Record<string, string> };
+            const d = JSON.parse(raw) as {
+              to?: string;
+              subject?: string;
+              body?: string;
+              rate?: string;
+              rtrFields?: Record<string, string>;
+              cc?: string;  // NEW
+              templateId?: string;  // NEW
+            };
             if (d.to != null) setRtrTo(d.to);
             if (d.subject != null) setRtrSubject(d.subject);
             if (d.body != null) setRtrBody(d.body);
             if (d.rate != null) setRtrRate(d.rate);
             if (d.rtrFields && typeof d.rtrFields === 'object') setRtrFieldValues(d.rtrFields);
             else setRtrFieldValues({});
+            if (d.cc != null) setRtrCc(d.cc);  // NEW
+            if (d.templateId != null) setSelectedTemplateId(d.templateId);  // NEW
           } else {
             setRtrTo(email);
             setRtrSubject(DEFAULT_RTR_SUBJECT(jobTitle));
@@ -1258,26 +1325,60 @@ export default function CandidatePipeline() {
       >
         {rtrPending && (
           <div className="space-y-4 pt-2">
+            {/* Step 1: Template Selection */}
             <div className="space-y-2">
-              <Label className="font-medium">RTR form fields (pre-filled in PDF)</Label>
-              <ScrollArea className="h-[220px] rounded-md border p-3">
-                <div className="space-y-3">
-                  {RTR_RECRUITER_FIELDS.map((f) => (
-                    <div key={f.key} className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">{f.label}</Label>
-                      <Input
-                        value={rtrFieldValues[f.key] ?? ''}
-                        onChange={(e) => setRtrFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        className="font-sans text-sm"
-                        placeholder={f.key === 'rate' ? 'e.g. $90 per hour' : f.label}
-                      />
-                    </div>
+              <Label className="font-medium">Select RTR Template</Label>
+              <Select
+                value={selectedTemplateId}
+                onValueChange={(id) => {
+                  setSelectedTemplateId(id);
+                  // Reset field values when template changes
+                  setRtrFieldValues({});
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(rtrTemplates || []).map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
                   ))}
-                </div>
-              </ScrollArea>
+                </SelectContent>
+              </Select>
+              {!selectedTemplateId && (
+                <p className="text-xs text-muted-foreground">
+                  Select a template to see available fields
+                </p>
+              )}
             </div>
+
+            {/* Step 2: Dynamic Fields (only after template selected) */}
+            {selectedTemplateId && dynamicFields.length > 0 && (
+              <div className="space-y-2">
+                <Label className="font-medium">RTR form fields (pre-filled in PDF)</Label>
+                <ScrollArea className="h-[220px] rounded-md border p-3">
+                  <div className="space-y-3">
+                    {dynamicFields.map((f) => (
+                      <div key={f.key} className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">{f.label}</Label>
+                        <Input
+                          value={rtrFieldValues[f.key] ?? ''}
+                          onChange={(e) => setRtrFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          className="font-sans text-sm"
+                          placeholder={f.key === 'rate' ? 'e.g. $90 per hour' : f.label}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+
+            {/* Email Fields */}
             <div className="space-y-2">
-              <Label>To</Label>
+              <Label>To (editable)</Label>
               <Input
                 type="email"
                 value={rtrTo}
@@ -1285,6 +1386,19 @@ export default function CandidatePipeline() {
                 className="font-sans"
                 placeholder="candidate@example.com"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>CC (optional)</Label>
+              <Input
+                type="text"
+                value={rtrCc}
+                onChange={(e) => setRtrCc(e.target.value)}
+                className="font-sans"
+                placeholder="additional@example.com, another@example.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Separate multiple emails with commas. Recruiter and Account Manager will be automatically BCC'd.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Subject</Label>
@@ -1319,19 +1433,25 @@ export default function CandidatePipeline() {
                 Cancel
               </Button>
               <Button
-                disabled={sendingRtr || !rtrTo.trim() || !rtrSubject.trim() || !rtrBody.trim() || !(rtrFieldValues.rate ?? rtrRate).trim() || !organizationId}
+                disabled={sendingRtr || !selectedTemplateId || !rtrTo.trim() || !rtrSubject.trim() || !rtrBody.trim() || !(rtrFieldValues.rate ?? rtrRate).trim() || !organizationId}
                 onClick={async () => {
                   if (!rtrPending || !organizationId) return;
                   setSendingRtr(true);
                   try {
                     const rateVal = (rtrFieldValues.rate ?? rtrRate).trim();
+                    // Parse CC emails
+                    const ccEmails = rtrCc.trim()
+                      ? rtrCc.split(',').map((e) => e.trim()).filter(Boolean)
+                      : [];
                     const { data, error } = await invokeFunction('send-rtr-email', {
                       body: {
                         toEmail: rtrTo.trim(),
+                        ccEmails,  // NEW
                         subject: rtrSubject.trim(),
                         body: rtrBody.trim(),
                         rate: rateVal,
                         rtrFields: rtrFieldValues,
+                        templateId: selectedTemplateId,  // NEW
                         organizationId,
                         candidateId: rtrPending.app.candidate_id,
                         jobId: rtrPending.app.job_id,
