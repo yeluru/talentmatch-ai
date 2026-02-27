@@ -631,6 +631,8 @@ export default function Search() {
       if (selectedSearchJobId === deletedId) {
         setSelectedSearchJobId(null);
       }
+      // Invalidate cache to force fresh data
+      queryClient.invalidateQueries({ queryKey: ['talent-search-jobs', organizationId] });
       refetchSearchJobs();
     },
     onError: (error: any) => {
