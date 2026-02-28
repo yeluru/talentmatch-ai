@@ -64,11 +64,11 @@ function mapFieldNamesForDocuSeal(
   ];
 
   // Template 2985588: RTR by Vendor (Employer)
-  // Fields in DocuSeal: sign_date, vendor, client, client_location, rate, contact_type,
+  // Fields in DocuSeal: sign_date, vendor, client, client_repeated, client_location, rate, contact_type,
   //                     candidate_name, candidate_address, position_title
   if (templateId === '2985588') {
     const allowedFields = [
-      'sign_date', 'client', 'client_location', 'rate',
+      'sign_date', 'client_location', 'rate',
       'candidate_name', 'candidate_address', 'position_title'
     ];
 
@@ -87,6 +87,10 @@ function mapFieldNamesForDocuSeal(
         mapped.contact_type = value;
       } else if (key === 'contact_type' && !mapped.contact_type) {
         mapped.contact_type = value;
+      } else if (key === 'client') {
+        // Client value goes to both client and client_repeated
+        mapped.client = value;
+        mapped.client_repeated = value;
       } else if (allowedFields.includes(key)) {
         mapped[key] = value;
       }
