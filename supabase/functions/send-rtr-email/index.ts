@@ -731,16 +731,11 @@ async function getRecruiterAndAccountManager(
   supabase: any,
   organizationId: string,
   jobId: string | null,
-  userId: string
+  userId: string,
+  userEmail: string | null
 ): Promise<{ recruiterEmail: string | null; accountManagerEmail: string | null }> {
-  // Get recruiter email (user who is sending the RTR)
-  const { data: userProfile } = await supabase
-    .from('user_profiles')
-    .select('email')
-    .eq('id', userId)
-    .single();
-
-  const recruiterEmail = userProfile?.email || null;
+  // Use the email from JWT token (already authenticated)
+  const recruiterEmail = userEmail;
 
   // Get account manager for this recruiter
   const { data: amAssignment } = await supabase
@@ -947,7 +942,8 @@ serve(async (req: Request) => {
           svc,
           organizationId,
           jobId,
-          user.id
+          user.id,
+          user.email
         );
         if (recruiterEmail) bccEmails.push(recruiterEmail);
         if (accountManagerEmail) bccEmails.push(accountManagerEmail);
