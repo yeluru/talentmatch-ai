@@ -36,6 +36,129 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 /**
+ * Map and filter field names for DocuSeal templates
+ * - Maps field names to match DocuSeal template field names
+ * - Excludes candidate-fillable fields (they should remain empty for candidate to fill)
+ * - Only includes fields that exist in the specific template
+ */
+function mapFieldNamesForDocuSeal(
+  rtrFields: Record<string, string>,
+  templateId: string
+): Record<string, string> {
+  const mapped: Record<string, string> = {};
+
+  // Fields that candidates fill (exclude from pre-filling)
+  const candidateFillableFields = [
+    'vendor_contact',
+    'vendor_contact_signature',
+    'vendor_contact_printed_name',
+    'candidate_signature',
+    'candidate_printed_name',
+    'candidate_name_typed',
+    'candidate_dob',
+    'candidate_ssn',
+    'candidate_sign_date',
+    'date_signed',
+    'company_name',
+    'company_ein',
+  ];
+
+  // Template 2985588: RTR by Vendor (Employer)
+  // Fields in DocuSeal: sign_date, vendor, client, client_location, rate, contact_type,
+  //                     candidate_name, candidate_address, position_title
+  if (templateId === '2985588') {
+    const allowedFields = [
+      'sign_date', 'client', 'client_location', 'rate',
+      'candidate_name', 'candidate_address', 'position_title'
+    ];
+
+    for (const [key, value] of Object.entries(rtrFields)) {
+      // Skip candidate-fillable fields
+      if (candidateFillableFields.includes(key)) {
+        continue;
+      }
+
+      // Map and filter
+      if (key === 'vendor_name') {
+        mapped.vendor = value;
+      } else if (key === 'vendor' && !mapped.vendor) {
+        mapped.vendor = value;
+      } else if (key === 'duration') {
+        mapped.contact_type = value;
+      } else if (key === 'contact_type' && !mapped.contact_type) {
+        mapped.contact_type = value;
+      } else if (allowedFields.includes(key)) {
+        mapped[key] = value;
+      }
+      // All other fields (subcontractor, client_partner, etc.) are ignored
+    }
+  }
+  // Template 2986303: RTR by Candidate (Generic)
+  // Fields in DocuSeal: sign_date, candidate_name, prime_vendor, client_name_1, client_name_2,
+  //                     client_location, rate, contract_type, position_title, candidate_address
+  else if (templateId === '2986303') {
+    const allowedFields = [
+      'sign_date', 'candidate_name', 'client_location', 'rate',
+      'candidate_address', 'position_title'
+    ];
+
+    for (const [key, value] of Object.entries(rtrFields)) {
+      // Skip candidate-fillable fields
+      if (candidateFillableFields.includes(key)) {
+        continue;
+      }
+
+      // Map and filter
+      if (key === 'subcontractor') {
+        mapped.prime_vendor = value;
+      } else if (key === 'duration') {
+        mapped.contract_type = value;
+      } else if (key === 'client') {
+        // Client value goes to both client_name_1 and client_name_2
+        mapped.client_name_1 = value;
+        mapped.client_name_2 = value;
+      } else if (allowedFields.includes(key)) {
+        mapped[key] = value;
+      }
+      // All other fields are ignored
+    }
+  }
+  // Template 2986320: RTR for IBM roles
+  // Fields in DocuSeal: sign_date, candidate_name, rate, contract_type, candidate_address
+  // Note: Hardcoded fields (schedule, subcontractor, client_partner, client_location) are merged into PDF before DocuSeal
+  else if (templateId === '2986320') {
+    const allowedFields = [
+      'sign_date', 'candidate_name', 'rate', 'candidate_address'
+    ];
+
+    for (const [key, value] of Object.entries(rtrFields)) {
+      // Skip candidate-fillable fields
+      if (candidateFillableFields.includes(key)) {
+        continue;
+      }
+
+      // Map and filter
+      if (key === 'duration') {
+        mapped.contract_type = value;
+      } else if (allowedFields.includes(key)) {
+        mapped[key] = value;
+      }
+      // Hardcoded fields and other fields are ignored (already in PDF)
+    }
+  } else {
+    // For other templates, just exclude candidate-fillable fields
+    // TODO: Add specific field mappings for other templates when configured
+    for (const [key, value] of Object.entries(rtrFields)) {
+      if (!candidateFillableFields.includes(key)) {
+        mapped[key] = value;
+      }
+    }
+  }
+
+  return mapped;
+}
+
+/**
  * Upload PDF to DocuSeal and create signing request
  *
  * @param pdfBytes - The merged RTR PDF bytes
@@ -120,25 +243,27 @@ export async function uploadToDocuSeal(
       role: "First Party"  // Must match the role name defined in DocuSeal template
     };
 
-    // NOTE: Pre-filling disabled for now - field names in form don't match DocuSeal template field names
-    // The merged PDF already has recruiter values filled, so candidate only needs to fill their fields
-    // To enable pre-filling: create DocuSeal template with fields matching our form field names:
-    // candidate_name, vendor_name, position_title, rate, location, client_name, sign_date
-    if (false && prefilledFields && Object.keys(prefilledFields).length > 0) {
-      submitter.fields = Object.entries(prefilledFields).map(([name, value]) => ({
-        name,
-        default_value: value,
-        readonly: true  // Make recruiter-filled fields read-only for candidate
-      }));
-      console.info("[DocuSeal] Pre-filling", submitter.fields.length, "fields");
+    // Map and filter fields for DocuSeal
+    if (prefilledFields && Object.keys(prefilledFields).length > 0) {
+      const mappedFields = mapFieldNamesForDocuSeal(prefilledFields, templateId);
+
+      if (Object.keys(mappedFields).length > 0) {
+        submitter.fields = Object.entries(mappedFields).map(([name, value]) => ({
+          name,
+          default_value: value,
+          readonly: true  // Make recruiter-filled fields read-only for candidate
+        }));
+        console.info("[DocuSeal] Pre-filling", submitter.fields.length, "fields:", Object.keys(mappedFields));
+      }
     }
 
+    // Use DocuSeal's template PDF (don't upload our own)
+    // This way DocuSeal uses the template with pre-defined field positions
     const submissionPayload = {
       template_id: templateId,
-      documents: [{
-        name: "RTR.pdf",
-        file: bytesToBase64(pdfBytes)  // Upload filled PDF with recruiter values
-      }],
+      // NOTE: Removed documents array - DocuSeal will use the template's PDF
+      // Our merged PDF with recruiter values is not being used by DocuSeal correctly
+      // To make pre-filling work: recreate templates in DocuSeal with field names matching our form
       send_email: false, // We'll send our own email with custom branding
       submitters: [submitter]
     };

@@ -513,9 +513,9 @@ export default function CandidatePipeline() {
           setRtrBody(DEFAULT_RTR_BODY(candidateName, jobTitle, recruiterName));
           setRtrRate('');
           const defaults: Record<string, string> = {};
-          RTR_RECRUITER_FIELDS.forEach((f) => {
-            defaults[f.key] = getDefaultRtrFieldValue(f.key, { candidateName, jobTitle });
-          });
+          // Always populate candidate_name and position_title (common to all templates)
+          defaults.candidate_name = candidateName;
+          defaults.position_title = jobTitle;
           setRtrFieldValues(defaults);
         }
         setRtrPending({ app });
@@ -768,9 +768,9 @@ export default function CandidatePipeline() {
           setRtrBody(DEFAULT_RTR_BODY(candidateName, jobTitle, recruiterName));
           setRtrRate('');
           const defaults: Record<string, string> = {};
-          RTR_RECRUITER_FIELDS.forEach((f) => {
-            defaults[f.key] = getDefaultRtrFieldValue(f.key, { candidateName, jobTitle });
-          });
+          // Always populate candidate_name and position_title (common to all templates)
+          defaults.candidate_name = candidateName;
+          defaults.position_title = jobTitle;
           setRtrFieldValues(defaults);
         }
       }
@@ -1332,8 +1332,13 @@ export default function CandidatePipeline() {
                 value={selectedTemplateId}
                 onValueChange={(id) => {
                   setSelectedTemplateId(id);
-                  // Reset field values when template changes
-                  setRtrFieldValues({});
+                  // Reset field values when template changes, but keep candidate_name and position_title
+                  const candidateName = rtrPending?.app.candidate_profiles?.full_name?.trim() || '';
+                  const jobTitle = rtrPending?.app.jobs?.title || '';
+                  setRtrFieldValues({
+                    candidate_name: candidateName,
+                    position_title: jobTitle
+                  });
                 }}
               >
                 <SelectTrigger>
