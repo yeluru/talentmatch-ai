@@ -1,6 +1,7 @@
 # project_id used for local Docker volume naming so the same DB/data is reused across restarts.
 # To avoid pushing to prod: run `supabase unlink` after start (or never run `supabase link`).
-project_id = "rnwyflevkpamxhxkhkww"
+# Changed back to original project_id to access old Docker volume with user data
+project_id = "talentmatch-ai"
 
 # Use a different DB port if 54322 is already in use (e.g. by another Supabase or Docker project).
 [db]

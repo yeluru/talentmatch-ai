@@ -628,6 +628,19 @@ async function loadTemplateConfig(supabase: any, templateId: string): Promise<RT
  * Tries: env var, bundled templates, file paths
  */
 async function loadDocxByFilename(filename: string): Promise<Uint8Array> {
+  // If filename is a URL, fetch it directly
+  if (filename.startsWith("http://") || filename.startsWith("https://")) {
+    try {
+      console.info(`[loadDocxByFilename] Fetching from URL: ${filename}`);
+      const res = await fetch(filename);
+      if (!res.ok) throw new Error(`Failed to fetch template from URL: ${res.status}`);
+      return new Uint8Array(await res.arrayBuffer());
+    } catch (e) {
+      console.error(`[loadDocxByFilename] URL fetch error:`, e);
+      throw new Error(`Failed to load template from URL: ${filename}`);
+    }
+  }
+
   // Try environment variable for this specific template
   const envKey = `RTR_TEMPLATE_${filename.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
   const b64Env = (Deno.env.get(envKey) || "").trim();
@@ -905,11 +918,13 @@ serve(async (req: Request) => {
       if (useDocuSeal) {
         const candidateName = rtrFields.candidate_name || "Candidate";
         console.info("[send-rtr-email] Uploading to DocuSeal with template:", template.docuseal_template_id);
+        console.info("[send-rtr-email] RTR fields to pre-fill:", Object.keys(rtrFields));
         docusealSubmission = await uploadToDocuSeal(
           attachmentBytes,
           toEmail,
           candidateName,
-          template.docuseal_template_id
+          template.docuseal_template_id,
+          rtrFields  // Pass all form fields to pre-fill in DocuSeal
         );
         console.info("[send-rtr-email] DocuSeal submission created:", docusealSubmission.submissionId);
       }
@@ -1006,7 +1021,8 @@ serve(async (req: Request) => {
     const smtpPort = getEnvInt("SMTP_PORT", getEnvInt("MAILPIT_SMTP_PORT", 1025));
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
-    const fromRaw = (Deno.env.get("SMTP_FROM") || Deno.env.get("RESEND_FROM") || "UltraHire <no-reply@talentmatch.local>").trim();
+    // Use logged-in recruiter's email as sender (fallback to env variable)
+    const fromRaw = user.email || Deno.env.get("SMTP_FROM") || Deno.env.get("RESEND_FROM") || "UltraHire <no-reply@talentmatch.local>";
     const fromEmail = fromRaw.includes("<") && fromRaw.includes(">") ? fromRaw : `UltraHire <${fromRaw}>`;
 
     // Supabase Edge Functions block outbound SMTP (ports 25, 465, 587). Use Resend HTTP API when key is set.

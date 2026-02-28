@@ -47,7 +47,8 @@ export async function uploadToDocuSeal(
   pdfBytes: Uint8Array,
   signerEmail: string,
   signerName: string,
-  docusealTemplateId?: string | null
+  docusealTemplateId?: string | null,
+  prefilledFields?: Record<string, string>
 ): Promise<DocuSealSubmission> {
   const apiKey = Deno.env.get("DOCUSEAL_API_KEY");
   if (!apiKey) {
@@ -112,7 +113,26 @@ export async function uploadToDocuSeal(
     }
 
     // Create submission (signing request)
-    // Include the filled PDF as a document so DocuSeal overlays fields on OUR filled PDF
+    // Build submitter object with optional pre-filled fields
+    const submitter: any = {
+      email: signerEmail,
+      name: signerName,
+      role: "First Party"  // Must match the role name defined in DocuSeal template
+    };
+
+    // NOTE: Pre-filling disabled for now - field names in form don't match DocuSeal template field names
+    // The merged PDF already has recruiter values filled, so candidate only needs to fill their fields
+    // To enable pre-filling: create DocuSeal template with fields matching our form field names:
+    // candidate_name, vendor_name, position_title, rate, location, client_name, sign_date
+    if (false && prefilledFields && Object.keys(prefilledFields).length > 0) {
+      submitter.fields = Object.entries(prefilledFields).map(([name, value]) => ({
+        name,
+        default_value: value,
+        readonly: true  // Make recruiter-filled fields read-only for candidate
+      }));
+      console.info("[DocuSeal] Pre-filling", submitter.fields.length, "fields");
+    }
+
     const submissionPayload = {
       template_id: templateId,
       documents: [{
@@ -120,11 +140,7 @@ export async function uploadToDocuSeal(
         file: bytesToBase64(pdfBytes)  // Upload filled PDF with recruiter values
       }],
       send_email: false, // We'll send our own email with custom branding
-      submitters: [{
-        email: signerEmail,
-        name: signerName,
-        role: "Candidate"
-      }]
+      submitters: [submitter]
     };
 
     console.info("[DocuSeal] Creating submission...");
@@ -151,12 +167,12 @@ export async function uploadToDocuSeal(
       throw new Error("DocuSeal did not return submitters array");
     }
 
-    const submitter = submitters[0];
-    const submissionId = submitter.submission_id || submitter.id;
-    const signingUrl = submitter.embed_src;
+    const responseSubmitter = submitters[0];
+    const submissionId = responseSubmitter.submission_id || responseSubmitter.id;
+    const signingUrl = responseSubmitter.embed_src;
 
     if (!signingUrl) {
-      console.error("[DocuSeal] No embed_src in submitter:", JSON.stringify(submitter, null, 2));
+      console.error("[DocuSeal] No embed_src in submitter:", JSON.stringify(responseSubmitter, null, 2));
       throw new Error("DocuSeal did not return signing URL (embed_src)");
     }
 
