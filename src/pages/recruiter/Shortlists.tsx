@@ -313,23 +313,23 @@ export default function Shortlists() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                  <ListChecks className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+                <ListChecks className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                   Candidate <span className="text-gradient-recruiter">Shortlists</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Organize candidates into project-based shortlists
+                </p>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
-                Organize candidates into project-based shortlists
-              </p>
             </div>
-            <Button onClick={() => setShowCreateDialog(true)} className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shrink-0">
-              <Plus className="h-4 w-4 mr-2" strokeWidth={1.5} />
+            <Button onClick={() => setShowCreateDialog(true)} className="rounded-lg h-8 px-3 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold text-xs shrink-0">
+              <Plus className="h-4 w-4 mr-1.5" strokeWidth={1.5} />
               New Shortlist
             </Button>
           </div>
@@ -349,11 +349,11 @@ export default function Shortlists() {
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 h-auto lg:h-[calc(100vh-220px)] min-h-[300px] lg:min-h-[400px] items-stretch">
             {/* Shortlists */}
             <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col min-h-0">
-              <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-4">
-                <div className="flex items-center justify-between mb-4">
+              <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-3">
+                <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="text-xl font-display font-bold text-foreground">Your Shortlists</h2>
-                    <p className="text-sm text-muted-foreground font-sans">Click a shortlist to view candidates</p>
+                    <h2 className="text-lg font-display font-bold text-foreground">Your Shortlists</h2>
+                    <p className="text-xs text-muted-foreground font-sans">Click a shortlist to view candidates</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -363,11 +363,11 @@ export default function Shortlists() {
                       placeholder="Search shortlists..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
+                      className="pl-9 h-8 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
                     />
                   </div>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'name' | 'date' | 'count')}>
-                    <SelectTrigger className="w-full sm:w-[140px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
+                    <SelectTrigger className="w-full sm:w-[140px] h-8 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
                       <ArrowUpDown className="h-3 w-3 mr-2" strokeWidth={1.5} />
                       <SelectValue />
                     </SelectTrigger>
@@ -379,7 +379,7 @@ export default function Shortlists() {
                   </Select>
                 </div>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
                 {shortlists.map((shortlist) => (
                   <div
                     key={shortlist.id}
@@ -394,22 +394,22 @@ export default function Shortlists() {
                       });
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedShortlist(shortlist); setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set('shortlist', String(shortlist.id)); return next; }); } }}
-                    className={`group rounded-xl border p-4 cursor-pointer transition-all flex flex-col gap-2 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2 ${selectedShortlist?.id === shortlist.id
+                    className={`group rounded-xl border p-3 cursor-pointer transition-all flex flex-col gap-2 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2 ${selectedShortlist?.id === shortlist.id
                         ? 'border-recruiter/50 bg-recruiter/10 ring-1 ring-recruiter/20'
                         : 'border-border bg-card'
                       }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${selectedShortlist?.id === shortlist.id ? 'bg-recruiter/20 text-recruiter' : 'bg-muted text-muted-foreground'}`}>
-                          <FolderOpen className="h-5 w-5" strokeWidth={1.5} />
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${selectedShortlist?.id === shortlist.id ? 'bg-recruiter/20 text-recruiter' : 'bg-muted text-muted-foreground'}`}>
+                          <FolderOpen className="h-4 w-4" strokeWidth={1.5} />
                         </div>
-                        <h4 className={`font-display font-semibold text-base ${selectedShortlist?.id === shortlist.id ? 'text-recruiter' : 'text-foreground'}`}>{shortlist.name}</h4>
+                        <h4 className={`font-display font-semibold text-sm ${selectedShortlist?.id === shortlist.id ? 'text-recruiter' : 'text-foreground'}`}>{shortlist.name}</h4>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 rounded-lg hover:bg-recruiter/10 hover:text-recruiter -mr-2">
-                            <MoreVertical className="h-4 w-4" strokeWidth={1.5} />
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-7 w-7 rounded-lg hover:bg-recruiter/10 hover:text-recruiter -mr-1">
+                            <MoreVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -427,11 +427,11 @@ export default function Shortlists() {
                       </DropdownMenu>
                     </div>
                     {shortlist.description && (
-                      <p className="text-sm text-muted-foreground font-sans mb-3 line-clamp-2 pl-[3.25rem]">{shortlist.description}</p>
+                      <p className="text-xs text-muted-foreground font-sans mb-2 line-clamp-2 pl-[2.5rem]">{shortlist.description}</p>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground font-sans pl-[3.25rem]">
-                      <span className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-sans pl-[2.5rem]">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" strokeWidth={1.5} />
                         {shortlist.candidates_count} candidates
                       </span>
                       <span>•</span>
@@ -444,26 +444,26 @@ export default function Shortlists() {
 
             {/* Candidates in Shortlist */}
             <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col min-h-0">
-              <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-4">
-                <h2 className="text-xl font-display font-bold text-foreground">
+              <div className="shrink-0 border-b border-recruiter/10 bg-recruiter/5 p-3">
+                <h2 className="text-lg font-display font-bold text-foreground">
                   {selectedShortlist ? selectedShortlist.name : 'Select a Shortlist'}
                 </h2>
-                <p className="text-sm text-muted-foreground font-sans mt-1">
+                <p className="text-xs text-muted-foreground font-sans mt-0.5">
                   {selectedShortlist ? 'Candidates in this shortlist' : 'Click a shortlist to view candidates'}
                 </p>
                 {selectedShortlist && shortlistCandidates && shortlistCandidates.length > 0 && (
-                  <div className="flex items-center gap-2 mt-4">
+                  <div className="flex items-center gap-2 mt-3">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                       <Input
                         placeholder="Search candidates..."
                         value={candidateSearchQuery}
                         onChange={(e) => setCandidateSearchQuery(e.target.value)}
-                        className="pl-9 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
+                        className="pl-9 h-8 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
                       />
                     </div>
                     <Select value={candidateSortBy} onValueChange={(v) => setCandidateSortBy(v as 'name' | 'date' | 'status')}>
-                      <SelectTrigger className="w-full sm:w-[130px] h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-sm">
+                      <SelectTrigger className="w-full sm:w-[130px] h-8 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
                         <ArrowUpDown className="h-3 w-3 mr-2" strokeWidth={1.5} />
                         <SelectValue />
                       </SelectTrigger>
@@ -476,7 +476,7 @@ export default function Shortlists() {
                   </div>
                 )}
               </div>
-              <div className="p-4 flex-1 min-h-0 overflow-y-auto">
+              <div className="p-3 flex-1 min-h-0 overflow-y-auto">
                 {!selectedShortlist ? (
                   <EmptyState
                     icon={FolderOpen}
