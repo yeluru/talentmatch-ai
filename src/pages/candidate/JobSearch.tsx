@@ -126,7 +126,7 @@ export default function JobSearch() {
               placeholder="Search jobs, skills, companies..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
+              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -134,10 +134,10 @@ export default function JobSearch() {
               placeholder="Location"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              className="h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
+              className="h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
             />
             <Select value={experienceLevel} onValueChange={setExperienceLevel}>
-              <SelectTrigger className="h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
+              <SelectTrigger className="h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
                 <SelectValue placeholder="Level" />
               </SelectTrigger>
               <SelectContent>
@@ -151,7 +151,7 @@ export default function JobSearch() {
           </div>
           <div className="flex items-center justify-between">
             <Select value={jobType} onValueChange={setJobType}>
-              <SelectTrigger className="w-full sm:w-[180px] h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
+              <SelectTrigger className="w-full sm:w-[180px] h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
                 <SelectValue placeholder="Job Type" />
               </SelectTrigger>
               <SelectContent>

@@ -474,7 +474,7 @@ export default function CandidateResumes() {
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">
               My <span className="text-gradient-candidate">Resumes</span>
             </h1>
             <p className="mt-2 text-lg text-muted-foreground leading-relaxed max-w-xl">
@@ -502,7 +502,7 @@ export default function CandidateResumes() {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
           >
             <div className="w-20 h-20 rounded-2xl bg-blue-500/15 flex items-center justify-center mx-auto mb-6 shadow-inner">
-              <FileText className="h-10 w-10 text-blue-500" strokeWidth={1.5} />
+              <FileText className="h-8 w-8 text-blue-500" strokeWidth={1.5} />
             </div>
             <h2 className="text-xl font-display font-bold text-foreground">Upload your first resume</h2>
             <p className="mt-3 text-base text-muted-foreground max-w-md mx-auto leading-relaxed font-sans">
@@ -542,7 +542,7 @@ export default function CandidateResumes() {
                     <div className="flex flex-wrap items-center gap-6 lg:gap-8">
                       {primaryResume.ats_score != null ? (
                         <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${scoreBgColor(primaryResume.ats_score)}`}>
-                          <span className={`text-2xl sm:text-3xl font-display font-bold tabular-nums ${scoreColor(primaryResume.ats_score)}`}>
+                          <span className={`text-lg sm:text-xl font-display font-bold tabular-nums ${scoreColor(primaryResume.ats_score)}`}>
                             {primaryResume.ats_score}
                           </span>
                           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">ATS score</span>

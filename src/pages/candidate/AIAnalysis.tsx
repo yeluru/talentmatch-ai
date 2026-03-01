@@ -622,16 +622,16 @@ export default function AIAnalysis() {
         <div className="flex flex-col flex-1 min-h-0 max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full animate-in fade-in duration-500">
 
           {/* Header & Controls Section */}
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
                     <Sparkles className="h-5 w-5" strokeWidth={1.5} />
                   </div>
-                  <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">ATS <span className="text-gradient-candidate">Checkpoint</span></h1>
+                  <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">ATS <span className="text-gradient-candidate">Checkpoint</span></h1>
                 </div>
-                <p className="text-lg text-muted-foreground font-sans">
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
                   Optimize your resume for applicant tracking systems with AI-driven insights.
                 </p>
               </div>
@@ -679,7 +679,7 @@ export default function AIAnalysis() {
                         placeholder="Search active jobs..."
                         value={jobSearchQuery}
                         onChange={(e) => setJobSearchQuery(e.target.value)}
-                        className="pl-9 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans"
+                        className="pl-9 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans"
                       />
                       {filteredJobs.length > 0 && jobSearchQuery && (
                         <div className="absolute top-full left-0 right-0 mt-1 max-h-[300px] overflow-y-auto border border-border rounded-xl bg-card shadow-lg z-50 p-1">
@@ -721,7 +721,7 @@ export default function AIAnalysis() {
                   Resume Profile
                 </Label>
                 <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                  <SelectTrigger className="h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans">
+                  <SelectTrigger className="h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 text-sm font-sans">
                     <SelectValue placeholder="Select a resume version" />
                   </SelectTrigger>
                   <SelectContent>

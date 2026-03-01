@@ -167,7 +167,7 @@ export default function JobDetails() {
             <div className="rounded-xl border border-dashed border-blue-500/20 bg-blue-500/5 p-12 text-center">
               <h2 className="text-xl font-display font-bold text-foreground">Job not found</h2>
               <p className="mt-2 text-muted-foreground font-sans text-sm">This job may have been removed or the link is incorrect.</p>
-              <Button onClick={() => navigate('/candidate/jobs')} className="mt-6 rounded-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
+              <Button onClick={() => navigate('/candidate/jobs')} className="mt-6 rounded-lg h-8 px-3 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
                 Back to Jobs
               </Button>
             </div>
@@ -180,7 +180,7 @@ export default function JobDetails() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <Button variant="ghost" onClick={() => navigate('/candidate/jobs')} className="rounded-lg w-fit -ml-2 font-sans font-medium text-muted-foreground hover:text-foreground hover:bg-blue-500/5">
             <ArrowLeft className="mr-2 h-4 w-4" strokeWidth={1.5} />
             Back to Jobs
@@ -201,11 +201,11 @@ export default function JobDetails() {
                   {job.organization?.logo_url ? (
                     <img src={job.organization.logo_url} alt="" className="h-full w-full object-contain" />
                   ) : (
-                    <Building2 className="h-10 w-10 text-muted-foreground" strokeWidth={1.5} />
+                    <Building2 className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
                   )}
                 </div>
                 <div className="flex-1 space-y-2 min-w-0">
-                  <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground leading-tight">{job.title}</h1>
+                  <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground leading-tight">{job.title}</h1>
                   <p className="text-xl text-muted-foreground font-sans font-medium">{job.organization?.name}</p>
 
                   <div className="flex flex-wrap gap-2 pt-2">
@@ -307,14 +307,14 @@ export default function JobDetails() {
                 <div className="border-t border-border my-4" />
 
                 {hasApplied ? (
-                  <Button className="w-full h-11 rounded-lg text-base font-sans bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20" disabled>
+                  <Button className="w-full h-8 rounded-lg text-base font-sans bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20" disabled>
                     <CheckCircle className="mr-2 h-5 w-5" strokeWidth={1.5} />
                     Application Submitted
                   </Button>
                 ) : (
                   <Dialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
                     <DialogTrigger asChild>
-                      <Button className="w-full h-11 rounded-lg text-base font-sans font-bold border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-lg transition-all">
+                      <Button className="w-full h-8 rounded-lg text-base font-sans font-bold border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-lg transition-all">
                         <Send className="mr-2 h-5 w-5" strokeWidth={1.5} />
                         Apply Now
                       </Button>
@@ -337,7 +337,7 @@ export default function JobDetails() {
                             </div>
                           ) : (
                             <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                              <SelectTrigger className="h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
+                              <SelectTrigger className="h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans">
                                 <SelectValue placeholder="Choose a resume to submit" />
                               </SelectTrigger>
                               <SelectContent>
@@ -365,7 +365,7 @@ export default function JobDetails() {
                         <Button variant="ghost" onClick={() => setShowApplyDialog(false)} className="rounded-lg font-sans">
                           Cancel
                         </Button>
-                        <Button onClick={handleApply} disabled={isApplying || !selectedResumeId} className="rounded-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
+                        <Button onClick={handleApply} disabled={isApplying || !selectedResumeId} className="rounded-lg h-8 px-3 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
                           {isApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.5} /> : null}
                           Submit Application
                         </Button>

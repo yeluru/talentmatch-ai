@@ -169,32 +169,32 @@ export default function JobAlerts() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
                   <Bell className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">
                   Job <span className="text-gradient-candidate">Alerts</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 Get notified when new jobs match your criteria.
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
             <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
-                <Button className="rounded-lg shadow-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
+                <Button className="rounded-lg shadow-lg h-8 px-3 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
                   <Plus className="mr-2 h-5 w-5" strokeWidth={1.5} />
                   Create New Alert
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md max-w-full rounded-xl border border-border bg-card">
                 <DialogHeader>
-                  <DialogTitle className="font-display text-xl font-bold">{editingAlert ? 'Edit Alert' : 'Create Job Alert'}</DialogTitle>
+                  <DialogTitle className="font-display text-lg font-semibold">{editingAlert ? 'Edit Alert' : 'Create Job Alert'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-5 pt-4">
                   <div className="space-y-2">
@@ -255,7 +255,7 @@ export default function JobAlerts() {
           {alerts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-blue-500/20 bg-blue-500/5 p-12 flex flex-col items-center justify-center text-center transition-all hover:bg-blue-500/10">
               <div className="h-20 w-20 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-6">
-                <Bell className="h-10 w-10 text-blue-500" strokeWidth={1.5} />
+                <Bell className="h-8 w-8 text-blue-500" strokeWidth={1.5} />
               </div>
               <h3 className="text-2xl font-display font-bold text-foreground mb-2">No job alerts yet</h3>
               <p className="text-muted-foreground font-sans mb-8 max-w-md text-base">
@@ -276,7 +276,7 @@ export default function JobAlerts() {
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
                       <div className="flex items-center gap-3">
-                        <h3 className="font-display text-xl font-bold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{alert.name}</h3>
+                        <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{alert.name}</h3>
                         <Badge variant={alert.is_active ? 'default' : 'secondary'} className="uppercase tracking-wider text-xs font-sans border-blue-500/20">
                           {alert.is_active ? 'Active' : 'Paused'}
                         </Badge>

@@ -328,18 +328,18 @@ export default function CandidateHowToGuide() {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-7rem)] min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
-        <header className="shrink-0 flex flex-col gap-6">
+        <header className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
                   <BookOpen className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">
                   Help & <span className="text-gradient-candidate">How-to Guide</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 Simple steps for everything you can do here. Search below or ask the assistant.
               </p>
             </div>
@@ -351,7 +351,7 @@ export default function CandidateHowToGuide() {
               placeholder="Search the guide (e.g. resume, apply, profile, alerts)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
+              className="pl-9 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-blue-500/20 font-sans"
             />
           </div>
         </header>
@@ -517,12 +517,12 @@ export default function CandidateHowToGuide() {
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
                   disabled={chatLoading}
-                  className="flex-1 h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
+                  className="flex-1 h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
                 />
                 <Button
                   onClick={sendChat}
                   disabled={chatLoading || !chatInput.trim()}
-                  className="shrink-0 h-11 rounded-lg border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300"
+                  className="shrink-0 h-8 rounded-lg border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300"
                 >
                   {chatLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />

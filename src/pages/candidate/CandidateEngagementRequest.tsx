@@ -191,7 +191,7 @@ export default function CandidateEngagementRequest() {
           <div className="space-y-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="font-display text-3xl font-bold tracking-tight">Action Required</h1>
+                <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight">Action Required</h1>
                 <div className="text-base text-muted-foreground mt-2">
                   {labelForType(String(data.request_type || ''))} for <span className="font-semibold text-foreground">{jobTitle}</span> at <span className="font-semibold text-foreground">{orgName}</span>
                 </div>

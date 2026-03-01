@@ -3018,7 +3018,7 @@ export default function ResumeWorkspace() {
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" strokeWidth={1.5} />
           </div>
           <div className="text-center space-y-1">
-            <h2 className="font-display text-xl font-bold text-foreground">Resume Workspace</h2>
+            <h2 className="font-display text-lg font-semibold text-foreground">Resume Workspace</h2>
             <p className="text-sm text-muted-foreground">Loading your workspace…</p>
           </div>
         </div>
@@ -3038,9 +3038,9 @@ export default function ResumeWorkspace() {
                 <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400">
                   <BarChart3 className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Resume <span className="text-gradient-candidate">Workspace</span></h1>
+                <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">Resume <span className="text-gradient-candidate">Workspace</span></h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans leading-relaxed max-w-xl">
+              <p className="text-xs text-muted-foreground font-sans leading-tight leading-relaxed max-w-xl">
                 Craft and optimize target resumes. Tailor to job descriptions, then use live ATS insights to improve match.
               </p>
             </div>
@@ -3086,7 +3086,7 @@ export default function ResumeWorkspace() {
                           <p className="text-muted-foreground font-sans max-w-sm mx-auto mb-6 leading-relaxed">
                             Upload a baseline resume in My Resumes to start tailoring versions for target jobs.
                           </p>
-                          <Button onClick={() => navigate('/candidate/resumes')} className="rounded-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
+                          <Button onClick={() => navigate('/candidate/resumes')} className="rounded-lg h-8 px-3 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold">
                             Go to My Resumes
                           </Button>
                         </div>
@@ -3147,7 +3147,7 @@ export default function ResumeWorkspace() {
                                 <div className="space-y-1.5">
                                   <Label className="text-[11px] font-sans text-muted-foreground uppercase tracking-wider">Baseline Resume</Label>
                                   <Select value={selectedBaseResumeId} onValueChange={setSelectedBaseResumeId}>
-                                    <SelectTrigger className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-11 rounded-lg font-sans">
+                                    <SelectTrigger className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-8 rounded-lg font-sans">
                                       <SelectValue placeholder="Choose profile..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -3166,7 +3166,7 @@ export default function ResumeWorkspace() {
                                     value={targetTitle}
                                     onChange={(e) => setTargetTitle(e.target.value)}
                                     placeholder="e.g., Sr. Software Engineer"
-                                    className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-11 rounded-lg font-sans"
+                                    className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-8 rounded-lg font-sans"
                                   />
                                 </div>
                                 <div className="space-y-1.5">
@@ -3175,7 +3175,7 @@ export default function ResumeWorkspace() {
                                     value={additionalNotes}
                                     onChange={(e) => setAdditionalNotes(e.target.value)}
                                     placeholder="e.g., focus on leadership and cloud scale..."
-                                    className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-11 rounded-lg font-sans"
+                                    className="bg-background border border-border focus:ring-2 focus:ring-blue-500/20 h-8 rounded-lg font-sans"
                                   />
                                 </div>
                               </div>
@@ -3315,7 +3315,7 @@ export default function ResumeWorkspace() {
               <div className="shrink-0 mb-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <h3 className="font-display text-xl font-bold text-foreground">Editor</h3>
+                    <h3 className="font-display text-lg font-semibold text-foreground">Editor</h3>
                     <p className="text-muted-foreground font-sans mt-1 text-sm line-clamp-1">
                       {selected ? 'Edit sections below. Changes autosave.' : 'Select a resume document from the left.'}
                     </p>
@@ -3330,7 +3330,7 @@ export default function ResumeWorkspace() {
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden pr-1 -mr-1">
                 {!selected ? (
                   <div className="rounded-xl border border-border bg-card p-8 text-center">
-                    <FileText className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
+                    <FileText className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" strokeWidth={1.5} />
                     <p className="text-base font-sans text-muted-foreground">Select a document from the left to edit.</p>
                   </div>
                 ) : (

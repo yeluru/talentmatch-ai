@@ -225,7 +225,7 @@ export default function CandidateProfile() {
         <div className="pb-24 font-sans w-full">
         {/* Page title — match /candidates: font-display for headings, scale like landing */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+          <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">
             My <span className="text-gradient-candidate">Profile</span>
           </h1>
           <p className="mt-2 text-lg text-muted-foreground leading-relaxed">

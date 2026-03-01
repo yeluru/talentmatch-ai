@@ -109,18 +109,18 @@ export default function MyApplications() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto w-full px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
                   <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">
                   My <span className="text-gradient-candidate">Applications</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 See where each application stands and what to do next.
               </p>
             </div>
@@ -157,7 +157,7 @@ export default function MyApplications() {
                     : 'Apply to jobs from the job search to see them here.'}
                 </p>
                 {activeTab !== 'closed' && (
-                  <Button className="mt-6 rounded-lg h-11 px-6 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold" asChild>
+                  <Button className="mt-6 rounded-lg h-8 px-3 border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-sans font-semibold" asChild>
                     <Link to="/candidate/jobs">Browse jobs <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} /></Link>
                   </Button>
                 )}

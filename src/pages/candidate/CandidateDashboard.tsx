@@ -128,12 +128,12 @@ export default function CandidateDashboard() {
         {/* Page header: greeting + primary action */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground">
+            <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground">
               Hi, <span className="text-gradient-candidate">{candidateProfile?.full_name?.split(' ')[0] || 'there'}</span>
             </h1>
             <p className="mt-1 text-muted-foreground">Here’s where things stand.</p>
           </div>
-          <Button className="btn-candidate-primary h-11 px-5 rounded-full shrink-0" asChild>
+          <Button className="btn-candidate-primary h-8 px-3 rounded-full shrink-0" asChild>
             <Link to="/candidate/jobs">
               <Search className="mr-2 h-4 w-4" />
               Find jobs
@@ -150,7 +150,7 @@ export default function CandidateDashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">Suggested next step</p>
-                <h2 className="mt-1 text-xl sm:text-2xl font-display font-bold text-foreground">{hero.title}</h2>
+                <h2 className="mt-1 text-lg sm:text-xl font-display font-bold text-foreground">{hero.title}</h2>
                 <p className="mt-1 text-muted-foreground">{hero.subtitle}</p>
               </div>
             </div>
