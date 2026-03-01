@@ -267,6 +267,9 @@ export default function TalentPool() {
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  // Phase 1.5: Track loaded profiles for on-demand loading
+  const [loadedProfileIds, setLoadedProfileIds] = useState<Set<string>>(new Set());
+  const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeCandidateIds, setRemoveCandidateIds] = useState<string[]>([]);
   const [rowShortlistDialogOpen, setRowShortlistDialogOpen] = useState(false);
@@ -587,8 +590,12 @@ export default function TalentPool() {
     return `${days}d ago`;
   };
 
+  // Phase 1.5: DISABLED automatic background loading (replaced with on-demand loading)
   // Background loading effect - loads remaining profiles after initial load
   useEffect(() => {
+    // Disabled: Now using on-demand page loading instead
+    return;
+
     if (!allCandidateIds.length || loadingProgress.isComplete || !talents || !organizationId) return;
 
     const INITIAL_LOAD_SIZE = 200;
@@ -760,6 +767,187 @@ export default function TalentPool() {
 
     loadRemaining();
   }, [allCandidateIds, talents, loadingProgress.isComplete, organizationId]);
+
+  // Phase 1.5: On-demand page loading - loads profiles only when user navigates to a page
+  useEffect(() => {
+    if (!allCandidateIds.length || !organizationId || !talents) return;
+
+    const loadProfilesForCurrentPage = async () => {
+      // Calculate which profile IDs should be on the current page
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const pageProfileIds = allCandidateIds.slice(startIndex, endIndex);
+
+      // Filter out IDs that are already loaded
+      const unloadedIds = pageProfileIds.filter(id => !loadedProfileIds.has(id));
+
+      if (unloadedIds.length === 0) {
+        // All profiles for this page are already loaded
+        return;
+      }
+
+      console.log(`[TalentPool] Loading ${unloadedIds.length} profiles for page ${currentPage}`);
+      setIsLoadingPage(true);
+
+      try {
+        const BATCH_SIZE = 250;
+        const batches: string[][] = [];
+        for (let i = 0; i < unloadedIds.length; i += BATCH_SIZE) {
+          batches.push(unloadedIds.slice(i, i + BATCH_SIZE));
+        }
+
+        // Fetch profiles in parallel
+        const profilePromises = batches.map(batch =>
+          retryWithBackoff(
+            () => supabase
+              .from('candidate_profiles')
+              .select(
+                `id, full_name, email, location, current_title, current_company, years_of_experience,
+                 headline, ats_score, created_at, recruiter_notes, recruiter_status`
+              )
+              .in('id', batch),
+            { maxRetries: 3, timeoutMs: 30000 }
+          )
+        );
+
+        const profileResults = await Promise.all(profilePromises);
+        const allProfiles: any[] = [];
+        for (const { data: profiles } of profileResults) {
+          if (profiles) allProfiles.push(...profiles);
+        }
+
+        if (allProfiles.length === 0) {
+          setIsLoadingPage(false);
+          return;
+        }
+
+        // Dedupe loaded profiles
+        const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
+        const identityKey = (c: any) => {
+          const li = norm(c.linkedin_url);
+          if (li) return `li:${li}`;
+          const em = norm(c.email);
+          if (em) return `em:${em}`;
+          return `id:${String(c.id || '')}`;
+        };
+
+        const sorted = allProfiles.sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        const byIdentity = new Map<string, any>();
+        for (const c of sorted) {
+          const k = identityKey(c);
+          if (!byIdentity.has(k)) byIdentity.set(k, c);
+        }
+        const deduped = Array.from(byIdentity.values());
+        const dedupedIds = deduped.map(c => c.id);
+
+        // Fetch skills and experience in parallel
+        const skillsMap = new Map<string, any[]>();
+        const experienceMap = new Map<string, any[]>();
+        const SKILL_BATCH_SIZE = 250;
+        const skillBatches: string[][] = [];
+        for (let i = 0; i < dedupedIds.length; i += SKILL_BATCH_SIZE) {
+          skillBatches.push(dedupedIds.slice(i, i + SKILL_BATCH_SIZE));
+        }
+
+        const skillPromises = skillBatches.map(batch =>
+          supabase
+            .from('candidate_skills')
+            .select('candidate_id, skill_name')
+            .in('candidate_id', batch)
+        );
+
+        const experiencePromises = skillBatches.map(batch =>
+          supabase
+            .from('candidate_experience')
+            .select('candidate_id, company_name')
+            .in('candidate_id', batch)
+        );
+
+        const [skillResults, experienceResults] = await Promise.all([
+          Promise.all(skillPromises),
+          Promise.all(experiencePromises)
+        ]);
+
+        for (const { data: skills } of skillResults) {
+          if (skills) {
+            skills.forEach(s => {
+              if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
+              skillsMap.get(s.candidate_id)!.push(s);
+            });
+          }
+        }
+
+        for (const { data: experience } of experienceResults) {
+          if (experience) {
+            experience.forEach(e => {
+              if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
+              experienceMap.get(e.candidate_id)!.push(e);
+            });
+          }
+        }
+
+        // Fetch uploader data
+        const uploaderMap = new Map();
+        try {
+          const { data: uploaderData } = await supabase
+            .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
+          if (uploaderData) {
+            uploaderData.forEach((u: any) => {
+              uploaderMap.set(u.candidate_id, {
+                email: u.uploader_email,
+                full_name: u.uploader_name
+              });
+            });
+          }
+        } catch (error) {
+          console.warn('[TalentPool] Could not fetch uploader data for page:', error);
+        }
+
+        // Build complete profile objects
+        const processedProfiles = deduped.map(profile => ({
+          ...profile,
+          skills: skillsMap.get(profile.id) || [],
+          companies: Array.from(new Set(
+            (experienceMap.get(profile.id) || [])
+              .map(e => e.company_name)
+              .filter(Boolean)
+          )),
+          uploaded_by_user: uploaderMap.get(profile.id) || null
+        }));
+
+        // Merge into React Query cache
+        queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
+          if (!oldData) return processedProfiles;
+          const combined = [...oldData, ...processedProfiles];
+          const combinedMap = new Map();
+          for (const profile of combined) {
+            const k = identityKey(profile);
+            if (!combinedMap.has(k)) combinedMap.set(k, profile);
+          }
+          return Array.from(combinedMap.values()).sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+
+        // Update loaded IDs set
+        setLoadedProfileIds(prev => {
+          const newSet = new Set(prev);
+          dedupedIds.forEach(id => newSet.add(id));
+          return newSet;
+        });
+
+        console.log(`[TalentPool] Loaded and cached ${processedProfiles.length} profiles for page ${currentPage}`);
+      } catch (error) {
+        console.error('[TalentPool] Error loading profiles for page:', error);
+      } finally {
+        setIsLoadingPage(false);
+      }
+    };
+
+    loadProfilesForCurrentPage();
+  }, [currentPage, itemsPerPage, allCandidateIds, organizationId, talents, loadedProfileIds, queryClient]);
 
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs', organizationId],
