@@ -590,9 +590,13 @@ export default function TalentPool() {
     return `${days}d ago`;
   };
 
-  // Phase 1.5: Initialize loadedProfileIds with initial loaded profiles
+  // Phase 1.5: Initialize loadedProfileIds with initial loaded profiles (ONCE)
+  const hasInitializedRef = React.useRef(false);
   useEffect(() => {
-    if (!talents || talents.length === 0) return;
+    if (!talents || talents.length === 0 || hasInitializedRef.current) return;
+
+    // Mark as initialized to prevent re-running
+    hasInitializedRef.current = true;
 
     // Initialize loaded IDs with the profiles that are already loaded
     const initialIds = talents.map(t => t.id);
@@ -606,7 +610,7 @@ export default function TalentPool() {
     });
 
     console.log(`[TalentPool] Initialized with ${initialIds.length} loaded profiles`);
-  }, [talents?.length, allCandidateIds.length]); // Only run when initial load completes or total changes
+  }, [talents, allCandidateIds.length]); // Run once when talents first loads
 
   // Phase 1.5: DISABLED automatic background loading (replaced with on-demand loading)
   // Background loading effect - loads remaining profiles after initial load
@@ -973,7 +977,7 @@ export default function TalentPool() {
     };
 
     loadProfilesForCurrentPage();
-  }, [currentPage, itemsPerPage, allCandidateIds, organizationId, talents, loadedProfileIds, queryClient]);
+  }, [currentPage, itemsPerPage, allCandidateIds.length, organizationId]); // Only trigger on page change, not when profiles load
 
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs', organizationId],
