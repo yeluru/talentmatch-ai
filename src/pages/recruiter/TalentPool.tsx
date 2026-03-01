@@ -1779,27 +1779,25 @@ export default function TalentPool() {
         {filtersContent}
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* Progress bar - shows loading status */}
+          {/* Progress bar with Load More button inline */}
           {!loadingProgress.isComplete && loadingProgress.total > 0 && (
-            <LoadingProgressBar
-              loaded={loadingProgress.loaded}
-              total={loadingProgress.total}
-              message={isLoadingMore ? "Loading more profiles..." : "Loading talent pool"}
-            />
-          )}
-
-          {/* Load More button - at the top for easy access */}
-          {talents && allCandidateIds.length > talents.length && !isLoadingMore && (
-            <div className="p-4 bg-recruiter/10 border-b border-recruiter/20 flex flex-col items-center gap-2">
-              <div className="text-sm text-muted-foreground">
-                {talents.length} of {allCandidateIds.length} profiles loaded
+            <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border-b border-white/10">
+              <div className="flex-1 min-w-0">
+                <LoadingProgressBar
+                  loaded={loadingProgress.loaded}
+                  total={loadingProgress.total}
+                  message={isLoadingMore ? "Loading more..." : "Loading talent pool"}
+                />
               </div>
-              <Button
-                onClick={handleLoadMore}
-                className="bg-recruiter hover:bg-recruiter/90 text-white font-semibold px-8 py-6 text-base"
-              >
-                Load More Profiles (next {Math.min(1000, allCandidateIds.length - talents.length)})
-              </Button>
+              {talents && allCandidateIds.length > talents.length && !isLoadingMore && (
+                <Button
+                  onClick={handleLoadMore}
+                  size="sm"
+                  className="bg-recruiter hover:bg-recruiter/90 text-white shrink-0"
+                >
+                  Load More ({Math.min(1000, allCandidateIds.length - talents.length)})
+                </Button>
+              )}
             </div>
           )}
 
