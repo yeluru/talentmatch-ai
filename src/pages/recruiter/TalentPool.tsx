@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useDebouncedValue } from 'use-debounce';
+import { useDebounce } from 'use-debounce';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -256,7 +256,7 @@ export default function TalentPool() {
 
   const [searchQuery, setSearchQuery] = useState('');
   // Debounce search to reduce filtering operations (Phase 1 optimization)
-  const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
   const tableSort = useTableSort<TalentPoolSortKey>({ key: 'created_at', dir: 'desc' });
   const [companyFilter, setCompanyFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
