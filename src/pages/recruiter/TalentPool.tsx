@@ -590,6 +590,24 @@ export default function TalentPool() {
     return `${days}d ago`;
   };
 
+  // Phase 1.5: Initialize loadedProfileIds with initial loaded profiles
+  useEffect(() => {
+    if (!talents || talents.length === 0) return;
+
+    // Initialize loaded IDs with the profiles that are already loaded
+    const initialIds = talents.map(t => t.id);
+    setLoadedProfileIds(new Set(initialIds));
+
+    // Update progress bar to reflect initial load
+    setLoadingProgress({
+      loaded: initialIds.length,
+      total: allCandidateIds.length || initialIds.length,
+      isComplete: !allCandidateIds.length || initialIds.length >= allCandidateIds.length
+    });
+
+    console.log(`[TalentPool] Initialized with ${initialIds.length} loaded profiles`);
+  }, [talents?.length, allCandidateIds.length]); // Only run when initial load completes or total changes
+
   // Phase 1.5: DISABLED automatic background loading (replaced with on-demand loading)
   // Background loading effect - loads remaining profiles after initial load
   useEffect(() => {
@@ -931,10 +949,18 @@ export default function TalentPool() {
           );
         });
 
-        // Update loaded IDs set
+        // Update loaded IDs set and progress bar
         setLoadedProfileIds(prev => {
           const newSet = new Set(prev);
           dedupedIds.forEach(id => newSet.add(id));
+
+          // Update progress bar to reflect on-demand loading
+          setLoadingProgress({
+            loaded: newSet.size,
+            total: allCandidateIds.length,
+            isComplete: newSet.size >= allCandidateIds.length
+          });
+
           return newSet;
         });
 
@@ -1967,12 +1993,12 @@ export default function TalentPool() {
         {filtersContent}
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* Progress bar for background loading */}
+          {/* Progress bar for on-demand loading */}
           {!loadingProgress.isComplete && loadingProgress.total > 0 && (
             <LoadingProgressBar
               loaded={loadingProgress.loaded}
               total={loadingProgress.total}
-              message="Loading talent pool"
+              message={isLoadingPage ? "Loading page..." : "Loading talent pool"}
             />
           )}
 
