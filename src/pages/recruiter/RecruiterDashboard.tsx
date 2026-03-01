@@ -371,23 +371,23 @@ export default function RecruiterDashboard() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                  <LayoutDashboard className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+                <LayoutDashboard className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                   Recruiter <span className="text-gradient-recruiter">Dashboard</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Your open jobs, applicants, talent pool, and recent activity at a glance.
+                </p>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
-                Your open jobs, applicants, talent pool, and recent activity at a glance.
-              </p>
             </div>
             <div className="flex gap-3 shrink-0">
-              <Button className="rounded-lg h-11 px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shadow-lg" asChild>
+              <Button className="rounded-lg h-8 px-3 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold text-xs shadow-lg" asChild>
                 <Link to="/recruiter/jobs/new">
                   <PlusCircle className="mr-2 h-4 w-4" strokeWidth={1.5} /> Post a Job
                 </Link>
