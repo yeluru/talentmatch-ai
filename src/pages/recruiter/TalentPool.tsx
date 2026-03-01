@@ -1550,8 +1550,11 @@ export default function TalentPool() {
     setCurrentPage(1);
   }, [searchQuery, companyFilter, locationFilter, statusFilter, experienceFilter, tableSort.sort, activeView, itemsPerPage]);
 
-  // Pagination calculations - now based on groups, not individual profiles
-  const totalPages = Math.ceil(groupedTalents.length / itemsPerPage);
+  // Pagination calculations - Phase 1.5: Use total candidate count when no filters active
+  const hasActiveFiltersOrSearch = hasActiveFilters || debouncedSearchQuery.trim();
+  const totalPages = hasActiveFiltersOrSearch
+    ? Math.ceil(groupedTalents.length / itemsPerPage) // Filtered: paginate loaded & filtered results
+    : Math.ceil(allCandidateIds.length / itemsPerPage); // Unfiltered: paginate all candidates (on-demand)
   const paginatedGroups = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return groupedTalents.slice(startIndex, startIndex + itemsPerPage);
