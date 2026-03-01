@@ -314,17 +314,17 @@ export default function InterviewSchedule() {
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 pb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                <CalendarIcon className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+              <CalendarIcon className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                 Interview <span className="text-gradient-recruiter">Schedule</span>
               </h1>
+              <p className="text-xs text-muted-foreground font-sans leading-tight">Manage your upcoming interviews</p>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">Manage your upcoming interviews</p>
           </div>
           <Dialog
             key={`schedule-${dialogReopenKey}`}
@@ -336,7 +336,7 @@ export default function InterviewSchedule() {
             }}
           >
             <DialogTrigger asChild>
-              <Button>
+              <Button className="h-8 text-xs">
                 <Plus className="h-4 w-4 mr-2" />
                 Schedule Interview
               </Button>
