@@ -1924,25 +1924,8 @@ export default function TalentPool() {
                       ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}`
                       : ''}
                   </span>
-                  <Select
-                    value={String(itemsPerPage)}
-                    onValueChange={(v) => {
-                      setItemsPerPage(Number(v));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <SelectTrigger className="h-7 w-[110px] text-xs bg-transparent border-white/10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="50">50 / page</SelectItem>
-                      <SelectItem value="100">100 / page</SelectItem>
-                      <SelectItem value="200">200 / page</SelectItem>
-                      <SelectItem value="500">500 / page</SelectItem>
-                    </SelectContent>
-                  </Select>
                   {totalPages > 1 && (
-                    <div className="flex-1 flex justify-end">
+                    <div className="flex-1 flex justify-center">
                       <Pagination>
                         <PaginationContent>
                           <PaginationItem>
@@ -1976,6 +1959,23 @@ export default function TalentPool() {
                       </Pagination>
                     </div>
                   )}
+                  <Select
+                    value={String(itemsPerPage)}
+                    onValueChange={(v) => {
+                      setItemsPerPage(Number(v));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-[110px] text-xs bg-transparent border-white/10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50 / page</SelectItem>
+                      <SelectItem value="100">100 / page</SelectItem>
+                      <SelectItem value="200">200 / page</SelectItem>
+                      <SelectItem value="500">500 / page</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Bulk actions toolbar */}
