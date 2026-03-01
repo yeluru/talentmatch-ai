@@ -553,20 +553,20 @@ export default function RecruiterHowToGuide() {
   return (
     <DashboardLayout>
       <div className="flex flex-col h-[calc(100vh-7rem)] min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
-        <header className="shrink-0 flex flex-col gap-6">
+        <header className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                  <BookOpen className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+                <BookOpen className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                   Help & <span className="text-gradient-recruiter">How-to Guide</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Step-by-step guides for recruiters and account managers. Search below or ask the assistant.
+                </p>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
-                Step-by-step guides for recruiters and account managers. Search below or ask the assistant.
-              </p>
             </div>
           </div>
 
@@ -576,7 +576,7 @@ export default function RecruiterHowToGuide() {
               placeholder="Search the guide (e.g. talent pool, pipeline, shortlist, applicants)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
+              className="pl-9 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
             />
           </div>
         </header>
