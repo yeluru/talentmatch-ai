@@ -1337,11 +1337,11 @@ export default function SuperAdminDashboard() {
                       placeholder="Search logs..."
                       value={auditSearch}
                       onChange={(e) => setAuditSearch(e.target.value)}
-                      className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans"
+                      className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans"
                     />
                   </div>
                   <Select value={auditActionFilter} onValueChange={(val) => { setAuditActionFilter(val); setAuditPage(0); }}>
-                    <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans">
+                    <SelectTrigger className="w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans">
                       <Filter className="h-4 w-4 mr-2" strokeWidth={1.5} />
                       <SelectValue placeholder="Action" />
                     </SelectTrigger>
@@ -1354,7 +1354,7 @@ export default function SuperAdminDashboard() {
                     </SelectContent>
                   </Select>
                   <Select value={auditEntityFilter} onValueChange={(val) => { setAuditEntityFilter(val); setAuditPage(0); }}>
-                    <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans">
+                    <SelectTrigger className="w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-platform/20 font-sans">
                       <SelectValue placeholder="Entity" />
                     </SelectTrigger>
                     <SelectContent>
