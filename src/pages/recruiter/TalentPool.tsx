@@ -1666,10 +1666,10 @@ export default function TalentPool() {
                   <span>Updated {getTimeAgo(dataUpdatedAt)}</span>
                 </div>
               )}
-              {/* Pagination summary in header */}
-              {groupedTalents.length > 0 && (
-                <div className="flex items-center gap-3 mt-2 text-sm">
-                  <span className="text-muted-foreground">
+              {/* Pagination controls in header */}
+              {groupedTalents.length > 0 && totalPages > 0 && (
+                <div className="flex flex-wrap items-center gap-3 mt-2">
+                  <span className="text-sm text-muted-foreground">
                     Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, groupedTalents.length)} of {groupedTalents.length}
                   </span>
                   <Select
@@ -1689,6 +1689,39 @@ export default function TalentPool() {
                       <SelectItem value="500">500 / page</SelectItem>
                     </SelectContent>
                   </Select>
+                  {totalPages > 1 && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-white/10'}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((page, idx) => (
+                          <PaginationItem key={idx}>
+                            {page === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                onClick={() => handlePageChange(page as number)}
+                                isActive={currentPage === page}
+                                className="cursor-pointer hover:bg-white/10"
+                              >
+                                {page}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-white/10'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
                 </div>
               )}
             </div>
