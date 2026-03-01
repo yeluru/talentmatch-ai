@@ -289,24 +289,24 @@ export default function RecruiterJobs() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 px-3 sm:px-4">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50 shrink-0">
-                  <Briefcase className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-foreground truncate">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50 shrink-0">
+                <Briefcase className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground truncate leading-tight">
                   <span className="text-gradient-recruiter">Jobs</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Manage and view jobs across your organization
+                </p>
               </div>
-              <p className="text-base sm:text-lg text-muted-foreground font-sans">
-                Manage and view jobs across your organization
-              </p>
             </div>
-            <Button asChild className="shrink-0 rounded-lg h-11 px-4 sm:px-6 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold shadow-lg w-full sm:w-auto">
+            <Button asChild className="shrink-0 rounded-lg h-8 px-3 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold text-xs shadow-lg w-full sm:w-auto">
               <Link to="/recruiter/jobs/new">
-                <Plus className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                <Plus className="h-4 w-4 mr-1.5" strokeWidth={1.5} />
                 Post New Job
               </Link>
             </Button>
@@ -316,18 +316,18 @@ export default function RecruiterJobs() {
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           <div className="space-y-6 pt-6 pb-6 min-w-0">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2.5">
           <div className="relative flex-1 min-w-0 sm:min-w-[200px] max-w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <Input
               placeholder="Search by title or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans w-full"
+              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans w-full"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -338,7 +338,7 @@ export default function RecruiterJobs() {
             </SelectContent>
           </Select>
           <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-48 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
               <SelectValue placeholder="Client" />
             </SelectTrigger>
             <SelectContent>
@@ -360,7 +360,7 @@ export default function RecruiterJobs() {
             </SelectContent>
           </Select>
           <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-48 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
               <SelectValue placeholder="Owner" />
             </SelectTrigger>
             <SelectContent>
@@ -394,31 +394,31 @@ export default function RecruiterJobs() {
             />
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredJobs.map((job) => (
               <div
                 key={job.id}
                 className="group rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-recruiter/30 hover:bg-recruiter/5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-recruiter/30 focus-visible:ring-offset-2"
               >
-                <div onClick={() => handleJobClick(job)} className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 p-4 sm:p-6 block cursor-pointer">
+                <div onClick={() => handleJobClick(job)} className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3 sm:p-4 block cursor-pointer">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="font-display font-semibold text-lg text-foreground group-hover:text-recruiter transition-colors truncate block">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className="font-display font-semibold text-base text-foreground group-hover:text-recruiter transition-colors truncate block">
                         {job.title}
                       </span>
                       {getStatusBadge(job.status || 'draft')}
                       {(job as any).visibility === 'public' ? (
-                        <Badge variant="outline" className="border-recruiter/30 text-recruiter bg-recruiter/10 font-sans">
+                        <Badge variant="outline" className="border-recruiter/30 text-recruiter bg-recruiter/10 font-sans text-xs">
                           Public
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-muted-foreground font-sans">
+                        <Badge variant="outline" className="text-muted-foreground font-sans text-xs">
                           Private
                         </Badge>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-muted-foreground font-sans">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground font-sans">
                       <span className="flex items-center gap-1.5">
                         <Building2 className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
                         {(job as any).client?.name ? (
