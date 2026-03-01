@@ -192,7 +192,7 @@ export function UnifiedResultsDisplay({
       />
 
       {/* Results with optional filter sidebar */}
-      <div className="flex gap-4 min-h-0 p-6">
+      <div className="flex gap-3 min-h-0 p-3">
         {/* Filter Sidebar */}
         {config.enableFiltering && availableFilters && (
           <FilterSidebar

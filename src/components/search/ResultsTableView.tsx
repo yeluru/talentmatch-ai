@@ -34,8 +34,8 @@ export function ResultsTableView({
   onAddToShortlist,
 }: ResultsTableViewProps) {
   const SortIcon = ({ column }: { column: SortColumn }) => {
-    if (sortColumn !== column) return <ArrowUpDown className="h-3.5 w-3.5" />;
-    return sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />;
+    if (sortColumn !== column) return <ArrowUpDown className="h-3 w-3" />;
+    return sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
   };
 
   return (
@@ -50,37 +50,37 @@ export function ResultsTableView({
               />
             </TableHead>
             <TableHead className="w-12 text-center text-muted-foreground font-medium">#</TableHead>
-            <TableHead className="py-4 font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('name')}>
+            <TableHead className="font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('name')}>
               <div className="flex items-center gap-1">
                 Name
                 <SortIcon column="name" />
               </div>
             </TableHead>
-            <TableHead className="max-w-[180px] py-4 font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('title')}>
+            <TableHead className="max-w-[180px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('title')}>
               <div className="flex items-center gap-1">
                 Title
                 <SortIcon column="title" />
               </div>
             </TableHead>
-            <TableHead className="w-24 hidden sm:table-cell py-4 font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('experience')}>
+            <TableHead className="w-24 hidden sm:table-cell font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('experience')}>
               <div className="flex items-center gap-1">
                 Exp
                 <SortIcon column="experience" />
               </div>
             </TableHead>
-            <TableHead className="max-w-[120px] hidden lg:table-cell py-4 font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('location')}>
+            <TableHead className="max-w-[120px] hidden lg:table-cell font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('location')}>
               <div className="flex items-center gap-1">
                 Location
                 <SortIcon column="location" />
               </div>
             </TableHead>
-            <TableHead className="w-20 text-center py-4 font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('match_score')} title="Fit score for this search">
+            <TableHead className="w-20 text-center font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('match_score')} title="Fit score for this search">
               <div className="flex items-center justify-center gap-1">
                 Match
                 <SortIcon column="match_score" />
               </div>
             </TableHead>
-            <TableHead className="w-[140px] py-4 font-semibold">Shortlist</TableHead>
+            <TableHead className="w-[140px] font-semibold">Shortlist</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -103,41 +103,41 @@ export function ResultsTableView({
                     onCheckedChange={() => onToggleSelect(result.id)}
                   />
                 </TableCell>
-                <TableCell className="text-sm py-4 text-center text-muted-foreground tabular-nums">{idx + 1}</TableCell>
-                <TableCell className="py-4">
-                  <span className="font-semibold group-hover:text-recruiter transition-colors truncate block max-w-[140px]">
+                <TableCell className="text-xs text-center text-muted-foreground tabular-nums">{idx + 1}</TableCell>
+                <TableCell>
+                  <span className="text-sm font-semibold group-hover:text-recruiter transition-colors truncate block max-w-[160px]">
                     {result.displayName}
                   </span>
                 </TableCell>
-                <TableCell className="py-4 max-w-[180px]">
-                  <span className="text-sm text-muted-foreground truncate block" title={result.title || undefined}>
+                <TableCell className="max-w-[180px]">
+                  <span className="text-xs text-muted-foreground truncate block" title={result.title || undefined}>
                     {result.title || '—'}
                   </span>
                 </TableCell>
-                <TableCell className="hidden sm:table-cell py-4">
-                  <span className="text-sm text-muted-foreground">
+                <TableCell className="hidden sm:table-cell">
+                  <span className="text-xs text-muted-foreground">
                     {candidate?.yearsExperience ? `${candidate.yearsExperience}y` : '—'}
                   </span>
                 </TableCell>
-                <TableCell className="hidden lg:table-cell py-4 max-w-[120px]">
-                  <span className="text-sm text-muted-foreground truncate block" title={result.location || undefined}>
+                <TableCell className="hidden lg:table-cell max-w-[120px]">
+                  <span className="text-xs text-muted-foreground truncate block" title={result.location || undefined}>
                     {result.location || '—'}
                   </span>
                 </TableCell>
-                <TableCell className="text-center py-4">
+                <TableCell className="text-center">
                   {result.matchScore !== undefined && (
                     <ScoreBadge score={result.matchScore} size="sm" />
                   )}
                 </TableCell>
-                <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   {onAddToShortlist && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => onAddToShortlist(result.id)}
-                      className="h-8 text-xs"
+                      className="h-6 text-xs px-2"
                     >
-                      <UserPlus className="h-3.5 w-3.5 mr-1" />
+                      <UserPlus className="h-3 w-3 mr-1" />
                       Add
                     </Button>
                   )}

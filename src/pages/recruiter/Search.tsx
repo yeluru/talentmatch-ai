@@ -1188,53 +1188,52 @@ export default function Search() {
 
   return (
     <DashboardLayout>
-      {/* PAGE HEADER */}
+      {/* PAGE HEADER - Compact */}
         <div className="shrink-0">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-6">
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                <SearchIcon className="h-4 w-4 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-2">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+                <SearchIcon className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
-                Talent <span className="text-gradient-recruiter">Search</span>
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
+                  Talent <span className="text-gradient-recruiter">Search</span>
+                </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  {primaryMode === 'pool' ? 'AI-powered talent pool matching' : 'Web search & LinkedIn X-ray'}
+                </p>
+              </div>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">
-              {primaryMode === 'pool'
-                ? 'Search your internal talent pool with AI-powered matching'
-                : 'Find external candidates using web search and LinkedIn X-ray queries'
-              }
-            </p>
           </div>
         </div>
 
-        {/* ULTRA-COMPACT MODE SELECTOR - Sticky, ~50-60px */}
-        <div className="shrink-0 sticky top-0 z-10">
+        {/* COMPACT MODE SELECTOR - Sticky */}
+        <div className="shrink-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
 
             {/* Primary Mode - Compact Tabs */}
-            <div className="py-2 border-b border-border/50">
+            <div className="py-1 border-b border-border/50">
               <Tabs value={primaryMode} onValueChange={(v) => setPrimaryMode(v as PrimaryMode)}>
-                <TabsList className="h-9 bg-muted/50">
-                  <TabsTrigger value="pool" className="text-xs gap-1.5 px-3">
-                    <Database className="h-3.5 w-3.5" />
-                    Talent Pool
+                <TabsList className="h-7 bg-muted/50">
+                  <TabsTrigger value="pool" className="text-xs gap-1 px-2">
+                    <Database className="h-3 w-3" />
+                    Pool
                   </TabsTrigger>
-                  <TabsTrigger value="web" className="text-xs gap-1.5 px-3">
-                    <Globe className="h-3.5 w-3.5" />
-                    Talent Search
+                  <TabsTrigger value="web" className="text-xs gap-1 px-2">
+                    <Globe className="h-3 w-3" />
+                    Search
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
 
             {/* Secondary Mode - Below Primary */}
-            <div className="py-3">
+            <div className="py-1.5">
               {primaryMode === 'pool' ? (
                 <RadioGroup
                   value={poolMode}
                   onValueChange={(v) => setPoolMode(v as PoolMode)}
-                  className="flex items-center gap-6"
+                  className="flex items-center gap-4"
                 >
                   <div className="flex items-center gap-1.5">
                     <RadioGroupItem value="freeText" id="pool-ft" className="h-3.5 w-3.5" />
@@ -1253,24 +1252,24 @@ export default function Search() {
                 <RadioGroup
                   value={searchMode}
                   onValueChange={(v) => setSearchMode(v as SearchMode)}
-                  className="flex items-center gap-6"
+                  className="flex items-center gap-4"
                 >
                   <div className="flex items-center gap-1.5">
                     <RadioGroupItem value="web" id="web-ws" className="h-3.5 w-3.5" />
                     <Label htmlFor="web-ws" className="text-xs font-normal cursor-pointer">
-                      Web Search
+                      Web
                     </Label>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <RadioGroupItem value="basic" id="web-gx" className="h-3.5 w-3.5" />
                     <Label htmlFor="web-gx" className="text-xs font-normal cursor-pointer">
-                      Google X-Ray
+                      X-Ray
                     </Label>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <RadioGroupItem value="deep" id="web-ss" className="h-3.5 w-3.5" />
                     <Label htmlFor="web-ss" className="text-xs font-normal cursor-pointer">
-                      Serp Search
+                      Serp
                     </Label>
                   </div>
                 </RadioGroup>
@@ -1279,24 +1278,24 @@ export default function Search() {
           </div>
         </div>
 
-        {/* SEARCH CONTROLS - Ultra-compact, ~50px */}
+        {/* SEARCH CONTROLS - Compact */}
         <div className="shrink-0">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-3">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-2">
 
             {/* Pool + Free Text */}
             {primaryMode === 'pool' && poolMode === 'freeText' && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative flex-1 min-w-[300px]">
-                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" strokeWidth={1.5} />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="relative flex-1 min-w-[280px]">
+                  <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" strokeWidth={1.5} />
                   <Input
-                    placeholder="e.g. Backend engineer, Python, 3+ years, fintech..."
+                    placeholder="e.g., Senior React dev in SF, 5+ years"
                     value={freeTextQuery}
                     onChange={(e) => setFreeTextQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleFreeTextSearch()}
-                    className="pl-10 h-9 text-sm"
+                    className="pl-9 h-8 text-sm"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Checkbox
                     id="strict-mode"
                     checked={strictMode}
@@ -1304,19 +1303,19 @@ export default function Search() {
                     className="h-3.5 w-3.5"
                   />
                   <Label htmlFor="strict-mode" className="text-xs font-normal cursor-pointer text-muted-foreground whitespace-nowrap">
-                    Must have ALL skills
+                    Strict
                   </Label>
                 </div>
                 <Button
                   size="sm"
                   onClick={handleFreeTextSearch}
                   disabled={!freeTextQuery.trim() || freeTextSearchMutation.isPending}
-                  className="h-9 px-4 text-xs"
+                  className="h-8 px-3 text-xs"
                 >
                   {freeTextSearchMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                   ) : (
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
                   )}
                   Search
                 </Button>
@@ -1325,8 +1324,8 @@ export default function Search() {
 
             {/* Pool + By Job */}
             {primaryMode === 'pool' && poolMode === 'byJob' && (
-              <div className="flex items-center gap-2 flex-nowrap">
-                <Label className="text-sm font-bold shrink-0">Job:</Label>
+              <div className="flex items-center gap-1.5 flex-nowrap">
+                <Label className="text-xs font-bold shrink-0">Job:</Label>
                 <Select value={selectedJobId} onValueChange={setSelectedJobId} disabled={jobsLoading}>
                   <SelectTrigger className="h-9 text-sm flex-[3] min-w-0">
                     <SelectValue placeholder={jobsLoading ? "Loading jobs..." : "Select a job..."} />
@@ -1598,7 +1597,7 @@ export default function Search() {
 
         {/* RESULTS - Gets 90%+ of vertical space */}
         <div className="flex-1 min-h-0 overflow-auto">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 pb-6">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 pb-4">
 
             {/* Pool + Free Text Results */}
             {primaryMode === 'pool' && poolMode === 'freeText' && freeTextResults.length > 0 && (
