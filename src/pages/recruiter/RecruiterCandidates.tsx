@@ -456,20 +456,20 @@ export default function RecruiterCandidates() {
     <DashboardLayout>
       <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                  <Users className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+                <Users className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                   My <span className="text-gradient-recruiter">Candidates</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Review and manage applicants across your jobs.
+                </p>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
-                Review and manage applicants across your jobs.
-              </p>
             </div>
           </div>
         </div>
@@ -477,18 +477,18 @@ export default function RecruiterCandidates() {
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 pt-6 pb-6">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 rounded-xl border border-border bg-card p-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-xl border border-border bg-card p-2.5">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <Input
               placeholder="Search candidates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
+              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
             />
           </div>
           <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
-            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-48 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
               <SelectValue placeholder="All Jobs" />
             </SelectTrigger>
             <SelectContent>
@@ -499,7 +499,7 @@ export default function RecruiterCandidates() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans">
+            <SelectTrigger className="w-full sm:w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
