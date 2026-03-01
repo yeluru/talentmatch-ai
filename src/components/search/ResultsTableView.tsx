@@ -74,7 +74,6 @@ export function ResultsTableView({
                 <SortIcon column="location" />
               </div>
             </TableHead>
-            <TableHead className="hidden xl:table-cell py-4 font-semibold">Skills</TableHead>
             <TableHead className="w-20 text-center py-4 font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('match_score')} title="Fit score for this search">
               <div className="flex items-center justify-center gap-1">
                 Match
@@ -124,18 +123,6 @@ export function ResultsTableView({
                   <span className="text-sm text-muted-foreground truncate block" title={result.location || undefined}>
                     {result.location || '—'}
                   </span>
-                </TableCell>
-                <TableCell className="hidden xl:table-cell py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {candidate?.skills?.slice(0, 3).map(skill => (
-                      <Badge key={skill} variant="secondary" className="text-xs px-1.5 py-0">{skill}</Badge>
-                    ))}
-                    {candidate && candidate.skills.length > 3 && (
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                        +{candidate.skills.length - 3}
-                      </Badge>
-                    )}
-                  </div>
                 </TableCell>
                 <TableCell className="text-center py-4">
                   {result.matchScore !== undefined && (
