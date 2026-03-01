@@ -1975,35 +1975,6 @@ export default function TalentPool() {
               </>
             ) : (
               <>
-                <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-white/10 bg-white/5 backdrop-blur-sm">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {groupedTalents.length > 0
-                      ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}${talents && groupedTalents.length !== talents.length ? ` (${talents.length} total profiles)` : ''}`
-                      : ''}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <Select
-                      value={String(itemsPerPage)}
-                      onValueChange={(v) => {
-                        const n = Number(v);
-                        if (!Number.isFinite(n)) return;
-                        setItemsPerPage(n);
-                      }}
-                    >
-                      <SelectTrigger className="h-8 w-[120px] bg-transparent border-white/10 text-xs">
-                        <SelectValue placeholder="Per page" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAGE_SIZE_OPTIONS.map((n) => (
-                          <SelectItem key={n} value={String(n)}>
-                            {n} / page
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
                 {/* Bulk actions toolbar */}
                 {selectedIds.size > 0 && (
                   <div className="bg-muted/50 px-6 py-3 mb-2 rounded-lg flex items-center gap-4">
