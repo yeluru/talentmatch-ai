@@ -429,15 +429,15 @@ export default function ManagerJobs() {
     return (
       <DashboardLayout>
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground"><span className="text-gradient-manager">Jobs</span></h1>
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground"><span className="text-gradient-manager">Jobs</span></h1>
               </div>
-            <p className="text-lg text-muted-foreground font-sans">Your account manager role is active, but it isn’t linked to an organization yet.</p>
+            <p className="text-xs text-muted-foreground font-sans leading-tight">Your account manager role is active, but it isn’t linked to an organization yet.</p>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="pt-6 pb-6">
@@ -491,18 +491,18 @@ export default function ManagerJobs() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   <span className="text-gradient-manager">Jobs</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 All jobs in your organization
               </p>
             </div>
@@ -542,11 +542,11 @@ export default function ManagerJobs() {
               placeholder="Search by title or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans w-full"
+              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans w-full"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
+            <SelectTrigger className="w-full sm:w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -557,7 +557,7 @@ export default function ManagerJobs() {
             </SelectContent>
           </Select>
           <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
+            <SelectTrigger className="w-full sm:w-48 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
               <SelectValue placeholder="Client" />
             </SelectTrigger>
             <SelectContent>
@@ -579,7 +579,7 @@ export default function ManagerJobs() {
             </SelectContent>
           </Select>
           <Select value={selectedRecruiterFilter} onValueChange={setSelectedRecruiterFilter}>
-            <SelectTrigger className="w-full sm:w-48 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
+            <SelectTrigger className="w-full sm:w-48 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans">
               <SelectValue placeholder="Recruiter" />
             </SelectTrigger>
             <SelectContent>

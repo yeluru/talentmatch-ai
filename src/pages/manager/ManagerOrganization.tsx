@@ -105,15 +105,15 @@ export default function ManagerOrganization() {
     return (
       <DashboardLayout>
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Building2 className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Organization <span className="text-gradient-manager">Settings</span></h1>
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">Organization <span className="text-gradient-manager">Settings</span></h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">You need to be linked to a tenant to manage organization settings.</p>
+              <p className="text-xs text-muted-foreground font-sans leading-tight">You need to be linked to a tenant to manage organization settings.</p>
             </div>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
@@ -133,17 +133,17 @@ export default function ManagerOrganization() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+              <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                 <Building2 className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                 Organization <span className="text-gradient-manager">Settings</span>
               </h1>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">
+            <p className="text-xs text-muted-foreground font-sans leading-tight">
               Manage your organization's profile
             </p>
           </div>
@@ -165,7 +165,7 @@ export default function ManagerOrganization() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Acme Corp"
-                className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                className="h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
               />
             </div>
             <div className="space-y-2">
@@ -186,7 +186,7 @@ export default function ManagerOrganization() {
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                   <Input
                     id="website"
-                    className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                    className="pl-10 h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                     placeholder="https://example.com"
@@ -199,7 +199,7 @@ export default function ManagerOrganization() {
                   <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                   <Input
                     id="industry"
-                    className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                    className="pl-10 h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                     value={formData.industry}
                     onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                     placeholder="Technology"
@@ -213,14 +213,14 @@ export default function ManagerOrganization() {
                 <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                 <Input
                   id="size"
-                  className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                  className="pl-10 h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                   value={formData.size}
                   onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                   placeholder="10-50 employees"
                 />
               </div>
             </div>
-            <Button onClick={handleSave} disabled={isSaving} className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+            <Button onClick={handleSave} disabled={isSaving} className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.5} />}
               Save Changes
             </Button>

@@ -575,23 +575,23 @@ export default function ManagerDashboard() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <LayoutDashboard className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   Manager <span className="text-gradient-manager">Dashboard</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 Organization overview, team activity, and metrics.
               </p>
             </div>
             <div className="flex gap-3 shrink-0">
-              <Button variant="outline" asChild className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+              <Button variant="outline" asChild className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
                 <Link to="/manager/team">
                   <Users className="mr-2 h-4 w-4" strokeWidth={1.5} /> Manage Team
                 </Link>
@@ -606,7 +606,7 @@ export default function ManagerDashboard() {
         {hasRecruiterRole && (
           <div className="rounded-xl border border-manager/20 bg-manager/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+              <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                 <Briefcase className="h-5 w-5" strokeWidth={1.5} />
               </div>
               <div>
@@ -616,7 +616,7 @@ export default function ManagerDashboard() {
             </div>
             <Button
               onClick={() => { switchRole('recruiter'); navigate('/recruiter'); }}
-              className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold shrink-0"
+              className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold shrink-0"
             >
               Switch to Recruiter <ArrowRight className="ml-2 h-4 w-4" strokeWidth={1.5} />
             </Button>

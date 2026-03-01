@@ -223,15 +223,15 @@ export default function ManagerRecruiterProgress() {
     return (
       <DashboardLayout>
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Users className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Recruiter <span className="text-gradient-manager">Progress</span></h1>
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">Recruiter <span className="text-gradient-manager">Progress</span></h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">This recruiter is not assigned to your account.</p>
+              <p className="text-xs text-muted-foreground font-sans leading-tight">This recruiter is not assigned to your account.</p>
             </div>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
@@ -266,11 +266,11 @@ export default function ManagerRecruiterProgress() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-3 mb-1">
-                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20 shrink-0">
+                  <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20 shrink-0">
                     <Users className="h-5 w-5" strokeWidth={1.5} />
                   </div>
                   <div className="min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-foreground truncate">
+                    <h1 className="text-lg sm:text-xl font-display font-bold tracking-tight text-foreground truncate">
                       {recruiterProfile?.full_name || 'Recruiter'}
                     </h1>
                     <p className="text-sm sm:text-base text-muted-foreground font-sans truncate">{recruiterProfile?.email || ''}</p>
@@ -279,7 +279,7 @@ export default function ManagerRecruiterProgress() {
                 <p className="mt-1 text-sm text-muted-foreground font-sans md:ml-14">Recruiter progress overview</p>
               </div>
               <div className="flex flex-wrap gap-3 shrink-0 md:ml-4">
-                <Button asChild className="rounded-lg h-11 px-5 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold text-sm whitespace-nowrap">
+                <Button asChild className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold text-sm whitespace-nowrap">
                   <Link to={`/recruiter/pipeline?owner=${encodeURIComponent(String(recruiterUserId || ""))}`}>
                     Pipeline
                     <ArrowUpRight className="h-4 w-4 ml-2 shrink-0" strokeWidth={1.5} />

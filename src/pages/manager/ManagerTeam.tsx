@@ -289,15 +289,15 @@ export default function ManagerTeam() {
     return (
       <DashboardLayout>
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Users className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">Team <span className="text-gradient-manager">Management</span></h1>
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">Team <span className="text-gradient-manager">Management</span></h1>
               </div>
-              <p className="mt-1 text-lg text-muted-foreground font-sans">We couldn’t find an organization for this manager account.</p>
+              <p className="mt-1 text-xs text-muted-foreground font-sans leading-tight">We couldn’t find an organization for this manager account.</p>
             </div>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
@@ -326,25 +326,25 @@ export default function ManagerTeam() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Users className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   Team <span className="text-gradient-manager">Management</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 Manage recruiters in your organization
               </p>
             </div>
             <div className="shrink-0">
               <Dialog open={isInviteOpen} onOpenChange={(open) => !open && setIsInviteOpen(false)}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setIsInviteOpen(true)} variant="outline" className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                  <Button onClick={() => setIsInviteOpen(true)} variant="outline" className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
                     <Mail className="h-4 w-4 mr-2" strokeWidth={1.5} />
                     Invite Recruiter
                   </Button>
@@ -370,7 +370,7 @@ export default function ManagerTeam() {
                           placeholder="recruiter@example.com"
                           value={inviteEmail}
                           onChange={(e) => setInviteEmail(e.target.value)}
-                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          className="h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                         />
                       </div>
                       <div className="space-y-2">
@@ -381,7 +381,7 @@ export default function ManagerTeam() {
                           value={inviteName}
                           onChange={(e) => setInviteName(e.target.value)}
                           required
-                          className="h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                          className="h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
                         />
                       </div>
                       {lastRecruiterInviteUrl && (
@@ -403,7 +403,7 @@ export default function ManagerTeam() {
                       <Button variant="outline" onClick={() => setIsInviteOpen(false)} className="rounded-lg font-sans">
                         Cancel
                       </Button>
-                      <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail || !inviteName} className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
+                      <Button onClick={handleSendInvite} disabled={isSubmitting || !inviteEmail || !inviteName} className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold">
                         {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" strokeWidth={1.5} />}
                         Send Invitation
                       </Button>

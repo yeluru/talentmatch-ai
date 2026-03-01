@@ -261,10 +261,10 @@ export default function ManagerJobDetail() {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   {job.title}
                 </h1>
                 <Badge className={`font-sans ${getStatusColor(job.status || 'draft')}`}>

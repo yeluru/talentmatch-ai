@@ -148,18 +148,18 @@ export default function ManagerCandidates() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Users className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   <span className="text-gradient-manager">Candidates</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
+              <p className="text-xs text-muted-foreground font-sans leading-tight">
                 Everyone who has applied to a job in your organization.
               </p>
             </div>
@@ -175,11 +175,11 @@ export default function ManagerCandidates() {
                   placeholder="Search by name or job..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans w-full"
+                  className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-manager/20 font-sans w-full"
                 />
               </div>
               <Select value={jobFilter} onValueChange={setJobFilter}>
-                <SelectTrigger className="w-full min-w-[180px] h-11 rounded-lg border-border bg-background font-sans">
+                <SelectTrigger className="w-full min-w-[180px] h-8 rounded-lg border-border bg-background font-sans">
                   <SelectValue placeholder="All Jobs" />
                 </SelectTrigger>
                 <SelectContent>
@@ -190,7 +190,7 @@ export default function ManagerCandidates() {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full min-w-[160px] h-11 rounded-lg border-border bg-background font-sans">
+                <SelectTrigger className="w-full min-w-[160px] h-8 rounded-lg border-border bg-background font-sans">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>

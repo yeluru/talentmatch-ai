@@ -317,16 +317,16 @@ export default function ClientManagement() {
     return (
       <DashboardLayout>
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+              <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                 <Building2 className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                 Client <span className="text-gradient-manager">Management</span>
               </h1>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">You need to be linked to a tenant to manage clients.</p>
+            <p className="text-xs text-muted-foreground font-sans leading-tight">You need to be linked to a tenant to manage clients.</p>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="pt-6 pb-6">
@@ -345,18 +345,18 @@ export default function ClientManagement() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                   <Building2 className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   Client <span className="text-gradient-manager">Management</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">Manage client companies and their requirements.</p>
+              <p className="text-xs text-muted-foreground font-sans leading-tight">Manage client companies and their requirements.</p>
             </div>
             <div className="shrink-0">
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -371,7 +371,7 @@ export default function ClientManagement() {
                 <DialogTrigger asChild>
                   <Button
                     onClick={() => setIsDialogOpen(true)}
-                    className="rounded-lg h-11 px-6 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold"
+                    className="rounded-lg h-8 px-3 border border-manager/20 bg-manager/10 hover:bg-manager/20 text-manager font-sans font-semibold"
                   >
                     <Plus className="mr-2 h-4 w-4" strokeWidth={1.5} />
                     Add Client
@@ -579,7 +579,7 @@ export default function ClientManagement() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                     <Building2 className="h-5 w-5" strokeWidth={1.5} />
                   </div>
                   <div>
@@ -590,7 +590,7 @@ export default function ClientManagement() {
               </div>
               <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                     <Building2 className="h-5 w-5" strokeWidth={1.5} />
                   </div>
                   <div>
@@ -601,7 +601,7 @@ export default function ClientManagement() {
               </div>
               <div className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:border-manager/20">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-manager/10 text-manager border border-manager/20">
+                  <div className="p-1.5 rounded-lg bg-manager/10 text-manager border border-manager/20">
                     <Briefcase className="h-5 w-5" strokeWidth={1.5} />
                   </div>
                   <div>
@@ -619,7 +619,7 @@ export default function ClientManagement() {
                 placeholder="Search clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
+                className="pl-10 h-8 rounded-lg border-border focus:ring-2 focus:ring-manager/20 font-sans"
               />
             </div>
 
