@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
+import { useDebouncedValue } from 'use-debounce';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -254,6 +255,8 @@ export default function TalentPool() {
   } = useBulkResumeUpload(organizationId ?? undefined);
 
   const [searchQuery, setSearchQuery] = useState('');
+  // Debounce search to reduce filtering operations (Phase 1 optimization)
+  const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
   const tableSort = useTableSort<TalentPoolSortKey>({ key: 'created_at', dir: 'desc' });
   const [companyFilter, setCompanyFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
@@ -394,8 +397,8 @@ export default function TalentPool() {
         isComplete: candidateIds.length <= INITIAL_LOAD_SIZE
       });
 
-      // Batch fetch profiles to avoid URL length limits (max ~100 IDs per request)
-      const BATCH_SIZE = 100;
+      // Batch fetch profiles to avoid URL length limits (Phase 1 optimization: increased to 250)
+      const BATCH_SIZE = 250;
       const batches: string[][] = [];
       for (let i = 0; i < initialIds.length; i += BATCH_SIZE) {
         batches.push(initialIds.slice(i, i + BATCH_SIZE));
@@ -472,9 +475,9 @@ export default function TalentPool() {
         skillBatches.push(dedupedIds.slice(i, i + BATCH_SIZE));
       }
 
-      const allSkills: any[] = [];
-      for (const batch of skillBatches) {
-        const { data: skills } = await retryWithBackoff(
+      // Phase 1 optimization: Parallelize skills and experience loading
+      const skillPromises = skillBatches.map(batch =>
+        retryWithBackoff(
           () => supabase
             .from('candidate_skills')
             .select('candidate_id, skill_name')
@@ -483,13 +486,11 @@ export default function TalentPool() {
             maxRetries: 3,
             timeoutMs: 20000, // 20s timeout for skills queries
           }
-        );
-        if (skills) allSkills.push(...skills);
-      }
+        )
+      );
 
-      const allExperience: any[] = [];
-      for (const batch of skillBatches) {
-        const { data: experience } = await retryWithBackoff(
+      const experiencePromises = skillBatches.map(batch =>
+        retryWithBackoff(
           () => supabase
             .from('candidate_experience')
             .select('candidate_id, company_name')
@@ -498,7 +499,22 @@ export default function TalentPool() {
             maxRetries: 3,
             timeoutMs: 20000, // 20s timeout for experience queries
           }
-        );
+        )
+      );
+
+      // Execute skills and experience loading in parallel
+      const [skillResults, experienceResults] = await Promise.all([
+        Promise.all(skillPromises),
+        Promise.all(experiencePromises)
+      ]);
+
+      const allSkills: any[] = [];
+      for (const { data: skills } of skillResults) {
+        if (skills) allSkills.push(...skills);
+      }
+
+      const allExperience: any[] = [];
+      for (const { data: experience } of experienceResults) {
         if (experience) allExperience.push(...experience);
       }
 
@@ -587,7 +603,7 @@ export default function TalentPool() {
 
     // Load remaining profiles in background
     const loadRemaining = async () => {
-      const BATCH_SIZE = 100;
+      const BATCH_SIZE = 250; // Phase 1 optimization: increased batch size
       const batches: string[][] = [];
       for (let i = 0; i < remainingIds.length; i += BATCH_SIZE) {
         batches.push(remainingIds.slice(i, i + BATCH_SIZE));
@@ -644,18 +660,38 @@ export default function TalentPool() {
         const dedupedIds = deduped.map(c => c.id);
 
         // Fetch skills, experience, and uploader data for background profiles
-        const BATCH_SIZE = 100;
+        const BATCH_SIZE = 250; // Phase 1 optimization: increased batch size
         const skillsMap = new Map<string, any[]>();
         const experienceMap = new Map<string, any[]>();
 
         try {
-          // Fetch skills
+          // Phase 1 optimization: Parallelize skills and experience fetching
+          const batches: string[][] = [];
           for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
-            const batch = dedupedIds.slice(i, i + BATCH_SIZE);
-            const { data: skills } = await supabase
+            batches.push(dedupedIds.slice(i, i + BATCH_SIZE));
+          }
+
+          const skillPromises = batches.map(batch =>
+            supabase
               .from('candidate_skills')
               .select('candidate_id, skill_name')
-              .in('candidate_id', batch);
+              .in('candidate_id', batch)
+          );
+
+          const experiencePromises = batches.map(batch =>
+            supabase
+              .from('candidate_experience')
+              .select('candidate_id, company_name')
+              .in('candidate_id', batch)
+          );
+
+          const [skillResults, experienceResults] = await Promise.all([
+            Promise.all(skillPromises),
+            Promise.all(experiencePromises)
+          ]);
+
+          // Process skills
+          for (const { data: skills } of skillResults) {
             if (skills) {
               skills.forEach(s => {
                 if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
@@ -664,13 +700,8 @@ export default function TalentPool() {
             }
           }
 
-          // Fetch experience
-          for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
-            const batch = dedupedIds.slice(i, i + BATCH_SIZE);
-            const { data: experience } = await supabase
-              .from('candidate_experience')
-              .select('candidate_id, company_name')
-              .in('candidate_id', batch);
+          // Process experience
+          for (const { data: experience } of experienceResults) {
             if (experience) {
               experience.forEach(e => {
                 if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
@@ -1211,7 +1242,7 @@ export default function TalentPool() {
       const location = (t.location || '').toLowerCase();
       const searchableText = `${name} ${title} ${headline} ${email} ${notes} ${skillsText} ${companiesText} ${location}`;
 
-      const queryGroups = parseBooleanQueryGroups(searchQuery);
+      const queryGroups = parseBooleanQueryGroups(debouncedSearchQuery);
       // Boolean semantics:
       // - OR across groups
       // - AND within a group
@@ -1261,7 +1292,7 @@ export default function TalentPool() {
     return sortByUtil(result, sortState, getValue);
   }, [
     talents,
-    searchQuery,
+    debouncedSearchQuery,
     tableSort.sort,
     companyFilter,
     locationFilter,

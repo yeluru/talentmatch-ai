@@ -63,7 +63,7 @@ interface CompactTalentPoolRowProps {
   onToggleSelect?: () => void;
 }
 
-export function CompactTalentPoolRow({
+function CompactTalentPoolRowComponent({
   talent,
   displayId,
   isEvenRow = false,
@@ -394,3 +394,17 @@ export function CompactTalentPoolRow({
     </div>
   );
 }
+
+// Phase 1 optimization: Memoize row component to prevent unnecessary re-renders
+export const CompactTalentPoolRow = React.memo(CompactTalentPoolRowComponent, (prev, next) => {
+  // Only re-render if these props change
+  return (
+    prev.talent.id === next.talent.id &&
+    prev.talent.recruiter_status === next.talent.recruiter_status &&
+    prev.talent.recruiter_notes === next.talent.recruiter_notes &&
+    prev.talent.full_name === next.talent.full_name &&
+    prev.talent.current_title === next.talent.current_title &&
+    prev.isSelected === next.isSelected &&
+    prev.displayId === next.displayId
+  );
+});
