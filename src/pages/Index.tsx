@@ -99,7 +99,7 @@ export default function Index() {
                   <span className="text-foreground/80">With Speed.</span>
                 </h1>
 
-                <p className="text-xl sm:text-2xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
+                <p className="text-lg sm:text-xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
                   Stop analyzing resumes manually. UltraHire uses deep learning to connect the right candidates with the right opportunities instantly.
                 </p>
 
@@ -188,12 +188,12 @@ export default function Index() {
                   {/* Floating Elements on top of card */}
                   <div className="absolute -left-12 bottom-20 glass-panel p-4 rounded-2xl shadow-xl animate-float-delayed hidden sm:block border-l-4 border-l-accent">
                     <p className="text-xs font-bold text-muted-foreground mb-1 uppercase tracking-wider">Time Saved</p>
-                    <p className="text-2xl font-display font-bold text-foreground">12 hrs/wk</p>
+                    <p className="text-xl font-display font-bold text-foreground">12 hrs/wk</p>
                   </div>
 
                   <div className="absolute -right-8 top-32 glass-panel p-4 rounded-2xl shadow-xl animate-float animation-delay-200 hidden sm:block border-l-4 border-l-green-500">
                     <p className="text-xs font-bold text-muted-foreground mb-1 uppercase tracking-wider">Candidates</p>
-                    <p className="text-2xl font-display font-bold text-foreground">Top 2%</p>
+                    <p className="text-xl font-display font-bold text-foreground">Top 2%</p>
                   </div>
                 </div>
               </div>
@@ -207,7 +207,7 @@ export default function Index() {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-20 animate-in-view">
             <h2 className="text-sm font-bold text-accent tracking-widest uppercase mb-4">Powerful Features</h2>
-            <h3 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
+            <h3 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6">
               Specifically designed for <br /> <span className="text-gradient-premium">modern hiring teams.</span>
             </h3>
             <p className="text-xl text-muted-foreground">
@@ -221,10 +221,10 @@ export default function Index() {
                 key={feature.title}
                 className={`group p-8 rounded-[2rem] border bg-card hover:bg-card/50 transition-all duration-500 hover:shadow-xl hover:-translate-y-2 ${i % 3 === 0 ? 'md:col-span-2 lg:col-span-1' : ''}`}
               >
-                <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500`}>
-                  <feature.icon className="h-7 w-7" />
+                <div className={`h-12 w-12 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500`}>
+                  <feature.icon className="h-6 w-6" />
                 </div>
-                <h4 className="text-2xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
+                <h4 className="text-xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
                 <p className="text-lg text-muted-foreground leading-relaxed">{feature.description}</p>
 
                 <div className="mt-6 flex items-center text-sm font-semibold text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
@@ -245,7 +245,7 @@ export default function Index() {
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-4">
               Who are you?
             </h2>
             <p className="text-xl text-muted-foreground">Select your role to see how UltraHire empowers you.</p>
@@ -366,7 +366,7 @@ export default function Index() {
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
 
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 tracking-tight text-background">
+              <h2 className="text-2xl md:text-3xl lg:text-6xl font-display font-bold mb-6 tracking-tight text-background">
                 Ready to transform your <br /> hiring process?
               </h2>
               <p className="text-xl text-background/80 max-w-2xl mx-auto mb-10">

@@ -105,7 +105,7 @@ export default function CandidatesLanding() {
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500">Faster Than Ever.</span>
               </h1>
 
-                <p className="text-xl sm:text-2xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
+                <p className="text-lg sm:text-xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
                 Get matched with opportunities that fit your skills, experience, and career goals.
                 Our intelligent platform helps you stand out and find your perfect role.
               </p>
@@ -134,8 +134,8 @@ export default function CandidatesLanding() {
               <div className="relative glass-card rounded-[2.5rem] p-8 shadow-xl animate-float border border-white/10">
                 <div className="space-y-8">
                   <div className="flex items-center gap-6">
-                    <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
-                      <BarChart3 className="h-10 w-10 text-white" />
+                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
+                      <BarChart3 className="h-8 w-8 text-white" />
                     </div>
                     <div>
                       <div className="text-5xl font-display font-bold text-foreground">94%</div>
@@ -202,7 +202,7 @@ export default function CandidatesLanding() {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-20 animate-in-view">
             <h2 className="text-sm font-bold text-blue-500 tracking-widest uppercase mb-4">Why UltraHire?</h2>
-            <h3 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
+            <h3 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6">
               Everything You Need to <span className="text-gradient-premium">Succeed.</span>
             </h3>
             <p className="text-xl text-muted-foreground">
@@ -213,10 +213,10 @@ export default function CandidatesLanding() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {features.map((feature, i) => (
               <div key={feature.title} className="group p-8 rounded-[2rem] border bg-card hover:bg-card/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                  <feature.icon className="h-7 w-7" />
+                <div className={`h-12 w-12 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="h-6 w-6" />
                 </div>
-                <h4 className="text-2xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
+                <h4 className="text-xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
                 <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
@@ -230,7 +230,7 @@ export default function CandidatesLanding() {
       <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">How It Works</h2>
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6">How It Works</h2>
             <p className="text-xl text-muted-foreground">Get started in minutes and find your next opportunity</p>
           </div>
 
@@ -241,7 +241,7 @@ export default function CandidatesLanding() {
                   <div className="hidden md:block absolute top-10 left-1/2 w-full h-[2px] bg-gradient-to-r from-blue-500/20 to-transparent z-0" />
                 )}
 
-                <div className="relative z-10 inline-flex items-center justify-center h-20 w-20 rounded-3xl bg-white dark:bg-slate-800 shadow-xl border border-blue-100 dark:border-blue-900/30 mb-8 group-hover:scale-110 transition-transform duration-500">
+                <div className="relative z-10 inline-flex items-center justify-center h-16 w-16 rounded-3xl bg-white dark:bg-slate-800 shadow-xl border border-blue-100 dark:border-blue-900/30 mb-8 group-hover:scale-110 transition-transform duration-500">
                   <span className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-br from-blue-600 to-cyan-500">{step.number}</span>
                 </div>
 
@@ -261,7 +261,7 @@ export default function CandidatesLanding() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 text-xs font-bold uppercase tracking-wider mb-6">
                 Premium Benefits
               </div>
-              <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6 leading-tight">
                 Your Career, <span className="text-blue-500">Elevated.</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
@@ -284,8 +284,8 @@ export default function CandidatesLanding() {
               <div className="absolute inset-0 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-[2.5rem] rotate-3 opacity-20 blur-2xl" />
               <div className="relative glass-card rounded-[2.5rem] p-10 border border-white/20 shadow-2xl text-center">
                 <div className="mb-8">
-                  <div className="h-20 w-20 mx-auto rounded-full bg-blue-500/10 flex items-center justify-center mb-6">
-                    <Zap className="h-10 w-10 text-blue-500" />
+                  <div className="h-16 w-16 mx-auto rounded-full bg-blue-500/10 flex items-center justify-center mb-6">
+                    <Zap className="h-8 w-8 text-blue-500" />
                   </div>
                   <h3 className="text-3xl font-display font-bold text-foreground mb-4">Ready to Start?</h3>
                   <p className="text-muted-foreground text-lg">Create your profile today and let the opportunities come to you.</p>

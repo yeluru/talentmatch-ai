@@ -105,7 +105,7 @@ export default function RecruitersLanding() {
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Not Harder.</span>
                 </h1>
 
-                <p className="text-xl sm:text-2xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
+                <p className="text-lg sm:text-xl text-muted-foreground/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 mb-10 text-balance">
                 Transform your recruitment process with intelligent matching, automated sourcing,
                 and powerful pipeline management tools.
               </p>
@@ -163,11 +163,11 @@ export default function RecruitersLanding() {
                   <div className="pt-6 border-t border-white/10 flex items-center gap-8">
                     <div className="flex-1">
                       <div className="text-sm text-muted-foreground uppercase tracking-wider font-bold mb-1">Time to Hire</div>
-                      <div className="text-2xl font-display font-bold text-purple-500">12 days</div>
+                      <div className="text-xl font-display font-bold text-purple-500">12 days</div>
                     </div>
                     <div className="flex-1">
                       <div className="text-sm text-muted-foreground uppercase tracking-wider font-bold mb-1">Fill Rate</div>
-                      <div className="text-2xl font-display font-bold text-green-500">94%</div>
+                      <div className="text-xl font-display font-bold text-green-500">94%</div>
                     </div>
                   </div>
                 </div>
@@ -196,7 +196,7 @@ export default function RecruitersLanding() {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-20 animate-in-view">
             <h2 className="text-sm font-bold text-purple-500 tracking-widest uppercase mb-4">Powerful Recruiting Tools</h2>
-            <h3 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
+            <h3 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6">
               Hire the Best, <span className="text-gradient-premium">Faster.</span>
             </h3>
             <p className="text-xl text-muted-foreground">
@@ -207,10 +207,10 @@ export default function RecruitersLanding() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {features.map((feature) => (
               <div key={feature.title} className="group p-8 rounded-[2rem] border bg-card hover:bg-card/50 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
-                <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                  <feature.icon className="h-7 w-7" />
+                <div className={`h-12 w-12 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="h-6 w-6" />
                 </div>
-                <h4 className="text-2xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
+                <h4 className="text-xl font-display font-bold text-foreground mb-3">{feature.title}</h4>
                 <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
@@ -224,7 +224,7 @@ export default function RecruitersLanding() {
       <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">Streamlined Hiring Process</h2>
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6">Streamlined Hiring Process</h2>
             <p className="text-xl text-muted-foreground">From job posting to offer acceptance in record time</p>
           </div>
 
@@ -235,7 +235,7 @@ export default function RecruitersLanding() {
                   <div className="hidden md:block absolute top-10 left-1/2 w-full h-[2px] bg-gradient-to-r from-purple-500/20 to-transparent z-0" />
                 )}
 
-                <div className="relative z-10 inline-flex items-center justify-center h-20 w-20 rounded-3xl bg-white dark:bg-slate-800 shadow-xl border border-purple-100 dark:border-purple-900/30 mb-8 group-hover:scale-110 transition-transform duration-500">
+                <div className="relative z-10 inline-flex items-center justify-center h-16 w-16 rounded-3xl bg-white dark:bg-slate-800 shadow-xl border border-purple-100 dark:border-purple-900/30 mb-8 group-hover:scale-110 transition-transform duration-500">
                   <span className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-br from-purple-600 to-pink-500">{step.number}</span>
                 </div>
 
@@ -255,7 +255,7 @@ export default function RecruitersLanding() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 text-xs font-bold uppercase tracking-wider mb-6">
                 Efficiency First
               </div>
-              <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-6 leading-tight">
                 Recruit Like <span className="text-purple-500">a Pro.</span>
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
@@ -278,8 +278,8 @@ export default function RecruitersLanding() {
               <div className="absolute inset-0 bg-gradient-to-tr from-purple-600 to-pink-600 rounded-[2.5rem] rotate-3 opacity-20 blur-2xl" />
               <div className="relative glass-card rounded-[2.5rem] p-10 border border-white/20 shadow-2xl text-center">
                 <div className="mb-8">
-                  <div className="h-20 w-20 mx-auto rounded-full bg-purple-500/10 flex items-center justify-center mb-6">
-                    <Sparkles className="h-10 w-10 text-purple-500" />
+                  <div className="h-16 w-16 mx-auto rounded-full bg-purple-500/10 flex items-center justify-center mb-6">
+                    <Sparkles className="h-8 w-8 text-purple-500" />
                   </div>
                   <h3 className="text-3xl font-display font-bold text-foreground mb-4">Start Hiring Today</h3>
                   <p className="text-muted-foreground text-lg">Create your account and find your next team member in minutes.</p>
