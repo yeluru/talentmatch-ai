@@ -92,7 +92,7 @@ function displayNameFromEmail(email?: string | null) {
 
 // CSV export helper
 function exportToCSV(results: SearchResult[], filename: string) {
-  const headers = ['Name', 'Title', 'Years Experience', 'Location', 'Skills', 'Match Score'];
+  const headers = ['Name', 'Title', 'Years Experience', 'Location', 'Match Score'];
   const rows = results.map(r => {
     const candidate = r.candidate;
     return [
@@ -100,7 +100,6 @@ function exportToCSV(results: SearchResult[], filename: string) {
       candidate?.title || '',
       candidate?.years_experience?.toString() || '',
       candidate?.location || '',
-      candidate?.skills?.join('; ') || '',
       r.match_score.toString()
     ];
   });
@@ -1618,7 +1617,6 @@ export default function TalentSearch() {
                               <SortIcon column="location" />
                             </div>
                           </TableHead>
-                          <TableHead className="hidden xl:table-cell py-4 font-display font-semibold text-foreground">Skills</TableHead>
                           <TableHead className="w-20 text-center py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('match_score')} title="Fit score for this search">
                             <div className="flex items-center justify-center gap-1">
                               Match
@@ -1685,16 +1683,6 @@ export default function TalentSearch() {
                                 <span className="text-sm text-muted-foreground font-sans truncate block" title={candidate.location || undefined}>
                                   {candidate.location || '—'}
                                 </span>
-                              </TableCell>
-                              <TableCell className="hidden xl:table-cell py-4 cursor-pointer" onClick={() => openTalent(candId)}>
-                                <div className="flex flex-wrap gap-1">
-                                  {candidate.skills?.slice(0, 3).map(skill => (
-                                    <Badge key={skill} variant="secondary" className="text-xs px-1.5 py-0">{skill}</Badge>
-                                  ))}
-                                  {candidate.skills && candidate.skills.length > 3 && (
-                                    <span className="text-xs text-muted-foreground">+{candidate.skills.length - 3}</span>
-                                  )}
-                                </div>
                               </TableCell>
                               <TableCell className="text-center py-4 cursor-pointer" onClick={() => openTalent(candId)}>
                                 <ScoreBadge score={result.match_score} size="md" showLabel={false} />
