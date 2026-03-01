@@ -967,23 +967,23 @@ export default function CandidatePipeline() {
           </p>
         )}
         {/* Header - clearly separated from pipeline */}
-        <div className="shrink-0 pb-4 flex flex-col gap-6">
+        <div className="shrink-0 pb-4 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50 shrink-0">
-                  <Users className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50 shrink-0">
+                <Users className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                   <span className="text-foreground">Jobs → Candidates</span> <span className="text-gradient-recruiter">Pipeline</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Manage and track candidate progress through stages.
+                </p>
               </div>
-              <p className="text-base sm:text-lg text-muted-foreground font-sans mt-1">
-                Manage and track candidate progress through stages.
-              </p>
             </div>
             <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-              <SelectTrigger className="w-full md:w-56 lg:w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
+              <SelectTrigger className="w-full md:w-56 lg:w-64 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs shrink-0">
                 <SelectValue placeholder="Filter by job" />
               </SelectTrigger>
               <SelectContent>
