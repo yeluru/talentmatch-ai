@@ -203,7 +203,7 @@ export default function SuperAdminRoleManagement() {
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 Role Management
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
