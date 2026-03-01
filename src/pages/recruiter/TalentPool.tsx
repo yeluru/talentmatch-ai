@@ -2064,7 +2064,7 @@ export default function TalentPool() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="p-4 border-t border-white/10 bg-black/20">
+                  <div className="p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
