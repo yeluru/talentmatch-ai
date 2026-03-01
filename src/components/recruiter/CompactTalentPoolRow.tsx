@@ -294,7 +294,7 @@ function CompactTalentPoolRowComponent({
           onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
           disabled={updateStatus.isPending}
         >
-          <SelectTrigger className="h-8 text-xs w-full bg-white/5 border-white/10" onClick={(e) => e.stopPropagation()}>
+          <SelectTrigger className="h-7 text-xs w-full bg-white/5 border-white/10" onClick={(e) => e.stopPropagation()}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -328,7 +328,7 @@ function CompactTalentPoolRowComponent({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-xs hover:bg-white/10 px-3"
+            className="h-7 gap-1 text-xs hover:bg-white/10 px-2.5"
             onClick={(e) => {
               e.stopPropagation();
               onOpenShortlist(shortlistButton.shortlistId);
@@ -346,7 +346,7 @@ function CompactTalentPoolRowComponent({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 text-xs hover:bg-white/10 px-3"
+            className="h-7 gap-1 text-xs hover:bg-white/10 px-2.5"
             onClick={(e) => {
               e.stopPropagation();
               onAddToShortlist(talent.id);
@@ -361,8 +361,8 @@ function CompactTalentPoolRowComponent({
       <div className="w-10 flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10">
-              <MoreHorizontal className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/10">
+              <MoreHorizontal className="h-3.5 w-3.5" />
               <span className="sr-only">Actions</span>
             </Button>
           </DropdownMenuTrigger>

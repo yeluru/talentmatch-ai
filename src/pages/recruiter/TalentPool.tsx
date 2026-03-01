@@ -1481,7 +1481,7 @@ export default function TalentPool() {
     (experienceFilter ? 1 : 0);
 
   const filtersContent = (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {/* Search row (hero) */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center glass-panel p-1 rounded-xl border border-white/10">
         <div className="relative flex-1">
@@ -1490,14 +1490,14 @@ export default function TalentPool() {
             placeholder='Search (boolean): "fannie and freddie", react or angular'
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-9 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 text-sm"
+            className="pl-10 h-8 border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60 text-sm"
           />
         </div>
 
         <div className="flex items-center gap-2 pr-1">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" className="h-9 gap-2 hover:bg-white/10">
+              <Button variant="ghost" className="h-8 gap-2 hover:bg-white/10">
                 <Filter className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
                 {filterCount > 0 && (
@@ -1602,16 +1602,16 @@ export default function TalentPool() {
             onValueChange={(v) => setActiveView((v as TalentPoolView) || 'all')}
             className="justify-start gap-1 bg-muted/20 p-1 rounded-lg border border-white/5"
           >
-            <ToggleGroupItem value="all" aria-label="All" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
+            <ToggleGroupItem value="all" aria-label="All" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-7 px-2.5">
               All
             </ToggleGroupItem>
-            <ToggleGroupItem value="new" aria-label="New" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
+            <ToggleGroupItem value="new" aria-label="New" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-7 px-2.5">
               New
             </ToggleGroupItem>
-            <ToggleGroupItem value="high_score" aria-label="High score" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
+            <ToggleGroupItem value="high_score" aria-label="High score" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-7 px-2.5">
               High score
             </ToggleGroupItem>
-            <ToggleGroupItem value="recent" aria-label="Recently viewed" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-8 px-3">
+            <ToggleGroupItem value="recent" aria-label="Recently viewed" className="data-[state=on]:bg-background/80 data-[state=on]:shadow-sm rounded-md text-xs h-7 px-2.5">
               Recently viewed
             </ToggleGroupItem>
           </ToggleGroup>
@@ -1625,7 +1625,7 @@ export default function TalentPool() {
               setSearchQuery('');
               clearFilters();
             }}
-            className="whitespace-nowrap h-8 text-xs hover:bg-destructive/10 hover:text-destructive"
+            className="whitespace-nowrap h-7 text-xs hover:bg-destructive/10 hover:text-destructive"
           >
             <X className="h-3 w-3 mr-1" />
             Reset
@@ -1646,32 +1646,26 @@ export default function TalentPool() {
       <ScrollToTop />
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                  <Users className="h-4 w-4 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-                </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+                <Users className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                   Talent <span className="text-gradient-recruiter">Pool</span>
                 </h1>
+                <p className="text-xs text-muted-foreground font-sans leading-tight">
+                  Sourced from uploads and searches
+                </p>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">
-                Sourced profiles from bulk uploads and searches
-              </p>
-              {dataUpdatedAt && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>Updated {getTimeAgo(dataUpdatedAt)}</span>
-                </div>
-              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-lg h-9 w-9 border border-border/50 hover:bg-accent"
+                className="rounded-lg h-8 w-8 border border-border/50 hover:bg-accent"
                 onClick={handleManualRefresh}
                 disabled={isLoading}
                 title="Refresh talent pool"
@@ -1688,17 +1682,17 @@ export default function TalentPool() {
               />
               <Button
                 variant="outline"
-                className="rounded-lg h-9 px-4 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold text-sm"
+                className="rounded-lg h-8 px-3 border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-semibold text-xs"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={!organizationId || !loadingProgress.isComplete}
                 title={!loadingProgress.isComplete ? 'Wait for talent pool to finish loading' : ''}
               >
-                <Upload className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                <Upload className="h-4 w-4 mr-1.5" strokeWidth={1.5} />
                 Upload
               </Button>
-              <Button asChild className="rounded-lg h-9 px-4 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold text-sm">
+              <Button asChild className="rounded-lg h-8 px-3 border border-recruiter/20 bg-recruiter/10 hover:bg-recruiter/20 text-recruiter font-sans font-semibold text-xs">
                 <Link to="/recruiter/talent-search/search">
-                  <Search className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                  <Search className="h-4 w-4 mr-1.5" strokeWidth={1.5} />
                   Find Talent
                 </Link>
               </Button>
@@ -1918,8 +1912,8 @@ export default function TalentPool() {
             ) : (
               <>
                 {/* Pagination and controls - all on one line */}
-                <div className="flex items-center gap-3 px-4 py-2 border-b border-white/10 bg-white/5 backdrop-blur-sm">
-                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                <div className="flex items-center gap-3 px-3 py-1.5 border-b border-white/10 bg-white/5 backdrop-blur-sm">
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
                     {groupedTalents.length > 0
                       ? `Showing ${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, groupedTalents.length)} of ${groupedTalents.length}`
                       : ''}
@@ -1980,23 +1974,23 @@ export default function TalentPool() {
 
                 {/* Bulk actions toolbar */}
                 {selectedIds.size > 0 && (
-                  <div className="bg-muted/50 px-6 py-3 mb-2 rounded-lg flex items-center gap-4">
-                    <span className="text-sm font-medium">{selectedIds.size} selected</span>
+                  <div className="bg-muted/50 px-4 py-2 mb-2 rounded-lg flex items-center gap-4">
+                    <span className="text-xs font-medium">{selectedIds.size} selected</span>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={handleBulkRemove} className="h-8">
+                      <Button size="sm" variant="outline" onClick={handleBulkRemove} className="h-7">
                         <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                         Delete
                       </Button>
-                      <Button size="sm" variant="outline" onClick={handleBulkAddToShortlist} className="h-8">
+                      <Button size="sm" variant="outline" onClick={handleBulkAddToShortlist} className="h-7">
                         <ListPlus className="h-3.5 w-3.5 mr-1.5" />
                         Add to Shortlist
                       </Button>
-                      <Button size="sm" variant="outline" onClick={handleBulkStartEngagement} className="h-8">
+                      <Button size="sm" variant="outline" onClick={handleBulkStartEngagement} className="h-7">
                         <Send className="h-3.5 w-3.5 mr-1.5" />
                         Start Engagement
                       </Button>
                     </div>
-                    <Button size="sm" variant="ghost" onClick={clearSelection} className="h-8 ml-auto">
+                    <Button size="sm" variant="ghost" onClick={clearSelection} className="h-7 ml-auto">
                       <X className="h-3.5 w-3.5 mr-1.5" />
                       Clear
                     </Button>
@@ -2064,7 +2058,7 @@ export default function TalentPool() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="p-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
+                  <div className="px-3 py-2 border-t border-white/10 bg-white/5 backdrop-blur-sm">
                     <Pagination>
                       <PaginationContent>
                         <PaginationItem>
