@@ -226,22 +226,22 @@ export default function EditJob() {
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto space-y-6 pt-6 pb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-8 w-8">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 rounded-xl bg-recruiter/10 dark:bg-recruiter/20 border-2 border-recruiter/70 dark:border-white/50">
-                <Briefcase className="h-5 w-5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+          <div className="flex-1 flex items-center gap-1.5">
+            <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
+              <Briefcase className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground leading-tight">
                 Edit <span className="text-gradient-recruiter">Job</span>
               </h1>
+              <p className="text-xs text-muted-foreground font-sans leading-tight">Update your job posting</p>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">Update your job posting</p>
           </div>
-          <Badge variant={formData.status === 'published' ? 'default' : 'secondary'}>
+          <Badge variant={formData.status === 'published' ? 'default' : 'secondary'} className="text-xs">
             {formData.status}
           </Badge>
         </div>
@@ -506,6 +506,7 @@ export default function EditJob() {
               variant="destructive"
               onClick={() => updateJob.mutate('closed')}
               disabled={updateJob.isPending}
+              className="h-8 text-xs"
             >
               Close Job
             </Button>
@@ -522,6 +523,7 @@ export default function EditJob() {
               updateJob.mutate('draft');
             }}
             disabled={!isValid || updateJob.isPending}
+            className="h-8 text-xs"
           >
             {updateJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Save as Draft
@@ -537,6 +539,7 @@ export default function EditJob() {
               updateJob.mutate('published');
             }}
             disabled={!isValid || updateJob.isPending}
+            className="h-8 text-xs"
           >
             {updateJob.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {formData.status === 'published' ? 'Update Job' : 'Publish Job'}
