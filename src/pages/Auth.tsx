@@ -18,15 +18,15 @@ import { SEOHead } from '@/components/SEOHead';
 function Logo() {
   return (
     <div className="flex items-center gap-2">
-      <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-        <svg viewBox="0 0 24 24" className="h-6 w-6 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       </div>
-      <span className="font-display font-bold text-2xl tracking-tight text-foreground">
+      <span className="font-display font-bold text-xl tracking-tight text-foreground">
         Ultra<span className="text-accent">Hire</span>
       </span>
     </div>
@@ -605,7 +605,7 @@ export default function AuthPage() {
 
               <Card className="glass-panel border-white/5 shadow-2xl rounded-[2rem] overflow-hidden">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-display font-bold text-foreground">Set a new password</CardTitle>
+                  <CardTitle className="text-xl font-display font-bold text-foreground">Set a new password</CardTitle>
                   <CardDescription className="text-muted-foreground">
                   {inviteToken ? 'Set your password to continue and join the team.' : 'Set a new password for your account.'}
                 </CardDescription>
@@ -620,7 +620,7 @@ export default function AuthPage() {
                       placeholder="••••••••"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="h-12"
+                      className="h-10"
                       minLength={8}
                       maxLength={72}
                       required
@@ -634,14 +634,14 @@ export default function AuthPage() {
                       placeholder="••••••••"
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="h-12"
+                      className="h-10"
                       minLength={8}
                       maxLength={72}
                       required
                     />
                   </div>
 
-                  <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
+                  <Button type="submit" className="btn-primary-glow w-full h-10" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Update password
                   </Button>
@@ -702,7 +702,7 @@ export default function AuthPage() {
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to sign in
                   </Button>
-                  <CardTitle className="text-2xl font-display font-bold text-foreground">Reset your password</CardTitle>
+                  <CardTitle className="text-xl font-display font-bold text-foreground">Reset your password</CardTitle>
                   <CardDescription className="text-muted-foreground">
                     Enter your email address and we'll send you a link to reset your password.
                   </CardDescription>
@@ -717,11 +717,11 @@ export default function AuthPage() {
                       placeholder="you@example.com"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
-                      className="h-12"
+                      className="h-10"
                       required
                     />
                   </div>
-                  <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
+                  <Button type="submit" className="btn-primary-glow w-full h-10" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Send reset link
                   </Button>
@@ -761,10 +761,10 @@ export default function AuthPage() {
 
             <Card className="glass-panel border-white/5 shadow-2xl rounded-[2rem] overflow-hidden">
               <CardContent className="pt-8 pb-8 text-center space-y-4">
-                <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Mail className="h-10 w-10 text-primary" />
+                <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Mail className="h-8 w-8 text-primary" />
                 </div>
-                <CardTitle className="text-2xl font-display font-bold text-foreground">Check your email</CardTitle>
+                <CardTitle className="text-xl font-display font-bold text-foreground">Check your email</CardTitle>
                 <CardDescription className="text-base text-muted-foreground">
                   We've sent a password reset link to <strong className="text-foreground">{resetEmail}</strong>
                 </CardDescription>
@@ -832,7 +832,7 @@ export default function AuthPage() {
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn}>
                   <CardHeader>
-                    <CardTitle className="text-2xl font-display font-bold text-foreground">
+                    <CardTitle className="text-xl font-display font-bold text-foreground">
                       {inviteDetails ? 'Welcome back' : 'Welcome back'}
                     </CardTitle>
                     <CardDescription className="text-muted-foreground">
@@ -914,11 +914,11 @@ export default function AuthPage() {
                         placeholder="••••••••"
                         value={signInData.password}
                         onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                        className="h-12 bg-white/5"
+                        className="h-10 bg-white/5"
                         required
                       />
                     </div>
-                    <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
+                    <Button type="submit" className="btn-primary-glow w-full h-10" disabled={isLoading}>
                       {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Sign In
                     </Button>
@@ -931,7 +931,7 @@ export default function AuthPage() {
                   <CardHeader>
                     {inviteToken ? (
                       <>
-                        <CardTitle className="text-2xl font-display font-bold text-foreground">
+                        <CardTitle className="text-xl font-display font-bold text-foreground">
                           {inviteDetails?.organizationName
                             ? `Join ${inviteDetails.organizationName}`
                             : "You're invited"}
@@ -940,7 +940,7 @@ export default function AuthPage() {
                       </>
                     ) : (
                       <>
-                        <CardTitle className="text-2xl font-display font-bold text-foreground">Create an account</CardTitle>
+                        <CardTitle className="text-xl font-display font-bold text-foreground">Create an account</CardTitle>
                         <CardDescription className="text-muted-foreground">Get started with UltraHire AI</CardDescription>
                       </>
                     )}
@@ -1009,7 +1009,7 @@ export default function AuthPage() {
                         placeholder="••••••••"
                         value={signUpData.password}
                         onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                        className="h-12 bg-white/5"
+                        className="h-10 bg-white/5"
                         required
                         minLength={8}
                         maxLength={72}
@@ -1026,7 +1026,7 @@ export default function AuthPage() {
                         value={signUpData.confirmPassword}
                         onChange={(e) =>
                           setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
-                        className="h-12 bg-white/5"
+                        className="h-10 bg-white/5"
                         required
                         minLength={8}
                         maxLength={72}
@@ -1042,7 +1042,7 @@ export default function AuthPage() {
                             placeholder="8-character code"
                             value={signUpData.inviteCode}
                             onChange={(e) => setSignUpData({ ...signUpData, inviteCode: e.target.value })}
-                            className="h-12 bg-white/5"
+                            className="h-10 bg-white/5"
                             maxLength={20}
                           />
                           <p className="text-xs">
@@ -1068,7 +1068,7 @@ export default function AuthPage() {
                       </>
                     )}
 
-                    <Button type="submit" className="btn-primary-glow w-full h-12" disabled={isLoading}>
+                    <Button type="submit" className="btn-primary-glow w-full h-10" disabled={isLoading}>
                       {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {inviteToken ? 'Complete Setup' : 'Create Account'}
                     </Button>
