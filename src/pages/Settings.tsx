@@ -157,18 +157,18 @@ export default function Settings() {
   return (
     <DashboardLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 w-full">
-        <header className="shrink-0 flex flex-col gap-6">
+        <header className="shrink-0 flex flex-col gap-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
                   <SettingsIcon className="h-5 w-5" strokeWidth={1.5} />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+                <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                   Account <span className="text-gradient-candidate">Settings</span>
                 </h1>
               </div>
-              <p className="text-lg text-muted-foreground font-sans">Manage your account settings and preferences</p>
+              <p className="text-xs text-muted-foreground font-sans leading-tight">Manage your account settings and preferences</p>
             </div>
           </div>
         </header>
@@ -208,9 +208,9 @@ export default function Settings() {
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
                 <div className="flex items-center gap-6">
-                  <Avatar className="h-20 w-20">
+                  <Avatar className="h-16 w-16">
                     <AvatarImage src={profile?.avatar_url || ''} />
-                    <AvatarFallback className="text-2xl bg-accent text-accent-foreground">
+                    <AvatarFallback className="text-xl bg-accent text-accent-foreground">
                       {profile?.full_name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
@@ -227,12 +227,12 @@ export default function Settings() {
                       id="full_name"
                       value={profileForm.full_name}
                       onChange={(e) => setProfileForm(p => ({ ...p, full_name: e.target.value }))}
-                      className="h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
+                      className="h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-sans">Email</Label>
-                    <Input id="email" value={user?.email || ''} disabled className="h-11 rounded-lg border-border font-sans" />
+                    <Input id="email" value={user?.email || ''} disabled className="h-8 rounded-lg border-border font-sans" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="text-sm font-sans">Phone</Label>
@@ -240,7 +240,7 @@ export default function Settings() {
                       id="phone"
                       value={profileForm.phone}
                       onChange={(e) => setProfileForm(p => ({ ...p, phone: e.target.value }))}
-                      className="h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
+                      className="h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
                     />
                   </div>
                   <div className="space-y-2">
@@ -249,7 +249,7 @@ export default function Settings() {
                       id="location"
                       value={profileForm.location}
                       onChange={(e) => setProfileForm(p => ({ ...p, location: e.target.value }))}
-                      className="h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
+                      className="h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
@@ -259,7 +259,7 @@ export default function Settings() {
                       value={profileForm.linkedin_url}
                       onChange={(e) => setProfileForm(p => ({ ...p, linkedin_url: e.target.value }))}
                       placeholder="https://linkedin.com/in/yourprofile"
-                      className="h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
+                      className="h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans"
                     />
                   </div>
                 </div>
@@ -390,7 +390,7 @@ export default function Settings() {
                           setNotificationSettings(s => ({ ...s, job_alert_frequency: value }))
                         }
                       >
-                        <SelectTrigger className="w-48 h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans">
+                        <SelectTrigger className="w-48 h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -433,7 +433,7 @@ export default function Settings() {
                         setNotificationSettings(s => ({ ...s, theme: value }))
                       }
                     >
-                      <SelectTrigger className="w-48 h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans">
+                      <SelectTrigger className="w-48 h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -452,7 +452,7 @@ export default function Settings() {
                         setNotificationSettings(s => ({ ...s, language: value }))
                       }
                     >
-                      <SelectTrigger className="w-48 h-11 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans">
+                      <SelectTrigger className="w-48 h-8 rounded-lg border-border focus:ring-2 focus:ring-blue-500/20 font-sans">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

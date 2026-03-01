@@ -105,7 +105,7 @@ export default function Notifications() {
       <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-3">
               Notifications
               {unreadCount > 0 && (
                 <Badge variant="secondary">{unreadCount} unread</Badge>
