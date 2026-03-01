@@ -577,167 +577,6 @@ export default function TalentPool() {
     toast.success('Talent pool refreshed');
   };
 
-  // Load More handler - loads next 1000 profiles
-  const handleLoadMore = async () => {
-    if (!organizationId || !allCandidateIds.length || !talents || isLoadingMore) return;
-
-    const currentLoaded = talents.length;
-    const totalCandidates = allCandidateIds.length;
-
-    if (currentLoaded >= totalCandidates) {
-      toast.info('All profiles already loaded');
-      return;
-    }
-
-    setIsLoadingMore(true);
-
-    try {
-      const LOAD_MORE_SIZE = 1000;
-      const nextIds = allCandidateIds.slice(currentLoaded, currentLoaded + LOAD_MORE_SIZE);
-      console.log(`[TalentPool] Loading next ${nextIds.length} profiles (${currentLoaded + nextIds.length}/${totalCandidates})`);
-
-      // Fetch profiles in batches of 250
-      const BATCH_SIZE = 250;
-      const batches: string[][] = [];
-      for (let i = 0; i < nextIds.length; i += BATCH_SIZE) {
-        batches.push(nextIds.slice(i, i + BATCH_SIZE));
-      }
-
-      const profilePromises = batches.map(batch =>
-        retryWithBackoff(
-          () => supabase
-            .from('candidate_profiles')
-            .select(`id, full_name, email, location, current_title, current_company, years_of_experience,
-                     headline, ats_score, created_at, recruiter_notes, recruiter_status`)
-            .in('id', batch),
-          { maxRetries: 3, timeoutMs: 30000 }
-        )
-      );
-
-      const profileResults = await Promise.all(profilePromises);
-      const allProfiles: any[] = [];
-      for (const { data: profiles } of profileResults) {
-        if (profiles) allProfiles.push(...profiles);
-      }
-
-      if (allProfiles.length === 0) {
-        toast.error('No profiles loaded');
-        return;
-      }
-
-      // Dedupe
-      const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
-      const identityKey = (c: any) => {
-        const li = norm(c.linkedin_url);
-        if (li) return `li:${li}`;
-        const em = norm(c.email);
-        if (em) return `em:${em}`;
-        return `id:${String(c.id || '')}`;
-      };
-
-      const sorted = allProfiles.sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      const byIdentity = new Map<string, any>();
-      for (const c of sorted) {
-        const k = identityKey(c);
-        if (!byIdentity.has(k)) byIdentity.set(k, c);
-      }
-      const deduped = Array.from(byIdentity.values());
-      const dedupedIds = deduped.map(c => c.id);
-
-      // Fetch skills and experience in parallel
-      const skillsMap = new Map<string, any[]>();
-      const experienceMap = new Map<string, any[]>();
-
-      const skillBatches: string[][] = [];
-      for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
-        skillBatches.push(dedupedIds.slice(i, i + BATCH_SIZE));
-      }
-
-      const skillPromises = skillBatches.map(batch =>
-        supabase.from('candidate_skills').select('candidate_id, skill_name').in('candidate_id', batch)
-      );
-
-      const experiencePromises = skillBatches.map(batch =>
-        supabase.from('candidate_experience').select('candidate_id, company_name').in('candidate_id', batch)
-      );
-
-      const [skillResults, experienceResults] = await Promise.all([
-        Promise.all(skillPromises),
-        Promise.all(experiencePromises)
-      ]);
-
-      for (const { data: skills } of skillResults) {
-        if (skills) {
-          skills.forEach(s => {
-            if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
-            skillsMap.get(s.candidate_id)!.push(s);
-          });
-        }
-      }
-
-      for (const { data: experience } of experienceResults) {
-        if (experience) {
-          experience.forEach(e => {
-            if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
-            experienceMap.get(e.candidate_id)!.push(e);
-          });
-        }
-      }
-
-      // Fetch uploader data
-      const uploaderMap = new Map();
-      try {
-        const { data: uploaderData } = await supabase
-          .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
-        if (uploaderData) {
-          uploaderData.forEach((u: any) => {
-            uploaderMap.set(u.candidate_id, {
-              email: u.uploader_email,
-              full_name: u.uploader_name
-            });
-          });
-        }
-      } catch (error) {
-        console.warn('[TalentPool] Could not fetch uploader data:', error);
-      }
-
-      // Build complete profile objects
-      const processedProfiles = deduped.map(profile => ({
-        ...profile,
-        skills: skillsMap.get(profile.id) || [],
-        companies: Array.from(new Set(
-          (experienceMap.get(profile.id) || [])
-            .map(e => e.company_name)
-            .filter(Boolean)
-        )),
-        uploaded_by_user: uploaderMap.get(profile.id) || null
-      }));
-
-      // Merge into React Query cache
-      queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
-        if (!oldData) return processedProfiles;
-        const combined = [...oldData, ...processedProfiles];
-        const combinedMap = new Map();
-        for (const profile of combined) {
-          const k = identityKey(profile);
-          if (!combinedMap.has(k)) combinedMap.set(k, profile);
-        }
-        return Array.from(combinedMap.values()).sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      });
-
-      toast.success(`Loaded ${processedProfiles.length} more profiles`);
-    } catch (error) {
-      console.error('[TalentPool] Error loading more profiles:', error);
-      toast.error('Failed to load more profiles');
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
-
   // Format time ago for last updated indicator
   const getTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -754,12 +593,194 @@ export default function TalentPool() {
   useEffect(() => {
     if (!talents || !allCandidateIds.length) return;
 
+    // Account for deduplication: consider complete if within 10 profiles of total
+    const isComplete = talents.length >= allCandidateIds.length - 10;
+
     setLoadingProgress({
       loaded: talents.length,
       total: allCandidateIds.length,
-      isComplete: talents.length >= allCandidateIds.length
+      isComplete
     });
   }, [talents?.length, allCandidateIds.length]);
+
+  // Automatic background loading - industry standard UX
+  useEffect(() => {
+    if (!organizationId || !allCandidateIds.length || !talents || isLoadingMore) return;
+
+    const remainingCount = allCandidateIds.length - talents.length;
+
+    // Stop if all loaded (accounting for deduplication tolerance)
+    if (remainingCount <= 10) {
+      setLoadingProgress(prev => ({ ...prev, isComplete: true }));
+      return;
+    }
+
+    // Auto-load remaining profiles in background
+    const autoLoad = async () => {
+      console.log(`[TalentPool] Auto-loading ${remainingCount} remaining profiles in background`);
+      setIsLoadingMore(true);
+
+      try {
+        // Load in chunks of 500 to avoid overwhelming the browser
+        const CHUNK_SIZE = 500;
+        let currentLoaded = talents.length;
+
+        while (currentLoaded < allCandidateIds.length) {
+          const nextBatch = allCandidateIds.slice(currentLoaded, currentLoaded + CHUNK_SIZE);
+
+          if (nextBatch.length === 0) break;
+
+          console.log(`[TalentPool] Loading batch ${currentLoaded} to ${currentLoaded + nextBatch.length}`);
+
+          // Use the same loading logic as handleLoadMore
+          const BATCH_SIZE = 250;
+          const batches: string[][] = [];
+          for (let i = 0; i < nextBatch.length; i += BATCH_SIZE) {
+            batches.push(nextBatch.slice(i, i + BATCH_SIZE));
+          }
+
+          const profilePromises = batches.map(batch =>
+            retryWithBackoff(
+              () => supabase
+                .from('candidate_profiles')
+                .select(`id, full_name, email, location, current_title, current_company, years_of_experience,
+                         headline, ats_score, created_at, recruiter_notes, recruiter_status`)
+                .in('id', batch),
+              { maxRetries: 3, timeoutMs: 30000 }
+            )
+          );
+
+          const profileResults = await Promise.all(profilePromises);
+          const allProfiles: any[] = [];
+          for (const { data: profiles } of profileResults) {
+            if (profiles) allProfiles.push(...profiles);
+          }
+
+          if (allProfiles.length === 0) break;
+
+          // Dedupe
+          const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
+          const identityKey = (c: any) => {
+            const li = norm(c.linkedin_url);
+            if (li) return `li:${li}`;
+            const em = norm(c.email);
+            if (em) return `em:${em}`;
+            return `id:${String(c.id || '')}`;
+          };
+
+          const sorted = allProfiles.sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          const byIdentity = new Map<string, any>();
+          for (const c of sorted) {
+            const k = identityKey(c);
+            if (!byIdentity.has(k)) byIdentity.set(k, c);
+          }
+          const deduped = Array.from(byIdentity.values());
+          const dedupedIds = deduped.map(c => c.id);
+
+          // Fetch skills and experience in parallel
+          const skillsMap = new Map<string, any[]>();
+          const experienceMap = new Map<string, any[]>();
+
+          const skillBatches: string[][] = [];
+          for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
+            skillBatches.push(dedupedIds.slice(i, i + BATCH_SIZE));
+          }
+
+          const skillPromises = skillBatches.map(batch =>
+            supabase.from('candidate_skills').select('candidate_id, skill_name').in('candidate_id', batch)
+          );
+
+          const experiencePromises = skillBatches.map(batch =>
+            supabase.from('candidate_experience').select('candidate_id, company_name').in('candidate_id', batch)
+          );
+
+          const [skillResults, experienceResults] = await Promise.all([
+            Promise.all(skillPromises),
+            Promise.all(experiencePromises)
+          ]);
+
+          for (const { data: skills } of skillResults) {
+            if (skills) {
+              skills.forEach(s => {
+                if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
+                skillsMap.get(s.candidate_id)!.push(s);
+              });
+            }
+          }
+
+          for (const { data: experience } of experienceResults) {
+            if (experience) {
+              experience.forEach(e => {
+                if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
+                experienceMap.get(e.candidate_id)!.push(e);
+              });
+            }
+          }
+
+          // Fetch uploader data
+          const uploaderMap = new Map();
+          try {
+            const { data: uploaderData } = await supabase
+              .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
+            if (uploaderData) {
+              uploaderData.forEach((u: any) => {
+                uploaderMap.set(u.candidate_id, {
+                  email: u.uploader_email,
+                  full_name: u.uploader_name
+                });
+              });
+            }
+          } catch (error) {
+            console.warn('[TalentPool] Could not fetch uploader data:', error);
+          }
+
+          // Build complete profile objects
+          const processedProfiles = deduped.map(profile => ({
+            ...profile,
+            skills: skillsMap.get(profile.id) || [],
+            companies: Array.from(new Set(
+              (experienceMap.get(profile.id) || [])
+                .map(e => e.company_name)
+                .filter(Boolean)
+            )),
+            uploaded_by_user: uploaderMap.get(profile.id) || null
+          }));
+
+          // Merge into React Query cache
+          queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
+            if (!oldData) return processedProfiles;
+            const combined = [...oldData, ...processedProfiles];
+            const combinedMap = new Map();
+            for (const profile of combined) {
+              const k = identityKey(profile);
+              if (!combinedMap.has(k)) combinedMap.set(k, profile);
+            }
+            return Array.from(combinedMap.values()).sort((a, b) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+          });
+
+          currentLoaded += nextBatch.length;
+
+          // Small delay between chunks to avoid overwhelming browser
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        console.log('[TalentPool] Background loading complete');
+        setLoadingProgress(prev => ({ ...prev, isComplete: true }));
+      } catch (error) {
+        console.error('[TalentPool] Error in background loading:', error);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    };
+
+    // Start auto-loading after a short delay (let user see initial load first)
+    const timer = setTimeout(autoLoad, 1000);
+    return () => clearTimeout(timer);
+  }, [allCandidateIds.length, talents?.length, organizationId, isLoadingMore, queryClient]);
 
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs', organizationId],
@@ -1779,25 +1800,14 @@ export default function TalentPool() {
         {filtersContent}
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* Progress bar with Load More button inline */}
+          {/* Automatic background loading progress - hides when complete */}
           {!loadingProgress.isComplete && loadingProgress.total > 0 && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border-b border-white/10">
-              <div className="flex-1 min-w-0">
-                <LoadingProgressBar
-                  loaded={loadingProgress.loaded}
-                  total={loadingProgress.total}
-                  message={isLoadingMore ? "Loading more..." : "Loading talent pool"}
-                />
-              </div>
-              {talents && allCandidateIds.length > talents.length && !isLoadingMore && (
-                <Button
-                  onClick={handleLoadMore}
-                  size="sm"
-                  className="bg-recruiter hover:bg-recruiter/90 text-white shrink-0"
-                >
-                  Load More ({Math.min(1000, allCandidateIds.length - talents.length)})
-                </Button>
-              )}
+            <div className="px-4 py-2 bg-white/5 border-b border-white/10">
+              <LoadingProgressBar
+                loaded={loadingProgress.loaded}
+                total={loadingProgress.total}
+                message="Loading profiles in background..."
+              />
             </div>
           )}
 
