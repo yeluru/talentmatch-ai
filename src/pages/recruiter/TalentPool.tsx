@@ -267,9 +267,8 @@ export default function TalentPool() {
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  // Phase 1.5: Track loaded profiles for on-demand loading
-  const [loadedProfileIds, setLoadedProfileIds] = useState<Set<string>>(new Set());
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  // Load More: Track loading state
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeCandidateIds, setRemoveCandidateIds] = useState<string[]>([]);
   const [rowShortlistDialogOpen, setRowShortlistDialogOpen] = useState(false);
@@ -385,11 +384,11 @@ export default function TalentPool() {
         return [];
       }
 
-      // Store all IDs for background loading
+      // Store all IDs for progressive loading
       setAllCandidateIds(candidateIds);
 
-      // Initial load: first 200 profiles only
-      const INITIAL_LOAD_SIZE = 200;
+      // Initial load: first 1000 profiles
+      const INITIAL_LOAD_SIZE = 1000;
       const initialIds = candidateIds.slice(0, INITIAL_LOAD_SIZE);
       console.log(`[TalentPool] Initial load: ${initialIds.length} of ${candidateIds.length} profiles`);
 
@@ -578,6 +577,167 @@ export default function TalentPool() {
     toast.success('Talent pool refreshed');
   };
 
+  // Load More handler - loads next 1000 profiles
+  const handleLoadMore = async () => {
+    if (!organizationId || !allCandidateIds.length || !talents || isLoadingMore) return;
+
+    const currentLoaded = talents.length;
+    const totalCandidates = allCandidateIds.length;
+
+    if (currentLoaded >= totalCandidates) {
+      toast.info('All profiles already loaded');
+      return;
+    }
+
+    setIsLoadingMore(true);
+
+    try {
+      const LOAD_MORE_SIZE = 1000;
+      const nextIds = allCandidateIds.slice(currentLoaded, currentLoaded + LOAD_MORE_SIZE);
+      console.log(`[TalentPool] Loading next ${nextIds.length} profiles (${currentLoaded + nextIds.length}/${totalCandidates})`);
+
+      // Fetch profiles in batches of 250
+      const BATCH_SIZE = 250;
+      const batches: string[][] = [];
+      for (let i = 0; i < nextIds.length; i += BATCH_SIZE) {
+        batches.push(nextIds.slice(i, i + BATCH_SIZE));
+      }
+
+      const profilePromises = batches.map(batch =>
+        retryWithBackoff(
+          () => supabase
+            .from('candidate_profiles')
+            .select(`id, full_name, email, location, current_title, current_company, years_of_experience,
+                     headline, ats_score, created_at, recruiter_notes, recruiter_status`)
+            .in('id', batch),
+          { maxRetries: 3, timeoutMs: 30000 }
+        )
+      );
+
+      const profileResults = await Promise.all(profilePromises);
+      const allProfiles: any[] = [];
+      for (const { data: profiles } of profileResults) {
+        if (profiles) allProfiles.push(...profiles);
+      }
+
+      if (allProfiles.length === 0) {
+        toast.error('No profiles loaded');
+        return;
+      }
+
+      // Dedupe
+      const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
+      const identityKey = (c: any) => {
+        const li = norm(c.linkedin_url);
+        if (li) return `li:${li}`;
+        const em = norm(c.email);
+        if (em) return `em:${em}`;
+        return `id:${String(c.id || '')}`;
+      };
+
+      const sorted = allProfiles.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const byIdentity = new Map<string, any>();
+      for (const c of sorted) {
+        const k = identityKey(c);
+        if (!byIdentity.has(k)) byIdentity.set(k, c);
+      }
+      const deduped = Array.from(byIdentity.values());
+      const dedupedIds = deduped.map(c => c.id);
+
+      // Fetch skills and experience in parallel
+      const skillsMap = new Map<string, any[]>();
+      const experienceMap = new Map<string, any[]>();
+
+      const skillBatches: string[][] = [];
+      for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
+        skillBatches.push(dedupedIds.slice(i, i + BATCH_SIZE));
+      }
+
+      const skillPromises = skillBatches.map(batch =>
+        supabase.from('candidate_skills').select('candidate_id, skill_name').in('candidate_id', batch)
+      );
+
+      const experiencePromises = skillBatches.map(batch =>
+        supabase.from('candidate_experience').select('candidate_id, company_name').in('candidate_id', batch)
+      );
+
+      const [skillResults, experienceResults] = await Promise.all([
+        Promise.all(skillPromises),
+        Promise.all(experiencePromises)
+      ]);
+
+      for (const { data: skills } of skillResults) {
+        if (skills) {
+          skills.forEach(s => {
+            if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
+            skillsMap.get(s.candidate_id)!.push(s);
+          });
+        }
+      }
+
+      for (const { data: experience } of experienceResults) {
+        if (experience) {
+          experience.forEach(e => {
+            if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
+            experienceMap.get(e.candidate_id)!.push(e);
+          });
+        }
+      }
+
+      // Fetch uploader data
+      const uploaderMap = new Map();
+      try {
+        const { data: uploaderData } = await supabase
+          .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
+        if (uploaderData) {
+          uploaderData.forEach((u: any) => {
+            uploaderMap.set(u.candidate_id, {
+              email: u.uploader_email,
+              full_name: u.uploader_name
+            });
+          });
+        }
+      } catch (error) {
+        console.warn('[TalentPool] Could not fetch uploader data:', error);
+      }
+
+      // Build complete profile objects
+      const processedProfiles = deduped.map(profile => ({
+        ...profile,
+        skills: skillsMap.get(profile.id) || [],
+        companies: Array.from(new Set(
+          (experienceMap.get(profile.id) || [])
+            .map(e => e.company_name)
+            .filter(Boolean)
+        )),
+        uploaded_by_user: uploaderMap.get(profile.id) || null
+      }));
+
+      // Merge into React Query cache
+      queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
+        if (!oldData) return processedProfiles;
+        const combined = [...oldData, ...processedProfiles];
+        const combinedMap = new Map();
+        for (const profile of combined) {
+          const k = identityKey(profile);
+          if (!combinedMap.has(k)) combinedMap.set(k, profile);
+        }
+        return Array.from(combinedMap.values()).sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      });
+
+      toast.success(`Loaded ${processedProfiles.length} more profiles`);
+    } catch (error) {
+      console.error('[TalentPool] Error loading more profiles:', error);
+      toast.error('Failed to load more profiles');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   // Format time ago for last updated indicator
   const getTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -590,394 +750,16 @@ export default function TalentPool() {
     return `${days}d ago`;
   };
 
-  // Phase 1.5: Initialize loadedProfileIds with initial loaded profiles (ONCE)
-  const hasInitializedRef = useRef(false);
+  // Update progress bar when talents load
   useEffect(() => {
-    if (!talents || talents.length === 0 || hasInitializedRef.current) return;
+    if (!talents || !allCandidateIds.length) return;
 
-    // Mark as initialized to prevent re-running
-    hasInitializedRef.current = true;
-
-    // Initialize loaded IDs with the profiles that are already loaded
-    const initialIds = talents.map(t => t.id);
-    setLoadedProfileIds(new Set(initialIds));
-
-    // Update progress bar to reflect initial load
     setLoadingProgress({
-      loaded: initialIds.length,
-      total: allCandidateIds.length || initialIds.length,
-      isComplete: !allCandidateIds.length || initialIds.length >= allCandidateIds.length
+      loaded: talents.length,
+      total: allCandidateIds.length,
+      isComplete: talents.length >= allCandidateIds.length
     });
-
-    console.log(`[TalentPool] Initialized with ${initialIds.length} loaded profiles`);
-  }, [talents, allCandidateIds.length]); // Run once when talents first loads
-
-  // Phase 1.5: DISABLED automatic background loading (replaced with on-demand loading)
-  // Background loading effect - loads remaining profiles after initial load
-  useEffect(() => {
-    // Disabled: Now using on-demand page loading instead
-    return;
-
-    if (!allCandidateIds.length || loadingProgress.isComplete || !talents || !organizationId) return;
-
-    const INITIAL_LOAD_SIZE = 200;
-    const remainingIds = allCandidateIds.slice(INITIAL_LOAD_SIZE);
-
-    if (remainingIds.length === 0) {
-      setLoadingProgress(prev => ({ ...prev, isComplete: true }));
-      return;
-    }
-
-    console.log(`[TalentPool] Background loading ${remainingIds.length} remaining profiles`);
-
-    // Load remaining profiles in background
-    const loadRemaining = async () => {
-      const BATCH_SIZE = 250; // Phase 1 optimization: increased batch size
-      const batches: string[][] = [];
-      for (let i = 0; i < remainingIds.length; i += BATCH_SIZE) {
-        batches.push(remainingIds.slice(i, i + BATCH_SIZE));
-      }
-
-      const allProfiles: any[] = [];
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        try {
-          const { data: profiles } = await supabase
-            .from('candidate_profiles')
-            .select(
-              `id, full_name, email, location, current_title, current_company, years_of_experience,
-               headline, ats_score, created_at, recruiter_notes, recruiter_status`
-            )
-            .in('id', batch);
-
-          if (profiles) {
-            allProfiles.push(...profiles);
-            // Update progress after each batch
-            setLoadingProgress(prev => ({
-              ...prev,
-              loaded: INITIAL_LOAD_SIZE + allProfiles.length
-            }));
-          }
-        } catch (error) {
-          console.error('[TalentPool] Error loading background batch:', error);
-        }
-      }
-
-      if (allProfiles.length > 0) {
-        // Process and merge background profiles
-        console.log(`[TalentPool] Processing ${allProfiles.length} background profiles`);
-
-        // Dedupe
-        const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
-        const identityKey = (c: any) => {
-          const li = norm(c.linkedin_url);
-          if (li) return `li:${li}`;
-          const em = norm(c.email);
-          if (em) return `em:${em}`;
-          return `id:${String(c.id || '')}`;
-        };
-
-        const sorted = allProfiles.slice().sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        const byIdentity = new Map<string, any>();
-        for (const c of sorted) {
-          const k = identityKey(c);
-          if (!byIdentity.has(k)) byIdentity.set(k, c);
-        }
-        const deduped = Array.from(byIdentity.values());
-        const dedupedIds = deduped.map(c => c.id);
-
-        // Fetch skills, experience, and uploader data for background profiles
-        const BATCH_SIZE = 250; // Phase 1 optimization: increased batch size
-        const skillsMap = new Map<string, any[]>();
-        const experienceMap = new Map<string, any[]>();
-
-        try {
-          // Phase 1 optimization: Parallelize skills and experience fetching
-          const batches: string[][] = [];
-          for (let i = 0; i < dedupedIds.length; i += BATCH_SIZE) {
-            batches.push(dedupedIds.slice(i, i + BATCH_SIZE));
-          }
-
-          const skillPromises = batches.map(batch =>
-            supabase
-              .from('candidate_skills')
-              .select('candidate_id, skill_name')
-              .in('candidate_id', batch)
-          );
-
-          const experiencePromises = batches.map(batch =>
-            supabase
-              .from('candidate_experience')
-              .select('candidate_id, company_name')
-              .in('candidate_id', batch)
-          );
-
-          const [skillResults, experienceResults] = await Promise.all([
-            Promise.all(skillPromises),
-            Promise.all(experiencePromises)
-          ]);
-
-          // Process skills
-          for (const { data: skills } of skillResults) {
-            if (skills) {
-              skills.forEach(s => {
-                if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
-                skillsMap.get(s.candidate_id)!.push(s);
-              });
-            }
-          }
-
-          // Process experience
-          for (const { data: experience } of experienceResults) {
-            if (experience) {
-              experience.forEach(e => {
-                if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
-                experienceMap.get(e.candidate_id)!.push(e);
-              });
-            }
-          }
-
-          // Fetch uploader data
-          const uploaderMap = new Map();
-          const { data: uploaderData } = await supabase
-            .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
-          if (uploaderData) {
-            uploaderData.forEach((u: any) => {
-              uploaderMap.set(u.candidate_id, {
-                email: u.uploader_email,
-                full_name: u.uploader_name
-              });
-            });
-          }
-
-          // Build complete profile objects
-          const processedProfiles = deduped.map(c => ({
-            ...c,
-            uploaded_by_user: uploaderMap.get(c.id) || null,
-            skills: skillsMap.get(c.id) || [],
-            companies: Array.from(new Set([
-              ...(experienceMap.get(c.id) || []).map((e: any) => e.company_name).filter(Boolean),
-              c.current_company
-            ].filter(Boolean))) as string[],
-          }));
-
-          // Merge with existing talents using queryClient
-          queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
-            if (!oldData) return processedProfiles;
-            // Dedupe combined list
-            const combined = [...oldData, ...processedProfiles];
-            const combinedMap = new Map();
-            for (const profile of combined) {
-              const k = identityKey(profile);
-              if (!combinedMap.has(k)) combinedMap.set(k, profile);
-            }
-            return Array.from(combinedMap.values()).sort((a, b) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
-          });
-
-          console.log(`[TalentPool] Merged ${processedProfiles.length} background profiles into cache`);
-        } catch (error) {
-          console.error('[TalentPool] Error processing background profiles:', error);
-        }
-      }
-
-      setLoadingProgress(prev => ({ ...prev, isComplete: true }));
-    };
-
-    loadRemaining();
-  }, [allCandidateIds, talents, loadingProgress.isComplete, organizationId]);
-
-  // Phase 1.5: On-demand page loading - loads profiles only when user navigates to a page
-  useEffect(() => {
-    if (!allCandidateIds.length || !organizationId || !talents) return;
-
-    const loadProfilesForCurrentPage = async () => {
-      // Calculate which profile IDs should be on the current page
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      const pageProfileIds = allCandidateIds.slice(startIndex, endIndex);
-
-      // Filter out IDs that are already loaded
-      const unloadedIds = pageProfileIds.filter(id => !loadedProfileIds.has(id));
-
-      if (unloadedIds.length === 0) {
-        // All profiles for this page are already loaded
-        return;
-      }
-
-      console.log(`[TalentPool] Loading ${unloadedIds.length} profiles for page ${currentPage}`);
-      setIsLoadingPage(true);
-
-      try {
-        const BATCH_SIZE = 250;
-        const batches: string[][] = [];
-        for (let i = 0; i < unloadedIds.length; i += BATCH_SIZE) {
-          batches.push(unloadedIds.slice(i, i + BATCH_SIZE));
-        }
-
-        // Fetch profiles in parallel
-        const profilePromises = batches.map(batch =>
-          retryWithBackoff(
-            () => supabase
-              .from('candidate_profiles')
-              .select(
-                `id, full_name, email, location, current_title, current_company, years_of_experience,
-                 headline, ats_score, created_at, recruiter_notes, recruiter_status`
-              )
-              .in('id', batch),
-            { maxRetries: 3, timeoutMs: 30000 }
-          )
-        );
-
-        const profileResults = await Promise.all(profilePromises);
-        const allProfiles: any[] = [];
-        for (const { data: profiles } of profileResults) {
-          if (profiles) allProfiles.push(...profiles);
-        }
-
-        if (allProfiles.length === 0) {
-          setIsLoadingPage(false);
-          return;
-        }
-
-        // Dedupe loaded profiles
-        const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
-        const identityKey = (c: any) => {
-          const li = norm(c.linkedin_url);
-          if (li) return `li:${li}`;
-          const em = norm(c.email);
-          if (em) return `em:${em}`;
-          return `id:${String(c.id || '')}`;
-        };
-
-        const sorted = allProfiles.sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        const byIdentity = new Map<string, any>();
-        for (const c of sorted) {
-          const k = identityKey(c);
-          if (!byIdentity.has(k)) byIdentity.set(k, c);
-        }
-        const deduped = Array.from(byIdentity.values());
-        const dedupedIds = deduped.map(c => c.id);
-
-        // Fetch skills and experience in parallel
-        const skillsMap = new Map<string, any[]>();
-        const experienceMap = new Map<string, any[]>();
-        const SKILL_BATCH_SIZE = 250;
-        const skillBatches: string[][] = [];
-        for (let i = 0; i < dedupedIds.length; i += SKILL_BATCH_SIZE) {
-          skillBatches.push(dedupedIds.slice(i, i + SKILL_BATCH_SIZE));
-        }
-
-        const skillPromises = skillBatches.map(batch =>
-          supabase
-            .from('candidate_skills')
-            .select('candidate_id, skill_name')
-            .in('candidate_id', batch)
-        );
-
-        const experiencePromises = skillBatches.map(batch =>
-          supabase
-            .from('candidate_experience')
-            .select('candidate_id, company_name')
-            .in('candidate_id', batch)
-        );
-
-        const [skillResults, experienceResults] = await Promise.all([
-          Promise.all(skillPromises),
-          Promise.all(experiencePromises)
-        ]);
-
-        for (const { data: skills } of skillResults) {
-          if (skills) {
-            skills.forEach(s => {
-              if (!skillsMap.has(s.candidate_id)) skillsMap.set(s.candidate_id, []);
-              skillsMap.get(s.candidate_id)!.push(s);
-            });
-          }
-        }
-
-        for (const { data: experience } of experienceResults) {
-          if (experience) {
-            experience.forEach(e => {
-              if (!experienceMap.has(e.candidate_id)) experienceMap.set(e.candidate_id, []);
-              experienceMap.get(e.candidate_id)!.push(e);
-            });
-          }
-        }
-
-        // Fetch uploader data
-        const uploaderMap = new Map();
-        try {
-          const { data: uploaderData } = await supabase
-            .rpc('get_uploaders_for_candidates', { candidate_ids: dedupedIds });
-          if (uploaderData) {
-            uploaderData.forEach((u: any) => {
-              uploaderMap.set(u.candidate_id, {
-                email: u.uploader_email,
-                full_name: u.uploader_name
-              });
-            });
-          }
-        } catch (error) {
-          console.warn('[TalentPool] Could not fetch uploader data for page:', error);
-        }
-
-        // Build complete profile objects
-        const processedProfiles = deduped.map(profile => ({
-          ...profile,
-          skills: skillsMap.get(profile.id) || [],
-          companies: Array.from(new Set(
-            (experienceMap.get(profile.id) || [])
-              .map(e => e.company_name)
-              .filter(Boolean)
-          )),
-          uploaded_by_user: uploaderMap.get(profile.id) || null
-        }));
-
-        // Merge into React Query cache
-        queryClient.setQueryData(['talent-pool', organizationId], (oldData: any) => {
-          if (!oldData) return processedProfiles;
-          const combined = [...oldData, ...processedProfiles];
-          const combinedMap = new Map();
-          for (const profile of combined) {
-            const k = identityKey(profile);
-            if (!combinedMap.has(k)) combinedMap.set(k, profile);
-          }
-          return Array.from(combinedMap.values()).sort((a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-        });
-
-        // Update loaded IDs set and progress bar
-        setLoadedProfileIds(prev => {
-          const newSet = new Set(prev);
-          dedupedIds.forEach(id => newSet.add(id));
-
-          // Update progress bar to reflect on-demand loading
-          setLoadingProgress({
-            loaded: newSet.size,
-            total: allCandidateIds.length,
-            isComplete: newSet.size >= allCandidateIds.length
-          });
-
-          return newSet;
-        });
-
-        console.log(`[TalentPool] Loaded and cached ${processedProfiles.length} profiles for page ${currentPage}`);
-      } catch (error) {
-        console.error('[TalentPool] Error loading profiles for page:', error);
-      } finally {
-        setIsLoadingPage(false);
-      }
-    };
-
-    loadProfilesForCurrentPage();
-  }, [currentPage, itemsPerPage, allCandidateIds.length, organizationId]); // Only trigger on page change, not when profiles load
+  }, [talents?.length, allCandidateIds.length]);
 
   const { data: jobs } = useQuery({
     queryKey: ['recruiter-jobs', organizationId],
@@ -1554,14 +1336,10 @@ export default function TalentPool() {
     setCurrentPage(1);
   }, [searchQuery, companyFilter, locationFilter, statusFilter, experienceFilter, tableSort.sort, activeView, itemsPerPage]);
 
-  // Check if any filters are active (needed for pagination calculation)
   const hasActiveFilters = companyFilter || locationFilter || statusFilter || experienceFilter;
 
-  // Pagination calculations - Phase 1.5: Use total candidate count when no filters active
-  const hasActiveFiltersOrSearch = hasActiveFilters || debouncedSearchQuery.trim();
-  const totalPages = hasActiveFiltersOrSearch
-    ? Math.ceil(groupedTalents.length / itemsPerPage) // Filtered: paginate loaded & filtered results
-    : Math.ceil(allCandidateIds.length / itemsPerPage); // Unfiltered: paginate all candidates (on-demand)
+  // Pagination calculations - based on loaded profiles only
+  const totalPages = Math.ceil(groupedTalents.length / itemsPerPage);
   const paginatedGroups = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return groupedTalents.slice(startIndex, startIndex + itemsPerPage);
@@ -2001,12 +1779,12 @@ export default function TalentPool() {
         {filtersContent}
 
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* Progress bar for on-demand loading */}
+          {/* Progress bar - shows loading status */}
           {!loadingProgress.isComplete && loadingProgress.total > 0 && (
             <LoadingProgressBar
               loaded={loadingProgress.loaded}
               total={loadingProgress.total}
-              message={isLoadingPage ? "Loading page..." : "Loading talent pool"}
+              message={isLoadingMore ? "Loading more profiles..." : "Loading talent pool"}
             />
           )}
 
@@ -2111,6 +1889,26 @@ export default function TalentPool() {
                         </PaginationItem>
                       </PaginationContent>
                     </Pagination>
+                  </div>
+                )}
+
+                {/* Load More button - show if more profiles available */}
+                {talents && allCandidateIds.length > talents.length && (
+                  <div className="p-4 border-t border-white/10 bg-black/20 flex justify-center">
+                    <Button
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className="bg-recruiter hover:bg-recruiter/90 text-white font-semibold px-8"
+                    >
+                      {isLoadingMore ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          Loading...
+                        </>
+                      ) : (
+                        `Load More (${Math.min(1000, allCandidateIds.length - talents.length)} of ${allCandidateIds.length - talents.length} remaining)`
+                      )}
+                    </Button>
                   </div>
                 )}
               </>
