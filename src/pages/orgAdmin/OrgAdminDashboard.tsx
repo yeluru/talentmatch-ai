@@ -773,7 +773,7 @@ export default function OrgAdminDashboard() {
         {tab === "overview" && (
           <div className="space-y-6">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Organization summary</h2>
+              <h2 className="font-display text-lg sm:text-xl font-semibold tracking-tight">Organization summary</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Headcount and activity at a glance. Use the cards below to jump to each area.
               </p>
@@ -840,7 +840,7 @@ export default function OrgAdminDashboard() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <UserPlus className="h-5 w-5" />
                 </div>
                 <h3 className="font-semibold mb-2">Invite account manager</h3>
@@ -856,7 +856,7 @@ export default function OrgAdminDashboard() {
               </div>
 
               <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Mail className="h-5 w-5" />
                 </div>
                 <h3 className="font-semibold mb-2">Invite recruiter</h3>
@@ -872,7 +872,7 @@ export default function OrgAdminDashboard() {
               </div>
 
               <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <UserCheck className="h-5 w-5" />
                 </div>
                 <h3 className="font-semibold mb-2">Invite or link candidate</h3>
@@ -888,7 +888,7 @@ export default function OrgAdminDashboard() {
               </div>
 
               <div className="glass-panel p-6 rounded-xl hover-card-premium flex flex-col">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Users className="h-5 w-5" />
                 </div>
                 <h3 className="font-semibold mb-2">View all users</h3>
@@ -1020,7 +1020,7 @@ export default function OrgAdminDashboard() {
             <div className="glass-panel p-6 rounded-xl relative overflow-hidden">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold flex items-center gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
                     Account Managers
                   </h3>
@@ -1031,14 +1031,14 @@ export default function OrgAdminDashboard() {
               <div className="space-y-3">
                 {managers.length === 0 ? (
                   <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
-                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <Users className="h-8 w-8 mx-auto text-muted-foreground mb-3 opacity-50" />
                     <p className="text-sm text-muted-foreground">No account managers yet.</p>
                   </div>
                 ) : (
                   managers.map((m) => (
                     <div key={m.user_id} className="flex items-center justify-between glass-panel p-4 rounded-xl hover-card-premium group">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                           <span className="font-semibold text-primary">{m.full_name?.[0] || m.email[0]}</span>
                         </div>
                         <div>
@@ -1087,7 +1087,7 @@ export default function OrgAdminDashboard() {
             <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="space-y-1">
-                  <h3 className="text-xl font-bold flex items-center gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
                     All users in organization
                   </h3>
@@ -1277,7 +1277,7 @@ export default function OrgAdminDashboard() {
             <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
               <div className="flex flex-row items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold flex items-center gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
                     Recruiters
                   </h3>
@@ -1382,14 +1382,14 @@ export default function OrgAdminDashboard() {
 
                 {recruiters.length === 0 ? (
                   <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
-                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <Users className="h-8 w-8 mx-auto text-muted-foreground mb-3 opacity-50" />
                     <p className="text-sm text-muted-foreground">No recruiters yet.</p>
                   </div>
                 ) : (
                   recruiters.map((r) => (
                     <div key={r.user_id} className="flex items-start md:items-center justify-between glass-panel p-4 rounded-xl hover-card-premium group flex-col md:flex-row gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
+                        <div className="h-8 w-8 rounded-full bg-secondary/20 flex items-center justify-center shrink-0">
                           <span className="font-semibold text-secondary-foreground">{r.full_name?.[0] || r.email[0]}</span>
                         </div>
                         <div>
@@ -1457,7 +1457,7 @@ export default function OrgAdminDashboard() {
             <div className="glass-panel p-6 rounded-xl hover-card-premium relative overflow-hidden">
               <div className="flex flex-row items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold flex items-center gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
                     Candidates in your organization
                   </h3>
@@ -1581,7 +1581,7 @@ export default function OrgAdminDashboard() {
 
                 {orgCandidates.length === 0 ? (
                   <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
-                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3 opacity-50" />
+                    <Users className="h-8 w-8 mx-auto text-muted-foreground mb-3 opacity-50" />
                     <p className="text-sm text-muted-foreground">No org-linked candidates yet.</p>
                   </div>
                 ) : (

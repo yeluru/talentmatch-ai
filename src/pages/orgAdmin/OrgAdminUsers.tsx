@@ -161,7 +161,7 @@ export default function OrgAdminUsers() {
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl font-bold">Users</h1>
+            <h1 className="font-display text-xl sm:text-2xl font-bold">Users</h1>
             <p className="mt-1">Read-only list of users in your tenant (staff + candidates)</p>
           </div>
           <div className="w-full max-w-sm">

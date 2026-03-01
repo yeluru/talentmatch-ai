@@ -159,16 +159,16 @@ export default function OrgAdminAuditLogs() {
     return (
       <OrgAdminLayout>
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="shrink-0 flex flex-col gap-6">
+          <div className="shrink-0 flex flex-col gap-3">
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 rounded-xl bg-org/10 text-org border border-org/20">
                 <ScrollText className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                 Audit <span className="text-gradient-premium">Logs</span>
               </h1>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">Tenant audit logs are only available when your org admin role is linked to an organization.</p>
+            <p className="text-xs text-muted-foreground font-sans leading-tight">Tenant audit logs are only available when your org admin role is linked to an organization.</p>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="pt-6 pb-6">
@@ -197,17 +197,17 @@ export default function OrgAdminAuditLogs() {
   return (
     <OrgAdminLayout>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="shrink-0 flex flex-col gap-6">
+        <div className="shrink-0 flex flex-col gap-3">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 rounded-xl bg-org/10 text-org border border-org/20">
                 <ScrollText className="h-5 w-5" strokeWidth={1.5} />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
+              <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-foreground">
                 Audit <span className="text-gradient-premium">Logs</span>
               </h1>
             </div>
-            <p className="text-lg text-muted-foreground font-sans">
+            <p className="text-xs text-muted-foreground font-sans leading-tight">
               Track all system activity and changes
             </p>
           </div>
@@ -223,11 +223,11 @@ export default function OrgAdminAuditLogs() {
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-org/20 font-sans"
+              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-org/20 font-sans"
             />
           </div>
           <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-org/20 font-sans">
+            <SelectTrigger className="w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-org/20 font-sans">
               <Filter className="h-4 w-4 mr-2" strokeWidth={1.5} />
               <SelectValue placeholder="Action" />
             </SelectTrigger>
@@ -240,7 +240,7 @@ export default function OrgAdminAuditLogs() {
             </SelectContent>
           </Select>
           <Select value={entityFilter} onValueChange={setEntityFilter}>
-            <SelectTrigger className="w-40 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-org/20 font-sans">
+            <SelectTrigger className="w-40 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-org/20 font-sans">
               <SelectValue placeholder="Entity" />
             </SelectTrigger>
             <SelectContent>
