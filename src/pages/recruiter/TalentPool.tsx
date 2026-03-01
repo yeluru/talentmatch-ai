@@ -400,7 +400,7 @@ export default function TalentPool() {
       });
 
       // Batch fetch profiles to avoid URL length limits (Phase 1 optimization: increased to 250)
-      const BATCH_SIZE = 250;
+      const BATCH_SIZE = 100; // Reduced from 250 to avoid URL length errors
       const batches: string[][] = [];
       for (let i = 0; i < initialIds.length; i += BATCH_SIZE) {
         batches.push(initialIds.slice(i, i + BATCH_SIZE));
@@ -633,7 +633,7 @@ export default function TalentPool() {
           console.log(`[TalentPool] Loading batch ${currentLoaded} to ${currentLoaded + nextBatch.length}`);
 
           // Use the same loading logic as handleLoadMore
-          const BATCH_SIZE = 250;
+          const BATCH_SIZE = 100; // Reduced from 250 to avoid URL length errors
           const batches: string[][] = [];
           for (let i = 0; i < nextBatch.length; i += BATCH_SIZE) {
             batches.push(nextBatch.slice(i, i + BATCH_SIZE));
