@@ -1666,6 +1666,31 @@ export default function TalentPool() {
                   <span>Updated {getTimeAgo(dataUpdatedAt)}</span>
                 </div>
               )}
+              {/* Pagination summary in header */}
+              {groupedTalents.length > 0 && (
+                <div className="flex items-center gap-3 mt-2 text-sm">
+                  <span className="text-muted-foreground">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, groupedTalents.length)} of {groupedTalents.length}
+                  </span>
+                  <Select
+                    value={String(itemsPerPage)}
+                    onValueChange={(v) => {
+                      setItemsPerPage(Number(v));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="h-7 w-[110px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50 / page</SelectItem>
+                      <SelectItem value="100">100 / page</SelectItem>
+                      <SelectItem value="200">200 / page</SelectItem>
+                      <SelectItem value="500">500 / page</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Button
