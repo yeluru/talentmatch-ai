@@ -591,7 +591,7 @@ export default function TalentPool() {
   };
 
   // Phase 1.5: Initialize loadedProfileIds with initial loaded profiles (ONCE)
-  const hasInitializedRef = React.useRef(false);
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
     if (!talents || talents.length === 0 || hasInitializedRef.current) return;
 
