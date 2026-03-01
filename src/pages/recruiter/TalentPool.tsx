@@ -1788,6 +1788,21 @@ export default function TalentPool() {
             />
           )}
 
+          {/* Load More button - at the top for easy access */}
+          {talents && allCandidateIds.length > talents.length && !isLoadingMore && (
+            <div className="p-4 bg-recruiter/10 border-b border-recruiter/20 flex flex-col items-center gap-2">
+              <div className="text-sm text-muted-foreground">
+                {talents.length} of {allCandidateIds.length} profiles loaded
+              </div>
+              <Button
+                onClick={handleLoadMore}
+                className="bg-recruiter hover:bg-recruiter/90 text-white font-semibold px-8 py-6 text-base"
+              >
+                Load More Profiles (next {Math.min(1000, allCandidateIds.length - talents.length)})
+              </Button>
+            </div>
+          )}
+
           <div className="p-0">
             {talentsError ? (
               <EmptyState
@@ -1889,26 +1904,6 @@ export default function TalentPool() {
                         </PaginationItem>
                       </PaginationContent>
                     </Pagination>
-                  </div>
-                )}
-
-                {/* Load More button - show if more profiles available */}
-                {talents && allCandidateIds.length > talents.length && (
-                  <div className="p-4 border-t border-white/10 bg-black/20 flex justify-center">
-                    <Button
-                      onClick={handleLoadMore}
-                      disabled={isLoadingMore}
-                      className="bg-recruiter hover:bg-recruiter/90 text-white font-semibold px-8"
-                    >
-                      {isLoadingMore ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                          Loading...
-                        </>
-                      ) : (
-                        `Load More (${Math.min(1000, allCandidateIds.length - talents.length)} of ${allCandidateIds.length - talents.length} remaining)`
-                      )}
-                    </Button>
                   </div>
                 )}
               </>
