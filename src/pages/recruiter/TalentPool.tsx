@@ -1550,6 +1550,9 @@ export default function TalentPool() {
     setCurrentPage(1);
   }, [searchQuery, companyFilter, locationFilter, statusFilter, experienceFilter, tableSort.sort, activeView, itemsPerPage]);
 
+  // Check if any filters are active (needed for pagination calculation)
+  const hasActiveFilters = companyFilter || locationFilter || statusFilter || experienceFilter;
+
   // Pagination calculations - Phase 1.5: Use total candidate count when no filters active
   const hasActiveFiltersOrSearch = hasActiveFilters || debouncedSearchQuery.trim();
   const totalPages = hasActiveFiltersOrSearch
@@ -1617,8 +1620,6 @@ export default function TalentPool() {
     if (totalPages === 0) return;
     if (currentPage > totalPages) setCurrentPage(1);
   }, [currentPage, totalPages]);
-
-  const hasActiveFilters = companyFilter || locationFilter || statusFilter || experienceFilter;
 
   const clearFilters = () => {
     setCompanyFilter('');
