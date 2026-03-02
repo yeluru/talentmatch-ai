@@ -315,7 +315,7 @@ function CompactTalentPoolRowComponent({
         </div>
       </div>
 
-      <div className="w-[80px] hidden lg:block shrink-0">
+      <div className="w-[110px] hidden lg:block shrink-0">
         <div className="text-[11px] text-muted-foreground truncate px-1" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
           {talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email?.split('@')[0] || '—'}
         </div>

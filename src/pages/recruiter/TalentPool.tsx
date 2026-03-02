@@ -2029,7 +2029,7 @@ export default function TalentPool() {
                   <div className="w-[70px] hidden xl:block shrink-0 px-1 text-left text-[11px] font-medium cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => tableSort.toggle('created_at')}>
                     Date {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[80px] hidden lg:block shrink-0 px-1 text-left text-[11px] font-medium cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('uploaded_by_user')}>
+                  <div className="w-[110px] hidden lg:block shrink-0 px-1 text-left text-[11px] font-medium cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('uploaded_by_user')}>
                     Uploaded By {tableSort.sort.key === 'uploaded_by_user' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[85px] shrink-0 px-1 text-left text-[11px] font-medium">Shortlist</div>
