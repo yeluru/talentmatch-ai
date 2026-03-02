@@ -86,6 +86,9 @@ export function adaptInternalResult(result: any): UnifiedSearchResult {
       skills: candidate.skills || [],
       currentCompany: candidate.current_company || candidate.currentCompany || undefined,
       summary: candidate.summary || undefined,
+      atsScore: candidate.ats_score || candidate.atsScore || undefined,
+      recruiterStatus: candidate.recruiter_status || candidate.recruiterStatus || undefined,
+      recruiterNotes: candidate.recruiter_notes || candidate.recruiterNotes || undefined,
     },
     _raw: result,
   };
