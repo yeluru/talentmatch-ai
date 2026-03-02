@@ -201,7 +201,7 @@ function CompactTalentPoolRowComponent({
           {displayId}
         </div>
       )}
-      <div className="w-[180px] min-w-0 shrink-0">
+      <div className="w-[140px] min-w-0 shrink-0">
         <div className="min-w-0">
           {editingField === 'name' ? (
             <input
@@ -219,11 +219,11 @@ function CompactTalentPoolRowComponent({
               onClick={(e) => e.stopPropagation()}
               autoFocus
               disabled={isSaving}
-              className="font-semibold text-xs text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+              className="font-semibold text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
             />
           ) : (
             <div
-              className="font-semibold text-xs text-foreground truncate cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+              className="font-semibold text-[11px] text-foreground truncate cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
               onClick={(e) => {
                 e.stopPropagation();
                 setEditingField('name');
@@ -237,20 +237,20 @@ function CompactTalentPoolRowComponent({
       </div>
 
       {/* Email Column */}
-      <div className="w-[150px] hidden xl:block shrink-0">
-        <div className="text-xs text-muted-foreground truncate px-1" title={talent.email || ''}>
+      <div className="w-[130px] hidden xl:block shrink-0">
+        <div className="text-[11px] text-muted-foreground truncate px-1" title={talent.email || ''}>
           {talent.email || '—'}
         </div>
       </div>
 
       {/* Phone Column */}
-      <div className="w-[110px] hidden 2xl:block shrink-0">
-        <div className="text-xs text-muted-foreground truncate px-1" title={talent.phone || ''}>
+      <div className="w-[95px] hidden 2xl:block shrink-0">
+        <div className="text-[11px] text-muted-foreground truncate px-1" title={talent.phone || ''}>
           {talent.phone || '—'}
         </div>
       </div>
 
-      <div className="w-[180px] hidden xl:block shrink-0">
+      <div className="w-[140px] hidden xl:block shrink-0">
         {editingField === 'title' ? (
           <input
             type="text"
@@ -267,11 +267,11 @@ function CompactTalentPoolRowComponent({
             onClick={(e) => e.stopPropagation()}
             autoFocus
             disabled={isSaving}
-            className="text-xs text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+            className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
           />
         ) : (
           <span
-            className="text-xs text-foreground/80 truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+            className="text-[11px] text-foreground/80 truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
             onClick={(e) => {
               e.stopPropagation();
               setEditingField('title');
@@ -284,72 +284,59 @@ function CompactTalentPoolRowComponent({
       </div>
 
       <div className="w-[100px] hidden 2xl:block shrink-0">
-        <div className="text-xs text-muted-foreground truncate px-1" title={location}>
+        <div className="text-[11px] text-muted-foreground truncate px-1" title={location}>
           {location}
         </div>
       </div>
 
-      <div className="w-16 hidden 2xl:block shrink-0">
-        <div className="text-xs text-muted-foreground px-1">
+      <div className="w-14 hidden 2xl:block shrink-0">
+        <div className="text-[11px] text-muted-foreground px-1">
           {experience}
         </div>
       </div>
 
-      <div className="w-[130px] shrink-0" onClick={(e) => e.stopPropagation()}>
-        <Select
-          value={(normalizeStatusForDisplay(talent.recruiter_status) || 'new') as string}
-          onValueChange={() => toast.info(STAGE_READONLY_MESSAGE)}
-          disabled={updateStatus.isPending}
-        >
-          <SelectTrigger className="h-7 text-xs w-full bg-white/5 border-white/10" onClick={(e) => e.stopPropagation()}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {CANDIDATE_STATUSES.map((status) => (
-              <SelectItem key={status.value} value={status.value}>
-                {status.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="w-[70px] shrink-0 px-1">
+        <span className="text-[11px] text-foreground/80 truncate block" title={CANDIDATE_STATUSES.find(s => s.value === normalizeStatusForDisplay(talent.recruiter_status))?.label || 'New'}>
+          {CANDIDATE_STATUSES.find(s => s.value === normalizeStatusForDisplay(talent.recruiter_status))?.label || 'New'}
+        </span>
       </div>
 
-      <div className="w-14 shrink-0 px-1">
+      <div className="w-12 shrink-0 px-1">
         {talent.ats_score != null ? (
           <ScoreBadge score={talent.ats_score} size="sm" showLabel={false} />
         ) : (
-          <span className="text-muted-foreground text-xs">—</span>
+          <span className="text-muted-foreground text-[11px]">—</span>
         )}
       </div>
 
-      <div className="w-20 hidden xl:block shrink-0">
-        <div className="text-xs text-muted-foreground whitespace-nowrap px-1">
+      <div className="w-[70px] hidden xl:block shrink-0">
+        <div className="text-[11px] text-muted-foreground whitespace-nowrap px-1">
           {talent.created_at ? format(new Date(talent.created_at), 'MMM d') : '—'}
         </div>
       </div>
 
-      <div className="w-[100px] hidden lg:block shrink-0">
-        <div className="text-xs text-muted-foreground truncate px-1" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
+      <div className="w-[80px] hidden lg:block shrink-0">
+        <div className="text-[11px] text-muted-foreground truncate px-1" title={talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email || ''}>
           {talent.uploaded_by_user?.full_name || talent.uploaded_by_user?.email?.split('@')[0] || '—'}
         </div>
       </div>
 
-      <div className="w-[100px] text-left shrink-0" onClick={(e) => e.stopPropagation()}>
+      <div className="w-[85px] text-left shrink-0" onClick={(e) => e.stopPropagation()}>
         {shortlistButton?.shortlistId && onOpenShortlist ? (
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 text-xs hover:bg-white/10 px-2.5"
+            className="h-6 gap-1 text-[11px] hover:bg-white/10 px-2"
             onClick={(e) => {
               e.stopPropagation();
               onOpenShortlist(shortlistButton.shortlistId);
             }}
             title={shortlistButton.label}
           >
-            <ListPlus className="h-3.5 w-3.5" />
+            <ListPlus className="h-3 w-3" />
             <span className="hidden xl:inline">
-              {shortlistButton.label.length > 10
-                ? `${shortlistButton.label.slice(0, 10)}…`
+              {shortlistButton.label.length > 8
+                ? `${shortlistButton.label.slice(0, 8)}…`
                 : shortlistButton.label}
             </span>
           </Button>
@@ -357,20 +344,20 @@ function CompactTalentPoolRowComponent({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 text-xs hover:bg-white/10 px-2.5"
+            className="h-6 gap-1 text-[11px] hover:bg-white/10 px-2"
             onClick={(e) => {
               e.stopPropagation();
               onAddToShortlist(talent.id);
             }}
           >
-            <ListPlus className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">Shortlist</span>
+            <ListPlus className="h-3 w-3" />
+            <span className="hidden xl:inline text-[11px]">Shortlist</span>
           </Button>
         ) : null}
       </div>
 
       {/* Notes Column - Last column before actions */}
-      <div className="w-[180px] shrink-0 flex items-center gap-1 px-1" onClick={(e) => e.stopPropagation()}>
+      <div className="w-[130px] shrink-0 flex items-center gap-1 px-1" onClick={(e) => e.stopPropagation()}>
         {editingField === 'notes' ? (
           <input
             type="text"
@@ -388,14 +375,14 @@ function CompactTalentPoolRowComponent({
             autoFocus
             disabled={isSaving}
             placeholder="Add notes..."
-            className="text-xs text-foreground bg-background border border-primary/50 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+            className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-primary"
           />
         ) : (
           <>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0 hover:bg-white/10 p-0"
+              className="h-5 w-5 shrink-0 hover:bg-white/10 p-0"
               onClick={(e) => {
                 e.stopPropagation();
                 setEditingField('notes');
@@ -405,13 +392,13 @@ function CompactTalentPoolRowComponent({
               <MessageSquare className="h-3 w-3 text-blue-400" />
             </Button>
             {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' ? (
-              <span className="text-xs text-muted-foreground truncate flex-1 min-w-0" title={talent.recruiter_notes}>
-                {talent.recruiter_notes.length <= 25
+              <span className="text-[11px] text-muted-foreground truncate flex-1 min-w-0" title={talent.recruiter_notes}>
+                {talent.recruiter_notes.length <= 18
                   ? talent.recruiter_notes
-                  : `${talent.recruiter_notes.slice(0, 25)}…`}
+                  : `${talent.recruiter_notes.slice(0, 18)}…`}
               </span>
             ) : (
-              <span className="text-xs text-muted-foreground/50 italic truncate flex-1">No notes</span>
+              <span className="text-[11px] text-muted-foreground/50 italic truncate flex-1">Add</span>
             )}
           </>
         )}
