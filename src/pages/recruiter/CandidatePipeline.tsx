@@ -949,7 +949,7 @@ export default function CandidatePipeline() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex items-center justify-center flex-1 py-12">
             <Loader2 className="h-8 w-8 animate-spin text-recruiter" strokeWidth={1.5} />
           </div>
@@ -960,7 +960,7 @@ export default function CandidatePipeline() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
         {isViewingAsManager && (
           <p className="text-sm text-red-600 dark:text-red-400 shrink-0 mb-4">
             Viewing <span className="font-medium">{ownerProfile?.full_name || 'this recruiter'}</span>&apos;s application pipeline.

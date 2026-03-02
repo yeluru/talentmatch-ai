@@ -158,7 +158,7 @@ export default function OrgAdminAuditLogs() {
   if (!authLoading && !organizationId) {
     return (
       <OrgAdminLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
           <div className="shrink-0 flex flex-col gap-3">
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 rounded-xl bg-org/10 text-org border border-org/20">
@@ -196,7 +196,7 @@ export default function OrgAdminAuditLogs() {
 
   return (
     <OrgAdminLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
         <div className="shrink-0 flex flex-col gap-3">
           <div>
             <div className="flex items-center gap-3 mb-1">

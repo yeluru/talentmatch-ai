@@ -222,7 +222,7 @@ export default function ManagerRecruiterProgress() {
   if (!assignmentOk) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
           <div className="shrink-0 flex flex-col gap-3">
             <div>
               <div className="flex items-center gap-3 mb-1">
@@ -253,7 +253,7 @@ export default function ManagerRecruiterProgress() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 px-4 sm:px-6">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden w-full max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6 px-4 sm:px-6">
         {/* Header */}
         <div className="shrink-0 py-6">
           <div className="flex flex-col gap-4 sm:gap-6">

@@ -1190,7 +1190,7 @@ export default function Search() {
     <DashboardLayout>
       {/* PAGE HEADER - Compact */}
         <div className="shrink-0">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-2">
+          <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6 pb-2">
             <div className="flex items-center gap-1.5">
               <div className="p-1.5 rounded-lg bg-recruiter/10 dark:bg-recruiter/20 border border-recruiter/70 dark:border-white/50">
                 <SearchIcon className="h-3.5 w-3.5 text-recruiter/60 dark:text-recruiter" strokeWidth={1.5} />
@@ -1209,7 +1209,7 @@ export default function Search() {
 
         {/* COMPACT MODE SELECTOR - Sticky */}
         <div className="shrink-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+          <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6">
 
             {/* Primary Mode - Compact Tabs */}
             <div className="py-1 border-b border-border/50">
@@ -1280,7 +1280,7 @@ export default function Search() {
 
         {/* SEARCH CONTROLS - Compact */}
         <div className="shrink-0">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 pb-2">
+          <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6 pt-3 pb-2">
 
             {/* Pool + Free Text */}
             {primaryMode === 'pool' && poolMode === 'freeText' && (
@@ -1609,7 +1609,7 @@ export default function Search() {
 
         {/* RESULTS - Gets 90%+ of vertical space */}
         <div className="flex-1 min-h-0 overflow-auto">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 pb-4">
+          <div className="max-w-[1600px] mx-auto px-2 sm:px-4 lg:px-6 pt-2 pb-4">
 
             {/* Pool + Free Text Results */}
             {primaryMode === 'pool' && poolMode === 'freeText' && freeTextResults.length > 0 && (
