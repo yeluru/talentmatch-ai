@@ -2005,10 +2005,12 @@ export default function TalentPool() {
                       onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
                     />
                   </div>
-                  <div className="w-12 text-center shrink-0">#</div>
+                  <div className="w-12 text-left shrink-0">#</div>
                   <div className="w-[180px] text-left cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
+                  <div className="w-[160px] hidden xl:block text-left">Email</div>
+                  <div className="w-[120px] hidden 2xl:block text-left">Phone</div>
                   <div className="w-[200px] hidden xl:block text-left cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('current_title')}>
                     Title {tableSort.sort.key === 'current_title' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
@@ -2031,6 +2033,7 @@ export default function TalentPool() {
                     Uploaded By {tableSort.sort.key === 'uploaded_by_user' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
                   <div className="w-[100px] text-left">Shortlist</div>
+                  <div className="w-[200px] text-left">Notes</div>
                   <div className="w-10"></div>
                 </div>
 

@@ -197,7 +197,7 @@ function CompactTalentPoolRowComponent({
         </div>
       )}
       {displayId !== undefined && (
-        <div className="w-12 hidden lg:flex items-center justify-center shrink-0 text-xs text-muted-foreground font-mono">
+        <div className="w-12 hidden lg:flex items-center shrink-0 text-xs text-muted-foreground font-mono text-left">
           {displayId}
         </div>
       )}
