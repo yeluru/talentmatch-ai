@@ -1280,7 +1280,7 @@ export default function Search() {
 
         {/* SEARCH CONTROLS - Compact */}
         <div className="shrink-0">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pb-2">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 pb-2">
 
             {/* Pool + Free Text */}
             {primaryMode === 'pool' && poolMode === 'freeText' && (
