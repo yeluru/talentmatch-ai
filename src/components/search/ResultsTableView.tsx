@@ -52,44 +52,44 @@ export function ResultsTableView({
               />
             </TableHead>
             <TableHead className="w-12 text-center text-[11px] text-muted-foreground font-medium">#</TableHead>
-            <TableHead className="w-[120px] py-3 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('name')}>
+            <TableHead className="w-[100px] py-2 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('name')}>
               <div className="flex items-center gap-1">
                 Name
                 <SortIcon column="name" />
               </div>
             </TableHead>
-            <TableHead className="w-[120px] hidden xl:table-cell py-3 text-[11px] font-semibold">Email</TableHead>
-            <TableHead className="w-[100px] hidden 2xl:table-cell py-3 text-[11px] font-semibold">Phone</TableHead>
-            <TableHead className="w-[130px] py-3 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('title')}>
+            <TableHead className="w-[100px] hidden xl:table-cell py-2 text-[11px] font-semibold">Email</TableHead>
+            <TableHead className="w-[85px] hidden 2xl:table-cell py-2 text-[11px] font-semibold">Phone</TableHead>
+            <TableHead className="w-[110px] py-2 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('title')}>
               <div className="flex items-center gap-1">
                 Title
                 <SortIcon column="title" />
               </div>
             </TableHead>
-            <TableHead className="w-[110px] hidden xl:table-cell py-3 text-[11px] font-semibold">Company</TableHead>
-            <TableHead className="w-16 hidden sm:table-cell py-3 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('experience')}>
+            <TableHead className="w-[90px] hidden xl:table-cell py-2 text-[11px] font-semibold">Company</TableHead>
+            <TableHead className="w-12 hidden sm:table-cell py-2 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('experience')}>
               <div className="flex items-center gap-1">
                 Exp
                 <SortIcon column="experience" />
               </div>
             </TableHead>
-            <TableHead className="w-[100px] hidden lg:table-cell py-3 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('location')}>
+            <TableHead className="w-[85px] hidden lg:table-cell py-2 text-[11px] font-semibold cursor-pointer hover:text-recruiter" onClick={() => onSort('location')}>
               <div className="flex items-center gap-1">
                 Location
                 <SortIcon column="location" />
               </div>
             </TableHead>
-            <TableHead className="w-[70px] py-3 text-[11px] font-semibold">Status</TableHead>
-            <TableHead className="w-16 py-3 text-[11px] font-semibold cursor-pointer hover:text-recruiter text-center" onClick={() => onSort('match_score')} title="Fit score for this search">
+            <TableHead className="w-[60px] py-2 text-[11px] font-semibold">Status</TableHead>
+            <TableHead className="w-14 py-2 text-[11px] font-semibold cursor-pointer hover:text-recruiter text-center" onClick={() => onSort('match_score')} title="Fit score for this search">
               <div className="flex items-center justify-center gap-1">
                 Match
                 <SortIcon column="match_score" />
               </div>
             </TableHead>
-            <TableHead className="w-14 hidden xl:table-cell py-3 text-[11px] font-semibold" title="Resume quality">ATS</TableHead>
-            <TableHead className="w-[120px] py-3 text-[11px] font-semibold">Notes</TableHead>
-            <TableHead className="w-[100px] py-3 text-[11px] font-semibold">Shortlist</TableHead>
-            <TableHead className="w-10 py-3"></TableHead>
+            <TableHead className="w-12 hidden xl:table-cell py-2 text-[11px] font-semibold" title="Resume quality">ATS</TableHead>
+            <TableHead className="w-[100px] py-2 text-[11px] font-semibold">Notes</TableHead>
+            <TableHead className="w-[80px] py-2 text-[11px] font-semibold">Shortlist</TableHead>
+            <TableHead className="w-10 py-2"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
