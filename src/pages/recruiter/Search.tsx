@@ -1292,7 +1292,7 @@ export default function Search() {
                     value={freeTextQuery}
                     onChange={(e) => setFreeTextQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleFreeTextSearch()}
-                    className="pl-9 h-8 py-2 text-sm"
+                    className="pl-9 h-10 py-2 text-sm"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1371,7 +1371,7 @@ export default function Search() {
                     value={webSearchQuery}
                     onChange={(e) => setWebSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleWebSearch()}
-                    className="flex-1 h-9 py-2 text-sm"
+                    className="flex-1 h-10 py-2 text-sm"
                   />
                   <Sheet open={webFiltersOpen} onOpenChange={setWebFiltersOpen}>
                     <Button
