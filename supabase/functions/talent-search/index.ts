@@ -383,11 +383,17 @@ serve(async (req) => {
         return {
           id: p.id,
           name,
+          email: p.email,
+          phone: p.phone,
           title: p.current_title,
+          current_company: p.current_company,
           years_experience: p.years_of_experience,
           summary: p.summary,
           location: loc,
           skills,
+          ats_score: p.ats_score,
+          recruiter_status: p.recruiter_status,
+          recruiter_notes: p.recruiter_notes,
         };
       });
     }
