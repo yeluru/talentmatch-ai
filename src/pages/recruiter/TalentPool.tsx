@@ -2005,36 +2005,36 @@ export default function TalentPool() {
                       onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
                     />
                   </div>
-                  <div className="w-12 text-left shrink-0">#</div>
-                  <div className="w-[180px] text-left cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('full_name')}>
+                  <div className="w-12 shrink-0 pl-1 text-left text-xs font-medium">#</div>
+                  <div className="w-[180px] shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[160px] hidden xl:block text-left">Email</div>
-                  <div className="w-[120px] hidden 2xl:block text-left">Phone</div>
-                  <div className="w-[200px] hidden xl:block text-left cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('current_title')}>
+                  <div className="w-[150px] hidden xl:block shrink-0 px-1 text-left text-xs font-medium">Email</div>
+                  <div className="w-[110px] hidden 2xl:block shrink-0 px-1 text-left text-xs font-medium">Phone</div>
+                  <div className="w-[180px] hidden xl:block shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('current_title')}>
                     Title {tableSort.sort.key === 'current_title' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[100px] hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('location')}>
+                  <div className="w-[100px] hidden 2xl:block shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('location')}>
                     Location {tableSort.sort.key === 'location' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-16 hidden 2xl:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('years_of_experience')}>
+                  <div className="w-16 hidden 2xl:block shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('years_of_experience')}>
                     Exp {tableSort.sort.key === 'years_of_experience' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[140px] text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('recruiter_status')}>
+                  <div className="w-[130px] shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('recruiter_status')}>
                     Status {tableSort.sort.key === 'recruiter_status' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-16 text-left cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.toggle('ats_score')}>
+                  <div className="w-14 shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground" title="Resume quality (ATS-friendly)" onClick={() => tableSort.toggle('ats_score')}>
                     ATS {tableSort.sort.key === 'ats_score' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-20 hidden xl:block text-left cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => tableSort.toggle('created_at')}>
+                  <div className="w-20 hidden xl:block shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground whitespace-nowrap" onClick={() => tableSort.toggle('created_at')}>
                     Date {tableSort.sort.key === 'created_at' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[120px] hidden lg:block text-left cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('uploaded_by_user')}>
+                  <div className="w-[100px] hidden lg:block shrink-0 px-1 text-left text-xs font-medium cursor-pointer hover:text-foreground" onClick={() => tableSort.toggle('uploaded_by_user')}>
                     Uploaded By {tableSort.sort.key === 'uploaded_by_user' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
-                  <div className="w-[100px] text-left">Shortlist</div>
-                  <div className="w-[200px] text-left">Notes</div>
-                  <div className="w-10"></div>
+                  <div className="w-[100px] shrink-0 px-1 text-left text-xs font-medium">Shortlist</div>
+                  <div className="w-[180px] shrink-0 px-1 text-left text-xs font-medium">Notes</div>
+                  <div className="w-10 shrink-0"></div>
                 </div>
 
                 <div className="space-y-0.5 px-2">
