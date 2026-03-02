@@ -78,17 +78,27 @@ function CompactTalentPoolRowComponent({
   onToggleSelect,
 }: CompactTalentPoolRowProps) {
   const queryClient = useQueryClient();
-  const [editingField, setEditingField] = React.useState<'name' | 'title' | 'notes' | null>(null);
+  const [editingField, setEditingField] = React.useState<'name' | 'email' | 'phone' | 'title' | 'notes' | null>(null);
   const [editedName, setEditedName] = React.useState(talent.full_name || '');
+  const [editedEmail, setEditedEmail] = React.useState(talent.email || '');
+  const [editedPhone, setEditedPhone] = React.useState(talent.phone || '');
   const [editedTitle, setEditedTitle] = React.useState(talent.current_title || '');
   const [editedNotes, setEditedNotes] = React.useState(talent.recruiter_notes || '');
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const saveField = async (field: 'name' | 'title' | 'notes') => {
+  const saveField = async (field: 'name' | 'email' | 'phone' | 'title' | 'notes') => {
     if (isSaving) return;
 
-    const newValue = field === 'name' ? editedName.trim() : field === 'title' ? editedTitle.trim() : editedNotes.trim();
-    const oldValue = field === 'name' ? talent.full_name : field === 'title' ? talent.current_title : talent.recruiter_notes;
+    const newValue = field === 'name' ? editedName.trim()
+      : field === 'email' ? editedEmail.trim()
+      : field === 'phone' ? editedPhone.trim()
+      : field === 'title' ? editedTitle.trim()
+      : editedNotes.trim();
+    const oldValue = field === 'name' ? talent.full_name
+      : field === 'email' ? talent.email
+      : field === 'phone' ? talent.phone
+      : field === 'title' ? talent.current_title
+      : talent.recruiter_notes;
 
     // No change, just exit edit mode
     if (newValue === oldValue) {
@@ -108,6 +118,10 @@ function CompactTalentPoolRowComponent({
     try {
       const updateData = field === 'name'
         ? { full_name: newValue }
+        : field === 'email'
+        ? { email: newValue }
+        : field === 'phone'
+        ? { phone: newValue }
         : field === 'title'
         ? { current_title: newValue }
         : { recruiter_notes: newValue };
@@ -122,6 +136,10 @@ function CompactTalentPoolRowComponent({
       // Update local state
       if (field === 'name') {
         talent.full_name = newValue;
+      } else if (field === 'email') {
+        talent.email = newValue;
+      } else if (field === 'phone') {
+        talent.phone = newValue;
       } else if (field === 'title') {
         talent.current_title = newValue;
       } else {
@@ -130,7 +148,12 @@ function CompactTalentPoolRowComponent({
 
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
-      toast.success(`${field === 'name' ? 'Name' : field === 'title' ? 'Title' : 'Notes'} updated`);
+      const fieldLabel = field === 'name' ? 'Name'
+        : field === 'email' ? 'Email'
+        : field === 'phone' ? 'Phone'
+        : field === 'title' ? 'Title'
+        : 'Notes';
+      toast.success(`${fieldLabel} updated`);
       setEditingField(null);
     } catch (error) {
       console.error(`Error updating ${field}:`, error);
@@ -138,6 +161,10 @@ function CompactTalentPoolRowComponent({
       // Revert to original value
       if (field === 'name') {
         setEditedName(talent.full_name || '');
+      } else if (field === 'email') {
+        setEditedEmail(talent.email || '');
+      } else if (field === 'phone') {
+        setEditedPhone(talent.phone || '');
       } else if (field === 'title') {
         setEditedTitle(talent.current_title || '');
       } else {
@@ -238,16 +265,72 @@ function CompactTalentPoolRowComponent({
 
       {/* Email Column */}
       <div className="w-[130px] hidden xl:block shrink-0">
-        <div className="text-[11px] text-muted-foreground truncate px-1" title={talent.email || ''}>
-          {talent.email || '—'}
-        </div>
+        {editingField === 'email' ? (
+          <input
+            type="email"
+            value={editedEmail}
+            onChange={(e) => setEditedEmail(e.target.value)}
+            onBlur={() => saveField('email')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveField('email');
+              if (e.key === 'Escape') {
+                setEditedEmail(talent.email || '');
+                setEditingField(null);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            disabled={isSaving}
+            placeholder="Enter email..."
+            className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : (
+          <div
+            className="text-[11px] text-muted-foreground truncate px-1 cursor-text hover:bg-accent/30 rounded py-0.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingField('email');
+            }}
+            title={talent.email || 'Click to add email'}
+          >
+            {talent.email || '—'}
+          </div>
+        )}
       </div>
 
       {/* Phone Column */}
       <div className="w-[95px] hidden 2xl:block shrink-0">
-        <div className="text-[11px] text-muted-foreground truncate px-1" title={talent.phone || ''}>
-          {talent.phone || '—'}
-        </div>
+        {editingField === 'phone' ? (
+          <input
+            type="tel"
+            value={editedPhone}
+            onChange={(e) => setEditedPhone(e.target.value)}
+            onBlur={() => saveField('phone')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveField('phone');
+              if (e.key === 'Escape') {
+                setEditedPhone(talent.phone || '');
+                setEditingField(null);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            disabled={isSaving}
+            placeholder="Enter phone..."
+            className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : (
+          <div
+            className="text-[11px] text-muted-foreground truncate px-1 cursor-text hover:bg-accent/30 rounded py-0.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingField('phone');
+            }}
+            title={talent.phone || 'Click to add phone'}
+          >
+            {talent.phone || '—'}
+          </div>
+        )}
       </div>
 
       <div className="w-[140px] hidden xl:block shrink-0">
