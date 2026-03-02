@@ -31,6 +31,7 @@ interface TalentProfile {
   id: string;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
   location: string | null;
   current_title: string | null;
   current_company: string | null;
@@ -77,16 +78,17 @@ function CompactTalentPoolRowComponent({
   onToggleSelect,
 }: CompactTalentPoolRowProps) {
   const queryClient = useQueryClient();
-  const [editingField, setEditingField] = React.useState<'name' | 'title' | null>(null);
+  const [editingField, setEditingField] = React.useState<'name' | 'title' | 'notes' | null>(null);
   const [editedName, setEditedName] = React.useState(talent.full_name || '');
   const [editedTitle, setEditedTitle] = React.useState(talent.current_title || '');
+  const [editedNotes, setEditedNotes] = React.useState(talent.recruiter_notes || '');
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const saveField = async (field: 'name' | 'title') => {
+  const saveField = async (field: 'name' | 'title' | 'notes') => {
     if (isSaving) return;
 
-    const newValue = field === 'name' ? editedName.trim() : editedTitle.trim();
-    const oldValue = field === 'name' ? talent.full_name : talent.current_title;
+    const newValue = field === 'name' ? editedName.trim() : field === 'title' ? editedTitle.trim() : editedNotes.trim();
+    const oldValue = field === 'name' ? talent.full_name : field === 'title' ? talent.current_title : talent.recruiter_notes;
 
     // No change, just exit edit mode
     if (newValue === oldValue) {
@@ -106,7 +108,9 @@ function CompactTalentPoolRowComponent({
     try {
       const updateData = field === 'name'
         ? { full_name: newValue }
-        : { current_title: newValue };
+        : field === 'title'
+        ? { current_title: newValue }
+        : { recruiter_notes: newValue };
 
       const { error } = await supabase
         .from('candidate_profiles')
@@ -118,13 +122,15 @@ function CompactTalentPoolRowComponent({
       // Update local state
       if (field === 'name') {
         talent.full_name = newValue;
-      } else {
+      } else if (field === 'title') {
         talent.current_title = newValue;
+      } else {
+        talent.recruiter_notes = newValue;
       }
 
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
       queryClient.invalidateQueries({ queryKey: ['talent-detail'] });
-      toast.success(`${field === 'name' ? 'Name' : 'Title'} updated`);
+      toast.success(`${field === 'name' ? 'Name' : field === 'title' ? 'Title' : 'Notes'} updated`);
       setEditingField(null);
     } catch (error) {
       console.error(`Error updating ${field}:`, error);
@@ -132,8 +138,10 @@ function CompactTalentPoolRowComponent({
       // Revert to original value
       if (field === 'name') {
         setEditedName(talent.full_name || '');
-      } else {
+      } else if (field === 'title') {
         setEditedTitle(talent.current_title || '');
+      } else {
+        setEditedNotes(talent.recruiter_notes || '');
       }
     } finally {
       setIsSaving(false);
@@ -225,26 +233,17 @@ function CompactTalentPoolRowComponent({
               {name}
             </div>
           )}
-          {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' && (
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 text-[11px] text-blue-400/80 truncate cursor-default mt-0.5">
-                    <MessageSquare className="h-3 w-3 shrink-0" />
-                    <span className="truncate">
-                      {talent.recruiter_notes.length <= 40
-                        ? talent.recruiter_notes
-                        : `${talent.recruiter_notes.slice(0, 40)}…`}
-                    </span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap text-left text-xs">
-                  {talent.recruiter_notes}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
         </div>
+      </div>
+
+      {/* Email Column */}
+      <div className="w-[160px] hidden xl:block truncate text-xs text-muted-foreground text-left" title={talent.email || ''}>
+        {talent.email || '—'}
+      </div>
+
+      {/* Phone Column */}
+      <div className="w-[120px] hidden 2xl:block truncate text-xs text-muted-foreground text-left" title={talent.phone || ''}>
+        {talent.phone || '—'}
       </div>
 
       <div className="w-[200px] hidden xl:block" title={rawTitle}>
@@ -356,6 +355,54 @@ function CompactTalentPoolRowComponent({
             <span className="hidden xl:inline">Shortlist</span>
           </Button>
         ) : null}
+      </div>
+
+      {/* Notes Column - Last column before actions */}
+      <div className="w-[200px] text-left flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        {editingField === 'notes' ? (
+          <input
+            type="text"
+            value={editedNotes}
+            onChange={(e) => setEditedNotes(e.target.value)}
+            onBlur={() => saveField('notes')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveField('notes');
+              if (e.key === 'Escape') {
+                setEditedNotes(talent.recruiter_notes || '');
+                setEditingField(null);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            disabled={isSaving}
+            placeholder="Add notes..."
+            className="text-xs text-foreground bg-background border border-primary/50 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0 hover:bg-white/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingField('notes');
+              }}
+              title="Edit notes"
+            >
+              <MessageSquare className="h-3.5 w-3.5 text-blue-400" />
+            </Button>
+            {talent.recruiter_notes && talent.recruiter_notes.trim() !== '' ? (
+              <span className="text-xs text-muted-foreground truncate flex-1" title={talent.recruiter_notes}>
+                {talent.recruiter_notes.length <= 30
+                  ? talent.recruiter_notes
+                  : `${talent.recruiter_notes.slice(0, 30)}…`}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground/50 italic">No notes</span>
+            )}
+          </>
+        )}
       </div>
 
       <div className="w-10 flex justify-end shrink-0" onClick={(e) => e.stopPropagation()}>

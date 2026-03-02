@@ -414,7 +414,7 @@ export default function TalentPool() {
           () => supabase
             .from('candidate_profiles')
             .select(
-              `id, full_name, email, location, current_title, current_company, years_of_experience,
+              `id, full_name, email, phone, location, current_title, current_company, years_of_experience,
                headline, ats_score, created_at, recruiter_notes, recruiter_status`
             )
             .in('id', batch),
@@ -643,7 +643,7 @@ export default function TalentPool() {
             retryWithBackoff(
               () => supabase
                 .from('candidate_profiles')
-                .select(`id, full_name, email, location, current_title, current_company, years_of_experience,
+                .select(`id, full_name, email, phone, location, current_title, current_company, years_of_experience,
                          headline, ats_score, created_at, recruiter_notes, recruiter_status`)
                 .in('id', batch),
               { maxRetries: 3, timeoutMs: 30000 }
