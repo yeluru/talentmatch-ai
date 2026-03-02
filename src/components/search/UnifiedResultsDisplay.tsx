@@ -15,6 +15,9 @@ interface UnifiedResultsDisplayProps {
   onAddToShortlist?: (ids: string[]) => void;
   onExport?: (ids: string[]) => void;
   onRowClick?: (id: string, result: UnifiedSearchResult) => void;
+  onStartEngagement?: (id: string) => void;
+  onUpdateField?: (candidateId: string, field: string, value: string) => Promise<void>;
+  shortlistsByCandidateId?: Record<string, string>;
   availableFilters?: {
     locations: string[];
     skills: string[];
@@ -27,6 +30,9 @@ export function UnifiedResultsDisplay({
   onAddToShortlist,
   onExport,
   onRowClick,
+  onStartEngagement,
+  onUpdateField,
+  shortlistsByCandidateId,
   availableFilters,
 }: UnifiedResultsDisplayProps) {
   // Selection state
@@ -218,6 +224,9 @@ export function UnifiedResultsDisplay({
               onSort={handleSort}
               onRowClick={onRowClick ? handleRowClick : undefined}
               onAddToShortlist={onAddToShortlist ? (id) => onAddToShortlist([id]) : undefined}
+              onStartEngagement={onStartEngagement}
+              onUpdateField={onUpdateField}
+              shortlistsByCandidateId={shortlistsByCandidateId}
             />
           )}
 

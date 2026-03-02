@@ -58,11 +58,16 @@ interface SearchResult {
     id: string;
     name?: string;
     title?: string | null;
+    email?: string | null;
+    phone?: string | null;
     years_experience?: number | null;
     summary?: string | null;
     location?: string | null;
     skills?: string[];
     current_company?: string | null;
+    ats_score?: number | null;
+    recruiter_status?: string | null;
+    recruiter_notes?: string | null;
   } | null;
 }
 
@@ -82,7 +87,7 @@ interface ManualFilters {
 }
 
 export default function Search() {
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const organizationId = orgIdForRecruiterSuite(roles);
   const queryClient = useQueryClient();
 
@@ -158,6 +163,17 @@ export default function Search() {
   // UI state - Talent Detail Sheet
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Shortlist dialog state
+  const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
+  const [shortlistCandidateId, setShortlistCandidateId] = useState<string | null>(null);
+  const [selectedShortlistId, setSelectedShortlistId] = useState('');
+  const [newShortlistName, setNewShortlistName] = useState('');
+
+  // Engagement dialog state
+  const [engageOpen, setEngageOpen] = useState(false);
+  const [engageCandidateId, setEngageCandidateId] = useState<string | null>(null);
+  const [engageJobId, setEngageJobId] = useState('');
 
   // Load latest Google X-ray (basic) search results from DB (shared across all recruiters)
   const { data: latestBasicLinkedInSearch } = useQuery({
@@ -513,6 +529,189 @@ export default function Search() {
     setSelectedIds(new Set());
     freeTextSearchMutation.mutate({ query: freeTextQuery, strictMode });
   };
+
+  // Update candidate field mutation
+  const handleUpdateField = async (candidateId: string, field: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update({ [field]: value })
+        .eq('id', candidateId);
+
+      if (error) throw error;
+
+      // Update local state
+      setFreeTextResults(prev => prev.map(result => {
+        if (result.candidate?.id === candidateId) {
+          return {
+            ...result,
+            candidate: {
+              ...result.candidate,
+              [field]: value
+            }
+          };
+        }
+        return result;
+      }));
+
+      toast.success('Updated successfully');
+    } catch (error: any) {
+      console.error('Update error:', error);
+      toast.error(error.message || 'Failed to update');
+      throw error;
+    }
+  };
+
+  // Handler for Add to Shortlist
+  const handleAddToShortlist = (candidateIds: string[]) => {
+    if (candidateIds.length === 1) {
+      setShortlistCandidateId(candidateIds[0]);
+    } else {
+      setShortlistCandidateId('__BULK__');
+    }
+    setShortlistDialogOpen(true);
+  };
+
+  // Handler for Start Engagement
+  const handleStartEngagement = (candidateId: string) => {
+    setEngageCandidateId(candidateId);
+    setEngageOpen(true);
+  };
+
+  // Fetch shortlists
+  const { data: shortlists } = useQuery({
+    queryKey: ['shortlists', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('candidate_shortlists')
+        .select('id, name')
+        .eq('organization_id', organizationId)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+
+  const shortlistsById = useMemo(() => {
+    const m = new Map<string, string>();
+    (shortlists || []).forEach((s: any) => {
+      if (s?.id) m.set(String(s.id), String(s.name || 'Shortlist'));
+    });
+    return m;
+  }, [shortlists]);
+
+  // Get candidate IDs from current results
+  const visibleCandidateIds = useMemo(() => {
+    return adaptedFreeTextResults
+      .map((r) => r.internalData?.candidateId)
+      .filter(Boolean) as string[];
+  }, [adaptedFreeTextResults]);
+
+  // Fetch shortlist membership for visible candidates
+  const { data: shortlistMembership } = useQuery({
+    queryKey: ['shortlist-membership', organizationId, visibleCandidateIds.join(','), (shortlists || []).length],
+    queryFn: async () => {
+      const shortlistIds = (shortlists || []).map((s: any) => String(s.id)).filter(Boolean);
+      if (!shortlistIds.length) return [];
+      if (!visibleCandidateIds.length) return [];
+
+      const { data, error } = await supabase
+        .from('shortlist_candidates')
+        .select('shortlist_id, candidate_id')
+        .in('shortlist_id', shortlistIds)
+        .in('candidate_id', visibleCandidateIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId && (shortlists || []).length > 0 && visibleCandidateIds.length > 0,
+  });
+
+  const shortlistsByCandidateId = useMemo(() => {
+    const grouped = new Map<string, { shortlistId: string; name: string }[]>();
+    for (const row of shortlistMembership || []) {
+      const candidateId = String((row as any)?.candidate_id || '');
+      const shortlistId = String((row as any)?.shortlist_id || '');
+      if (!candidateId || !shortlistId) continue;
+      const name = shortlistsById.get(shortlistId) || 'Shortlist';
+      const arr = grouped.get(candidateId) || [];
+      if (!arr.some((x) => x.shortlistId === shortlistId)) arr.push({ shortlistId, name });
+      grouped.set(candidateId, arr);
+    }
+    const out: Record<string, string> = {};
+    for (const [candidateId, arr] of grouped.entries()) {
+      const sorted = [...arr].sort((a, b) => a.name.localeCompare(b.name));
+      const primary = sorted[0];
+      const count = sorted.length;
+      out[candidateId] = count > 1 ? `${primary.name} +${count - 1}` : primary.name;
+    }
+    return out;
+  }, [shortlistMembership, shortlistsById]);
+
+  // Add to shortlist mutations
+  const addToShortlistMutation = useMutation({
+    mutationFn: async ({ shortlistId, candidateId }: { shortlistId: string; candidateId: string }) => {
+      const { error } = await supabase
+        .from('shortlist_candidates')
+        .insert({ shortlist_id: shortlistId, candidate_id: candidateId, added_by: user?.id } as any);
+      if (error) {
+        if ((error as any)?.code === '23505') throw new Error('Candidate already in that shortlist');
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success('Added to shortlist');
+      setShortlistDialogOpen(false);
+      setShortlistCandidateId(null);
+      setSelectedShortlistId('');
+      queryClient.invalidateQueries({ queryKey: ['shortlist-candidates'] });
+      queryClient.invalidateQueries({ queryKey: ['shortlist-membership'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to add to shortlist'),
+  });
+
+  const createShortlistMutation = useMutation({
+    mutationFn: async ({ name }: { name: string }) => {
+      if (!organizationId) throw new Error('Missing organization');
+      const clean = String(name || '').trim();
+      if (!clean) throw new Error('Enter a shortlist name');
+      const { data, error } = await supabase
+        .from('candidate_shortlists')
+        .insert({ organization_id: organizationId, name: clean, created_by: user?.id } as any)
+        .select('id, name')
+        .single();
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ['shortlists', organizationId] });
+      if (created?.id) setSelectedShortlistId(String(created.id));
+      setNewShortlistName('');
+      toast.success('Shortlist created');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to create shortlist'),
+  });
+
+  const startEngagementMutation = useMutation({
+    mutationFn: async ({ candidateId, jobId }: { candidateId: string; jobId: string }) => {
+      if (!organizationId) throw new Error('Not authorized');
+      if (!jobId) throw new Error('Select a job');
+      const { data, error } = await supabase.rpc('start_engagement', {
+        _candidate_id: candidateId,
+        _job_id: jobId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Engagement started');
+      setEngageOpen(false);
+      setEngageCandidateId(null);
+      setEngageJobId('');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Failed to start engagement'),
+  });
 
   // Pool - By Job search mutation
   const byJobSearchMutation = useMutation({
@@ -1627,10 +1826,7 @@ export default function Search() {
                   locations: availableLocations,
                   skills: availableSkills,
                 }}
-                onAddToShortlist={(ids) => {
-                  // TODO: Implement add to shortlist
-                  toast.success(`Added ${ids.length} candidate(s) to shortlist`);
-                }}
+                onAddToShortlist={handleAddToShortlist}
                 onExport={(ids) => {
                   // TODO: Implement export
                   toast.success(`Exporting ${ids.length} candidate(s)`);
@@ -1641,6 +1837,9 @@ export default function Search() {
                     openTalent(result.internalData.candidateId);
                   }
                 }}
+                onStartEngagement={handleStartEngagement}
+                onUpdateField={handleUpdateField}
+                shortlistsByCandidateId={shortlistsByCandidateId}
               />
             )}
 
@@ -2318,6 +2517,151 @@ export default function Search() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
+
+      {/* Add to Shortlist Dialog */}
+      <Dialog
+        open={shortlistDialogOpen}
+        onOpenChange={(open) => {
+          setShortlistDialogOpen(open);
+          if (!open) {
+            setShortlistCandidateId(null);
+            setSelectedShortlistId('');
+            setNewShortlistName('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add to Shortlist</DialogTitle>
+            <DialogDescription>
+              Select a shortlist (or create one) to add this candidate.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Select value={selectedShortlistId} onValueChange={setSelectedShortlistId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose shortlist" />
+              </SelectTrigger>
+              <SelectContent>
+                {(shortlists || []).map((s: any) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex gap-2">
+              <Input
+                value={newShortlistName}
+                onChange={(e) => setNewShortlistName(e.target.value)}
+                placeholder="Create new shortlist…"
+              />
+              <Button
+                variant="secondary"
+                onClick={() => createShortlistMutation.mutate({ name: newShortlistName })}
+                disabled={createShortlistMutation.isPending || !newShortlistName.trim()}
+              >
+                {createShortlistMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Create
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShortlistDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!shortlistCandidateId) return;
+                if (!selectedShortlistId) return toast.error('Select a shortlist');
+                addToShortlistMutation.mutate({
+                  shortlistId: selectedShortlistId,
+                  candidateId: shortlistCandidateId,
+                });
+              }}
+              disabled={addToShortlistMutation.isPending}
+            >
+              {addToShortlistMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Engagement Dialog */}
+      <Dialog
+        open={engageOpen}
+        onOpenChange={(open) => {
+          setEngageOpen(open);
+          if (!open) {
+            setEngageCandidateId(null);
+            setEngageJobId('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Start Engagement</DialogTitle>
+            <DialogDescription>
+              Select a job to start engagement with this candidate.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Select value={engageJobId} onValueChange={setEngageJobId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose job" />
+              </SelectTrigger>
+              <SelectContent>
+                {(jobs || []).map((j: any) => (
+                  <SelectItem key={j.id} value={String(j.id)}>
+                    {j.client?.name ? (
+                      <>
+                        <span className="font-semibold">{j.client.name}</span>
+                        {' - '}
+                        {j.title}
+                      </>
+                    ) : (
+                      j.title
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEngageOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!engageCandidateId) return;
+                if (!engageJobId) return toast.error('Select a job');
+                startEngagementMutation.mutate({
+                  candidateId: engageCandidateId,
+                  jobId: engageJobId,
+                });
+              }}
+              disabled={startEngagementMutation.isPending}
+            >
+              {startEngagementMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Start
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </DashboardLayout>
   );
