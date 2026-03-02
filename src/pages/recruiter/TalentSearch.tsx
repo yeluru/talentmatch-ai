@@ -33,7 +33,10 @@ import {
   Filter,
   CheckSquare,
   Square,
-  Trash2
+  Trash2,
+  MessageSquare,
+  MoreHorizontal,
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -45,6 +48,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { normalizeStatusForDisplay, TALENT_POOL_STAGE_OPTIONS } from '@/lib/statusOptions';
 
 interface SearchResult {
   candidate_index: number;
@@ -57,11 +61,16 @@ interface SearchResult {
     id: string;
     name?: string;
     title?: string | null;
+    email?: string | null;
+    phone?: string | null;
     years_experience?: number | null;
     summary?: string | null;
     location?: string | null;
     skills?: string[];
     current_company?: string | null;
+    ats_score?: number | null;
+    recruiter_status?: string | null;
+    recruiter_notes?: string | null;
   } | null;
 }
 
@@ -171,6 +180,11 @@ export default function TalentSearch() {
   const [selectedShortlistId, setSelectedShortlistId] = useState<string>('');
   const [newShortlistName, setNewShortlistName] = useState('');
 
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ candidateId: string; field: 'name' | 'email' | 'phone' | 'title' | 'notes' } | null>(null);
+  const [editedValues, setEditedValues] = useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
   // Saved searches state
   const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState('');
@@ -178,6 +192,76 @@ export default function TalentSearch() {
 
   const organizationId = orgIdForRecruiterSuite(roles);
   const STORAGE_KEY = `talent_search:last:${organizationId || 'no-org'}`;
+
+  // Inline editing save function
+  const saveField = async (candidateId: string, field: 'name' | 'email' | 'phone' | 'title' | 'notes', newValue: string, oldValue: string | null | undefined) => {
+    if (isSaving) return;
+
+    const trimmedValue = newValue.trim();
+    if (trimmedValue === oldValue) {
+      setEditingCell(null);
+      return;
+    }
+
+    // Don't allow empty name
+    if (field === 'name' && !trimmedValue) {
+      toast.error('Name cannot be empty');
+      setEditingCell(null);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updateData = field === 'name'
+        ? { full_name: trimmedValue }
+        : field === 'email'
+        ? { email: trimmedValue }
+        : field === 'phone'
+        ? { phone: trimmedValue }
+        : field === 'title'
+        ? { current_title: trimmedValue }
+        : { recruiter_notes: trimmedValue };
+
+      const { error } = await supabase
+        .from('candidate_profiles')
+        .update(updateData)
+        .eq('id', candidateId);
+
+      if (error) throw error;
+
+      // Update local results
+      setResults(prev => prev.map(r => {
+        if (r.candidate?.id === candidateId && r.candidate) {
+          return {
+            ...r,
+            candidate: {
+              ...r.candidate,
+              ...(field === 'name' && { name: trimmedValue }),
+              ...(field === 'email' && { email: trimmedValue }),
+              ...(field === 'phone' && { phone: trimmedValue }),
+              ...(field === 'title' && { title: trimmedValue }),
+              ...(field === 'notes' && { recruiter_notes: trimmedValue })
+            }
+          };
+        }
+        return r;
+      }));
+
+      const fieldLabel = field === 'name' ? 'Name'
+        : field === 'email' ? 'Email'
+        : field === 'phone' ? 'Phone'
+        : field === 'title' ? 'Title'
+        : 'Notes';
+      toast.success(`${fieldLabel} updated`);
+      setEditingCell(null);
+      setEditedValues({});
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
+      toast.error(`Failed to update ${field}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Queries
   const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
@@ -1596,44 +1680,51 @@ export default function TalentSearch() {
                               onCheckedChange={toggleSelectAll}
                             />
                           </TableHead>
-                          <TableHead className="w-12 text-center text-muted-foreground font-sans font-medium">#</TableHead>
-                          <TableHead className="py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('name')}>
+                          <TableHead className="w-12 text-center text-[11px] text-muted-foreground font-sans font-medium">#</TableHead>
+                          <TableHead className="w-[120px] py-3 text-[11px] font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('name')}>
                             <div className="flex items-center gap-1">
                               Name
                               <SortIcon column="name" />
                             </div>
                           </TableHead>
-                          <TableHead className="max-w-[180px] py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('title')}>
+                          <TableHead className="w-[120px] hidden xl:table-cell py-3 text-[11px] font-display font-semibold text-foreground">Email</TableHead>
+                          <TableHead className="w-[100px] hidden 2xl:table-cell py-3 text-[11px] font-display font-semibold text-foreground">Phone</TableHead>
+                          <TableHead className="w-[130px] py-3 text-[11px] font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('title')}>
                             <div className="flex items-center gap-1">
                               Title
                               <SortIcon column="title" />
                             </div>
                           </TableHead>
-                          <TableHead className="w-24 hidden sm:table-cell py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('experience')}>
+                          <TableHead className="w-[110px] hidden xl:table-cell py-3 text-[11px] font-display font-semibold text-foreground">Company</TableHead>
+                          <TableHead className="w-16 hidden sm:table-cell py-3 text-[11px] font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('experience')}>
                             <div className="flex items-center gap-1">
                               Exp
                               <SortIcon column="experience" />
                             </div>
                           </TableHead>
-                          <TableHead className="max-w-[120px] hidden lg:table-cell py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('location')}>
+                          <TableHead className="w-[100px] hidden lg:table-cell py-3 text-[11px] font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('location')}>
                             <div className="flex items-center gap-1">
                               Location
                               <SortIcon column="location" />
                             </div>
                           </TableHead>
-                          <TableHead className="w-20 text-center py-4 font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('match_score')} title="Fit score for this search">
+                          <TableHead className="w-[70px] py-3 text-[11px] font-display font-semibold text-foreground">Status</TableHead>
+                          <TableHead className="w-16 py-3 text-[11px] font-display font-semibold text-foreground cursor-pointer hover:text-recruiter" onClick={() => handleSort('match_score')} title="Fit score for this search">
                             <div className="flex items-center justify-center gap-1">
                               Match
                               <SortIcon column="match_score" />
                             </div>
                           </TableHead>
-                          <TableHead className="w-[140px] py-4 font-display font-semibold text-foreground">Shortlist</TableHead>
+                          <TableHead className="w-14 hidden xl:table-cell py-3 text-[11px] font-display font-semibold text-foreground" title="Resume quality">ATS</TableHead>
+                          <TableHead className="w-[120px] py-3 text-[11px] font-display font-semibold text-foreground">Notes</TableHead>
+                          <TableHead className="w-[100px] py-3 text-[11px] font-display font-semibold text-foreground">Shortlist</TableHead>
+                          <TableHead className="w-10 py-3"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {sortedResults.length === 0 && results.length > 0 && (
                           <TableRow>
-                            <TableCell colSpan={9} className="text-center py-12">
+                            <TableCell colSpan={15} className="text-center py-12">
                               <div className="flex flex-col items-center gap-3">
                                 <Filter className="h-12 w-12 text-muted-foreground/30" />
                                 <div>
@@ -1655,6 +1746,12 @@ export default function TalentSearch() {
                           const candId = candidate.id;
                           const isSelected = selectedIds.has(candId);
                           const memberships = shortlistsForCandidateId.get(candId) || [];
+                          const isEditingName = editingCell?.candidateId === candId && editingCell?.field === 'name';
+                          const isEditingEmail = editingCell?.candidateId === candId && editingCell?.field === 'email';
+                          const isEditingPhone = editingCell?.candidateId === candId && editingCell?.field === 'phone';
+                          const isEditingTitle = editingCell?.candidateId === candId && editingCell?.field === 'title';
+                          const isEditingNotes = editingCell?.candidateId === candId && editingCell?.field === 'notes';
+
                           return (
                             <TableRow
                               key={candId ?? idx}
@@ -1663,56 +1760,257 @@ export default function TalentSearch() {
                                 isSelected && "bg-recruiter/10"
                               )}
                             >
+                              {/* Checkbox */}
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                   checked={isSelected}
                                   onCheckedChange={() => toggleSelect(candId)}
                                 />
                               </TableCell>
-                              <TableCell className="text-sm py-4 text-center text-muted-foreground font-sans tabular-nums cursor-pointer" onClick={() => openTalent(candId)}>{idx + 1}</TableCell>
-                              <TableCell className="py-4 cursor-pointer" onClick={() => openTalent(candId)}>
-                                <span className="font-display font-semibold text-foreground group-hover:text-recruiter transition-colors truncate block max-w-[140px]">{candidate.name ?? '—'}</span>
+
+                              {/* Index */}
+                              <TableCell className="text-[11px] py-2 text-center text-muted-foreground font-sans tabular-nums cursor-pointer" onClick={() => openTalent(candId)}>{idx + 1}</TableCell>
+
+                              {/* Name - Inline Editable */}
+                              <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditingName ? (
+                                  <input
+                                    type="text"
+                                    defaultValue={candidate.name || ''}
+                                    onBlur={(e) => saveField(candId, 'name', e.target.value, candidate.name)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveField(candId, 'name', e.currentTarget.value, candidate.name);
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                    autoFocus
+                                    disabled={isSaving}
+                                    className="font-semibold text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                ) : (
+                                  <span
+                                    className="font-display font-semibold text-[11px] text-foreground group-hover:text-recruiter transition-colors truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+                                    onClick={() => setEditingCell({ candidateId: candId, field: 'name' })}
+                                    title={candidate.name || undefined}
+                                  >
+                                    {candidate.name ?? '—'}
+                                  </span>
+                                )}
                               </TableCell>
-                              <TableCell className="py-4 max-w-[180px] cursor-pointer" onClick={() => openTalent(candId)}>
-                                <span className="text-sm text-muted-foreground font-sans truncate block" title={candidate.title || undefined}>
-                                  {candidate.title || '—'}
+
+                              {/* Email - Inline Editable */}
+                              <TableCell className="hidden xl:table-cell py-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditingEmail ? (
+                                  <input
+                                    type="email"
+                                    defaultValue={candidate.email || ''}
+                                    onBlur={(e) => saveField(candId, 'email', e.target.value, candidate.email)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveField(candId, 'email', e.currentTarget.value, candidate.email);
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                    autoFocus
+                                    disabled={isSaving}
+                                    placeholder="Enter email..."
+                                    className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                ) : (
+                                  <span
+                                    className="text-[11px] text-muted-foreground truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+                                    onClick={() => setEditingCell({ candidateId: candId, field: 'email' })}
+                                    title={candidate.email || 'Click to add email'}
+                                  >
+                                    {candidate.email || '—'}
+                                  </span>
+                                )}
+                              </TableCell>
+
+                              {/* Phone - Inline Editable */}
+                              <TableCell className="hidden 2xl:table-cell py-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditingPhone ? (
+                                  <input
+                                    type="tel"
+                                    defaultValue={candidate.phone || ''}
+                                    onBlur={(e) => saveField(candId, 'phone', e.target.value, candidate.phone)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveField(candId, 'phone', e.currentTarget.value, candidate.phone);
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                    autoFocus
+                                    disabled={isSaving}
+                                    placeholder="Enter phone..."
+                                    className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                ) : (
+                                  <span
+                                    className="text-[11px] text-muted-foreground truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+                                    onClick={() => setEditingCell({ candidateId: candId, field: 'phone' })}
+                                    title={candidate.phone || 'Click to add phone'}
+                                  >
+                                    {candidate.phone || '—'}
+                                  </span>
+                                )}
+                              </TableCell>
+
+                              {/* Title - Inline Editable */}
+                              <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditingTitle ? (
+                                  <input
+                                    type="text"
+                                    defaultValue={candidate.title || ''}
+                                    onBlur={(e) => saveField(candId, 'title', e.target.value, candidate.title)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveField(candId, 'title', e.currentTarget.value, candidate.title);
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                    autoFocus
+                                    disabled={isSaving}
+                                    className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                ) : (
+                                  <span
+                                    className="text-[11px] text-muted-foreground truncate block cursor-text hover:bg-accent/30 rounded px-1 py-0.5"
+                                    onClick={() => setEditingCell({ candidateId: candId, field: 'title' })}
+                                    title={candidate.title || undefined}
+                                  >
+                                    {candidate.title || '—'}
+                                  </span>
+                                )}
+                              </TableCell>
+
+                              {/* Company */}
+                              <TableCell className="hidden xl:table-cell py-2 cursor-pointer" onClick={() => openTalent(candId)}>
+                                <span className="text-[11px] text-muted-foreground truncate block" title={candidate.current_company || undefined}>
+                                  {candidate.current_company || '—'}
                                 </span>
                               </TableCell>
-                              <TableCell className="hidden sm:table-cell py-4 cursor-pointer" onClick={() => openTalent(candId)}>
-                                <span className="text-sm text-muted-foreground font-sans">
+
+                              {/* Experience */}
+                              <TableCell className="hidden sm:table-cell py-2 cursor-pointer" onClick={() => openTalent(candId)}>
+                                <span className="text-[11px] text-muted-foreground">
                                   {candidate.years_experience ? `${candidate.years_experience}y` : '—'}
                                 </span>
                               </TableCell>
-                              <TableCell className="hidden lg:table-cell py-4 max-w-[120px] cursor-pointer" onClick={() => openTalent(candId)}>
-                                <span className="text-sm text-muted-foreground font-sans truncate block" title={candidate.location || undefined}>
+
+                              {/* Location */}
+                              <TableCell className="hidden lg:table-cell py-2 cursor-pointer" onClick={() => openTalent(candId)}>
+                                <span className="text-[11px] text-muted-foreground truncate block" title={candidate.location || undefined}>
                                   {candidate.location || '—'}
                                 </span>
                               </TableCell>
-                              <TableCell className="text-center py-4 cursor-pointer" onClick={() => openTalent(candId)}>
-                                <ScoreBadge score={result.match_score} size="md" showLabel={false} />
+
+                              {/* Status */}
+                              <TableCell className="py-2 cursor-pointer" onClick={() => openTalent(candId)}>
+                                <span className="text-[11px] text-foreground/80 truncate block" title={TALENT_POOL_STAGE_OPTIONS.find(s => s.value === normalizeStatusForDisplay(candidate.recruiter_status))?.label || 'New'}>
+                                  {TALENT_POOL_STAGE_OPTIONS.find(s => s.value === normalizeStatusForDisplay(candidate.recruiter_status))?.label || 'New'}
+                                </span>
                               </TableCell>
-                              <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
+
+                              {/* Match Score */}
+                              <TableCell className="text-center py-2 cursor-pointer" onClick={() => openTalent(candId)}>
+                                <ScoreBadge score={result.match_score} size="sm" showLabel={false} />
+                              </TableCell>
+
+                              {/* ATS Score */}
+                              <TableCell className="hidden xl:table-cell py-2 cursor-pointer" onClick={() => openTalent(candId)}>
+                                {candidate.ats_score != null ? (
+                                  <ScoreBadge score={candidate.ats_score} size="sm" showLabel={false} />
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+
+                              {/* Notes - Inline Editable */}
+                              <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-1">
+                                  {isEditingNotes ? (
+                                    <input
+                                      type="text"
+                                      defaultValue={candidate.recruiter_notes || ''}
+                                      onBlur={(e) => saveField(candId, 'notes', e.target.value, candidate.recruiter_notes)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') saveField(candId, 'notes', e.currentTarget.value, candidate.recruiter_notes);
+                                        if (e.key === 'Escape') setEditingCell(null);
+                                      }}
+                                      autoFocus
+                                      disabled={isSaving}
+                                      placeholder="Add notes..."
+                                      className="text-[11px] text-foreground bg-background border border-primary/50 rounded px-1 py-0.5 w-full focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                  ) : (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 shrink-0 hover:bg-white/10 p-0"
+                                        onClick={() => setEditingCell({ candidateId: candId, field: 'notes' })}
+                                        title="Edit notes"
+                                      >
+                                        <MessageSquare className="h-3 w-3 text-blue-400" />
+                                      </Button>
+                                      {candidate.recruiter_notes && candidate.recruiter_notes.trim() !== '' ? (
+                                        <span className="text-[11px] text-muted-foreground truncate flex-1 min-w-0" title={candidate.recruiter_notes}>
+                                          {candidate.recruiter_notes.length <= 18
+                                            ? candidate.recruiter_notes
+                                            : `${candidate.recruiter_notes.slice(0, 18)}…`}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[11px] text-muted-foreground/50 italic truncate flex-1">Add</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+
+                              {/* Shortlist */}
+                              <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
                                 {memberships.length ? (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 text-xs rounded-lg border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium"
+                                    className="h-7 text-[11px] rounded-lg border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium px-2"
                                     onClick={() => openShortlistPage(memberships[0].id)}
                                   >
-                                    {memberships[0].name}
+                                    {memberships[0].name.length > 10 ? `${memberships[0].name.slice(0, 10)}…` : memberships[0].name}
                                     {memberships.length > 1 ? ` +${memberships.length - 1}` : ''}
                                   </Button>
                                 ) : (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs rounded-lg border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium"
+                                    className="h-7 text-[11px] rounded-lg border border-recruiter/20 bg-recruiter/5 hover:bg-recruiter/10 text-recruiter font-sans font-medium px-2"
                                     onClick={() => openAddToShortlist(candId)}
                                   >
-                                    <UserPlus className="h-3.5 w-3.5 mr-1" strokeWidth={1.5} />
+                                    <UserPlus className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                     Add
                                   </Button>
                                 )}
+                              </TableCell>
+
+                              {/* Actions Menu */}
+                              <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/10">
+                                      <MoreHorizontal className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Actions</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem onClick={() => openTalent(candId)}>
+                                      <Users className="h-4 w-4 mr-2" />
+                                      View Profile
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openAddToShortlist(candId)}>
+                                      <UserPlus className="h-4 w-4 mr-2" />
+                                      Add to Shortlist
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Start Engagement
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </TableCell>
                             </TableRow>
                           );
