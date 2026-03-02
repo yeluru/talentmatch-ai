@@ -983,16 +983,18 @@ export default function CandidatePipeline() {
               </div>
             </div>
             <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-              <SelectTrigger className="w-full md:w-56 lg:w-64 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs shrink-0">
+              <SelectTrigger className="w-full md:w-80 lg:w-96 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs shrink-0">
                 <SelectValue placeholder="Filter by job" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Jobs</SelectItem>
                 {jobs?.map(job => (
                   <SelectItem key={job.id} value={String(job.id)}>
-                    <span className="block truncate max-w-full">
-                      {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
-                    </span>
+                    {job.client?.name ? (
+                      <>
+                        <span className="font-bold">{job.client.name}</span> - {job.title}
+                      </>
+                    ) : job.title}
                   </SelectItem>
                 ))}
               </SelectContent>

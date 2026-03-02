@@ -239,14 +239,18 @@ export default function TalentInsights() {
           <CardContent className="space-y-4">
             <div className="flex gap-4">
               <Select value={selectedJob} onValueChange={setSelectedJob}>
-                <SelectTrigger className="w-64">
+                <SelectTrigger className="w-96">
                   <SelectValue placeholder="Filter by job (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Candidates</SelectItem>
                   {jobs?.map((job: any) => (
                     <SelectItem key={job.id} value={job.id}>
-                      {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                      {job.client?.name ? (
+                        <>
+                          <span className="font-bold">{job.client.name}</span> - {job.title}
+                        </>
+                      ) : job.title}
                     </SelectItem>
                   ))}
                 </SelectContent>

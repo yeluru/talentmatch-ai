@@ -365,16 +365,18 @@ export default function EngagementPipeline() {
               </p>
             </div>
             <Select value={selectedJob} onValueChange={(v) => setSelectedJob(String(v))}>
-              <SelectTrigger className="w-full md:w-56 lg:w-64 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
+              <SelectTrigger className="w-full md:w-80 lg:w-96 h-11 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans shrink-0">
                 <SelectValue placeholder="Filter by job" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Jobs</SelectItem>
                 {(jobs || []).map((j: any) => (
-                  <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
-                    <span className="block max-w-[300px] truncate">
-                      {j.client?.name ? `${j.client.name} - ${j.title}` : j.title}
-                    </span>
+                  <SelectItem key={j.id} value={String(j.id)}>
+                    {j.client?.name ? (
+                      <>
+                        <span className="font-bold">{j.client.name}</span> - {j.title}
+                      </>
+                    ) : j.title}
                   </SelectItem>
                 ))}
               </SelectContent>

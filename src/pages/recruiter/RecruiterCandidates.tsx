@@ -488,14 +488,18 @@ export default function RecruiterCandidates() {
             />
           </div>
           <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
-            <SelectTrigger className="w-full sm:w-48 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
+            <SelectTrigger className="w-full sm:w-80 lg:w-96 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans text-xs">
               <SelectValue placeholder="All Jobs" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Jobs</SelectItem>
-              {jobs?.map((job) => (
+              {jobs?.map((job: any) => (
                 <SelectItem key={job.id} value={job.id}>
-                  {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                  {job.client?.name ? (
+                    <>
+                      <span className="font-bold">{job.client.name}</span> - {job.title}
+                    </>
+                  ) : job.title}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -1327,14 +1327,18 @@ export default function Search() {
               <div className="flex items-center gap-1.5 flex-nowrap">
                 <Label className="text-xs font-bold shrink-0">Job:</Label>
                 <Select value={selectedJobId} onValueChange={setSelectedJobId} disabled={jobsLoading}>
-                  <SelectTrigger className="h-9 text-sm flex-[3] min-w-0">
+                  <SelectTrigger className="h-9 text-sm w-full">
                     <SelectValue placeholder={jobsLoading ? "Loading jobs..." : "Select a job..."} />
                   </SelectTrigger>
                   <SelectContent>
                     {jobs && jobs.length > 0 ? (
                       jobs.map((job: any) => (
                         <SelectItem key={job.id} value={job.id}>
-                          {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                          {job.client?.name ? (
+                            <>
+                              <span className="font-bold">{job.client.name}</span> - {job.title}
+                            </>
+                          ) : job.title}
                         </SelectItem>
                       ))
                     ) : (
@@ -1467,9 +1471,13 @@ export default function Search() {
                     </SelectTrigger>
                     <SelectContent>
                       {jobs && jobs.length > 0 ? (
-                        jobs.map((job) => (
+                        jobs.map((job: any) => (
                           <SelectItem key={job.id} value={job.id}>
-                            {job.title}
+                            {job.client?.name ? (
+                              <>
+                                <span className="font-bold">{job.client.name}</span> - {job.title}
+                              </>
+                            ) : job.title}
                           </SelectItem>
                         ))
                       ) : (
@@ -1537,9 +1545,13 @@ export default function Search() {
                     </SelectTrigger>
                     <SelectContent>
                       {jobs && jobs.length > 0 ? (
-                        jobs.map((job) => (
+                        jobs.map((job: any) => (
                           <SelectItem key={job.id} value={job.id}>
-                            {job.title}
+                            {job.client?.name ? (
+                              <>
+                                <span className="font-bold">{job.client.name}</span> - {job.title}
+                              </>
+                            ) : job.title}
                           </SelectItem>
                         ))
                       ) : (

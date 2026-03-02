@@ -397,13 +397,17 @@ export default function OutreachCampaigns() {
                 <div className="space-y-2">
                   <Label>Link to Job (optional)</Label>
                   <Select value={newCampaignJobId} onValueChange={setNewCampaignJobId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a job..." />
                     </SelectTrigger>
                     <SelectContent>
                       {jobs?.map((job: any) => (
                         <SelectItem key={job.id} value={job.id}>
-                          {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                          {job.client?.name ? (
+                            <>
+                              <span className="font-bold">{job.client.name}</span> - {job.title}
+                            </>
+                          ) : job.title}
                         </SelectItem>
                       ))}
                     </SelectContent>

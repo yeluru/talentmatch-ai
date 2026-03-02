@@ -1155,7 +1155,7 @@ export default function TalentSearch() {
                     <div className="flex flex-col sm:flex-row gap-3">
                       <div className="flex-1">
                         <Select value={selectedJobId} onValueChange={setSelectedJobId} disabled={jobsLoading}>
-                          <SelectTrigger className="h-11 rounded-lg border-border bg-background font-sans">
+                          <SelectTrigger className="h-11 rounded-lg border-border bg-background font-sans w-full">
                             <SelectValue placeholder={jobsLoading ? "Loading jobs..." : jobs && jobs.length > 0 ? "Select a job..." : "No jobs available"} />
                           </SelectTrigger>
                           <SelectContent>
@@ -1164,7 +1164,11 @@ export default function TalentSearch() {
                             ) : jobs && jobs.length > 0 ? (
                               jobs.map((job: any) => (
                                 <SelectItem key={job.id} value={job.id}>
-                                  {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                                  {job.client?.name ? (
+                                    <>
+                                      <span className="font-bold">{job.client.name}</span> - {job.title}
+                                    </>
+                                  ) : job.title}
                                 </SelectItem>
                               ))
                             ) : (

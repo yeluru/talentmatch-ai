@@ -2131,15 +2131,17 @@ export default function TalentPool() {
             <div className="space-y-2">
               <Label>Job to submit for</Label>
               <Select value={engageJobId} onValueChange={setEngageJobId}>
-                <SelectTrigger className="glass-input">
+                <SelectTrigger className="glass-input w-full">
                   <SelectValue placeholder="Select a job" />
                 </SelectTrigger>
                 <SelectContent>
                   {(jobs || []).map((j: any) => (
-                    <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
-                      <span className="block max-w-[300px] truncate">
-                        {j.client?.name ? `${j.client.name} - ${j.title}` : j.title}
-                      </span>
+                    <SelectItem key={j.id} value={String(j.id)}>
+                      {j.client?.name ? (
+                        <>
+                          <span className="font-bold">{j.client.name}</span> - {j.title}
+                        </>
+                      ) : j.title}
                     </SelectItem>
                   ))}
                 </SelectContent>

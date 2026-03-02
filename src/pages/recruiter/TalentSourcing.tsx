@@ -3623,13 +3623,17 @@ export default function TalentSourcing() {
                   handleQueryBuilderJobSelect(jobId);
                 }}
               >
-                <SelectTrigger className="h-9 text-sm flex-1 max-w-[300px]">
+                <SelectTrigger className="h-9 text-sm flex-1 w-full">
                   <SelectValue placeholder={isLoadingJobs ? "Loading..." : "Choose job to build query"} />
                 </SelectTrigger>
                 <SelectContent>
                   {postedJobs.map((job: any) => (
                     <SelectItem key={job.id} value={job.id}>
-                      {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                      {job.client?.name ? (
+                        <>
+                          <span className="font-bold">{job.client.name}</span> - {job.title}
+                        </>
+                      ) : job.title}
                     </SelectItem>
                   ))}
                 </SelectContent>

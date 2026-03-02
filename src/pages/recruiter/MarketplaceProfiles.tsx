@@ -255,15 +255,17 @@ export default function MarketplaceProfiles() {
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Select value={jobId} onValueChange={setJobId}>
-                <SelectTrigger className="w-full sm:w-[260px]">
+                <SelectTrigger className="w-full sm:w-[450px]">
                   <SelectValue placeholder="Select job for engagement" />
                 </SelectTrigger>
                 <SelectContent>
                   {(jobs || []).map((j: any) => (
-                    <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
-                      <span className="block max-w-[300px] truncate">
-                        {j.client?.name ? `${j.client.name} - ${j.title}` : j.title}
-                      </span>
+                    <SelectItem key={j.id} value={String(j.id)}>
+                      {j.client?.name ? (
+                        <>
+                          <span className="font-bold">{j.client.name}</span> - {j.title}
+                        </>
+                      ) : j.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
