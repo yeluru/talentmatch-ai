@@ -576,7 +576,7 @@ export default function RecruiterHowToGuide() {
               placeholder="Search the guide (e.g. talent pool, pipeline, shortlist, applicants)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
+              className="pl-9 h-8 py-2 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
             />
           </div>
         </header>

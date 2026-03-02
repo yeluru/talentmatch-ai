@@ -227,7 +227,7 @@ export default function JobApplicants() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
             <Input
               placeholder="Search applicants..."
-              className="pl-10 h-11 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
+              className="pl-10 h-11 py-2.5 rounded-lg border-border focus:ring-2 focus:ring-recruiter/20 font-sans"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

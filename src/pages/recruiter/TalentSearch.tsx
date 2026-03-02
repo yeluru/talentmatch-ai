@@ -1122,7 +1122,7 @@ export default function TalentSearch() {
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                          className="pl-12 h-11 rounded-lg border-border bg-background text-base font-sans focus:ring-2 focus:ring-recruiter/20 placeholder:text-muted-foreground/70"
+                          className="pl-12 h-11 py-2.5 rounded-lg border-border bg-background text-base font-sans focus:ring-2 focus:ring-recruiter/20 placeholder:text-muted-foreground/70"
                         />
                       </div>
                       <Button

@@ -323,7 +323,7 @@ export default function RecruiterJobs() {
               placeholder="Search by title or location..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans w-full"
+              className="pl-10 h-8 py-2 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans w-full"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>

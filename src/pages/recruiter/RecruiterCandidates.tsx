@@ -484,7 +484,7 @@ export default function RecruiterCandidates() {
               placeholder="Search candidates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-8 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
+              className="pl-10 h-8 py-2 rounded-lg border-border bg-background focus:ring-2 focus:ring-recruiter/20 font-sans"
             />
           </div>
           <Select value={selectedJobFilter} onValueChange={setSelectedJobFilter}>
