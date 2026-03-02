@@ -173,7 +173,7 @@ const EXPERIENCE_LEVELS = [
   { value: 'lead', label: 'Lead (10+ years)', min: 10, max: 100 },
 ];
 
-const DEFAULT_ITEMS_PER_PAGE = 10;
+const DEFAULT_ITEMS_PER_PAGE = 50;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 const PAGE_SIZE_KEY_PREFIX = 'talentpool_page_size_v1';
