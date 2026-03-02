@@ -268,7 +268,7 @@ export default function RecruiterCandidates() {
     queryKey: ['recruiter-jobs-filter', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      let q = supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, client:clients(name)').eq('organization_id', organizationId);
       if (ownerId) q = q.eq('recruiter_id', ownerId);
       const { data, error } = await q;
       if (error) throw error;
@@ -494,7 +494,9 @@ export default function RecruiterCandidates() {
             <SelectContent>
               <SelectItem value="all">All Jobs</SelectItem>
               {jobs?.map((job) => (
-                <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                <SelectItem key={job.id} value={job.id}>
+                  {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

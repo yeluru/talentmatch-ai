@@ -136,7 +136,7 @@ export default function AIMatching() {
     queryKey: ['recruiter-jobs-matching', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      let q = supabase.from('jobs').select('*').eq('organization_id', organizationId).eq('status', 'published');
+      let q = supabase.from('jobs').select('*, client:clients(name)').eq('organization_id', organizationId).eq('status', 'published');
       if (ownerId) q = q.eq('recruiter_id', ownerId);
       const { data, error } = await q;
       if (error) throw error;
@@ -421,9 +421,9 @@ export default function AIMatching() {
                       <SelectValue placeholder="Choose a job..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {jobs?.map((job) => (
+                      {jobs?.map((job: any) => (
                         <SelectItem key={job.id} value={job.id}>
-                          {job.title}
+                          {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -117,7 +117,7 @@ export default function TalentInsights() {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, title')
+        .select('id, title, client:clients(name)')
         .eq('organization_id', organizationId);
       if (error) throw error;
       return data;
@@ -244,8 +244,10 @@ export default function TalentInsights() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Candidates</SelectItem>
-                  {jobs?.map((job) => (
-                    <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                  {jobs?.map((job: any) => (
+                    <SelectItem key={job.id} value={job.id}>
+                      {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

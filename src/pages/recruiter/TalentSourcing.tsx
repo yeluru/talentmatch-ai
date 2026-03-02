@@ -2157,7 +2157,7 @@ export default function TalentSourcing() {
       setJobsLoadError(null);
       const { data, error } = await supabase
         .from('jobs')
-        .select('id,title,description,location,status,created_at')
+        .select('id,title,description,location,status,created_at,client:clients(name)')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -3627,9 +3627,9 @@ export default function TalentSourcing() {
                   <SelectValue placeholder={isLoadingJobs ? "Loading..." : "Choose job to build query"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {postedJobs.map((job) => (
+                  {postedJobs.map((job: any) => (
                     <SelectItem key={job.id} value={job.id}>
-                      {job.title}
+                      {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -786,7 +786,7 @@ export default function TalentPool() {
     queryKey: ['recruiter-jobs', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const { data, error} = await supabase.from('jobs').select('id, title').eq('organization_id', organizationId);
+      const { data, error} = await supabase.from('jobs').select('id, title, client:clients(name)').eq('organization_id', organizationId);
       if (error) throw error;
       return data || [];
     },
@@ -2137,7 +2137,9 @@ export default function TalentPool() {
                 <SelectContent>
                   {(jobs || []).map((j: any) => (
                     <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
-                      <span className="block max-w-[300px] truncate">{j.title}</span>
+                      <span className="block max-w-[300px] truncate">
+                        {j.client?.name ? `${j.client.name} - ${j.title}` : j.title}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

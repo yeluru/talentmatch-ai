@@ -236,7 +236,7 @@ export default function Search() {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, title, description, required_skills, nice_to_have_skills')
+        .select('id, title, description, required_skills, nice_to_have_skills, client:clients(name)')
         .eq('organization_id', organizationId)
         .order('title');
       if (error) throw error;
@@ -1332,9 +1332,9 @@ export default function Search() {
                   </SelectTrigger>
                   <SelectContent>
                     {jobs && jobs.length > 0 ? (
-                      jobs.map((job) => (
+                      jobs.map((job: any) => (
                         <SelectItem key={job.id} value={job.id}>
-                          {job.title}
+                          {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
                         </SelectItem>
                       ))
                     ) : (

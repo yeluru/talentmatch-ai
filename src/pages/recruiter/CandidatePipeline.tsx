@@ -316,7 +316,7 @@ export default function CandidatePipeline() {
     queryKey: ['recruiter-jobs', organizationId, viewAsOwnerId, user?.id],
     queryFn: async () => {
       if (!organizationId) return [];
-      let q = supabase.from('jobs').select('id, title, recruiter_id, visibility').eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, recruiter_id, visibility, client:clients(name)').eq('organization_id', organizationId);
       if (viewAsOwnerId) {
         if (viewAsOwnerId === user?.id) {
           q = q.or(`recruiter_id.eq.${viewAsOwnerId},visibility.eq.public`);
@@ -990,7 +990,9 @@ export default function CandidatePipeline() {
                 <SelectItem value="all">All Jobs</SelectItem>
                 {jobs?.map(job => (
                   <SelectItem key={job.id} value={String(job.id)}>
-                    <span className="block truncate max-w-full">{job.title}</span>
+                    <span className="block truncate max-w-full">
+                      {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

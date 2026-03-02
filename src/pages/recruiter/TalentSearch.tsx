@@ -187,7 +187,7 @@ export default function TalentSearch() {
       console.log('Fetching jobs for org:', organizationId);
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, title, required_skills, nice_to_have_skills')
+        .select('id, title, required_skills, nice_to_have_skills, client:clients(name)')
         .eq('organization_id', organizationId)
         .order('title');
 
@@ -1162,9 +1162,9 @@ export default function TalentSearch() {
                             {jobsLoading ? (
                               <SelectItem value="loading" disabled>Loading jobs...</SelectItem>
                             ) : jobs && jobs.length > 0 ? (
-                              jobs.map((job) => (
+                              jobs.map((job: any) => (
                                 <SelectItem key={job.id} value={job.id}>
-                                  {job.title}
+                                  {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
                                 </SelectItem>
                               ))
                             ) : (

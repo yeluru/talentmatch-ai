@@ -101,7 +101,7 @@ export default function OutreachCampaigns() {
     queryKey: ['org-jobs-outreach', organizationId, ownerId],
     queryFn: async () => {
       if (!organizationId) return [];
-      let q = supabase.from('jobs').select('id, title, required_skills').eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, required_skills, client:clients(name)').eq('organization_id', organizationId);
       if (ownerId) q = q.eq('recruiter_id', ownerId);
       const { data, error } = await q;
       if (error) throw error;
@@ -401,8 +401,10 @@ export default function OutreachCampaigns() {
                       <SelectValue placeholder="Select a job..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {jobs?.map((job) => (
-                        <SelectItem key={job.id} value={job.id}>{job.title}</SelectItem>
+                      {jobs?.map((job: any) => (
+                        <SelectItem key={job.id} value={job.id}>
+                          {job.client?.name ? `${job.client.name} - ${job.title}` : job.title}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

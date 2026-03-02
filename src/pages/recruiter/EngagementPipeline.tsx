@@ -123,7 +123,7 @@ export default function EngagementPipeline() {
     queryKey: ['recruiter-jobs', organizationId, effectiveOwnerUserId, user?.id],
     queryFn: async () => {
       if (!organizationId) return [];
-      let q = supabase.from('jobs').select('id, title, recruiter_id, visibility').eq('organization_id', organizationId);
+      let q = supabase.from('jobs').select('id, title, recruiter_id, visibility, client:clients(name)').eq('organization_id', organizationId);
       if (effectiveOwnerUserId) {
         if (effectiveOwnerUserId === user?.id) {
           q = q.or(`recruiter_id.eq.${effectiveOwnerUserId},visibility.eq.public`);
@@ -372,7 +372,9 @@ export default function EngagementPipeline() {
                 <SelectItem value="all">All Jobs</SelectItem>
                 {(jobs || []).map((j: any) => (
                   <SelectItem key={j.id} value={String(j.id)} className="max-w-[320px]">
-                    <span className="block max-w-[300px] truncate">{j.title}</span>
+                    <span className="block max-w-[300px] truncate">
+                      {j.client?.name ? `${j.client.name} - ${j.title}` : j.title}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
