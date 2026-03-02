@@ -30,6 +30,9 @@ export interface UnifiedSearchResult {
     skills: string[];
     currentCompany?: string;
     summary?: string;
+    atsScore?: number;
+    recruiterStatus?: string;
+    recruiterNotes?: string;
   };
 
   // External profile specific
