@@ -301,11 +301,16 @@ serve(async (req) => {
                id,
                full_name,
                email,
+               phone,
                location,
                current_title,
+               current_company,
                years_of_experience,
                summary,
-               desired_locations
+               desired_locations,
+               ats_score,
+               recruiter_status,
+               recruiter_notes
              )`,
           )
           .eq("organization_id", organizationId)
@@ -351,11 +356,16 @@ serve(async (req) => {
           id,
           full_name,
           email,
+          phone,
           location,
           current_title,
+          current_company,
           years_of_experience,
           summary,
           desired_locations,
+          ats_score,
+          recruiter_status,
+          recruiter_notes,
           candidate_skills(skill_name)
         `,
         )
