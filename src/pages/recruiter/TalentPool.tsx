@@ -487,13 +487,25 @@ export default function TalentPool() {
         return [];
       }
 
-      // De-dupe by stable identity (LinkedIn/email) to avoid duplicates from repeated imports.
+      // De-dupe by stable identity (LinkedIn/email/name+title) to avoid duplicates from repeated imports.
       const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
       const identityKey = (c: any) => {
+        // Priority 1: LinkedIn URL (strongest signal)
         const li = norm((c as any).linkedin_url);
         if (li) return `li:${li}`;
+
+        // Priority 2: Email + Name + Title composite (very strong signal)
         const em = norm((c as any).email);
+        const name = norm((c as any).full_name);
+        const title = norm((c as any).current_title);
+        if (em && name && title) {
+          return `composite:${em}:${name}:${title}`;
+        }
+
+        // Priority 3: Email only (medium signal)
         if (em) return `em:${em}`;
+
+        // Fallback: Use ID (no deduplication)
         return `id:${String((c as any).id || '')}`;
       };
       const sorted = candidates
@@ -694,13 +706,25 @@ export default function TalentPool() {
 
           if (allProfiles.length === 0) break;
 
-          // Dedupe
+          // Dedupe (same logic as initial load)
           const norm = (v: any) => String(v || '').trim().toLowerCase().replace(/\/+$/, '');
           const identityKey = (c: any) => {
+            // Priority 1: LinkedIn URL
             const li = norm(c.linkedin_url);
             if (li) return `li:${li}`;
+
+            // Priority 2: Email + Name + Title composite
             const em = norm(c.email);
+            const name = norm(c.full_name);
+            const title = norm(c.current_title);
+            if (em && name && title) {
+              return `composite:${em}:${name}:${title}`;
+            }
+
+            // Priority 3: Email only
             if (em) return `em:${em}`;
+
+            // Fallback: ID
             return `id:${String(c.id || '')}`;
           };
 
