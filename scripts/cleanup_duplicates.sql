@@ -13,10 +13,16 @@ WITH ranked_duplicates AS (
     email,
     current_title,
     created_at,
+    LOWER(TRIM(full_name)) as normalized_name,
+    LOWER(TRIM(email)) as normalized_email,
+    LOWER(TRIM(current_title)) as normalized_title,
     ROW_NUMBER() OVER (
       PARTITION BY LOWER(TRIM(full_name)), LOWER(TRIM(email)), LOWER(TRIM(current_title))
       ORDER BY created_at DESC  -- Keep newest
-    ) as rank
+    ) as rank,
+    COUNT(*) OVER (
+      PARTITION BY LOWER(TRIM(full_name)), LOWER(TRIM(email)), LOWER(TRIM(current_title))
+    ) as group_count
   FROM candidate_profiles
   WHERE email IS NOT NULL AND email != ''
     AND full_name IS NOT NULL AND full_name != ''
@@ -28,16 +34,11 @@ SELECT
   email,
   current_title,
   created_at,
+  group_count as duplicates_in_group,
   CASE WHEN rank = 1 THEN '✅ KEEP (newest)' ELSE '❌ DELETE (older duplicate)' END as action
 FROM ranked_duplicates
-WHERE id IN (
-  SELECT id FROM ranked_duplicates WHERE rank > 1
-  UNION
-  SELECT id FROM ranked_duplicates WHERE rank = 1 AND id IN (
-    SELECT id FROM ranked_duplicates GROUP BY LOWER(TRIM(full_name)), LOWER(TRIM(email)), LOWER(TRIM(current_title)) HAVING COUNT(*) > 1
-  )
-)
-ORDER BY LOWER(TRIM(full_name)), LOWER(TRIM(email)), LOWER(TRIM(current_title)), created_at DESC;
+WHERE group_count > 1  -- Only show records that have duplicates
+ORDER BY normalized_name, normalized_email, normalized_title, created_at DESC;
 
 -- Step 2: DANGER ZONE - Actually delete duplicates (keeps newest)
 -- ⚠️ BACKUP YOUR DATABASE FIRST ⚠️
