@@ -323,7 +323,7 @@ export function useBulkResumeUpload(organizationId: string | undefined) {
               const { error: uploadError } = await retryWithBackoff(
                 () => supabase.storage.from('resumes').upload(uniqueFileName, file, {
                   contentType: file.type || 'application/octet-stream',
-                  upsert: false,
+                  upsert: true, // Allow retries to overwrite failed attempts (prevents lock conflicts)
                 }),
                 {
                   maxRetries: 3,
