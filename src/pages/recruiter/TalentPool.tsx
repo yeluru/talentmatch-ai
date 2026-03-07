@@ -176,7 +176,7 @@ const EXPERIENCE_LEVELS = [
 const DEFAULT_ITEMS_PER_PAGE = 50;
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
-const PAGE_SIZE_KEY_PREFIX = 'talentpool_page_size_v1';
+const PAGE_SIZE_KEY_PREFIX = 'talentpool_page_size_v2';
 function getPageSizeKey(orgId: string) {
   return `${PAGE_SIZE_KEY_PREFIX}:${orgId}`;
 }
