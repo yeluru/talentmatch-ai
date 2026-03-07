@@ -387,8 +387,8 @@ export default function TalentPool() {
       // Store all IDs for progressive loading
       setAllCandidateIds(candidateIds);
 
-      // Initial load: first 1000 profiles
-      const INITIAL_LOAD_SIZE = 1000;
+      // Initial load: first 100 profiles for fast page render
+      const INITIAL_LOAD_SIZE = 100;
       const initialIds = candidateIds.slice(0, INITIAL_LOAD_SIZE);
       console.log(`[TalentPool] Initial load: ${initialIds.length} of ${candidateIds.length} profiles`);
 
@@ -621,8 +621,8 @@ export default function TalentPool() {
       setIsLoadingMore(true);
 
       try {
-        // Load in chunks of 500 to avoid overwhelming the browser
-        const CHUNK_SIZE = 500;
+        // Load in chunks of 1000 for faster background loading
+        const CHUNK_SIZE = 1000;
         let currentLoaded = talents.length;
 
         while (currentLoaded < allCandidateIds.length) {
