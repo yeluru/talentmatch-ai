@@ -2058,8 +2058,8 @@ export default function TalentPool() {
                 )}
 
                 {/* Header Row */}
-                <div className="hidden lg:flex items-center px-2 ml-[12px] pt-3 pb-1 border-t border-border text-[11px] font-medium text-muted-foreground uppercase tracking-widest gap-3">
-                  <div className="w-10 flex items-center justify-center">
+                <div className="hidden lg:flex items-center px-2 ml-[21px] pt-3 pb-1 border-t border-border text-[11px] font-medium text-muted-foreground uppercase tracking-widest gap-3">
+                  <div className="w-10 flex items-center justify-center -ml-[9px]">
                     <Checkbox
                       checked={paginatedTalents.length > 0 && paginatedTalents.every(t => selectedIds.has(t.id))}
                       onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
