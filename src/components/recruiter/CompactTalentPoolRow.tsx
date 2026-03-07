@@ -212,7 +212,7 @@ function CompactTalentPoolRowComponent({
 
   return (
     <div
-      className={`glass-panel py-0.5 px-4 hover-card-premium flex flex-nowrap items-center gap-3 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10 ${isEvenRow ? 'bg-white/5' : 'bg-transparent'}`}
+      className={`glass-panel py-0.5 px-2 hover-card-premium flex flex-nowrap items-center gap-3 cursor-pointer group transition-all duration-300 relative z-0 hover:z-10 ${isEvenRow ? 'bg-white/5' : 'bg-transparent'}`}
       onClick={() => onViewProfile(talent.id)}
     >
       {onToggleSelect && (
