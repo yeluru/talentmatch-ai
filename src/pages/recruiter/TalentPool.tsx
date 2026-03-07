@@ -2058,14 +2058,14 @@ export default function TalentPool() {
                 )}
 
                 {/* Header Row */}
-                <div className="hidden lg:flex items-center px-2 ml-[21px] pt-3 pb-1 border-t border-border text-[11px] font-medium text-muted-foreground uppercase tracking-widest gap-3">
-                  <div className="w-10 flex items-center justify-center -ml-[9px]">
+                <div className="hidden lg:flex items-center px-2 ml-[12px] pt-3 pb-1 border-t border-border text-[11px] font-medium text-muted-foreground uppercase tracking-widest gap-3">
+                  <div className="w-10 flex items-center justify-center">
                     <Checkbox
                       checked={paginatedTalents.length > 0 && paginatedTalents.every(t => selectedIds.has(t.id))}
                       onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
                     />
                   </div>
-                  <div className="w-12 shrink-0 pl-1 text-left text-[11px] font-medium">#</div>
+                  <div className="w-12 shrink-0 pl-1 ml-[9px] text-left text-[11px] font-medium">#</div>
                   <div className="w-[140px] shrink-0 px-1 text-left text-[11px] font-medium cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
