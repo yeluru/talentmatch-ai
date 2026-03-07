@@ -385,33 +385,50 @@ export default function TalentPool() {
       }
 
       // Fetch created_at timestamps to sort by recency (most recent first)
-      console.log(`[TalentPool] Fetching timestamps for ${candidateIds.length} candidates to sort by recency`);
-      const TIMESTAMP_BATCH_SIZE = 1000;
-      const timestampBatches: string[][] = [];
-      for (let i = 0; i < candidateIds.length; i += TIMESTAMP_BATCH_SIZE) {
-        timestampBatches.push(candidateIds.slice(i, i + TIMESTAMP_BATCH_SIZE));
+      let sortedIds = candidateIds; // Fallback to original order if sorting fails
+      try {
+        console.log(`[TalentPool] Fetching timestamps for ${candidateIds.length} candidates to sort by recency`);
+        const TIMESTAMP_BATCH_SIZE = 1000;
+        const timestampBatches: string[][] = [];
+        for (let i = 0; i < candidateIds.length; i += TIMESTAMP_BATCH_SIZE) {
+          timestampBatches.push(candidateIds.slice(i, i + TIMESTAMP_BATCH_SIZE));
+        }
+
+        const timestampPromises = timestampBatches.map(batch =>
+          supabase
+            .from('candidate_profiles')
+            .select('id, created_at')
+            .in('id', batch)
+        );
+
+        const timestampResults = await Promise.all(timestampPromises);
+        const candidatesWithTimestamps: { id: string; created_at: string }[] = [];
+
+        // Check for errors in any batch
+        for (const result of timestampResults) {
+          if (result.error) {
+            console.error('[TalentPool] Error fetching timestamps:', result.error);
+            throw result.error;
+          }
+          if (result.data) {
+            candidatesWithTimestamps.push(...result.data);
+          }
+        }
+
+        if (candidatesWithTimestamps.length > 0) {
+          // Sort by created_at DESC (most recent first)
+          const sortedCandidates = candidatesWithTimestamps.sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          sortedIds = sortedCandidates.map(c => c.id);
+          console.log(`[TalentPool] Sorted ${sortedIds.length} candidates by recency (most recent: ${sortedCandidates[0]?.created_at})`);
+        } else {
+          console.warn('[TalentPool] No timestamps returned, using original order');
+        }
+      } catch (error) {
+        console.error('[TalentPool] Failed to sort by recency, using original order:', error);
+        sortedIds = candidateIds; // Fallback to original order
       }
-
-      const timestampPromises = timestampBatches.map(batch =>
-        supabase
-          .from('candidate_profiles')
-          .select('id, created_at')
-          .in('id', batch)
-      );
-
-      const timestampResults = await Promise.all(timestampPromises);
-      const candidatesWithTimestamps: { id: string; created_at: string }[] = [];
-      for (const { data } of timestampResults) {
-        if (data) candidatesWithTimestamps.push(...data);
-      }
-
-      // Sort by created_at DESC (most recent first)
-      const sortedCandidates = candidatesWithTimestamps.sort((a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      const sortedIds = sortedCandidates.map(c => c.id);
-
-      console.log(`[TalentPool] Sorted ${sortedIds.length} candidates by recency (most recent: ${sortedCandidates[0]?.created_at})`);
 
       // Store sorted IDs for progressive loading
       setAllCandidateIds(sortedIds);
@@ -424,8 +441,8 @@ export default function TalentPool() {
       // Set initial progress
       setLoadingProgress({
         loaded: 0,
-        total: candidateIds.length,
-        isComplete: candidateIds.length <= INITIAL_LOAD_SIZE
+        total: sortedIds.length,
+        isComplete: sortedIds.length <= INITIAL_LOAD_SIZE
       });
 
       // Batch fetch profiles to avoid URL length limits (Phase 1 optimization: increased to 250)
