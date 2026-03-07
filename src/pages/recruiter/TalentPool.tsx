@@ -384,59 +384,49 @@ export default function TalentPool() {
         return [];
       }
 
-      // Fetch created_at timestamps to sort by recency (most recent first)
-      let sortedIds = candidateIds; // Fallback to original order if sorting fails
+      // Fast approach: Let database sort and get first 100 most recent (ORDER BY in SQL = instant)
+      const INITIAL_LOAD_SIZE = 100;
+      let initialIds: string[] = [];
+      let sortedIds: string[] = [];
+
       try {
-        console.log(`[TalentPool] Fetching timestamps for ${candidateIds.length} candidates to sort by recency`);
-        const TIMESTAMP_BATCH_SIZE = 1000;
-        const timestampBatches: string[][] = [];
-        for (let i = 0; i < candidateIds.length; i += TIMESTAMP_BATCH_SIZE) {
-          timestampBatches.push(candidateIds.slice(i, i + TIMESTAMP_BATCH_SIZE));
+        console.log(`[TalentPool] Fetching first ${INITIAL_LOAD_SIZE} most recent from ${candidateIds.length} total`);
+
+        // Single fast query: ORDER BY created_at DESC LIMIT 100
+        const { data: recentCandidates, error: recentError } = await supabase
+          .from('candidate_profiles')
+          .select('id, created_at')
+          .in('id', candidateIds)
+          .order('created_at', { ascending: false })
+          .limit(INITIAL_LOAD_SIZE);
+
+        if (recentError) {
+          console.error('[TalentPool] Error fetching recent candidates:', recentError);
+          throw recentError;
         }
 
-        const timestampPromises = timestampBatches.map(batch =>
-          supabase
-            .from('candidate_profiles')
-            .select('id, created_at')
-            .in('id', batch)
-        );
+        if (recentCandidates && recentCandidates.length > 0) {
+          initialIds = recentCandidates.map(c => c.id);
+          console.log(`[TalentPool] Got ${initialIds.length} most recent (newest: ${recentCandidates[0]?.created_at})`);
 
-        const timestampResults = await Promise.all(timestampPromises);
-        const candidatesWithTimestamps: { id: string; created_at: string }[] = [];
-
-        // Check for errors in any batch
-        for (const result of timestampResults) {
-          if (result.error) {
-            console.error('[TalentPool] Error fetching timestamps:', result.error);
-            throw result.error;
-          }
-          if (result.data) {
-            candidatesWithTimestamps.push(...result.data);
-          }
-        }
-
-        if (candidatesWithTimestamps.length > 0) {
-          // Sort by created_at DESC (most recent first)
-          const sortedCandidates = candidatesWithTimestamps.sort((a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          sortedIds = sortedCandidates.map(c => c.id);
-          console.log(`[TalentPool] Sorted ${sortedIds.length} candidates by recency (most recent: ${sortedCandidates[0]?.created_at})`);
+          // Remaining IDs will be loaded in background (order doesn't matter for background)
+          const remainingIds = candidateIds.filter(id => !initialIds.includes(id));
+          sortedIds = [...initialIds, ...remainingIds];
         } else {
-          console.warn('[TalentPool] No timestamps returned, using original order');
+          console.warn('[TalentPool] No recent candidates returned, using original order');
+          sortedIds = candidateIds;
+          initialIds = candidateIds.slice(0, INITIAL_LOAD_SIZE);
         }
       } catch (error) {
-        console.error('[TalentPool] Failed to sort by recency, using original order:', error);
-        sortedIds = candidateIds; // Fallback to original order
+        console.error('[TalentPool] Failed to fetch recent candidates, using original order:', error);
+        sortedIds = candidateIds;
+        initialIds = candidateIds.slice(0, INITIAL_LOAD_SIZE);
       }
 
-      // Store sorted IDs for progressive loading
+      // Store all IDs for progressive loading
       setAllCandidateIds(sortedIds);
 
-      // Initial load: first 100 profiles for fast page render (most recent)
-      const INITIAL_LOAD_SIZE = 100;
-      const initialIds = sortedIds.slice(0, INITIAL_LOAD_SIZE);
-      console.log(`[TalentPool] Initial load: ${initialIds.length} most recent profiles of ${sortedIds.length} total`);
+      console.log(`[TalentPool] Initial load: ${initialIds.length} profiles, ${sortedIds.length} total`);
 
       // Set initial progress
       setLoadingProgress({
