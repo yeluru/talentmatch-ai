@@ -2065,7 +2065,7 @@ export default function TalentPool() {
                       onCheckedChange={() => toggleSelectAll(paginatedTalents.map(t => t.id))}
                     />
                   </div>
-                  <div className="w-12 shrink-0 pl-1 ml-[9px] text-left text-[11px] font-medium">#</div>
+                  <div className="w-12 shrink-0 pl-1 ml-[12px] text-left text-[11px] font-medium">#</div>
                   <div className="w-[140px] shrink-0 px-1 text-left text-[11px] font-medium cursor-pointer hover:text-foreground truncate" onClick={() => tableSort.toggle('full_name')}>
                     Candidate {tableSort.sort.key === 'full_name' && (tableSort.sort.dir === 'asc' ? '↑' : '↓')}
                   </div>
